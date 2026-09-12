@@ -22,14 +22,14 @@
 </button>
 
 <div class="auth-modal" id="auth-modal">
-<div class="auth-window">
+<div class="auth-window" role="dialog" aria-modal="true" aria-labelledby="auth-title">
 <button class="auth-close" onclick="closeAuthModal()">
             ×
         </button>
 <h2 id="auth-title">登录</h2>
-<input id="auth-email" placeholder="邮箱 / Email" type="email"/>
-<input id="auth-password" placeholder="密码 / Password" type="password"/>
-<p id="auth-error"></p>
+<input id="auth-email" aria-label="Email" autocomplete="username" placeholder="邮箱 / Email" type="email"/>
+<input id="auth-password" aria-label="Password" autocomplete="current-password" placeholder="密码 / Password" type="password"/>
+<p id="auth-error" role="alert"></p>
 <button id="auth-submit" onclick="submitAuth()">
             登录
         </button>
@@ -293,6 +293,11 @@
         写下你想对稲葉曇说的话。
     </p>
 
+<div class="message-load-feedback">
+    <p id="message-load-status" role="status" aria-live="polite"></p>
+    <button id="message-retry" class="tag-clear-button" type="button" hidden
+        data-zh="重新加载" data-en="Retry" onclick="loadMessages()">重新加载</button>
+</div>
 <div id="floating-wall"></div>
 
 <div class="message-box">

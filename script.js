@@ -14,10 +14,7 @@ function applyLanguage() {
   });
   const glitchTitle = document.querySelector(".glitch");
   if (glitchTitle) {
-    glitchTitle.setAttribute(
-      "data-text",
-      glitchTitle.dataset[currentLanguage]
-    );
+    glitchTitle.setAttribute("data-text", glitchTitle.dataset[currentLanguage]);
   }
   const langButton = document.getElementById("lang-btn");
   if (langButton) {
@@ -31,6 +28,7 @@ function applyLanguage() {
   if (messageInput) {
     messageInput.placeholder = currentLanguage === "zh" ? "想对稲葉曇说些什么？" : "Say something to Inabakumori...";
   }
+  updateMessageLoadStatus();
   document.documentElement.lang = currentLanguage === "zh" ? "zh-CN" : "en";
   window.dispatchEvent(new Event("languagechange"));
   document.querySelectorAll(".floating-message").forEach((element) => {
@@ -47,10 +45,7 @@ function toggleLanguage() {
 }
 function applyTheme() {
   const themeButton = document.getElementById("theme-btn");
-  document.body.classList.toggle(
-    "dark",
-    currentTheme === "dark"
-  );
+  document.body.classList.toggle("dark", currentTheme === "dark");
   if (themeButton) {
     themeButton.innerText = currentTheme === "dark" ? "☀" : "☾";
   }
@@ -61,67 +56,7 @@ function toggleTheme() {
   applyTheme();
 }
 const HERO_IMAGE_FOLDER = "images/hero/";
-const heroImages = [
-  "images/hero/001.png",
-  "images/hero/002.png",
-  "images/hero/003.png",
-  "images/hero/004.png",
-  "images/hero/005.png",
-  "images/hero/006.png",
-  "images/hero/007.png",
-  "images/hero/008.png",
-  "images/hero/009.png",
-  "images/hero/010.png",
-  "images/hero/011.png",
-  "images/hero/012.png",
-  "images/hero/013.png",
-  "images/hero/014.png",
-  "images/hero/015.png",
-  "images/hero/016.png",
-  "images/hero/017.png",
-  "images/hero/018.png",
-  "images/hero/019.png",
-  "images/hero/020.png",
-  "images/hero/021.png",
-  "images/hero/022.png",
-  "images/hero/023.png",
-  "images/hero/024.png",
-  "images/hero/025.png",
-  "images/hero/026.png",
-  "images/hero/027.png",
-  "images/hero/028.png",
-  "images/hero/029.png",
-  "images/hero/030.png",
-  "images/hero/031.png",
-  "images/hero/032.png",
-  "images/hero/033.png",
-  "images/hero/034.png",
-  "images/hero/035.png",
-  "images/hero/036.png",
-  "images/hero/037.png",
-  "images/hero/038.png",
-  "images/hero/039.png",
-  "images/hero/040.png",
-  "images/hero/041.png",
-  "images/hero/042.png",
-  "images/hero/043.png",
-  "images/hero/044.png",
-  "images/hero/045.png",
-  "images/hero/046.png",
-  "images/hero/047.png",
-  "images/hero/048.png",
-  "images/hero/049.png",
-  "images/hero/050.png",
-  "images/hero/051.png",
-  "images/hero/052.png",
-  "images/hero/053.png",
-  "images/hero/054.png",
-  "images/hero/055.png",
-  "images/hero/056.png",
-  "images/hero/057.png",
-  "images/hero/058.png",
-  "images/hero/059.png"
-];
+const heroImages = ["images/hero/001.png", "images/hero/002.png", "images/hero/003.png", "images/hero/004.png", "images/hero/005.png", "images/hero/006.png", "images/hero/007.png", "images/hero/008.png", "images/hero/009.png", "images/hero/010.png", "images/hero/011.png", "images/hero/012.png", "images/hero/013.png", "images/hero/014.png", "images/hero/015.png", "images/hero/016.png", "images/hero/017.png", "images/hero/018.png", "images/hero/019.png", "images/hero/020.png", "images/hero/021.png", "images/hero/022.png", "images/hero/023.png", "images/hero/024.png", "images/hero/025.png", "images/hero/026.png", "images/hero/027.png", "images/hero/028.png", "images/hero/029.png", "images/hero/030.png", "images/hero/031.png", "images/hero/032.png", "images/hero/033.png", "images/hero/034.png", "images/hero/035.png", "images/hero/036.png", "images/hero/037.png", "images/hero/038.png", "images/hero/039.png", "images/hero/040.png", "images/hero/041.png", "images/hero/042.png", "images/hero/043.png", "images/hero/044.png", "images/hero/045.png", "images/hero/046.png", "images/hero/047.png", "images/hero/048.png", "images/hero/049.png", "images/hero/050.png", "images/hero/051.png", "images/hero/052.png", "images/hero/053.png", "images/hero/054.png", "images/hero/055.png", "images/hero/056.png", "images/hero/057.png", "images/hero/058.png", "images/hero/059.png"];
 function preloadNextHeroImage() {
   const image = new Image();
   image.src = heroImages[(currentSlide + 1) % heroImages.length];
@@ -150,6 +85,18 @@ function changeHeroSlide() {
 }
 let messageSubmitting = false;
 let wallRevision = 0;
+let messageLoadId = 0;
+let messageLoadState = "idle";
+const pendingWallMessages = new Map();
+function updateMessageLoadStatus() {
+  const status = document.getElementById("message-load-status");
+  const retry = document.getElementById("message-retry");
+  if (status) {
+    const text = { loading: ["正在加载留言…", "Loading messages…"], error: ["留言加载失败，请检查连接后重试。", "Could not load messages. Check your connection and retry."], empty: ["还没有留言，留下第一条讯息吧。", "No messages yet. Leave the first one."], ready: ["", ""], idle: ["", ""] };
+    status.textContent = text[messageLoadState][currentLanguage === "zh" ? 0 : 1];
+  }
+  if (retry) retry.hidden = messageLoadState !== "error";
+}
 async function addMessage() {
   if (messageSubmitting) return;
   const nameInput = document.getElementById("message-name");
@@ -168,19 +115,20 @@ async function addMessage() {
   messageSubmitting = true;
   if (button) button.disabled = true;
   try {
-    const response = await fetch(COMMENTS_API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ nickname, content })
-    });
+    const response = await fetch(COMMENTS_API, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ nickname, content }) });
     const data = await response.json();
     if (!response.ok) {
       throw new Error(data.error || (currentLanguage === "zh" ? "留言发布失败。" : "Failed to post your message."));
     }
+    if (!data.comment || !Number.isSafeInteger(data.comment.id)) {
+      throw new SyntaxError("Invalid comment response");
+    }
     if (nameInput.value === originalName) nameInput.value = "";
     if (messageInput.value === originalContent) messageInput.value = "";
     wallRevision++;
+    pendingWallMessages.set(data.comment.id, { revision: wallRevision, message: data.comment });
+    if (messageLoadState === "empty") messageLoadState = "ready";
+    updateMessageLoadStatus();
     createFloatingMessage(data.comment, false);
   } catch (error) {
     console.error("留言发布失败：", error);
@@ -192,34 +140,41 @@ async function addMessage() {
 }
 async function loadMessages() {
   const revision = wallRevision;
+  const loadId = ++messageLoadId;
+  messageLoadState = "loading";
+  updateMessageLoadStatus();
   try {
     const response = await fetch(COMMENTS_API, { credentials: "include" });
     if (!response.ok) throw new Error("无法读取留言");
     const data = await response.json();
     if (!Array.isArray(data.comments)) throw new Error("留言响应格式不正确");
-    if (revision !== wallRevision) return;
+    if (loadId !== messageLoadId) return;
     const wall = document.getElementById("floating-wall");
     if (!wall) return;
     document.querySelectorAll(".floating-message").forEach((element) => element.disposeMessage());
     messageTracks.length = 0;
-    const comments = data.comments.filter((message) => !message.expiresAt || Date.parse(message.expiresAt) > Date.now());
+    const merged = new Map(data.comments.map((message) => [message.id, message]));
+    pendingWallMessages.forEach((entry) => {
+      if (entry.revision > revision) merged.set(entry.message.id, entry.message);
+    });
+    const comments = [...merged.values()].filter((message) => !message.expiresAt || Date.parse(message.expiresAt) > Date.now());
     comments.forEach((message) => createFloatingMessage(message, true));
+    pendingWallMessages.clear();
+    messageLoadState = comments.length ? "ready" : "empty";
+    updateMessageLoadStatus();
   } catch (error) {
+    if (loadId !== messageLoadId) return;
     console.error("留言读取失败：", error);
+    messageLoadState = "error";
+    updateMessageLoadStatus();
   }
 }
 const messageTracks = [];
 const MAX_OVERLAP = 0.4;
 function getVerticalOverlapRatio(y1, h1, y2, h2) {
   const top = Math.max(y1, y2);
-  const bottom = Math.min(
-    y1 + h1,
-    y2 + h2
-  );
-  const overlap = Math.max(
-    0,
-    bottom - top
-  );
+  const bottom = Math.min(y1 + h1, y2 + h2);
+  const overlap = Math.max(0, bottom - top);
   const smallerHeight = Math.min(h1, h2);
   if (smallerHeight <= 0) {
     return 0;
@@ -230,28 +185,17 @@ function findSafeY(messageHeight, wallHeight) {
   const padding = 15;
   const maxY = wallHeight - messageHeight - padding;
   for (let attempt = 0; attempt < 100; attempt++) {
-    const y = padding + Math.random() * Math.max(
-      1,
-      maxY - padding
-    );
+    const y = padding + Math.random() * Math.max(1, maxY - padding);
     let safe = true;
     for (const other of messageTracks) {
-      const overlapRatio = getVerticalOverlapRatio(
-        y,
-        messageHeight,
-        other.y,
-        other.height
-      );
+      const overlapRatio = getVerticalOverlapRatio(y, messageHeight, other.y, other.height);
       if (overlapRatio > MAX_OVERLAP) {
         safe = false;
         break;
       }
     }
     if (safe) {
-      messageTracks.push({
-        y,
-        height: messageHeight
-      });
+      messageTracks.push({ y, height: messageHeight });
       return y;
     }
   }
@@ -260,26 +204,15 @@ function findSafeY(messageHeight, wallHeight) {
   for (let y = padding; y <= maxY; y += 5) {
     let worstOverlap = 0;
     for (const other of messageTracks) {
-      const ratio = getVerticalOverlapRatio(
-        y,
-        messageHeight,
-        other.y,
-        other.height
-      );
-      worstOverlap = Math.max(
-        worstOverlap,
-        ratio
-      );
+      const ratio = getVerticalOverlapRatio(y, messageHeight, other.y, other.height);
+      worstOverlap = Math.max(worstOverlap, ratio);
     }
     if (worstOverlap < bestScore) {
       bestScore = worstOverlap;
       bestY = y;
     }
   }
-  messageTracks.push({
-    y: bestY,
-    height: messageHeight
-  });
+  messageTracks.push({ y: bestY, height: messageHeight });
   return bestY;
 }
 function createFloatingMessage(message, startInside = false) {
@@ -308,10 +241,7 @@ function createFloatingMessage(message, startInside = false) {
     const startX = wall.clientWidth + 30;
     const endX = -element.offsetWidth - 30;
     const duration = (startX - endX) / 70 * 1e3;
-    animation = element.animate([
-      { transform: `translate(${startX}px, ${y}px)` },
-      { transform: `translate(${endX}px, ${y}px)` }
-    ], { duration, iterations: Infinity, easing: "linear" });
+    animation = element.animate([{ transform: `translate(${startX}px, ${y}px)` }, { transform: `translate(${endX}px, ${y}px)` }], { duration, iterations: Infinity, easing: "linear" });
     animation.currentTime = progress * duration;
   };
   element.disposeMessage = () => {
@@ -338,71 +268,15 @@ document.addEventListener("visibilitychange", () => {
 window.addEventListener("resize", () => {
   document.querySelectorAll(".floating-message").forEach((element) => element.refreshLayout());
 });
-const SONG_EXTRA_TAGS = {
-  "秘密音楽": ["歌爱雪"],
-  "クーラーガール": ["歌爱雪"],
-  "ループスピナ": ["歌爱雪"],
-  "ナミダ電波": ["歌爱雪"],
-  "パスカルビーツ": ["歌爱雪"],
-  "ツクリカケノ心象": ["歌爱雪"],
-  "うつしあそび": ["歌爱雪"],
-  "ロストアンブレラ": ["歌爱雪"],
-  "浮遊月光街": ["歌爱雪"],
-  "ノンユース": ["歌爱雪"],
-  "アンチサイクロン": [
-    "歌爱雪",
-    "初音未来"
-  ],
-  "ひみつの小学生": ["歌爱雪"],
-  /*
-  
-         页面里写的是“カゼマチグサ (album ver.)”，
-  
-         表格里的曲名是“カゼマチグサ”，所以这里按页面歌名对应。
-  
-      */
-  "カゼマチグサ (album ver.)": ["鸣花Hime"],
-  "ラグトレイン": ["歌爱雪"],
-  "ハルノ寂寞": ["弦卷真纪"],
-  "レイニーブーツ": ["歌爱雪"],
-  "ハローマリーナ": [
-    "歌爱雪",
-    "初音未来"
-  ],
-  "ポストシェルター": ["弦卷真纪"],
-  "きみに回帰線": ["歌爱雪"],
-  "とこしずめ": ["星界"],
-  "シンクタンク": ["里命"],
-  "フロートプレイ": ["歌爱雪"],
-  "期待通り": ["音街鳗"],
-  "リレイアウター": ["歌爱雪"],
-  "電気予報": ["初音未来"],
-  "余裕欲": [
-    "nagiβ",
-    "カゼヒキβ"
-  ],
-  "私は雨": ["歌爱雪"],
-  "アイペース": ["歌爱雪"],
-  "超深淵帯": ["歌爱雪"],
-  "春難色": [
-    "彩澄しゅお",
-    "彩澄りりせ"
-  ],
-  "スポットレイト": ["歌爱雪"]
-};
+const SONG_EXTRA_TAGS = { "秘密音楽": ["歌爱雪"], "クーラーガール": ["歌爱雪"], "ループスピナ": ["歌爱雪"], "ナミダ電波": ["歌爱雪"], "パスカルビーツ": ["歌爱雪"], "ツクリカケノ心象": ["歌爱雪"], "うつしあそび": ["歌爱雪"], "ロストアンブレラ": ["歌爱雪"], "浮遊月光街": ["歌爱雪"], "ノンユース": ["歌爱雪"], "アンチサイクロン": ["歌爱雪", "初音未来"], "ひみつの小学生": ["歌爱雪"], "カゼマチグサ (album ver.)": ["鸣花Hime"], "ラグトレイン": ["歌爱雪"], "ハルノ寂寞": ["弦卷真纪"], "レイニーブーツ": ["歌爱雪"], "ハローマリーナ": ["歌爱雪", "初音未来"], "ポストシェルター": ["弦卷真纪"], "きみに回帰線": ["歌爱雪"], "とこしずめ": ["星界"], "シンクタンク": ["里命"], "フロートプレイ": ["歌爱雪"], "期待通り": ["音街鳗"], "リレイアウター": ["歌爱雪"], "電気予報": ["初音未来"], "余裕欲": ["nagiβ", "カゼヒキβ"], "私は雨": ["歌爱雪"], "アイペース": ["歌爱雪"], "超深淵帯": ["歌爱雪"], "春難色": ["彩澄しゅお", "彩澄りりせ"], "スポットレイト": ["歌爱雪"] };
 const OTHER_SINGER_TAG = "其他";
 let singerTagCounts = new Map();
 function buildSingerTagCounts() {
   const counts = new Map();
   Object.values(SONG_EXTRA_TAGS).forEach((singers) => {
-    const uniqueSingers = new Set(
-      singers.map((singer) => normalizeTag(singer))
-    );
+    const uniqueSingers = new Set(singers.map((singer) => normalizeTag(singer)));
     uniqueSingers.forEach((singer) => {
-      counts.set(
-        singer,
-        (counts.get(singer) || 0) + 1
-      );
+      counts.set(singer, (counts.get(singer) || 0) + 1);
     });
   });
   singerTagCounts = counts;
@@ -410,111 +284,8 @@ function buildSingerTagCounts() {
 function isSingleSongSinger(tag) {
   return (singerTagCounts.get(normalizeTag(tag)) || 0) === 1;
 }
-const TAG_ALIASES = {
-  "other": "其他",
-  // 专辑中文名 / 英文名
-  "反气旋": "anticyclone",
-  "anticyclone": "anticyclone",
-  "气象站": "weather station",
-  "weather station": "weather station",
-  "单曲": "singles",
-  "single": "singles",
-  "singles": "singles",
-  // 歌手：中文 / 英文 / 常用简称
-  "yuki": "歌爱雪",
-  "kaai yuki": "歌爱雪",
-  "歌爱雪 / kaai yuki": "歌爱雪",
-  "miku": "初音未来",
-  "hatsune miku": "初音未来",
-  "初音未来 / hatsune miku": "初音未来",
-  "hime": "鸣花hime",
-  "meika hime": "鸣花hime",
-  "鸣花hime / meika hime": "鸣花hime",
-  "maki": "弦卷真纪",
-  "tsurumaki maki": "弦卷真纪",
-  "弦卷真纪 / tsurumaki maki": "弦卷真纪",
-  "sekai": "星界",
-  "星界 / sekai": "星界",
-  "rime": "里命",
-  "里命 / rime": "里命",
-  "una": "音街鳗",
-  "otomachi una": "音街鳗",
-  "音街鳗 / otomachi una": "音街鳗",
-  "nagi beta": "nagiβ",
-  "nagiβ": "nagiβ",
-  "kazehiki": "カゼヒキβ",
-  "kazehiki beta": "カゼヒキβ",
-  "kazehiki β": "カゼヒキβ",
-  "カゼヒキβ / kazehiki β": "カゼヒキβ",
-  "shuo": "彩澄しゅお",
-  "ayazumi shuo": "彩澄しゅお",
-  "彩澄しゅお / ayazumi shuo": "彩澄しゅお",
-  "ririse": "彩澄りりせ",
-  "ayazumi ririse": "彩澄りりせ",
-  "彩澄りりせ / ayazumi ririse": "彩澄りりせ"
-};
-const TAG_DISPLAY_NAMES = {
-  "anticyclone": {
-    zh: "反气旋",
-    en: "ANTICYCLONE"
-  },
-  "weather station": {
-    zh: "气象站",
-    en: "WEATHER STATION"
-  },
-  "singles": {
-    zh: "单曲",
-    en: "SINGLES"
-  },
-  "歌爱雪": {
-    zh: "歌爱雪 / Kaai Yuki",
-    en: "Kaai Yuki"
-  },
-  "初音未来": {
-    zh: "初音未来 / Hatsune Miku",
-    en: "Hatsune Miku"
-  },
-  "鸣花hime": {
-    zh: "鸣花Hime / MEIKA Hime",
-    en: "MEIKA Hime"
-  },
-  "弦卷真纪": {
-    zh: "弦卷真纪 / Tsurumaki Maki",
-    en: "Tsurumaki Maki"
-  },
-  "星界": {
-    zh: "星界 / SEKAI",
-    en: "SEKAI"
-  },
-  "里命": {
-    zh: "里命 / RIME",
-    en: "RIME"
-  },
-  "音街鳗": {
-    zh: "音街鳗 / Otomachi Una",
-    en: "Otomachi Una"
-  },
-  "nagiβ": {
-    zh: "nagiβ",
-    en: "nagiβ"
-  },
-  "カゼヒキβ": {
-    zh: "カゼヒキβ / Kazehiki β",
-    en: "Kazehiki β"
-  },
-  "彩澄しゅお": {
-    zh: "彩澄しゅお / Ayazumi Shuo",
-    en: "Ayazumi Shuo"
-  },
-  "彩澄りりせ": {
-    zh: "彩澄りりせ / Ayazumi Ririse",
-    en: "Ayazumi Ririse"
-  },
-  "其他": {
-    zh: "其他",
-    en: "Other"
-  }
-};
+const TAG_ALIASES = { "other": "其他", "反气旋": "anticyclone", "anticyclone": "anticyclone", "气象站": "weather station", "weather station": "weather station", "单曲": "singles", "single": "singles", "singles": "singles", "yuki": "歌爱雪", "kaai yuki": "歌爱雪", "歌爱雪 / kaai yuki": "歌爱雪", "miku": "初音未来", "hatsune miku": "初音未来", "初音未来 / hatsune miku": "初音未来", "hime": "鸣花hime", "meika hime": "鸣花hime", "鸣花hime / meika hime": "鸣花hime", "maki": "弦卷真纪", "tsurumaki maki": "弦卷真纪", "弦卷真纪 / tsurumaki maki": "弦卷真纪", "sekai": "星界", "星界 / sekai": "星界", "rime": "里命", "里命 / rime": "里命", "una": "音街鳗", "otomachi una": "音街鳗", "音街鳗 / otomachi una": "音街鳗", "nagi beta": "nagiβ", "nagiβ": "nagiβ", "kazehiki": "カゼヒキβ", "kazehiki beta": "カゼヒキβ", "kazehiki β": "カゼヒキβ", "カゼヒキβ / kazehiki β": "カゼヒキβ", "shuo": "彩澄しゅお", "ayazumi shuo": "彩澄しゅお", "彩澄しゅお / ayazumi shuo": "彩澄しゅお", "ririse": "彩澄りりせ", "ayazumi ririse": "彩澄りりせ", "彩澄りりせ / ayazumi ririse": "彩澄りりせ" };
+const TAG_DISPLAY_NAMES = { "anticyclone": { zh: "反气旋", en: "ANTICYCLONE" }, "weather station": { zh: "气象站", en: "WEATHER STATION" }, "singles": { zh: "单曲", en: "SINGLES" }, "歌爱雪": { zh: "歌爱雪 / Kaai Yuki", en: "Kaai Yuki" }, "初音未来": { zh: "初音未来 / Hatsune Miku", en: "Hatsune Miku" }, "鸣花hime": { zh: "鸣花Hime / MEIKA Hime", en: "MEIKA Hime" }, "弦卷真纪": { zh: "弦卷真纪 / Tsurumaki Maki", en: "Tsurumaki Maki" }, "星界": { zh: "星界 / SEKAI", en: "SEKAI" }, "里命": { zh: "里命 / RIME", en: "RIME" }, "音街鳗": { zh: "音街鳗 / Otomachi Una", en: "Otomachi Una" }, "nagiβ": { zh: "nagiβ", en: "nagiβ" }, "カゼヒキβ": { zh: "カゼヒキβ / Kazehiki β", en: "Kazehiki β" }, "彩澄しゅお": { zh: "彩澄しゅお / Ayazumi Shuo", en: "Ayazumi Shuo" }, "彩澄りりせ": { zh: "彩澄りりせ / Ayazumi Ririse", en: "Ayazumi Ririse" }, "其他": { zh: "其他", en: "Other" } };
 function getTagDisplayLabel(tag) {
   const normalized = normalizeTag(tag);
   const names = TAG_DISPLAY_NAMES[normalized];
@@ -551,12 +322,7 @@ function prepareSongTags() {
     const htmlTags = String(link.dataset.tags || "").split(",").map((tag) => tag.trim()).filter(Boolean);
     const singers = SONG_EXTRA_TAGS[title] || [];
     const hasSingleSongSinger = singers.some(isSingleSongSinger);
-    const rawFilterTags = [
-      albumTitle,
-      ...htmlTags,
-      ...singers,
-      ...hasSingleSongSinger ? [OTHER_SINGER_TAG] : []
-    ];
+    const rawFilterTags = [albumTitle, ...htmlTags, ...singers, ...hasSingleSongSinger ? [OTHER_SINGER_TAG] : []];
     const seen = new Set();
     const filterTags = rawFilterTags.filter((tag) => {
       const normalized = normalizeTag(tag);
@@ -567,11 +333,7 @@ function prepareSongTags() {
       return true;
     });
     link._songTags = filterTags.map(normalizeTag);
-    const rawDisplayTags = [
-      albumTitle,
-      ...singers,
-      ...htmlTags
-    ];
+    const rawDisplayTags = [albumTitle, ...singers, ...htmlTags];
     const displaySeen = new Set();
     link._songTagLabels = rawDisplayTags.filter((tag) => {
       const normalized = normalizeTag(tag);
@@ -664,10 +426,7 @@ function parseTagQuery(value) {
       plain.push(token);
     }
   });
-  return {
-    plain: [...new Set(plain)],
-    required: [...new Set(required)]
-  };
+  return { plain: [...new Set(plain)], required: [...new Set(required)] };
 }
 function normalizeTagSearchText(value) {
   return String(value || "").normalize("NFKC").trim().toLowerCase().replace(/\s+/g, " ");
@@ -681,73 +440,41 @@ function fuzzyTagMatches(queryToken, canonicalTag) {
   if (normalizeTag(queryText) === canonical) {
     return true;
   }
-  const searchTerms = new Set([
-    canonical,
-    getTagDisplayLabel(canonical),
-    getTagInputLabel(canonical, canonical)
-  ]);
+  const searchTerms = new Set([canonical, getTagDisplayLabel(canonical), getTagInputLabel(canonical, canonical)]);
   Object.entries(TAG_ALIASES).forEach(([alias, target]) => {
     if (normalizeTag(target) === canonical) {
       searchTerms.add(alias);
     }
   });
   const needle = normalizeTagSearchText(queryText);
-  return [...searchTerms].some(
-    (term) => normalizeTagSearchText(term).includes(needle)
-  );
+  return [...searchTerms].some((term) => normalizeTagSearchText(term).includes(needle));
 }
 function songMatchesTags(songTags, query) {
-  const {
-    plain,
-    required
-  } = query;
-  const requiredMatched = required.every(
-    (queryToken) => songTags.some(
-      (songTag) => fuzzyTagMatches(
-        queryToken,
-        songTag
-      )
-    )
-  );
+  const { plain, required } = query;
+  const requiredMatched = required.every((queryToken) => songTags.some((songTag) => fuzzyTagMatches(queryToken, songTag)));
   if (!requiredMatched) {
     return false;
   }
   if (!plain.length) {
     return true;
   }
-  return plain.some(
-    (queryToken) => songTags.some(
-      (songTag) => fuzzyTagMatches(
-        queryToken,
-        songTag
-      )
-    )
-  );
+  return plain.some((queryToken) => songTags.some((songTag) => fuzzyTagMatches(queryToken, songTag)));
 }
 function getAvailableTags() {
   const labels = new Map();
   document.querySelectorAll(".song-scroll a").forEach((link) => {
     const normalizedTags = link._songTags || [];
-    normalizedTags.forEach(
-      (normalized) => {
-        if ((singerTagCounts.get(normalized) || 0) === 1) {
-          return;
-        }
-        if (!labels.has(normalized)) {
-          labels.set(
-            normalized,
-            getTagDisplayLabel(normalized)
-          );
-        }
+    normalizedTags.forEach((normalized) => {
+      if ((singerTagCounts.get(normalized) || 0) === 1) {
+        return;
       }
-    );
+      if (!labels.has(normalized)) {
+        labels.set(normalized, getTagDisplayLabel(normalized));
+      }
+    });
   });
   return [...labels.entries()].sort((a, b) => {
-    const priority = new Map([
-      [normalizeTag("ANTICYCLONE"), 0],
-      [normalizeTag("WEATHER STATION"), 1],
-      [normalizeTag("SINGLES"), 2]
-    ]);
+    const priority = new Map([[normalizeTag("ANTICYCLONE"), 0], [normalizeTag("WEATHER STATION"), 1], [normalizeTag("SINGLES"), 2]]);
     const aPriority = priority.has(a[0]) ? priority.get(a[0]) : 10;
     const bPriority = priority.has(b[0]) ? priority.get(b[0]) : 10;
     if (aPriority !== bPriority) {
@@ -759,94 +486,44 @@ function getAvailableTags() {
     if (b[0] === normalizeTag(OTHER_SINGER_TAG)) {
       return -1;
     }
-    return a[1].localeCompare(
-      b[1],
-      currentLanguage === "zh" ? "zh-CN" : "en",
-      { sensitivity: "base" }
-    );
+    return a[1].localeCompare(b[1], currentLanguage === "zh" ? "zh-CN" : "en", { sensitivity: "base" });
   });
 }
 function renderTagSuggestions() {
-  const container = document.getElementById(
-    "tag-suggestions"
-  );
-  const input = document.getElementById(
-    "tag-filter-input"
-  );
+  const container = document.getElementById("tag-suggestions");
+  const input = document.getElementById("tag-filter-input");
   if (!container || !input) {
     return;
   }
   const query = parseTagQuery(input.value);
-  const selected = new Set([
-    ...query.plain,
-    ...query.required
-  ]);
+  const selected = new Set([...query.plain, ...query.required]);
   container.innerHTML = "";
-  getAvailableTags().forEach(
-    ([normalized, label]) => {
-      const button = document.createElement(
-        "button"
-      );
-      button.type = "button";
-      button.className = "tag-chip";
-      button.textContent = label;
-      button.dataset.tag = normalized;
-      const active = selected.has(
-        normalized
-      );
-      button.classList.toggle(
-        "active",
-        active
-      );
-      button.setAttribute(
-        "aria-pressed",
-        String(active)
-      );
-      button.addEventListener(
-        "click",
-        () => {
-          toggleTagInInput(
-            normalized,
-            getTagInputLabel(
-              normalized,
-              label
-            )
-          );
-        }
-      );
-      container.appendChild(
-        button
-      );
-    }
-  );
+  getAvailableTags().forEach(([normalized, label]) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "tag-chip";
+    button.textContent = label;
+    button.dataset.tag = normalized;
+    const active = selected.has(normalized);
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+    button.addEventListener("click", () => {
+      toggleTagInInput(normalized, getTagInputLabel(normalized, label));
+    });
+    container.appendChild(button);
+  });
 }
 function toggleTagInInput(normalizedTag, displayTag) {
-  const input = document.getElementById(
-    "tag-filter-input"
-  );
+  const input = document.getElementById("tag-filter-input");
   if (!input) {
     return;
   }
-  const parts = String(input.value || "").split(/[,，]+/).map(
-    (item) => item.trim()
-  ).filter(Boolean);
-  const existsAt = parts.findIndex(
-    (part) => normalizeTag(
-      part.replace(
-        /^\+/,
-        ""
-      )
-    ) === normalizedTag
-  );
+  const parts = String(input.value || "").split(/[,，]+/).map((item) => item.trim()).filter(Boolean);
+  const existsAt = parts.findIndex((part) => normalizeTag(part.replace(/^\+/, "")) === normalizedTag);
   if (existsAt >= 0) {
-    parts.splice(
-      existsAt,
-      1
-    );
+    parts.splice(existsAt, 1);
   } else {
-    parts.push(
-      displayTag
-    );
+    parts.push(displayTag);
   }
   input.value = parts.join(", ");
   updateTagFilter();
@@ -856,10 +533,8 @@ function songMatchesTitle(title, query) {
   return normalizeTagSearchText(title).includes(normalizeTagSearchText(query));
 }
 function songMatchesSearch(link, query) {
-  const matches = token => songMatchesTitle(getCleanSongTitle(link), token) ||
-    (link._songTags || []).some(tag => fuzzyTagMatches(token, tag));
-  return query.required.every(matches) &&
-    (!query.plain.length || query.plain.some(matches));
+  const matches = (token) => songMatchesTitle(getCleanSongTitle(link), token) || (link._songTags || []).some((tag) => fuzzyTagMatches(token, tag));
+  return query.required.every(matches) && (!query.plain.length || query.plain.some(matches));
 }
 function updateTagFilter() {
   const input = document.getElementById("tag-filter-input");
@@ -881,10 +556,7 @@ function updateTagFilter() {
       visibleSongs++;
     }
   });
-  library.classList.toggle(
-    "tag-filtering",
-    filtering
-  );
+  library.classList.toggle("tag-filtering", filtering);
   if (emptyState) {
     emptyState.hidden = visibleSongs !== 0;
   }
@@ -894,78 +566,53 @@ function updateTagFilter() {
   renderTagSuggestions();
 }
 function updateTagLanguage() {
-  const input = document.getElementById(
-    "tag-filter-input"
-  );
+  const input = document.getElementById("tag-filter-input");
   if (input) {
     input.placeholder = currentLanguage === "zh" ? "搜索歌名或 TAG，例如：ラグ / 歌爱 / yuki" : "Search titles or tags, e.g. ラグ / yuki / weather";
   }
   document.querySelectorAll(".song-inline-tag[data-raw-tag]").forEach((tagElement) => {
-    tagElement.textContent = getTagDisplayLabel(
-      tagElement.dataset.rawTag
-    );
+    tagElement.textContent = getTagDisplayLabel(tagElement.dataset.rawTag);
   });
   updateTagFilter();
 }
 function initTagFilter() {
-  const input = document.getElementById(
-    "tag-filter-input"
-  );
-  const clear = document.getElementById(
-    "tag-filter-clear"
-  );
+  const input = document.getElementById("tag-filter-input");
+  const clear = document.getElementById("tag-filter-clear");
   if (!input) {
     return;
   }
   prepareSongTags();
-  input.addEventListener(
-    "input",
-    updateTagFilter
-  );
+  input.addEventListener("input", updateTagFilter);
   if (clear) {
-    clear.addEventListener(
-      "click",
-      () => {
-        input.value = "";
-        updateTagFilter();
-        input.focus();
-      }
-    );
+    clear.addEventListener("click", () => {
+      input.value = "";
+      updateTagFilter();
+      input.focus();
+    });
   }
   updateTagLanguage();
 }
-document.addEventListener(
-  "DOMContentLoaded",
-  () => {
-    applyLanguage();
-    applyTheme();
-    discoverHeroImages();
-    initEasterEgg();
-    initTagFilter();
-    loadMessages();
-    const heroBg = document.getElementById("hero-bg");
-    if (heroBg) {
-      heroBg.addEventListener(
-        "mousedown",
-        (event) => {
-          if (event.button === 0 || event.button === 2) {
-            event.preventDefault();
-            changeHeroSlide();
-          }
-        }
-      );
-      heroBg.addEventListener(
-        "contextmenu",
-        (event) => {
-          event.preventDefault();
-        }
-      );
-    }
-    console.log(
-      "✅ Fanswalll loaded"
-    );
+document.addEventListener("DOMContentLoaded", () => {
+  applyLanguage();
+  applyTheme();
+  discoverHeroImages();
+  initEasterEgg();
+  initTagFilter();
+  loadMessages();
+  const heroBg = document.getElementById("hero-bg");
+  if (heroBg) {
+    heroBg.addEventListener("mousedown", (event) => {
+      if (event.button === 0 || event.button === 2) {
+        event.preventDefault();
+        changeHeroSlide();
+      }
+    });
+    heroBg.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+    });
   }
-);
+  console.log("✅ Fanswalll loaded");
+});
 const MEME_COUNT = 6;
 const MEME_FOLDER = "images/memes/";
 let easterEggOpen = false;
@@ -1046,80 +693,58 @@ function closeEasterEgg() {
 function initEasterEgg() {
   const overlay = document.getElementById("easter-egg-overlay");
   if (!overlay) return;
-  overlay.addEventListener(
-    "click",
-    closeEasterEgg
-  );
-  document.addEventListener(
-    "keydown",
-    (event) => {
-      if (event.key === "Escape" && easterEggOpen) {
-        easterEggCanClose = true;
-        closeEasterEgg();
-      }
+  overlay.addEventListener("click", closeEasterEgg);
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && easterEggOpen) {
+      easterEggCanClose = true;
+      closeEasterEgg();
     }
-  );
+  });
   document.querySelectorAll(".artist-links a").forEach((link) => {
-    link.addEventListener(
-      "click",
-      () => {
-        if (!easterEggHeroComplete || easterEggTriggered) {
-          return;
-        }
-        easterEggRelatedClicked = true;
+    link.addEventListener("click", () => {
+      if (!easterEggHeroComplete || easterEggTriggered) {
+        return;
       }
-    );
+      easterEggRelatedClicked = true;
+    });
   });
   const songList = document.getElementById("song-list");
   if (songList) {
-    songList.addEventListener(
-      "click",
-      (event) => {
-        const songLink = event.target.closest("a");
-        if (!songLink || !songList.contains(songLink)) {
-          return;
-        }
-        if (!easterEggHeroComplete || !easterEggRelatedClicked || easterEggTriggered || easterEggOpen) {
-          return;
-        }
-        easterEggTriggered = true;
-        easterEggPendingReturn = true;
-        easterEggVisitorLeftPage = false;
-      }
-    );
-  }
-  document.addEventListener(
-    "visibilitychange",
-    () => {
-      if (easterEggPendingReturn && document.hidden) {
-        easterEggVisitorLeftPage = true;
+    songList.addEventListener("click", (event) => {
+      const songLink = event.target.closest("a");
+      if (!songLink || !songList.contains(songLink)) {
         return;
       }
-      if (easterEggPendingReturn && easterEggVisitorLeftPage && document.visibilityState === "visible" && !easterEggOpen) {
-        easterEggPendingReturn = false;
-        showEasterEgg();
+      if (!easterEggHeroComplete || !easterEggRelatedClicked || easterEggTriggered || easterEggOpen) {
+        return;
       }
+      easterEggTriggered = true;
+      easterEggPendingReturn = true;
+      easterEggVisitorLeftPage = false;
+    });
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (easterEggPendingReturn && document.hidden) {
+      easterEggVisitorLeftPage = true;
+      return;
     }
-  );
-  window.addEventListener(
-    "blur",
-    () => {
-      if (easterEggPendingReturn) {
-        easterEggVisitorLeftPage = true;
-      }
+    if (easterEggPendingReturn && easterEggVisitorLeftPage && document.visibilityState === "visible" && !easterEggOpen) {
+      easterEggPendingReturn = false;
+      showEasterEgg();
     }
-  );
-  window.addEventListener(
-    "focus",
-    () => {
-      if (easterEggPendingReturn && easterEggVisitorLeftPage && document.visibilityState === "visible" && !easterEggOpen) {
-        easterEggPendingReturn = false;
-        showEasterEgg();
-      }
+  });
+  window.addEventListener("blur", () => {
+    if (easterEggPendingReturn) {
+      easterEggVisitorLeftPage = true;
     }
-  );
+  });
+  window.addEventListener("focus", () => {
+    if (easterEggPendingReturn && easterEggVisitorLeftPage && document.visibilityState === "visible" && !easterEggOpen) {
+      easterEggPendingReturn = false;
+      showEasterEgg();
+    }
+  });
 }
-
 function playRandomSong() {
   const songs = Array.from(document.querySelectorAll("#song-list a[href]"));
   if (!songs.length) return;
