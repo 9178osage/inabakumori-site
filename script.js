@@ -282,12 +282,11 @@ document.addEventListener("visibilitychange", () => {
 window.addEventListener("resize", () => {
   document.querySelectorAll(".floating-message").forEach((element) => element.refreshLayout());
 });
-const SONG_EXTRA_TAGS = { "秘密音楽": ["歌爱雪"], "クーラーガール": ["歌爱雪"], "ループスピナ": ["歌爱雪"], "ナミダ電波": ["歌爱雪"], "パスカルビーツ": ["歌爱雪"], "ツクリカケノ心象": ["歌爱雪"], "うつしあそび": ["歌爱雪"], "ロストアンブレラ": ["歌爱雪"], "浮遊月光街": ["歌爱雪"], "ノンユース": ["歌爱雪"], "アンチサイクロン": ["歌爱雪", "初音未来"], "ひみつの小学生": ["歌爱雪"], "カゼマチグサ (album ver.)": ["鸣花Hime"], "ラグトレイン": ["歌爱雪"], "ハルノ寂寞": ["弦卷真纪"], "レイニーブーツ": ["歌爱雪"], "ハローマリーナ": ["歌爱雪", "初音未来"], "ポストシェルター": ["弦卷真纪"], "きみに回帰線": ["歌爱雪"], "とこしずめ": ["星界"], "シンクタンク": ["里命"], "フロートプレイ": ["歌爱雪"], "期待通り": ["音街鳗"], "リレイアウター": ["歌爱雪"], "電気予報": ["初音未来"], "余裕欲": ["nagiβ", "カゼヒキβ"], "私は雨": ["歌爱雪"], "アイペース": ["歌爱雪"], "超深淵帯": ["歌爱雪"], "春難色": ["彩澄しゅお", "彩澄りりせ"], "スポットレイト": ["歌爱雪"] };
 const OTHER_SINGER_TAG = "其他";
 let singerTagCounts = new Map();
 function buildSingerTagCounts() {
   const counts = new Map();
-  Object.values(SONG_EXTRA_TAGS).forEach((singers) => {
+  SONGS.forEach(({ singers }) => {
     const uniqueSingers = new Set(singers.map((singer) => normalizeTag(singer)));
     uniqueSingers.forEach((singer) => {
       counts.set(singer, (counts.get(singer) || 0) + 1);
@@ -327,6 +326,22 @@ function getCleanSongTitle(link) {
   const raw = link.dataset.songTitle || link.textContent || "";
   return raw.replace(/^\s*\d+\s*[　\s]+/, "").trim();
 }
+function renderSongs() {
+  const list = document.getElementById("song-list");
+  if (!list) return;
+  list.replaceChildren();
+  SONGS.forEach((song, index) => {
+    const link = document.createElement("a");
+    link.href = song.youtube;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.dataset.album = song.album;
+    link.dataset.songTitle = song.title;
+    link._songData = song;
+    link.textContent = String(index + 1).padStart(2, "0") + "　" + song.title;
+    list.appendChild(link);
+  });
+}
 function prepareSongTags() {
   buildSingerTagCounts();
   document.querySelectorAll(".song-scroll a").forEach((link) => {
@@ -334,7 +349,7 @@ function prepareSongTags() {
     const albumTitle = String(link.dataset.album || "").trim();
     link.dataset.songTitle = title;
     const htmlTags = String(link.dataset.tags || "").split(",").map((tag) => tag.trim()).filter(Boolean);
-    const singers = SONG_EXTRA_TAGS[title] || [];
+    const singers = link._songData?.singers || [];
     const hasSingleSongSinger = singers.some(isSingleSongSinger);
     const rawFilterTags = [albumTitle, ...htmlTags, ...singers, ...hasSingleSongSinger ? [OTHER_SINGER_TAG] : []];
     const seen = new Set();
@@ -595,6 +610,7 @@ function initTagFilter() {
   if (!input) {
     return;
   }
+  renderSongs();
   prepareSongTags();
   input.addEventListener("input", updateTagFilter);
   if (clear) {
