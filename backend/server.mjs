@@ -1,4 +1,6 @@
 import "dotenv/config";
+import { registerCommentManagement } from "./comment-management.mjs";
+import { passwordResetDelivery } from "./password-reset.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
@@ -51,7 +53,7 @@ if (process.env.TRUST_PROXY) {
   app.set("trust proxy", trustProxy);
 }
 app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: false, strictTransportSecurity: IS_PRODUCTION ? { maxAge: 31536e3, includeSubDomains: true, preload: false } : false }));
-supertokens.init({ framework: "express", supertokens: { connectionURI: SUPERTOKENS_CONNECTION_URI, apiKey: SUPERTOKENS_API_KEY }, appInfo: { appName: "Inabakumori Fanswall", apiDomain: API_DOMAIN, websiteDomain: WEBSITE_DOMAIN, apiBasePath: "/auth", websiteBasePath: "/auth" }, recipeList: [EmailPassword.init(), Session.init({ getTokenTransferMethod: () => "cookie" })] });
+supertokens.init({ framework: "express", supertokens: { connectionURI: SUPERTOKENS_CONNECTION_URI, apiKey: SUPERTOKENS_API_KEY }, appInfo: { appName: "Inabakumori Fanswall", apiDomain: API_DOMAIN, websiteDomain: WEBSITE_DOMAIN, apiBasePath: "/auth", websiteBasePath: "/auth" }, recipeList: [EmailPassword.init({ emailDelivery: passwordResetDelivery(WEBSITE_DOMAIN) }), Session.init({ getTokenTransferMethod: () => "cookie" })] });
 const ALLOWED_ORIGINS = new Set([WEBSITE_DOMAIN, ...IS_PRODUCTION ? [] : ["http://127.0.0.1:5500", "http://localhost:5500"]]);
 const corsOptions = { origin(origin, callback) {
   if (!origin) {
@@ -131,19 +133,6 @@ const deleteExpiredGuestsStatement = db.prepare(`
         AND expires_at IS NOT NULL
         AND expires_at <= ?
 `);
-const findCommentOwnerStatement = db.prepare(`
-    SELECT id, user_id, is_guest
-    FROM comments
-    WHERE id = ?
-    LIMIT 1
-`);
-const deleteOwnedCommentStatement = db.prepare(`
-    DELETE FROM comments
-    WHERE
-        id = ?
-        AND user_id = ?
-        AND is_guest = 0
-`);
 const MAX_NICKNAME_LENGTH = 30;
 const MAX_COMMENT_LENGTH = 500;
 const MAX_PUBLIC_COMMENTS = 100;
@@ -221,25 +210,7 @@ app.post("/api/comments", commentLimiter, requireJsonContentType, verifySession(
   const result = insertCommentStatement.run(nickname, content, userId, isGuest ? 1 : 0, createdAt, expiresAt);
   return res.status(201).json({ success: true, comment: { id: Number(result.lastInsertRowid), nickname, content, isGuest, createdAt: new Date(createdAt).toISOString(), expiresAt: expiresAt === null ? null : new Date(expiresAt).toISOString() } });
 });
-app.delete("/api/comments/:id", verifySession(), (req, res) => {
-  const commentId = Number(req.params.id);
-  if (!Number.isSafeInteger(commentId) || commentId <= 0) {
-    return res.status(400).json({ error: "留言 ID 无效", code: "INVALID_COMMENT_ID" });
-  }
-  const currentUserId = req.session.getUserId();
-  const comment = findCommentOwnerStatement.get(commentId);
-  if (!comment) {
-    return res.status(404).json({ error: "找不到该留言", code: "COMMENT_NOT_FOUND" });
-  }
-  if (Boolean(comment.is_guest) || comment.user_id !== currentUserId) {
-    return res.status(403).json({ error: "你没有权限删除这条留言", code: "FORBIDDEN" });
-  }
-  const result = deleteOwnedCommentStatement.run(commentId, currentUserId);
-  if (Number(result.changes) !== 1) {
-    return res.status(404).json({ error: "找不到该留言", code: "COMMENT_NOT_FOUND" });
-  }
-  return res.json({ success: true, deletedCommentId: commentId });
-});
+registerCommentManagement(app, db, verifySession);
 app.use("/api", (req, res) => {
   res.status(404).json({ error: "API 路径不存在", code: "NOT_FOUND" });
 });

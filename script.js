@@ -88,6 +88,18 @@ let wallRevision = 0;
 let messageLoadId = 0;
 let messageLoadState = "idle";
 const pendingWallMessages = new Map();
+const deletedWallMessages = new Set();
+window.removeWallMessage = (id) => {
+  deletedWallMessages.add(id);
+  pendingWallMessages.delete(id);
+  document.querySelectorAll(".floating-message").forEach(element => {
+    if (Number(element.dataset.commentId) === id) element.disposeMessage();
+  });
+  if (messageLoadState === "ready" && !document.querySelectorAll(".floating-message").length) {
+    messageLoadState = "empty";
+    updateMessageLoadStatus();
+  }
+};
 function updateMessageLoadStatus() {
   const status = document.getElementById("message-load-status");
   const retry = document.getElementById("message-retry");
@@ -130,6 +142,7 @@ async function addMessage() {
     if (messageLoadState === "empty") messageLoadState = "ready";
     updateMessageLoadStatus();
     createFloatingMessage(data.comment, false);
+    window.dispatchEvent(new Event("commentposted"));
   } catch (error) {
     console.error("留言发布失败：", error);
     alert(error instanceof TypeError || error instanceof SyntaxError ? currentLanguage === "zh" ? "无法连接服务器或响应异常，请稍后重试。" : "The server is unavailable or returned an invalid response. Please try again." : error.message);
@@ -157,7 +170,7 @@ async function loadMessages() {
     pendingWallMessages.forEach((entry) => {
       if (entry.revision > revision) merged.set(entry.message.id, entry.message);
     });
-    const comments = [...merged.values()].filter((message) => !message.expiresAt || Date.parse(message.expiresAt) > Date.now());
+    const comments = [...merged.values()].filter((message) => !deletedWallMessages.has(message.id) && (!message.expiresAt || Date.parse(message.expiresAt) > Date.now()));
     comments.forEach((message) => createFloatingMessage(message, true));
     pendingWallMessages.clear();
     messageLoadState = comments.length ? "ready" : "empty";
@@ -220,6 +233,7 @@ function createFloatingMessage(message, startInside = false) {
   const expiresAt = message.expiresAt ? Date.parse(message.expiresAt) : NaN;
   if (!wall || Number.isFinite(expiresAt) && expiresAt <= Date.now()) return;
   const element = document.createElement("div");
+  element.dataset.commentId = String(message.id);
   element.className = message.isGuest === true ? "floating-message guest-message" : "floating-message user-message";
   if (Number.isFinite(expiresAt)) element.dataset.expiresAt = String(expiresAt);
   let track;

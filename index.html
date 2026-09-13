@@ -3,6 +3,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8"/>
+<meta name="referrer" content="no-referrer"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>稲葉曇Fanswalll</title>
 <link href="style.css" rel="stylesheet"/>
@@ -29,6 +30,8 @@
 <h2 id="auth-title">登录</h2>
 <input id="auth-email" aria-label="Email" autocomplete="username" placeholder="邮箱 / Email" type="email"/>
 <input id="auth-password" aria-label="Password" autocomplete="current-password" placeholder="密码 / Password" type="password"/>
+<input id="auth-password-confirm" aria-label="确认新密码 / Confirm new password" autocomplete="new-password" placeholder="再次输入新密码 / Confirm new password" type="password" hidden/>
+<p id="auth-status" role="status" aria-live="polite"></p>
 <p id="auth-error" role="alert"></p>
 <button id="auth-submit" onclick="submitAuth()">
             登录
@@ -36,6 +39,7 @@
 <button class="auth-switch" onclick="switchAuthMode()">
             没有账号？注册
         </button>
+<button id="auth-forgot" class="auth-switch" onclick="forgotPassword()">忘记密码？</button>
 </div>
 </div>
 
@@ -308,6 +312,16 @@
         </button>
 </div>
 </section>
+<section id="my-comments" aria-labelledby="my-comments-title">
+  <h2 id="my-comments-title" data-zh="我的留言" data-en="My Messages">我的留言</h2>
+  <p id="my-comments-status" role="status" aria-live="polite"></p>
+  <button id="my-comments-retry" class="tag-clear-button" type="button" hidden data-zh="重试" data-en="Retry">重试</button>
+  <div id="my-comments-controls" hidden>
+    <ul id="my-comments-list"></ul>
+    <button id="my-comments-more" class="tag-clear-button" type="button" hidden data-zh="加载更多" data-en="Load more">加载更多</button>
+  </div>
+</section>
+
 </main>
 
 
@@ -358,5 +372,6 @@
 <script src="config.js"></script>
 <script src="auth.js"></script>
 <script src="script.js"></script>
+<script src="comments-management.js"></script>
 </body>
 </html>

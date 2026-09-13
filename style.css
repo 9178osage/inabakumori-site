@@ -586,7 +586,8 @@ main > section#messages {
   letter-spacing: 2px;
 }
 #auth-email,
-#auth-password {
+#auth-password,
+#auth-password-confirm {
   width: 100%;
   margin-bottom: 15px;
   padding: 12px;
@@ -1128,7 +1129,8 @@ body.dark .auth-window {
   box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.48);
 }
 body.dark #auth-email,
-body.dark #auth-password {
+body.dark #auth-password,
+body.dark #auth-password-confirm {
   background: #101316;
   color: #eef1f3;
   border-top-color: #080a0c;
@@ -1548,7 +1550,41 @@ body.dark .tag-chip.active {
   display: none;
 }
 #auth-email:focus-visible,
-#auth-password:focus-visible {
+#auth-password:focus-visible,
+#auth-password-confirm:focus-visible {
   outline: 2px solid var(--ui-border-strong);
   outline-offset: 2px;
+}
+.auth-window [hidden], #my-comments [hidden] {
+  display: none !important;
+}
+#auth-status, #my-comments-status {
+  color: var(--ui-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+#my-comments-list {
+  list-style: none;
+  padding: 0;
+}
+#my-comments-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--ui-border-strong);
+}
+#my-comments-list p {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+#my-comments-list button {
+  flex-shrink: 0;
+}
+.auth-window {
+  max-height: 90vh;
+  overflow-y: auto;
 }

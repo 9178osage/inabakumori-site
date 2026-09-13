@@ -225,7 +225,7 @@ test("older failed loads cannot overwrite a newer successful load", async () => 
 });
 test("auth blocks duplicate requests and mode changes until the request finishes", async () => {
   const elements = {
-    "auth-email": { value: "test@example.com" },
+    "auth-email": { value: "test@example.com", focus() {} },
     "auth-password": { value: "test-password" },
     "auth-submit": {},
     "auth-error": {}
@@ -256,4 +256,18 @@ test("auth blocks duplicate requests and mode changes until the request finishes
   run("switchAuthMode()");
   assert.equal(run("authMode"), "signup");
   assert.equal(elements["auth-password"].autocomplete, "new-password");
+});
+test("a delayed wall refresh cannot bring back a deleted message", async () => {
+  const { elements, context, run } = setup();
+  elements["floating-wall"] = {};
+  const rendered = [];
+  context.capture = message => rendered.push(message.id);
+  run("createFloatingMessage=capture");
+  let finish;
+  context.fetch = () => new Promise(resolve => { finish = resolve; });
+  const pending = run("loadMessages()");
+  context.window.removeWallMessage(1);
+  finish({ ok: true, json: async () => ({ comments: [{ id: 1 }, { id: 2 }] }) });
+  await pending;
+  assert.deepEqual(rendered, [2]);
 });
