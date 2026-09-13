@@ -24,13 +24,13 @@
 
 <div class="auth-modal" id="auth-modal">
 <div class="auth-window" role="dialog" aria-modal="true" aria-labelledby="auth-title">
-<button class="auth-close" onclick="closeAuthModal()">
+<button id="auth-close" aria-label="关闭" class="auth-close" onclick="closeAuthModal()">
             ×
         </button>
 <h2 id="auth-title">登录</h2>
-<input id="auth-email" aria-label="Email" autocomplete="username" placeholder="邮箱 / Email" type="email"/>
-<input id="auth-password" aria-label="Password" autocomplete="current-password" placeholder="密码 / Password" type="password"/>
-<input id="auth-password-confirm" aria-label="确认新密码 / Confirm new password" autocomplete="new-password" placeholder="再次输入新密码 / Confirm new password" type="password" hidden/>
+<input id="auth-email" aria-label="邮箱" autocomplete="username" placeholder="邮箱" type="email"/>
+<input id="auth-password" aria-label="密码" autocomplete="current-password" placeholder="密码" type="password"/>
+<input id="auth-password-confirm" aria-label="确认新密码" autocomplete="new-password" placeholder="再次输入新密码" type="password" hidden/>
 <p id="auth-status" role="status" aria-live="polite"></p>
 <p id="auth-error" role="alert"></p>
 <button id="auth-submit" onclick="submitAuth()">

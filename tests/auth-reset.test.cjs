@@ -150,3 +150,24 @@ test("successful sign-in and sign-out notify the personal comment list", async (
   await app.run("openAuthModal()");
   assert.deepEqual(app.events, ["authchange", "authchange"]);
 });
+test("auth placeholders and existing server errors follow the selected language", async () => {
+  const app = setup();
+  app.run("showAuthModal('signin')");
+  assert.equal(app.elements['auth-email'].placeholder, '邮箱');
+  assert.equal(app.elements['auth-password'].placeholder, '密码');
+  app.elements['auth-email'].value = 'invalid';
+  app.elements['auth-password'].value = 'password123';
+  app.context.signIn = async () => ({ status: 'FIELD_ERROR', formFields: [{ id: 'email', error: 'RAW ENGLISH SERVER ERROR' }] });
+  await app.run('submitAuth()');
+  assert.equal(app.elements['auth-error'].innerText, '请输入有效的邮箱地址。');
+  app.language('en');
+  assert.equal(app.elements['auth-email'].placeholder, 'Email');
+  assert.equal(app.elements['auth-password'].placeholder, 'Password');
+  assert.equal(app.elements['auth-password-confirm'].placeholder, 'Confirm new password');
+  assert.equal(app.elements['auth-error'].innerText, 'Please enter a valid email address.');
+  app.context.signIn = async () => ({ status: 'SIGN_IN_NOT_ALLOWED', reason: 'RAW SERVER REASON' });
+  await app.run('submitAuth()');
+  assert.match(app.elements['auth-error'].innerText, /currently not available/);
+  app.language('zh');
+  assert.equal(app.elements['auth-error'].innerText, '暂时无法完成操作，请稍后重试。');
+});

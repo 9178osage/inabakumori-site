@@ -26,6 +26,7 @@ let authMode = "signin";
 let authSubmitting = false;
 let authReturnFocus = null;
 let authNotice = "";
+let authErrorMessages = ["", ""];
 function currentPageLanguage() {
   return localStorage.getItem("language") || "zh";
 }
@@ -123,14 +124,26 @@ function updateAuthModal() {
   const forgot = document.getElementById("auth-forgot");
   const status = document.getElementById("auth-status");
   const reset = authMode === "reset";
-  if (email) email.hidden = reset;
+  if (email) {
+    email.hidden = reset;
+    email.placeholder = authText("邮箱", "Email");
+    email.setAttribute?.("aria-label", email.placeholder);
+  }
+  const close = document.getElementById("auth-close");
+  close?.setAttribute?.("aria-label", authText("关闭", "Close"));
+  const error = document.getElementById("auth-error");
+  if (error) error.innerText = authText(...authErrorMessages);
   if (password) {
     password.hidden = authMode === "forgot";
     password.autocomplete = authMode === "signin" ? "current-password" : "new-password";
-    password.placeholder = reset ? authText("新密码（至少 8 位，包含字母和数字）", "New password (8+ characters, letters and numbers)") : "密码 / Password";
+    password.placeholder = reset ? authText("新密码（至少 8 位，包含字母和数字）", "New password (8+ characters, letters and numbers)") : authText("密码", "Password");
     password.setAttribute?.("aria-label", reset ? authText("新密码", "New password") : authText("密码", "Password"));
   }
-  if (confirm) confirm.hidden = !reset;
+  if (confirm) {
+    confirm.hidden = !reset;
+    confirm.placeholder = authText("再次输入新密码", "Confirm new password");
+    confirm.setAttribute?.("aria-label", authText("确认新密码", "Confirm new password"));
+  }
   if (forgot) {
     forgot.hidden = !["signin", "reset"].includes(authMode);
     forgot.innerText = reset ? authText("重新获取重置邮件", "Request another reset email") : authText("忘记密码？", "Forgot password?");
@@ -144,9 +157,10 @@ function updateAuthModal() {
   if (switchButton) switchButton.innerText = authMode === "signin" ? authText("没有账号？注册", "No account? Sign up") : authMode === "signup" ? authText("已有账号？登录", "Already have an account? Sign in") : authText("返回登录", "Back to Sign In");
   if (status) status.innerText = authNotice === "resetSent" ? authText("如果这个邮箱已注册，我们会发送重置密码邮件。请检查收件箱和垃圾邮件文件夹。", "If this email is registered, a password reset email will be sent. Please check your inbox and spam folder.") : authNotice === "resetSuccess" ? authText("密码已更新，请使用新密码登录。", "Password updated. Please sign in with your new password.") : authMode === "forgot" ? authText("输入注册时使用的邮箱，获取重置密码链接。", "Enter your account email to request a password reset link.") : "";
 }
-function showAuthError(message) {
+function showAuthError(message, english = message) {
+  authErrorMessages = [message, english];
   const errorElement = document.getElementById("auth-error");
-  if (errorElement) errorElement.innerText = message;
+  if (errorElement) errorElement.innerText = authText(...authErrorMessages);
 }
 function clearAuthError() {
   showAuthError("");
@@ -161,24 +175,24 @@ async function submitAuth() {
   const submittedMode = authMode;
   clearAuthError();
   if (submittedMode !== "reset" && !email) {
-    showAuthError(authText("请输入邮箱。", "Please enter your email."));
+    showAuthError("请输入邮箱。", "Please enter your email.");
     return;
   }
   if (submittedMode !== "forgot" && !password) {
-    showAuthError(authText("请输入密码。", "Please enter your password."));
+    showAuthError("请输入密码。", "Please enter your password.");
     return;
   }
   if (submittedMode === "reset") {
     if (!resetToken) {
-      showAuthError(authText("重置链接已失效，请重新获取重置邮件。", "This reset link is invalid. Please request another reset email."));
+      showAuthError("重置链接已失效，请重新获取重置邮件。", "This reset link is invalid. Please request another reset email.");
       return;
     }
     if (password.length < 8 || password.length > 99 || !/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
-      showAuthError(authText("密码需要 8–99 位，并包含字母和数字。", "Use 8–99 characters, including letters and numbers."));
+      showAuthError("密码需要 8–99 位，并包含字母和数字。", "Use 8–99 characters, including letters and numbers.");
       return;
     }
     if (password !== document.getElementById("auth-password-confirm")?.value) {
-      showAuthError(authText("两次输入的密码不一致。", "The passwords do not match."));
+      showAuthError("两次输入的密码不一致。", "The passwords do not match.");
       return;
     }
   }
@@ -194,28 +208,31 @@ async function submitAuth() {
     } else if (submittedMode === "signin") {
       response = await signIn({ formFields: [{ id: "email", value: email }, { id: "password", value: password }] });
       if (response.status === "WRONG_CREDENTIALS_ERROR") {
-        showAuthError(authText("邮箱或密码错误。", "Incorrect email or password."));
+        showAuthError("邮箱或密码错误。", "Incorrect email or password.");
         return;
       }
     } else {
       response = await signUp({ formFields: [{ id: "email", value: email }, { id: "password", value: password }] });
       if (response.status === "EMAIL_ALREADY_EXISTS_ERROR") {
-        showAuthError(authText("这个邮箱已经注册过了。", "This email is already registered."));
+        showAuthError("这个邮箱已经注册过了。", "This email is already registered.");
         return;
       }
     }
     if (response.status === "FIELD_ERROR") {
-      showAuthError(response.formFields.map((field) => field.error).join(" "));
+      const field = response.formFields?.[0]?.id;
+      if (field === "email") showAuthError("请输入有效的邮箱地址。", "Please enter a valid email address.");
+      else if (field === "password") showAuthError("密码需要 8–99 位，并包含字母和数字。", "Use 8–99 characters, including letters and numbers.");
+      else showAuthError("输入内容不符合要求，请检查后重试。", "Please check your input and try again.");
       return;
     }
     if (response.status === "RESET_PASSWORD_INVALID_TOKEN_ERROR") {
       resetToken = "";
       clearAuthPasswords();
-      showAuthError(authText("重置链接已失效或已使用，请重新获取重置邮件。", "This reset link has expired or was already used. Please request another reset email."));
+      showAuthError("重置链接已失效或已使用，请重新获取重置邮件。", "This reset link has expired or was already used. Please request another reset email.");
       return;
     }
     if (response.status !== "OK") {
-      showAuthError(response.reason || authText("暂时无法完成操作，请稍后重试。", "This action is currently not available. Please try again later."));
+      showAuthError("暂时无法完成操作，请稍后重试。", "This action is currently not available. Please try again later.");
       return;
     }
     if (submittedMode === "forgot") {
@@ -239,7 +256,7 @@ async function submitAuth() {
     }
   } catch (error) {
     console.error("账号操作失败：", error);
-    showAuthError(authText("连接服务器失败，请稍后重试。", "Could not connect to the server. Please try again later."));
+    showAuthError("连接服务器失败，请稍后重试。", "Could not connect to the server. Please try again later.");
   } finally {
     authSubmitting = false;
     if (submitButton) submitButton.disabled = false;
@@ -254,7 +271,7 @@ window.hasCommentSession = () => doesSessionExist();
 document.addEventListener("DOMContentLoaded", async () => {
   if (resetLinkRequested) {
     showAuthModal("reset");
-    if (!resetToken) showAuthError(authText("重置链接不完整，请重新获取重置邮件。", "The reset link is incomplete. Please request another reset email."));
+    if (!resetToken) showAuthError("重置链接不完整，请重新获取重置邮件。", "The reset link is incomplete. Please request another reset email.");
   }
   await updateAuthButton();
 });
