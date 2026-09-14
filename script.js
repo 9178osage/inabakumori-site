@@ -423,6 +423,19 @@ function renderInlineSongTags(link) {
   title.className = "song-title-text";
   title.textContent = originalText;
   details.appendChild(title);
+  const song = link._songData;
+  if (Number.isSafeInteger(song?.viewCount) && song.viewCount >= 0) {
+    const views = document.createElement("span");
+    views.className = "song-views";
+    const zhCount = new Intl.NumberFormat("zh-CN", { notation: "compact", maximumFractionDigits: 1 }).format(song.viewCount);
+    const enCount = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(song.viewCount);
+    views.dataset.zh = `YouTube · 约 ${zhCount} 次播放 · 统计于 ${song.viewsCheckedAt}`;
+    views.dataset.en = `YouTube · ~${enCount} views · As of ${song.viewsCheckedAt}`;
+    views.textContent = views.dataset[currentLanguage];
+    const exactCount = song.viewCount.toLocaleString("en-US");
+    views.title = `${exactCount} 次播放 / views · ${song.viewsCheckedAt}`;
+    details.appendChild(views);
+  }
   const tagList = document.createElement("span");
   tagList.className = "song-tag-list";
   (link._songTagLabels || []).forEach((tag) => {
