@@ -101,6 +101,7 @@ body {
 .hero-content {
   position: relative;
   z-index: 10;
+  pointer-events: none;
   -webkit-user-select: none;
   user-select: none;
 }
@@ -115,6 +116,7 @@ body {
   margin-top: 40px;
 }
 .hero-content nav a {
+  pointer-events: auto;
   display: inline-block;
   margin: 15px;
   color: var(--hero-text);
