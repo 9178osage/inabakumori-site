@@ -55,15 +55,59 @@ function toggleTheme() {
   localStorage.setItem("theme", currentTheme);
   applyTheme();
 }
-const HERO_IMAGE_FOLDER = "images/hero/";
-const heroImages = ["images/hero/001.png", "images/hero/002.png", "images/hero/003.png", "images/hero/004.png", "images/hero/005.png", "images/hero/006.png", "images/hero/007.png", "images/hero/008.png", "images/hero/009.png", "images/hero/010.png", "images/hero/011.png", "images/hero/012.png", "images/hero/013.png", "images/hero/014.png", "images/hero/015.png", "images/hero/016.png", "images/hero/017.png", "images/hero/018.png", "images/hero/019.png", "images/hero/020.png", "images/hero/021.png", "images/hero/022.png", "images/hero/023.png", "images/hero/024.png", "images/hero/025.png", "images/hero/026.png", "images/hero/027.png", "images/hero/028.png", "images/hero/029.png", "images/hero/030.png", "images/hero/031.png", "images/hero/032.png", "images/hero/033.png", "images/hero/034.png", "images/hero/035.png", "images/hero/036.png", "images/hero/037.png", "images/hero/038.png", "images/hero/039.png", "images/hero/040.png", "images/hero/041.png", "images/hero/042.png", "images/hero/043.png", "images/hero/044.png", "images/hero/045.png", "images/hero/046.png", "images/hero/047.png", "images/hero/048.png", "images/hero/049.png", "images/hero/050.png", "images/hero/051.png", "images/hero/052.png", "images/hero/053.png", "images/hero/054.png", "images/hero/055.png", "images/hero/056.png", "images/hero/057.png", "images/hero/058.png", "images/hero/059.png"];
+const desktopHeroImages = ["images/hero/001.png", "images/hero/002.png", "images/hero/003.png", "images/hero/004.png", "images/hero/005.png", "images/hero/006.png", "images/hero/007.png", "images/hero/008.png", "images/hero/009.png", "images/hero/010.png", "images/hero/011.png", "images/hero/012.png", "images/hero/013.png", "images/hero/014.png", "images/hero/015.png", "images/hero/016.png", "images/hero/017.png", "images/hero/018.png", "images/hero/019.png", "images/hero/020.png", "images/hero/021.png", "images/hero/022.png", "images/hero/023.png", "images/hero/024.png", "images/hero/025.png", "images/hero/026.png", "images/hero/027.png", "images/hero/028.png", "images/hero/029.png", "images/hero/030.png", "images/hero/031.png", "images/hero/032.png", "images/hero/033.png", "images/hero/034.png", "images/hero/035.png", "images/hero/036.png", "images/hero/037.png", "images/hero/038.png", "images/hero/039.png", "images/hero/040.png", "images/hero/041.png", "images/hero/042.png", "images/hero/043.png", "images/hero/044.png", "images/hero/045.png", "images/hero/046.png", "images/hero/047.png", "images/hero/048.png", "images/hero/049.png", "images/hero/050.png", "images/hero/051.png", "images/hero/052.png", "images/hero/053.png", "images/hero/054.png", "images/hero/055.png", "images/hero/056.png", "images/hero/057.png", "images/hero/058.png", "images/hero/059.png"];
+let heroImages = desktopHeroImages;
+let heroLoadVersion = 0;
+const mobileHeroQuery = window.matchMedia?.("(max-width: 700px), (pointer: coarse) and (max-width: 1000px)");
 function preloadNextHeroImage() {
+  if (!heroImages.length) return;
   const image = new Image();
   image.src = heroImages[(currentSlide + 1) % heroImages.length];
 }
-function discoverHeroImages() {
-  preloadNextHeroImage();
+function loadMobileHeroImage(path) {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => resolve(image.naturalHeight > image.naturalWidth);
+    image.onerror = () => resolve(false);
+    image.src = path;
+  });
 }
+async function discoverHeroImages() {
+  const version = ++heroLoadVersion;
+  const slide = document.getElementById("hero-slide");
+  currentSlide = 0;
+  easterEggHeroComplete = false;
+  heroImages = mobileHeroQuery?.matches ? [] : desktopHeroImages;
+  if (slide) {
+    if (heroImages.length) slide.src = heroImages[0];
+    else slide.removeAttribute("src");
+    slide.hidden = !heroImages.length;
+  }
+  if (!mobileHeroQuery?.matches) {
+    preloadNextHeroImage();
+    return;
+  }
+  const config = window.MOBILE_BACKGROUNDS;
+  if (!config) return;
+  for (let number = 1; number <= config.maxImages; number++) {
+    let found = false;
+    for (const extension of config.extensions) {
+      const path = `${config.folder}${String(number).padStart(3, "0")}.${extension}`;
+      const loaded = await loadMobileHeroImage(path);
+      if (version !== heroLoadVersion) return;
+      if (!loaded) continue;
+      heroImages.push(path);
+      if (heroImages.length === 1 && slide) {
+        slide.src = path;
+        slide.hidden = false;
+      }
+      found = true;
+      break;
+    }
+    if (!found) break;
+  }
+}
+mobileHeroQuery?.addEventListener("change", discoverHeroImages);
 function changeHeroSlide() {
   if (easterEggOpen) {
     return;
@@ -644,14 +688,15 @@ document.addEventListener("DOMContentLoaded", () => {
   loadMessages();
   const heroBg = document.getElementById("hero-bg");
   if (heroBg) {
-    heroBg.addEventListener("mousedown", (event) => {
-      if (event.button === 0 || event.button === 2) {
+    heroBg.addEventListener("click", (event) => {
+      if (event.button === 0) {
         event.preventDefault();
         changeHeroSlide();
       }
     });
     heroBg.addEventListener("contextmenu", (event) => {
       event.preventDefault();
+      changeHeroSlide();
     });
   }
   console.log("✅ Fanswalll loaded");

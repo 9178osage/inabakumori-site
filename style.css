@@ -65,6 +65,7 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 .hero-bg {
+  background: linear-gradient(160deg, #6d7f8b, #293745);
   position: absolute;
   inset: 0;
   width: 100%;
@@ -84,7 +85,10 @@ body {
   object-fit: cover;
   display: none;
 }
-.hero-slide.active {
+.hero-slide[hidden] {
+  display: none;
+}
+.hero-slide.active:not([hidden]) {
   display: block;
 }
 .hero-overlay {

@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 const { DatabaseSync } = require("node:sqlite");
 const source = fs.readFileSync("script.js", "utf8");
-function setup() {
+function setup(options = {}) {
   const elements = {};
   const messages = [];
   const events = [];
@@ -19,6 +19,8 @@ function setup() {
       this.type = type;
     }
   }, alert: (text) => events.push(text) };
+  Object.assign(context.window, options.window);
+  if (options.Image) context.Image = options.Image;
   vm.createContext(context);
   vm.runInContext(source, context);
   return { context, elements, messages, events, run: (code) => vm.runInContext(code, context) };
@@ -270,4 +272,45 @@ test("a delayed wall refresh cannot bring back a deleted message", async () => {
   finish({ ok: true, json: async () => ({ comments: [{ id: 1 }, { id: 2 }] }) });
   await pending;
   assert.deepEqual(rendered, [2]);
+});
+
+test("mobile backgrounds load numbered portrait files and never use desktop images", async () => {
+  const paths = [];
+  const query = { matches: true, addEventListener() {} };
+  const { elements, run } = setup({
+    window: { matchMedia: () => query, MOBILE_BACKGROUNDS: { folder: "images/hero-mobile/", extensions: ["png", "jpg"], maxImages: 3 } },
+    Image: class {
+      set src(path) {
+        paths.push(path);
+        this.naturalWidth = 1080;
+        this.naturalHeight = 1920;
+        queueMicrotask(() => /00[12]\.jpg$/.test(path) ? this.onload?.() : this.onerror?.());
+      }
+    }
+  });
+  const slide = elements["hero-slide"] = { removeAttribute(name) { delete this[name]; } };
+  await run("discoverHeroImages()");
+  assert.equal(slide.src, "images/hero-mobile/001.jpg");
+  assert.equal(slide.hidden, false);
+  run("changeHeroSlide()");
+  assert.equal(slide.src, "images/hero-mobile/002.jpg");
+  run("changeHeroSlide()");
+  assert.equal(slide.src, "images/hero-mobile/001.jpg");
+  assert.ok(paths.every(path => path.startsWith("images/hero-mobile/")));
+  query.matches = false;
+  await run("discoverHeroImages()");
+  assert.equal(slide.src, "images/hero/001.png");
+});
+
+test("an empty mobile folder leaves the image hidden without falling back to desktop", async () => {
+  const { elements, run } = setup({
+    window: { matchMedia: () => ({ matches: true, addEventListener() {} }), MOBILE_BACKGROUNDS: { folder: "images/hero-mobile/", extensions: ["png"], maxImages: 99 } },
+    Image: class { set src(path) { queueMicrotask(() => this.onerror()); } }
+  });
+  const slide = elements["hero-slide"] = { removeAttribute(name) { delete this[name]; } };
+  await run("discoverHeroImages()");
+  assert.equal(slide.hidden, true);
+  assert.equal(slide.src, undefined);
+  run("changeHeroSlide()");
+  assert.equal(slide.src, undefined);
 });
