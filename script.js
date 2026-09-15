@@ -437,6 +437,12 @@ function getSongThumbnailUrl(href) {
     return null;
   }
 }
+function formatChineseViews(count) {
+  const units = [[100000000, "亿"], [1000000, "百万"], [10000, "万"]];
+  const unit = units.find(([minimum]) => count >= minimum);
+  if (!unit) return count.toLocaleString("zh-CN");
+  return new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 1 }).format(count / unit[0]) + unit[1];
+}
 function renderInlineSongTags(link) {
   if (link.classList.contains("tag-ready")) return;
   const originalText = link.textContent.trim();
@@ -471,10 +477,10 @@ function renderInlineSongTags(link) {
   if (Number.isSafeInteger(song?.viewCount) && song.viewCount >= 0) {
     const views = document.createElement("span");
     views.className = "song-views";
-    const zhCount = new Intl.NumberFormat("zh-CN", { notation: "compact", maximumFractionDigits: 1 }).format(song.viewCount);
+    const zhCount = formatChineseViews(song.viewCount);
     const enCount = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(song.viewCount);
-    views.dataset.zh = `YouTube · 约 ${zhCount} 次播放 · 统计于 ${song.viewsCheckedAt}`;
-    views.dataset.en = `YouTube · ~${enCount} views · As of ${song.viewsCheckedAt}`;
+    views.dataset.zh = `YouTube · ${zhCount} 次播放 · 统计于 ${song.viewsCheckedAt}`;
+    views.dataset.en = `YouTube · ${enCount} views · As of ${song.viewsCheckedAt}`;
     views.textContent = views.dataset[currentLanguage];
     const exactCount = song.viewCount.toLocaleString("en-US");
     views.title = `${exactCount} 次播放 / views · ${song.viewsCheckedAt}`;
