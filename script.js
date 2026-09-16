@@ -1,42 +1,48 @@
-let currentLanguage = localStorage.getItem("language") || "zh";
+const pageLanguages = ["zh", "en", "ja"];
+let currentLanguage = pageLanguages.includes(localStorage.getItem("language")) ? localStorage.getItem("language") : "zh";
+function pageText(zh, en) {
+  return window.siteText?.(zh, en, currentLanguage) ?? (currentLanguage === "zh" ? zh : en);
+}
 let currentTheme = localStorage.getItem("theme") || "light";
 let currentSlide = 0;
 const COMMENTS_API = `${window.APP_CONFIG.apiDomain}/api/comments`;
 function applyLanguage() {
   document.querySelectorAll("[data-zh][data-en]").forEach((element) => {
-    element.innerText = element.dataset[currentLanguage];
+    element.innerText = element.dataset[currentLanguage] ?? pageText(element.dataset.zh, element.dataset.en);
   });
   document.querySelectorAll("[data-href-zh][data-href-en]").forEach((element) => {
-    const href = currentLanguage === "zh" ? element.dataset.hrefZh : element.dataset.hrefEn;
+    const href = currentLanguage === "ja" ? (element.dataset.hrefJa || element.dataset.hrefEn) : currentLanguage === "zh" ? element.dataset.hrefZh : element.dataset.hrefEn;
     if (href) {
       element.setAttribute("href", href);
     }
   });
   const glitchTitle = document.querySelector(".glitch");
   if (glitchTitle) {
-    glitchTitle.setAttribute("data-text", glitchTitle.dataset[currentLanguage]);
+    glitchTitle.setAttribute("data-text", glitchTitle.dataset[currentLanguage] || glitchTitle.dataset.zh);
   }
   const langButton = document.getElementById("lang-btn");
   if (langButton) {
-    langButton.innerText = currentLanguage === "zh" ? "English" : "中文";
+    langButton.innerText = { zh: "English", en: "日本語", ja: "中文" }[currentLanguage];
   }
   const nameInput = document.getElementById("message-name");
   const messageInput = document.getElementById("message-input");
   if (nameInput) {
-    nameInput.placeholder = currentLanguage === "zh" ? "你的名字 / Name" : "Your name";
+    nameInput.placeholder = pageText("你的名字 / Name", "Your name");
   }
   if (messageInput) {
-    messageInput.placeholder = currentLanguage === "zh" ? "想对稲葉曇说些什么？" : "Say something to Inabakumori...";
+    messageInput.placeholder = pageText("想对稲葉曇说些什么？", "Say something to Inabakumori...");
   }
+  document.querySelector(".site-controls")?.setAttribute("aria-label", currentLanguage === "ja" ? "ページ設定" : currentLanguage === "en" ? "Page controls" : "页面设置");
+  document.getElementById("tag-suggestions")?.setAttribute("aria-label", currentLanguage === "ja" ? "選択できるタグ" : currentLanguage === "en" ? "Available tags" : "可选标签");
   updateMessageLoadStatus();
-  document.documentElement.lang = currentLanguage === "zh" ? "zh-CN" : "en";
+  document.documentElement.lang = { zh: "zh-CN", en: "en", ja: "ja" }[currentLanguage];
   window.dispatchEvent(new Event("languagechange"));
   document.querySelectorAll(".floating-message").forEach((element) => {
     element.refreshLanguage?.();
   });
 }
 function toggleLanguage() {
-  currentLanguage = currentLanguage === "zh" ? "en" : "zh";
+  currentLanguage = pageLanguages[(pageLanguages.indexOf(currentLanguage) + 1) % pageLanguages.length];
   localStorage.setItem("language", currentLanguage);
   applyLanguage();
   if (typeof updateTagLanguage === "function") {
@@ -149,7 +155,7 @@ function updateMessageLoadStatus() {
   const retry = document.getElementById("message-retry");
   if (status) {
     const text = { loading: ["正在加载留言…", "Loading messages…"], error: ["留言加载失败，请检查连接后重试。", "Could not load messages. Check your connection and retry."], empty: ["还没有留言，留下第一条讯息吧。", "No messages yet. Leave the first one."], ready: ["", ""], idle: ["", ""] };
-    status.textContent = text[messageLoadState][currentLanguage === "zh" ? 0 : 1];
+    status.textContent = pageText(...text[messageLoadState]);
   }
   if (retry) retry.hidden = messageLoadState !== "error";
 }
@@ -161,7 +167,7 @@ async function addMessage() {
   const nickname = nameInput.value.trim();
   const content = messageInput.value.trim();
   if (!nickname || !content) {
-    alert(currentLanguage === "zh" ? !nickname ? "请输入昵称。" : "请输入留言内容。" : !nickname ? "Please enter your name." : "Please enter a message.");
+    alert(!nickname ? pageText("请输入昵称。", "Please enter your name.") : pageText("请输入留言内容。", "Please enter a message."));
     (!nickname ? nameInput : messageInput).focus();
     return;
   }
@@ -174,7 +180,7 @@ async function addMessage() {
     const response = await fetch(COMMENTS_API, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ nickname, content }) });
     const data = await response.json();
     if (!response.ok) {
-      throw new Error(data.error || (currentLanguage === "zh" ? "留言发布失败。" : "Failed to post your message."));
+      throw new Error(currentLanguage === "ja" ? (response.status === 429 ? "投稿が多すぎます。しばらくしてから再試行してください。" : response.status === 400 || response.status === 413 ? "入力内容または文字数を確認して、もう一度お試しください。" : pageText("留言发布失败。", "Failed to post your message.")) : data.error || pageText("留言发布失败。", "Failed to post your message."));
     }
     if (!data.comment || !Number.isSafeInteger(data.comment.id)) {
       throw new SyntaxError("Invalid comment response");
@@ -189,7 +195,7 @@ async function addMessage() {
     window.dispatchEvent(new Event("commentposted"));
   } catch (error) {
     console.error("留言发布失败：", error);
-    alert(error instanceof TypeError || error instanceof SyntaxError ? currentLanguage === "zh" ? "无法连接服务器或响应异常，请稍后重试。" : "The server is unavailable or returned an invalid response. Please try again." : error.message);
+    alert(error instanceof TypeError || error instanceof SyntaxError ? pageText("无法连接服务器或响应异常，请稍后重试。", "The server is unavailable or returned an invalid response. Please try again.") : error.message);
   } finally {
     messageSubmitting = false;
     if (button) button.disabled = false;
@@ -283,7 +289,7 @@ function createFloatingMessage(message, startInside = false) {
   let track;
   let animation;
   element.refreshLanguage = () => {
-    const identity = message.isGuest === true ? currentLanguage === "zh" ? " [游客]" : " [Guest]" : message.isGuest === false ? currentLanguage === "zh" ? " [已登录]" : " [Member]" : "";
+    const identity = message.isGuest === true ? pageText(" [游客]", " [Guest]") : message.isGuest === false ? pageText(" [已登录]", " [Member]") : "";
     element.textContent = (message.nickname || message.name || "Anonymous") + identity + "： " + (message.content || message.text || "");
     if (element.isConnected) element.refreshLayout();
   };
@@ -343,6 +349,37 @@ function isSingleSongSinger(tag) {
 }
 const TAG_ALIASES = { "other": "其他", "反气旋": "anticyclone", "anticyclone": "anticyclone", "气象站": "weather station", "weather station": "weather station", "单曲": "singles", "single": "singles", "singles": "singles", "yuki": "歌爱雪", "kaai yuki": "歌爱雪", "歌爱雪 / kaai yuki": "歌爱雪", "miku": "初音未来", "hatsune miku": "初音未来", "初音未来 / hatsune miku": "初音未来", "hime": "鸣花hime", "meika hime": "鸣花hime", "鸣花hime / meika hime": "鸣花hime", "maki": "弦卷真纪", "tsurumaki maki": "弦卷真纪", "弦卷真纪 / tsurumaki maki": "弦卷真纪", "sekai": "星界", "星界 / sekai": "星界", "rime": "里命", "里命 / rime": "里命", "una": "音街鳗", "otomachi una": "音街鳗", "音街鳗 / otomachi una": "音街鳗", "nagi beta": "nagiβ", "nagiβ": "nagiβ", "kazehiki": "カゼヒキβ", "kazehiki beta": "カゼヒキβ", "kazehiki β": "カゼヒキβ", "カゼヒキβ / kazehiki β": "カゼヒキβ", "shuo": "彩澄しゅお", "ayazumi shuo": "彩澄しゅお", "彩澄しゅお / ayazumi shuo": "彩澄しゅお", "ririse": "彩澄りりせ", "ayazumi ririse": "彩澄りりせ", "彩澄りりせ / ayazumi ririse": "彩澄りりせ" };
 const TAG_DISPLAY_NAMES = { "anticyclone": { zh: "反气旋", en: "ANTICYCLONE" }, "weather station": { zh: "气象站", en: "WEATHER STATION" }, "singles": { zh: "单曲", en: "SINGLES" }, "歌爱雪": { zh: "歌爱雪 / Kaai Yuki", en: "Kaai Yuki" }, "初音未来": { zh: "初音未来 / Hatsune Miku", en: "Hatsune Miku" }, "鸣花hime": { zh: "鸣花Hime / MEIKA Hime", en: "MEIKA Hime" }, "弦卷真纪": { zh: "弦卷真纪 / Tsurumaki Maki", en: "Tsurumaki Maki" }, "星界": { zh: "星界 / SEKAI", en: "SEKAI" }, "里命": { zh: "里命 / RIME", en: "RIME" }, "音街鳗": { zh: "音街鳗 / Otomachi Una", en: "Otomachi Una" }, "nagiβ": { zh: "nagiβ", en: "nagiβ" }, "カゼヒキβ": { zh: "カゼヒキβ / Kazehiki β", en: "Kazehiki β" }, "彩澄しゅお": { zh: "彩澄しゅお / Ayazumi Shuo", en: "Ayazumi Shuo" }, "彩澄りりせ": { zh: "彩澄りりせ / Ayazumi Ririse", en: "Ayazumi Ririse" }, "其他": { zh: "其他", en: "Other" } };
+
+TAG_DISPLAY_NAMES["anticyclone"].ja = "ANTICYCLONE";
+TAG_ALIASES["anticyclone"] = "anticyclone";
+TAG_DISPLAY_NAMES["weather station"].ja = "WEATHER STATION";
+TAG_ALIASES["weather station"] = "weather station";
+TAG_DISPLAY_NAMES["singles"].ja = "シングル";
+TAG_ALIASES["シングル"] = "singles";
+TAG_DISPLAY_NAMES["歌爱雪"].ja = "歌愛ユキ";
+TAG_ALIASES["歌愛ユキ"] = "歌爱雪";
+TAG_DISPLAY_NAMES["初音未来"].ja = "初音ミク";
+TAG_ALIASES["初音ミク"] = "初音未来";
+TAG_DISPLAY_NAMES["鸣花hime"].ja = "鳴花ヒメ";
+TAG_ALIASES["鳴花ヒメ"] = "鸣花hime";
+TAG_DISPLAY_NAMES["弦卷真纪"].ja = "弦巻マキ";
+TAG_ALIASES["弦巻マキ"] = "弦卷真纪";
+TAG_DISPLAY_NAMES["星界"].ja = "星界";
+TAG_ALIASES["星界"] = "星界";
+TAG_DISPLAY_NAMES["里命"].ja = "裏命";
+TAG_ALIASES["裏命"] = "里命";
+TAG_DISPLAY_NAMES["音街鳗"].ja = "音街ウナ";
+TAG_ALIASES["音街ウナ"] = "音街鳗";
+TAG_DISPLAY_NAMES["nagiβ"].ja = "nagiβ";
+TAG_ALIASES["nagiβ"] = "nagiβ";
+TAG_DISPLAY_NAMES["カゼヒキβ"].ja = "カゼヒキβ";
+TAG_ALIASES["カゼヒキβ"] = "カゼヒキβ";
+TAG_DISPLAY_NAMES["彩澄しゅお"].ja = "彩澄しゅお";
+TAG_ALIASES["彩澄しゅお"] = "彩澄しゅお";
+TAG_DISPLAY_NAMES["彩澄りりせ"].ja = "彩澄りりせ";
+TAG_ALIASES["彩澄りりせ"] = "彩澄りりせ";
+TAG_DISPLAY_NAMES["其他"].ja = "その他";
+TAG_ALIASES["その他"] = "其他";
 function getTagDisplayLabel(tag) {
   const normalized = normalizeTag(tag);
   const names = TAG_DISPLAY_NAMES[normalized];
@@ -360,7 +397,7 @@ function getTagInputLabel(tag, fallback = "") {
   if (currentLanguage === "zh") {
     return String(names.zh || fallback).split(" / ")[0].trim();
   }
-  return names.en || fallback || String(tag || "");
+  return names[currentLanguage] || names.en || fallback || String(tag || "");
 }
 function normalizeTag(tag) {
   const normalized = String(tag || "").trim().toLowerCase().replace(/\s+/g, " ");
@@ -481,9 +518,10 @@ function renderInlineSongTags(link) {
     const enCount = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(song.viewCount);
     views.dataset.zh = `YouTube · ${zhCount} 次播放 · 统计于 ${song.viewsCheckedAt}`;
     views.dataset.en = `YouTube · ${enCount} views · As of ${song.viewsCheckedAt}`;
+    views.dataset.ja = `YouTube · ${new Intl.NumberFormat("ja-JP", { notation: "compact", maximumFractionDigits: 1 }).format(song.viewCount)} 回視聴 · ${song.viewsCheckedAt} 時点`;
     views.textContent = views.dataset[currentLanguage];
     const exactCount = song.viewCount.toLocaleString("en-US");
-    views.title = `${exactCount} 次播放 / views · ${song.viewsCheckedAt}`;
+    views.title = `${exactCount} 次播放 / views / 回視聴 · ${song.viewsCheckedAt}`;
     details.appendChild(views);
   }
   const tagList = document.createElement("span");
@@ -578,7 +616,7 @@ function getAvailableTags() {
     if (b[0] === normalizeTag(OTHER_SINGER_TAG)) {
       return -1;
     }
-    return a[1].localeCompare(b[1], currentLanguage === "zh" ? "zh-CN" : "en", { sensitivity: "base" });
+    return a[1].localeCompare(b[1], { zh: "zh-CN", en: "en", ja: "ja" }[currentLanguage], { sensitivity: "base" });
   });
 }
 function renderTagSuggestions() {
@@ -653,14 +691,14 @@ function updateTagFilter() {
     emptyState.hidden = visibleSongs !== 0;
   }
   if (count) {
-    count.textContent = currentLanguage === "zh" ? `显示 ${visibleSongs} / ${totalSongs} 首` : `Showing ${visibleSongs} / ${totalSongs} songs`;
+    count.textContent = currentLanguage === "ja" ? `${totalSongs} 曲中 ${visibleSongs} 曲を表示` : currentLanguage === "zh" ? `显示 ${visibleSongs} / ${totalSongs} 首` : `Showing ${visibleSongs} / ${totalSongs} songs`;
   }
   renderTagSuggestions();
 }
 function updateTagLanguage() {
   const input = document.getElementById("tag-filter-input");
   if (input) {
-    input.placeholder = currentLanguage === "zh" ? "搜索歌名或 TAG，例如：ラグ / 歌爱 / yuki" : "Search titles or tags, e.g. ラグ / yuki / weather";
+    input.placeholder = pageText("搜索歌名或 TAG，例如：ラグ / 歌爱 / yuki", "Search titles or tags, e.g. ラグ / yuki / weather");
   }
   document.querySelectorAll(".song-inline-tag[data-raw-tag]").forEach((tagElement) => {
     tagElement.textContent = getTagDisplayLabel(tagElement.dataset.rawTag);
@@ -731,7 +769,7 @@ function showEasterEgg() {
   const randomNumber = Math.floor(Math.random() * MEME_COUNT) + 1;
   const filename = String(randomNumber).padStart(3, "0") + ".png";
   image.src = MEME_FOLDER + filename;
-  image.alt = currentLanguage === "zh" ? `随机表情包 ${randomNumber}` : `Random meme ${randomNumber}`;
+  image.alt = currentLanguage === "ja" ? `ランダム画像 ${randomNumber}` : currentLanguage === "zh" ? `随机表情包 ${randomNumber}` : `Random meme ${randomNumber}`;
   easterEggOpen = true;
   easterEggCanClose = false;
   overlay.classList.add("show");

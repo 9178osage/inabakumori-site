@@ -31,7 +31,7 @@ function currentPageLanguage() {
   return localStorage.getItem("language") || "zh";
 }
 function authText(zh, en) {
-  return currentPageLanguage() === "zh" ? zh : en;
+  return window.siteText?.(zh, en) ?? (currentPageLanguage() === "zh" ? zh : en);
 }
 async function updateAuthButton() {
   const button = document.getElementById("auth-btn");

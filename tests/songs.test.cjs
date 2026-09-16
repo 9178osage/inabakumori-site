@@ -77,6 +77,7 @@ function setup(extraSong) {
   };
   vm.createContext(context);
   const run = code => vm.runInContext(code, context);
+  run(fs.readFileSync("i18n.js", "utf8"));
   run(fs.readFileSync("songs.js", "utf8"));
   if (extraSong) run(`SONGS.push(${JSON.stringify(extraSong)})`);
   run(fs.readFileSync("script.js", "utf8"));
@@ -145,4 +146,16 @@ test("a data-only 38th song renders and participates in search, singer counts, a
   assert.equal(elements["tag-result-count"].textContent, "显示 38 / 38 首");
   run("Math.random = () => 0.999999; playRandomSong()");
   assert.deepEqual(opened, [[extra.youtube, "_blank", "noopener,noreferrer"]]);
+});
+
+test("Japanese singer tags filter correctly and counts use Japanese", () => {
+  const { run, list, elements } = setup();
+  run('currentLanguage = "ja"; updateTagLanguage()');
+  assert.equal(run('getTagDisplayLabel("初音未来")'), "初音ミク");
+  assert.equal(run('getTagInputLabel("歌爱雪")'), "歌愛ユキ");
+  elements["tag-filter-input"].value = "歌愛ユキ";
+  elements["tag-filter-input"].dispatch("input");
+  assert.ok(list.children.filter(row => !row.hidden).length > 0);
+  assert.match(elements["tag-result-count"].textContent, /37 曲中/);
+  assert.match(list.children[0].querySelector(".song-views").dataset.ja, /回視聴/);
 });

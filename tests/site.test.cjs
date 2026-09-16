@@ -22,6 +22,7 @@ function setup(options = {}) {
   Object.assign(context.window, options.window);
   if (options.Image) context.Image = options.Image;
   vm.createContext(context);
+  vm.runInContext(fs.readFileSync("i18n.js", "utf8"), context);
   vm.runInContext(source, context);
   return { context, elements, messages, events, run: (code) => vm.runInContext(code, context) };
 }
@@ -242,6 +243,7 @@ test("auth blocks duplicate requests and mode changes until the request finishes
     signIn: () => { requests++; return new Promise(resolve => { finish = resolve; }); }
   };
   vm.createContext(context);
+  vm.runInContext(fs.readFileSync("i18n.js", "utf8"), context);
   vm.runInContext(fs.readFileSync("src/auth-src.js", "utf8").replace(/^import .*;\n/gm, ""), context);
   const run = code => vm.runInContext(code, context);
   const first = run("submitAuth()");
@@ -313,4 +315,17 @@ test("an empty mobile folder leaves the image hidden without falling back to des
   assert.equal(slide.src, undefined);
   run("changeHeroSlide()");
   assert.equal(slide.src, undefined);
+});
+
+test("language switching cycles through Chinese, English, and Japanese and saves the selection", () => {
+  const { run, context } = setup();
+  const saved = [];
+  context.localStorage.setItem = (key, value) => saved.push([key, value]);
+  run('updateTagLanguage = () => {}; toggleLanguage()');
+  assert.equal(context.document.documentElement.lang, "en");
+  run('toggleLanguage()');
+  assert.equal(context.document.documentElement.lang, "ja");
+  run('toggleLanguage()');
+  assert.equal(context.document.documentElement.lang, "zh-CN");
+  assert.deepEqual(saved, [["language", "en"], ["language", "ja"], ["language", "zh"]]);
 });

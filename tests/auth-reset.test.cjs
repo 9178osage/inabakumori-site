@@ -42,6 +42,7 @@ function setup(url = "http://localhost:5500/") {
   };
   context.document.activeElement = elements["auth-btn"];
   vm.createContext(context);
+  vm.runInContext(fs.readFileSync("i18n.js", "utf8"), context);
   vm.runInContext(source, context);
   return { context, elements, listeners, events, calls, run: code => vm.runInContext(code, context), language(value) { language = value; listeners.languagechange(); } };
 }
@@ -170,4 +171,18 @@ test("auth placeholders and existing server errors follow the selected language"
   assert.match(app.elements['auth-error'].innerText, /currently not available/);
   app.language('zh');
   assert.equal(app.elements['auth-error'].innerText, '暂时无法完成操作，请稍后重试。');
+});
+
+test("Japanese authentication covers validation, reset instructions, and language changes", async () => {
+  const app = setup();
+  app.language("ja");
+  app.run('showAuthModal("signin")');
+  assert.equal(app.elements["auth-title"].innerText, "ログイン");
+  await app.run("submitAuth()");
+  assert.equal(app.elements["auth-error"].innerText, "メールアドレスを入力してください。");
+  app.run("forgotPassword()");
+  assert.equal(app.elements["auth-submit"].innerText, "再設定メールを送信");
+  assert.match(app.elements["auth-status"].innerText, /登録したメールアドレス/);
+  app.language("en");
+  assert.equal(app.elements["auth-submit"].innerText, "Send Reset Email");
 });

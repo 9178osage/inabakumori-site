@@ -7,7 +7,7 @@
   const comments = new Map();
   const deleting = new Set();
   const deleted = new Set();
-  const label = (zh, en) => localStorage.getItem("language") === "en" ? en : zh;
+  const label = (zh, en) => window.siteText?.(zh, en) ?? (localStorage.getItem("language") === "en" ? en : zh);
   function render() {
     const list = document.getElementById("my-comments-list");
     if (!list) return;

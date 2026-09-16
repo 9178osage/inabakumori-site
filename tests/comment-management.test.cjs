@@ -76,6 +76,7 @@ function ui() {
     window: { APP_CONFIG: { apiDomain: 'http://localhost' }, hasCommentSession: async () => true, removeWallMessage: id => removed.push(id), addEventListener(name, fn) { events[name] = fn; } }
   };
   vm.createContext(context);
+  vm.runInContext(fs.readFileSync("i18n.js", "utf8"), context);
   vm.runInContext(fs.readFileSync('comments-management.js','utf8'), context);
   return { elements, events, context, removed };
 }
@@ -101,4 +102,12 @@ test('delete cancellation sends no request and failed deletion leaves the messag
   await button().listeners.click();
   assert.equal(elements['my-comments-list'].children.length, 0);
   assert.deepEqual(removed, [1]);
+});
+
+test('Japanese message management shows a localized sign-in prompt', async () => {
+  const { context, elements, events } = ui();
+  context.localStorage.getItem = () => 'ja';
+  context.window.hasCommentSession = async () => false;
+  await events.authchange();
+  assert.equal(elements['my-comments-status'].textContent, 'メッセージを管理するにはログインしてください。');
 });

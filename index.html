@@ -60,18 +60,18 @@
 <div class="hero-overlay"></div>
 
 <div class="hero-content">
-<h1 class="glitch" data-en="WEATHER OBSERVATION STATION" data-text="气象观测站" data-zh="气象观测站">
+<h1 class="glitch" data-en="WEATHER OBSERVATION STATION" data-text="气象观测站" data-zh="气象观测站" data-ja="気象観測所">
                 气象观测站
             </h1>
 
 <nav>
-<a data-en="About" data-zh="关于" href="#about">
+<a data-en="About" data-zh="关于" data-ja="このサイトについて" href="#about">
                     关于
                 </a>
-<a data-en="Songs" data-zh="歌曲" href="#songs">
+<a data-en="Songs" data-zh="歌曲" data-ja="楽曲" href="#songs">
                     歌曲
                 </a>
-<a data-en="Message Wall" data-zh="留言墙" href="#messages">
+<a data-en="Message Wall" data-zh="留言墙" data-ja="メッセージウォール" href="#messages">
     留言墙
 </a>
 </nav>
@@ -81,18 +81,18 @@
 <main>
 
 <section id="about">
-<h2 data-zh="关于" data-en="ABOUT">关于</h2>
-<p data-en="A website made because I really love Inabakumori. Here you will find some playlists, album information, and materials I’ve gathered. The content may not be professional, but it has all been carefully compiled." data-zh="一个因为太喜欢稲葉曇所以做出来的网站。这里包含一些歌单、专辑信息和我找到的资料。内容不一定专业，但都是我认真整理的。">
+<h2 data-zh="关于" data-ja="このサイトについて" data-en="ABOUT">关于</h2>
+<p data-en="A website made because I really love Inabakumori. Here you will find some playlists, album information, and materials I’ve gathered. The content may not be professional, but it has all been carefully compiled." data-zh="一个因为太喜欢稲葉曇所以做出来的网站。这里包含一些歌单、专辑信息和我找到的资料。内容不一定专业，但都是我认真整理的。" data-ja="稲葉曇さんが大好きで作ったファンサイトです。楽曲やアルバムの情報、集めた資料を紹介しています。専門的な内容ではありませんが、一つひとつ丁寧にまとめました。">
                 一个因为太喜欢稲葉曇所以做出来的网站。
                 这里包含一些歌单、专辑信息和我找到的资料。
                 内容不一定专业，但都是我认真整理的。
             </p>
 
-<h2 data-en="RELATED LINKS" data-zh="相关链接">
+<h2 data-en="RELATED LINKS" data-zh="相关链接" data-ja="関連リンク">
                 相关链接
             </h2>
 <div class="artist-links">
-<div class="link-subheading" data-zh="视频链接" data-en="VIDEO LINKS" style="font-size:14px; letter-spacing:1px; opacity:.65; margin:6px 0 2px;">视频链接</div>
+<div class="link-subheading" data-zh="视频链接" data-ja="動画・SNS" data-en="VIDEO LINKS" style="font-size:14px; letter-spacing:1px; opacity:.65; margin:6px 0 2px;">视频链接</div>
 <a href="https://youtube.com/@inabakumori?si=mht1Fo3UgXl0Mj-D" rel="noopener noreferrer" target="_blank">
 <img alt="YouTube" src="images/youtube.png"/>
     YouTube
@@ -121,7 +121,7 @@
 <img alt="Pixiv" src="images/pixiv.png"/>
     Pixiv
 </a>
-<div class="link-subheading" data-zh="关于更多" data-en="MORE ABOUT" style="font-size:14px; letter-spacing:1px; opacity:.65; margin:18px 0 2px;">关于更多</div>
+<div class="link-subheading" data-zh="关于更多" data-ja="さらに詳しく" data-en="MORE ABOUT" style="font-size:14px; letter-spacing:1px; opacity:.65; margin:18px 0 2px;">关于更多</div>
 <a
     href="https://zh.wikipedia.org/wiki/稻叶昙"
     data-href-zh="https://zh.wikipedia.org/wiki/稻叶昙"
@@ -144,9 +144,9 @@
 </section>
 <section id="songs">
 <div class="songs-heading">
-    <h2 data-zh="歌曲" data-en="SONGS">歌曲</h2>
+    <h2 data-zh="歌曲" data-ja="楽曲" data-en="SONGS">歌曲</h2>
     <button id="random-song-button" type="button"
-        data-zh="随机一首" data-en="Random Song"
+        data-zh="随机一首" data-ja="ランダム再生" data-en="Random Song"
         onclick="playRandomSong()">随机一首</button>
 </div>
 
@@ -158,7 +158,7 @@
         <label
             class="tag-filter-label"
             data-en="SEARCH"
-            data-zh="歌曲搜索"
+            data-zh="歌曲搜索" data-ja="楽曲検索"
             for="tag-filter-input"
         >
             歌曲搜索
@@ -178,7 +178,7 @@
             id="tag-filter-clear"
             type="button"
             data-en="Clear"
-            data-zh="清空"
+            data-zh="清空" data-ja="クリア"
         >
             清空
         </button>
@@ -186,7 +186,7 @@
     </div>
 
     <p class="tag-filter-help"
-        data-zh="支持歌名和 TAG 模糊搜索。多个关键词用逗号分隔，匹配任意一个即可；加 + 表示必须包含。例如：ラグ, +歌爱。"
+        data-zh="支持歌名和 TAG 模糊搜索。多个关键词用逗号分隔，匹配任意一个即可；加 + 表示必须包含。例如：ラグ, +歌爱。" data-ja="曲名やタグの一部で検索できます。複数のキーワードはカンマで区切り、必須条件には + を付けてください。例：ラグ, +歌愛ユキ。"
         data-en="Search song titles or tags. Separate keywords with commas to match any; prefix a keyword with + to require it. Example: ラグ, +yuki.">
         支持歌名和 TAG 模糊搜索。多个关键词用逗号分隔，匹配任意一个即可；加 + 表示必须包含。例如：ラグ, +歌爱。
     </p>
@@ -208,7 +208,7 @@
     class="tag-empty-state"
     id="tag-empty-state"
     hidden
-    data-zh="没有找到符合歌名和标签条件的歌曲。"
+    data-zh="没有找到符合歌名和标签条件的歌曲。" data-ja="条件に一致する楽曲が見つかりませんでした。"
     data-en="No songs match the title and tag filters."
 >
     没有找到符合歌名和标签条件的歌曲。
@@ -221,35 +221,35 @@
 
 
 <section id="messages">
-<h2 data-en="MESSAGE WALL" data-zh="留言墙">
+<h2 data-en="MESSAGE WALL" data-zh="留言墙" data-ja="メッセージウォール">
         留言墙
     </h2>
-<p class="message-intro" data-en="Leave a message for Inabakumori." data-zh="写下你想对稲葉曇说的话。">
+<p class="message-intro" data-en="Leave a message for Inabakumori." data-zh="写下你想对稲葉曇说的话。" data-ja="稲葉曇さんへのメッセージを書いてみましょう。">
         写下你想对稲葉曇说的话。
     </p>
 
 <div class="message-load-feedback">
     <p id="message-load-status" role="status" aria-live="polite"></p>
     <button id="message-retry" class="tag-clear-button" type="button" hidden
-        data-zh="重新加载" data-en="Retry" onclick="loadMessages()">重新加载</button>
+        data-zh="重新加载" data-ja="再読み込み" data-en="Retry" onclick="loadMessages()">重新加载</button>
 </div>
 <div id="floating-wall"></div>
 
 <div class="message-box">
 <input id="message-name" maxlength="30" placeholder="你的名字 / Name" type="text"/>
 <textarea id="message-input" maxlength="500" placeholder="想对稲葉曇说些什么？ / Say something to Inabakumori..."></textarea>
-<button data-en="Post Message" data-zh="贴到墙上" onclick="addMessage()">
+<button data-en="Post Message" data-zh="贴到墙上" data-ja="投稿する" onclick="addMessage()">
             贴到墙上
         </button>
 </div>
 </section>
 <section id="my-comments" aria-labelledby="my-comments-title">
-  <h2 id="my-comments-title" data-zh="我的留言" data-en="My Messages">我的留言</h2>
+  <h2 id="my-comments-title" data-zh="我的留言" data-ja="自分のメッセージ" data-en="My Messages">我的留言</h2>
   <p id="my-comments-status" role="status" aria-live="polite"></p>
-  <button id="my-comments-retry" class="tag-clear-button" type="button" hidden data-zh="重试" data-en="Retry">重试</button>
+  <button id="my-comments-retry" class="tag-clear-button" type="button" hidden data-zh="重试" data-ja="再試行" data-en="Retry">重试</button>
   <div id="my-comments-controls" hidden>
     <ul id="my-comments-list"></ul>
-    <button id="my-comments-more" class="tag-clear-button" type="button" hidden data-zh="加载更多" data-en="Load more">加载更多</button>
+    <button id="my-comments-more" class="tag-clear-button" type="button" hidden data-zh="加载更多" data-ja="もっと見る" data-en="Load more">加载更多</button>
   </div>
 </section>
 
@@ -257,36 +257,16 @@
 
 
 <footer>
+<p data-zh="如果你对这个网站有任何建议、想法、内容补充，或者发现了需要修改的地方，也欢迎联系我。我很乐意听听你的意见，并继续把这个网站做得更好。" data-en="Have any suggestions, ideas, corrections, or something you think could make this website better? I’d be happy to hear from you." data-ja="このサイトへのご意見、ご提案、情報の追加や訂正などがありましたら、お気軽にご連絡ください。皆さまの声を参考に、より良いサイトにしていきたいと思っています。">如果你对这个网站有任何建议、想法、内容补充，或者发现了需要修改的地方，也欢迎联系我。我很乐意听听你的意见，并继续把这个网站做得更好。</p>
+<p data-zh="如果您是相关版权方或权利人，并认为本站中的任何内容需要修改、补充署名或删除，也请联系我，我会尽快进行处理。" data-en="If you are a copyright or rights holder and believe that any material on this website should be corrected, credited differently, or removed, please contact me." data-ja="著作権者・権利者の方で、掲載内容の修正、クレジットの追加・変更、削除をご希望の場合はご連絡ください。できるだけ早く対応いたします。">如果您是相关版权方或权利人，并认为本站中的任何内容需要修改、补充署名或删除，也请联系我，我会尽快进行处理。</p>
 <p>
-    Have any suggestions, ideas, corrections, or something you think could make
-    this website better? I’d be happy to hear from you.
-</p>
-
-<p>
-    如果你对这个网站有任何建议、想法、内容补充，
-    或者发现了需要修改的地方，也欢迎联系我。
-    我很乐意听听你的意见，并继续把这个网站做得更好。
-</p>
-
-<p>
-    If you are a copyright or rights holder and believe that any material
-    on this website should be corrected, credited differently, or removed,
-    please contact me.
-</p>
-
-<p>
-    如果您是相关版权方或权利人，并认为本站中的任何内容需要修改、
-    补充署名或删除，也请联系我，我会尽快进行处理。
-</p>
-
-<p>
-    Contact / 联系：
+    <span data-zh="联系：" data-en="Contact: " data-ja="お問い合わせ：">联系：</span>
 
     <a
         class="contact-email"
         href="mailto:throne-uplift.3b@icloud.com?subject=Inabakumori%20Fan%20Site%20-%20Feedback%20or%20Content%20Inquiry"
     >
-        here
+        <span data-zh="点这里" data-en="here" data-ja="こちら">点这里</span>
     </a>
 </p>
 </footer>
@@ -301,6 +281,7 @@
 
 
 <script src="config.js"></script>
+<script src="i18n.js"></script>
 <script src="auth.js"></script>
 <script src="songs.js"></script>
 <script src="mobile-backgrounds.js"></script>
