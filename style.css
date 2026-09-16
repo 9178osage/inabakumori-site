@@ -252,6 +252,64 @@ h2 {
   opacity: 0.6;
   transform: translateX(6px);
 }
+#artwork-title {
+  font-size: clamp(24px, 3.2vw, 36px);
+  letter-spacing: 1px;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+#artwork-title > span {
+  display: inline-block;
+  font-size: 0.65em;
+  letter-spacing: 2px;
+}
+.artwork-intro {
+  line-height: 1.8;
+}
+.artwork-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+.artwork-link {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid var(--ui-border);
+  border-radius: 14px;
+  background: var(--ui-surface);
+  color: var(--ui-text);
+  text-decoration: none;
+  transition: var(--transition-surface);
+}
+.artwork-link > img {
+  flex-shrink: 0;
+  object-fit: contain;
+}
+.artwork-link > span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.artwork-link strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 19px;
+}
+.artwork-link span span {
+  color: var(--ui-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.artwork-link:hover {
+  border-color: var(--ui-border-strong);
+}
+.artwork-link:focus-visible {
+  outline: 3px solid var(--ui-text);
+  outline-offset: 4px;
+}
 .artist-links {
   display: flex;
   flex-direction: column;
@@ -1290,6 +1348,9 @@ body.dark .tag-chip.active {
     max-width: none;
     margin-left: auto;
     margin-right: auto;
+  }
+  .artwork-links {
+    grid-template-columns: 1fr;
   }
   .tag-filter-panel {
     width: 100%;
