@@ -118,16 +118,16 @@ body {
 .hero-content nav a {
   pointer-events: auto;
   display: inline-block;
-  margin: 6px;
-  padding: 12px 18px;
-  min-height: 44px;
-  color: var(--ui-text);
+  margin: 15px;
+  color: var(--hero-text);
   text-decoration: none;
-  text-shadow: none;
+  border-bottom: 1px solid currentColor;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.55);
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
 .hero-content nav a:hover {
-  border-color: var(--ui-border-strong);
+  opacity: 0.65;
+  transform: translateY(-2px);
 }
 .glitch {
   position: relative;
@@ -274,7 +274,6 @@ h2 {
 .artwork-link,
 .artist-links a,
 .song-list a,
-.hero-content nav a,
 .contact-email {
   border: 1px solid var(--ui-border);
   border-radius: 14px;
