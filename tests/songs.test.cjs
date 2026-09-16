@@ -80,7 +80,7 @@ function setup(extraSong) {
   run(fs.readFileSync("js/i18n.js", "utf8"));
   run(fs.readFileSync("js/songs.js", "utf8"));
   if (extraSong) run(`SONGS.push(${JSON.stringify(extraSong)})`);
-  run(fs.readFileSync("js/script.js", "utf8"));
+  run(fs.readFileSync("script.js", "utf8"));
   run("initTagFilter()");
   return { run, elements, list, opened };
 }
