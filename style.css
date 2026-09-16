@@ -122,9 +122,9 @@ textarea {
   position: absolute;
   top: -70px;
   left: var(--rain-x);
-  width: 1px;
-  height: var(--rain-length);
-  opacity: 0.22;
+  width: 1.5px;
+  height: calc(var(--rain-length) * 1.25);
+  opacity: 0.3;
   background: linear-gradient(transparent, rgba(235, 244, 250, 0.85));
   animation: gentle-rain var(--rain-duration) linear var(--rain-delay) infinite;
 }
