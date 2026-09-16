@@ -376,5 +376,14 @@ const SONGS = [
     "singers": [
       "初音未来"
     ]
+  },
+  {
+    "title": "僕のサイノウ (稲葉曇 Arrange)",
+    "youtube": "https://youtu.be/v03uVgQZOOM",
+    "album": "SINGLES",
+    "singers": [
+      "歌爱雪",
+      "初音未来"
+    ]
   }
 ];
