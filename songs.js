@@ -385,5 +385,21 @@ const SONGS = [
       "歌爱雪",
       "初音未来"
     ]
+  },
+  {
+    "title": "かにだいすき",
+    "youtube": "https://youtu.be/KK9nXYdmkiM",
+    "album": "SINGLES",
+    "singers": [
+      "歌爱雪"
+    ]
+  },
+  {
+    "title": "もち",
+    "youtube": "https://youtu.be/QpKaP3oGBXE",
+    "album": "SINGLES",
+    "singers": [
+      "歌爱雪"
+    ]
   }
 ];
