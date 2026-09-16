@@ -407,5 +407,14 @@ const SONGS = [
     "youtube": "https://youtu.be/Vb-z6AR-2F0",
     "album": "キメラ",
     "singers": []
+  },
+  {
+    "title": "おはようオーパーツ (稲葉曇 Cover)",
+    "youtube": "https://youtu.be/17xSzYLQVKQ",
+    "album": "SINGLES",
+    "singers": [
+      "稲葉曇",
+      "歌爱雪"
+    ]
   }
 ];
