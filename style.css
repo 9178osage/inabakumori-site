@@ -1099,7 +1099,14 @@ body.dark .tag-chip.active {
 #my-comments-list button {
   flex-shrink: 0;
 }
-@media (max-width: 700px) {
+@media (max-width: 700px), (pointer: coarse) and (max-width: 1000px) {
+  html {
+    scroll-padding-top: calc(76px + env(safe-area-inset-top));
+  }
+  .hero {
+    height: 100svh;
+    min-height: 360px;
+  }
   .site-controls {
     position: fixed;
     z-index: 1000;
@@ -1108,7 +1115,7 @@ body.dark .tag-chip.active {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 44px auto;
     gap: 8px;
-    width: min(420px, calc(100% - 24px));
+    width: min(420px, calc(100% - 24px - env(safe-area-inset-left) - env(safe-area-inset-right)));
   }
   #lang-btn,
   #theme-btn,
@@ -1142,13 +1149,23 @@ body.dark .tag-chip.active {
     line-height: 1.2;
   }
   .hero-content nav {
-    margin-top: 28px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 24px;
   }
   .hero-content nav a {
-    margin: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 8px 12px;
+    margin: 0;
+    font-size: 15px;
   }
   section {
-    padding: 80px 0;
+    padding: 56px 0;
   }
   h2 {
     font-size: 34px;
@@ -1157,8 +1174,10 @@ body.dark .tag-chip.active {
     width: 100%;
   }
   .song-list {
-    height: 560px;
+    height: auto;
     width: 100%;
+    overflow: visible;
+    padding-right: 0;
   }
   .artist-links a {
     font-size: 23px;
@@ -1168,7 +1187,8 @@ body.dark .tag-chip.active {
     height: 36px;
   }
   #floating-wall {
-    height: 500px;
+    height: min(500px, 65svh);
+    min-height: 280px;
     width: 100%;
     max-width: none;
   }
@@ -1205,6 +1225,8 @@ body.dark .tag-chip.active {
     padding-right: 28px;
     overflow-wrap: anywhere;
   }
+  #auth-submit,
+  .auth-switch,
   .tag-chip,
   .tag-clear-button,
   .message-box button,
@@ -1226,13 +1248,31 @@ body.dark .tag-chip.active {
   }
   .song-list a.tag-ready {
     gap: 12px;
-    font-size: 18px;
+    padding: 16px 0;
+    font-size: 17px;
+  }
+  .song-list a:hover {
+    opacity: 1;
+    transform: none;
+  }
+  #tag-filter-input {
+    height: 44px;
+    padding: 0 10px;
+  }
+  .song-details {
+    gap: 6px;
+  }
+  .song-inline-tag {
+    font-size: 11px;
+    line-height: 1.4;
+    letter-spacing: 0;
   }
   .song-thumbnail {
     flex-basis: 88px;
     width: 88px;
   }
   .tag-filter-label {
+    grid-column: 1 / -1;
     white-space: normal;
   }
   .related-links-subtitle {
@@ -1246,22 +1286,23 @@ body.dark .tag-chip.active {
   main > section:not(#songs),
   main > section#messages,
   #songs {
-    width: calc(100% - 24px);
+    width: calc(100% - 24px - env(safe-area-inset-left) - env(safe-area-inset-right));
     max-width: none;
     margin-left: auto;
     margin-right: auto;
   }
   .tag-filter-panel {
     width: 100%;
+    margin-bottom: 20px;
   }
   .message-box {
     width: 100%;
     max-width: none;
   }
   .tag-filter-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
   }
-  .tag-clear-button,
   .message-box button,
   #random-song-button {
     width: 100%;
