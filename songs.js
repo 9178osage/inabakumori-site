@@ -454,5 +454,13 @@ const SONGS = [
       "歌爱雪",
       "镜音连"
     ]
+  },
+  {
+    "title": "ノンユース (Original Version)",
+    "youtube": "https://youtu.be/PJo89L-_l3s",
+    "album": "SINGLES",
+    "singers": [
+      "歌爱雪"
+    ]
   }
 ];
