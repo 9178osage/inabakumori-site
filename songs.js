@@ -432,5 +432,13 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ]
+  },
+  {
+    "title": "ラストリヴ",
+    "youtube": "https://youtu.be/LqlD2Btv0KI",
+    "album": "見つけた扉は",
+    "singers": [
+      "宮下遊"
+    ]
   }
 ];
