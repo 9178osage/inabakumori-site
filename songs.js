@@ -405,7 +405,7 @@ const SONGS = [
   {
     "title": "ダンスロボットダンス (MVアレンジメドレー)",
     "youtube": "https://youtu.be/Vb-z6AR-2F0",
-    "album": "キメラ",
+    "album": "SINGLES",
     "singers": []
   },
   {
@@ -420,7 +420,7 @@ const SONGS = [
   {
     "title": "失敗作少女 (稲葉曇 Remix)",
     "youtube": "https://youtu.be/42P4ritVHjE",
-    "album": "ベノマ",
+    "album": "SINGLES",
     "singers": [
       "歌爱雪"
     ]
@@ -428,7 +428,7 @@ const SONGS = [
   {
     "title": "篝火 (稲葉曇 Remix)",
     "youtube": "https://youtu.be/dJQibXdtsa8",
-    "album": "二面性 / 濁",
+    "album": "SINGLES",
     "singers": [
       "歌爱雪"
     ]
@@ -436,7 +436,7 @@ const SONGS = [
   {
     "title": "ラストリヴ",
     "youtube": "https://youtu.be/LqlD2Btv0KI",
-    "album": "見つけた扉は",
+    "album": "SINGLES",
     "singers": [
       "宮下遊"
     ]
