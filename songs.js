@@ -368,5 +368,13 @@ const SONGS = [
     "singers": [
       "初音未来"
     ]
+  },
+  {
+    "title": "あいたい星人 (大気圏外 Remix)",
+    "youtube": "https://youtu.be/io5HEdBNqWk",
+    "album": "SINGLES",
+    "singers": [
+      "初音未来"
+    ]
   }
 ];
