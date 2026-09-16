@@ -28,6 +28,7 @@
   --button-hover: var(--color-black);
   --artist-link: var(--color-ink);
   --ui-surface: rgba(255, 255, 255, 0.80);
+  --link-hover-bg: rgba(255, 255, 255, 0.38);
   --ui-surface-solid: #f3f3f3;
   --ui-input-bg: var(--color-white);
   --ui-text: var(--color-ink);
@@ -288,9 +289,6 @@ h2 {
   transition: transform 0.2s ease, opacity 0.2s ease;
   width: 100%;
 }
-.song-list a:hover {
-  border-color: var(--ui-border-strong);
-}
 #artwork-title {
   font-size: clamp(24px, 3.2vw, 36px);
   letter-spacing: 1px;
@@ -312,9 +310,9 @@ h2 {
 .artist-links a,
 .song-list a,
 .contact-email {
-  border: 1px solid var(--ui-border);
+  border: 1px solid transparent;
   border-radius: 14px;
-  background: var(--ui-surface);
+  background: transparent;
   color: var(--ui-text);
   text-decoration: none;
   transition: var(--transition-surface);
@@ -344,8 +342,8 @@ h2 {
   font-size: 14px;
   line-height: 1.5;
 }
-.artwork-link:hover {
-  border-color: var(--ui-border-strong);
+:is(.artwork-link, .artist-links a, .song-list a, .contact-email):is(:focus-visible, :active) {
+  background: var(--link-hover-bg);
 }
 .artwork-link:focus-visible,
 .artist-links a:focus-visible,
@@ -376,10 +374,6 @@ h2 {
 }
 .artist-links a > span {
   min-width: 0;
-}
-.artist-links a:hover,
-.contact-email:hover {
-  border-color: var(--ui-border-strong);
 }
 .artist-links img {
   width: 40px;
@@ -468,6 +462,7 @@ body.dark {
   --button-hover: var(--color-white);
   --artist-link: var(--color-light-text);
   --ui-surface: rgba(36, 42, 47, 0.84);
+  --link-hover-bg: rgba(255, 255, 255, 0.08);
   --ui-surface-solid: #252b30;
   --ui-input-bg: #171b1f;
   --ui-text: var(--color-light-text);
@@ -1440,6 +1435,9 @@ body.dark .tag-chip.active {
   }
 }
 @media (hover: hover) {
+  :is(.artwork-link, .artist-links a, .song-list a, .contact-email):hover {
+    background: var(--link-hover-bg);
+  }
   #tag-suggestions .tag-chip[data-tag=anticyclone]:hover,
   #tag-suggestions .tag-chip[data-tag="weather station"]:hover,
   #tag-suggestions .tag-chip[data-tag=singles]:hover,
