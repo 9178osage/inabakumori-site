@@ -445,5 +445,14 @@ const SONGS = [
     "singers": [
       "镜音铃"
     ]
+  },
+  {
+    "title": "ロールレスウエポン (稲葉曇×Neru)",
+    "youtube": "https://youtu.be/vnJE7k9Wiag",
+    "album": "SINGLES",
+    "singers": [
+      "歌爱雪",
+      "镜音连"
+    ]
   }
 ];
