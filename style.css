@@ -1,4 +1,8 @@
 :root {
+  --font-body: "Zen Kaku Gothic New", "Hiragino Kaku Gothic ProN", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-heading: "Shippori Mincho", "Noto Serif SC", "Songti SC", "Yu Mincho", serif;
+  --font-song: "Shippori Mincho", "Noto Serif SC", "Yu Mincho", serif;
+  --font-data: "Station Mono", "Zen Kaku Gothic New", "PingFang SC", monospace;
   --transition-tag: background-color 0.16s ease, color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
   --transition-action: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease, opacity 0.18s ease;
   --transition-input: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
@@ -46,10 +50,18 @@ html {
 }
 body {
   margin: 0;
-  font-family: Arial, sans-serif;
+  font-family: var(--font-body);
   background: var(--page-bg);
   color: var(--page-text);
   transition: var(--transition-surface);
+}
+html:lang(zh-CN) {
+  --font-heading: "Noto Serif SC", "Shippori Mincho", "Songti SC", serif;
+}
+button,
+input,
+textarea {
+  font-family: var(--font-body);
 }
 .hero {
   position: relative;
@@ -99,6 +111,7 @@ body {
   pointer-events: none;
 }
 .hero-content {
+  max-width: calc(100% - 32px);
   position: relative;
   z-index: 10;
   pointer-events: none;
@@ -107,8 +120,11 @@ body {
 }
 .hero-content h1 {
   margin: 0;
-  font-size: 80px;
-  letter-spacing: 10px;
+  font-family: var(--font-heading);
+  font-size: clamp(36px, 5.6vw, 80px);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.09em;
   color: var(--hero-text);
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.55), 0 0 2px rgba(0, 0, 0, 0.8);
 }
@@ -198,6 +214,8 @@ section {
   padding: 100px 0;
 }
 h2 {
+  font-family: var(--font-heading);
+  font-weight: 600;
   margin-top: 0;
   font-size: 40px;
   letter-spacing: 4px;
@@ -258,6 +276,8 @@ h2 {
   line-height: 1.5;
 }
 .artwork-intro {
+  font-family: var(--font-heading);
+  font-size: 19px;
   line-height: 1.8;
 }
 .artwork-links {
@@ -618,6 +638,7 @@ main > section#messages {
   font-size: 14px;
 }
 .tag-filter-label {
+  font-family: var(--font-data);
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 1.2px;
@@ -746,8 +767,14 @@ body.dark .song-thumbnail {
 }
 .song-title-text {
   display: block;
+  font-family: var(--font-song);
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  line-height: 1.6;
 }
 .song-views {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
   display: block;
   color: var(--ui-muted);
   font-size: 12px;
@@ -761,6 +788,7 @@ body.dark .song-thumbnail {
   gap: 5px;
 }
 .song-inline-tag {
+  font-family: var(--font-data);
   display: inline-block;
   padding: 2px 6px;
   font-size: 10px;

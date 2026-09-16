@@ -1,0 +1,28 @@
+@font-face {
+  font-family: "Shippori Mincho";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./shippori-mincho.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Noto Serif SC";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./noto-serif-sc.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Zen Kaku Gothic New";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./zen-kaku-gothic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Station Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./station-mono.woff2") format("woff2");
+}
