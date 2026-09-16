@@ -416,5 +416,13 @@ const SONGS = [
       "稲葉曇",
       "歌爱雪"
     ]
+  },
+  {
+    "title": "失敗作少女 (稲葉曇 Remix)",
+    "youtube": "https://youtu.be/42P4ritVHjE",
+    "album": "ベノマ",
+    "singers": [
+      "歌爱雪"
+    ]
   }
 ];
