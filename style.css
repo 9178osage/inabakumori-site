@@ -257,11 +257,6 @@ h2 {
   overflow-wrap: anywhere;
   line-height: 1.5;
 }
-#artwork-title > span {
-  display: inline-block;
-  font-size: 0.65em;
-  letter-spacing: 2px;
-}
 .artwork-intro {
   line-height: 1.8;
 }
