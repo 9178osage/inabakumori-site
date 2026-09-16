@@ -118,16 +118,16 @@ body {
 .hero-content nav a {
   pointer-events: auto;
   display: inline-block;
-  margin: 15px;
-  color: var(--hero-text);
+  margin: 6px;
+  padding: 12px 18px;
+  min-height: 44px;
+  color: var(--ui-text);
   text-decoration: none;
-  border-bottom: 1px solid currentColor;
-  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.55);
+  text-shadow: none;
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
 .hero-content nav a:hover {
-  opacity: 0.65;
-  transform: translateY(-2px);
+  border-color: var(--ui-border-strong);
 }
 .glitch {
   position: relative;
@@ -238,19 +238,18 @@ h2 {
   align-items: center;
   min-width: 0;
   min-height: 76px;
-  padding: 18px 6px;
-  color: var(--color-ink);
+  padding: 18px;
+  margin-bottom: 12px;
+  color: var(--ui-text);
   font-size: 20px;
   font-weight: 500;
   line-height: 1.4;
   text-decoration: none;
-  border-bottom: 1px solid rgba(32, 37, 42, 0.16);
   transition: transform 0.2s ease, opacity 0.2s ease;
   width: 100%;
 }
 .song-list a:hover {
-  opacity: 0.6;
-  transform: translateX(6px);
+  border-color: var(--ui-border-strong);
 }
 #artwork-title {
   font-size: clamp(24px, 3.2vw, 36px);
@@ -272,17 +271,23 @@ h2 {
   gap: 16px;
   margin-top: 24px;
 }
-.artwork-link {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 20px;
+.artwork-link,
+.artist-links a,
+.song-list a,
+.hero-content nav a,
+.contact-email {
   border: 1px solid var(--ui-border);
   border-radius: 14px;
   background: var(--ui-surface);
   color: var(--ui-text);
   text-decoration: none;
   transition: var(--transition-surface);
+}
+.artwork-link {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px;
 }
 .artwork-link > img {
   flex-shrink: 0;
@@ -306,33 +311,39 @@ h2 {
 .artwork-link:hover {
   border-color: var(--ui-border-strong);
 }
-.artwork-link:focus-visible {
+.artwork-link:focus-visible,
+.artist-links a:focus-visible,
+.song-list a:focus-visible,
+.hero-content nav a:focus-visible,
+.contact-email:focus-visible {
   outline: 3px solid var(--ui-text);
   outline-offset: 4px;
 }
 .artist-links {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
   margin-top: 20px;
+}
+.artist-links .link-subheading {
+  grid-column: 1 / -1;
 }
 .artist-links a {
   display: flex;
   align-items: center;
   gap: 14px;
-  width: fit-content;
-  padding-bottom: 4px;
-  font-size: 26px;
+  min-width: 0;
+  padding: 20px;
+  font-size: 19px;
   font-weight: 500;
-  color: var(--artist-link);
-  text-decoration: none;
-  border-bottom: 1px solid currentColor;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  overflow-wrap: anywhere;
 }
-.artist-links a:hover {
-  opacity: 0.65;
-  transform: translateX(5px);
+.artist-links a > span {
+  min-width: 0;
+}
+.artist-links a:hover,
+.contact-email:hover {
+  border-color: var(--ui-border-strong);
 }
 .artist-links img {
   width: 40px;
@@ -438,9 +449,12 @@ footer {
   color: var(--color-gray);
 }
 .contact-email {
-  color: var(--page-text);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 12px 20px;
+  margin: 8px;
 }
 #messages {
   padding: 60px 20px;
@@ -878,10 +892,6 @@ body.dark .song-thumbnail {
   border-radius: 14px;
   box-shadow: var(--ui-shadow);
 }
-body.dark .song-list a {
-  color: var(--color-light-text);
-  border-bottom-color: rgba(255, 255, 255, 0.14);
-}
 body.dark .song-list::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.28);
 }
@@ -979,9 +989,6 @@ body.dark textarea::placeholder {
 }
 body.dark footer {
   color: #aeb5ba;
-}
-body.dark .contact-email {
-  color: var(--color-light-text);
 }
 #lang-btn:focus-visible,
 #theme-btn:focus-visible,
@@ -1238,7 +1245,7 @@ body.dark .tag-chip.active {
     padding-right: 0;
   }
   .artist-links a {
-    font-size: 23px;
+    font-size: 18px;
   }
   .artist-links img {
     width: 36px;
@@ -1306,7 +1313,7 @@ body.dark .tag-chip.active {
   }
   .song-list a.tag-ready {
     gap: 12px;
-    padding: 16px 0;
+    padding: 14px;
     font-size: 17px;
   }
   .song-list a:hover {
@@ -1349,6 +1356,7 @@ body.dark .tag-chip.active {
     margin-left: auto;
     margin-right: auto;
   }
+  .artist-links,
   .artwork-links {
     grid-template-columns: 1fr;
   }
