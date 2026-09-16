@@ -413,7 +413,6 @@ const SONGS = [
     "youtube": "https://youtu.be/17xSzYLQVKQ",
     "album": "SINGLES",
     "singers": [
-      "稲葉曇",
       "歌爱雪"
     ]
   },
@@ -437,9 +436,7 @@ const SONGS = [
     "title": "ラストリヴ",
     "youtube": "https://youtu.be/LqlD2Btv0KI",
     "album": "SINGLES",
-    "singers": [
-      "宮下遊"
-    ]
+    "singers": []
   },
   {
     "title": "忘れん坊の猫かぶり",

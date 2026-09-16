@@ -350,17 +350,10 @@ function isSingleSongSinger(tag) {
 const TAG_ALIASES = { "other": "其他", "反气旋": "anticyclone", "anticyclone": "anticyclone", "气象站": "weather station", "weather station": "weather station", "单曲": "singles", "single": "singles", "singles": "singles", "yuki": "歌爱雪", "kaai yuki": "歌爱雪", "歌爱雪 / kaai yuki": "歌爱雪", "miku": "初音未来", "hatsune miku": "初音未来", "初音未来 / hatsune miku": "初音未来", "hime": "鸣花hime", "meika hime": "鸣花hime", "鸣花hime / meika hime": "鸣花hime", "maki": "弦卷真纪", "tsurumaki maki": "弦卷真纪", "弦卷真纪 / tsurumaki maki": "弦卷真纪", "sekai": "星界", "星界 / sekai": "星界", "rime": "里命", "里命 / rime": "里命", "una": "音街鳗", "otomachi una": "音街鳗", "音街鳗 / otomachi una": "音街鳗", "nagi beta": "nagiβ", "nagiβ": "nagiβ", "kazehiki": "カゼヒキβ", "kazehiki beta": "カゼヒキβ", "kazehiki β": "カゼヒキβ", "カゼヒキβ / kazehiki β": "カゼヒキβ", "shuo": "彩澄しゅお", "ayazumi shuo": "彩澄しゅお", "彩澄しゅお / ayazumi shuo": "彩澄しゅお", "ririse": "彩澄りりせ", "ayazumi ririse": "彩澄りりせ", "彩澄りりせ / ayazumi ririse": "彩澄りりせ" };
 const TAG_DISPLAY_NAMES = { "anticyclone": { zh: "反气旋", en: "ANTICYCLONE" }, "weather station": { zh: "气象站", en: "WEATHER STATION" }, "singles": { zh: "单曲", en: "SINGLES" }, "歌爱雪": { zh: "歌爱雪 / Kaai Yuki", en: "Kaai Yuki" }, "初音未来": { zh: "初音未来 / Hatsune Miku", en: "Hatsune Miku" }, "鸣花hime": { zh: "鸣花Hime / MEIKA Hime", en: "MEIKA Hime" }, "弦卷真纪": { zh: "弦卷真纪 / Tsurumaki Maki", en: "Tsurumaki Maki" }, "星界": { zh: "星界 / SEKAI", en: "SEKAI" }, "里命": { zh: "里命 / RIME", en: "RIME" }, "音街鳗": { zh: "音街鳗 / Otomachi Una", en: "Otomachi Una" }, "nagiβ": { zh: "nagiβ", en: "nagiβ" }, "カゼヒキβ": { zh: "カゼヒキβ / Kazehiki β", en: "Kazehiki β" }, "彩澄しゅお": { zh: "彩澄しゅお / Ayazumi Shuo", en: "Ayazumi Shuo" }, "彩澄りりせ": { zh: "彩澄りりせ / Ayazumi Ririse", en: "Ayazumi Ririse" }, "其他": { zh: "其他", en: "Other" } };
 
-TAG_DISPLAY_NAMES["宮下遊"] = { zh: "宫下游 / Yuu Miyashita", en: "Yuu Miyashita", ja: "宮下遊" };
-TAG_ALIASES["宫下游"] = "宮下遊";
-TAG_ALIASES["yuu miyashita"] = "宮下遊";
-TAG_ALIASES["miyashita yuu"] = "宮下遊";
 TAG_DISPLAY_NAMES["镜音铃"] = { zh: "镜音铃 / Kagamine Rin", en: "Kagamine Rin", ja: "鏡音リン" };
 TAG_ALIASES["鏡音リン"] = "镜音铃";
 TAG_ALIASES["kagamine rin"] = "镜音铃";
 TAG_ALIASES["rin"] = "镜音铃";
-TAG_DISPLAY_NAMES["稲葉曇"] = { zh: "稲葉曇", en: "inabakumori", ja: "稲葉曇" };
-TAG_ALIASES["inabakumori"] = "稲葉曇";
-TAG_ALIASES["稻叶昙"] = "稲葉曇";
 TAG_DISPLAY_NAMES["anticyclone"].ja = "ANTICYCLONE";
 TAG_ALIASES["anticyclone"] = "anticyclone";
 TAG_DISPLAY_NAMES["weather station"].ja = "WEATHER STATION";
