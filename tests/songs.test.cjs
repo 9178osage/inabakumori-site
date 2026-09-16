@@ -88,13 +88,13 @@ function setup(extraSong) {
 test("the original 37 songs retain their exact order, titles, URLs, albums, and singers", () => {
   const { run, list, elements } = setup();
   const songs = JSON.parse(run("JSON.stringify(SONGS)"));
-  assert.equal(songs.length, 37);
+  assert.equal(songs.length, 38);
   const digest = createHash("sha256")
-    .update(JSON.stringify(songs.map(song => [song.title, song.youtube, song.album, song.singers])))
+    .update(JSON.stringify(songs.slice(0, 37).map(song => [song.title, song.youtube, song.album, song.singers])))
     .digest("hex");
   assert.equal(digest, "1d559b3903dbfda7d33748235ebb213c13453c9985fc4563b6d3cd4fe44256f6");
-  assert.equal(list.children.length, 37);
-  assert.equal(elements["tag-result-count"].textContent, "显示 37 / 37 首");
+  assert.equal(list.children.length, songs.length);
+  assert.equal(elements["tag-result-count"].textContent, "显示 38 / 38 首");
   songs.forEach((song, index) => {
     const row = list.children[index];
     assert.equal(row.querySelector(".song-title-text").textContent, `${String(index + 1).padStart(2, "0")}　${song.title}`);
@@ -104,7 +104,7 @@ test("the original 37 songs retain their exact order, titles, URLs, albums, and 
   });
 });
 
-test("a data-only 38th song renders and participates in search, singer counts, and random play", () => {
+test("an additional data-only song renders and participates in search, singer counts, and random play", () => {
   const extra = {
     title: "New <song> & test",
     youtube: "https://www.youtube.com/watch?v=abcdefghijk",
@@ -113,8 +113,8 @@ test("a data-only 38th song renders and participates in search, singer counts, a
   };
   const { run, list, elements, opened } = setup(extra);
   const row = list.children.at(-1);
-  assert.equal(list.children.length, 38);
-  assert.equal(row.querySelector(".song-title-text").textContent, "38　New <song> & test");
+  assert.equal(list.children.length, 39);
+  assert.equal(row.querySelector(".song-title-text").textContent, "39　New <song> & test");
   assert.equal(row.dataset.songTitle, extra.title);
   assert.equal(row.href, extra.youtube);
   assert.equal(row.target, "_blank");
@@ -132,7 +132,7 @@ test("a data-only 38th song renders and participates in search, singer counts, a
     input.value = query;
     input.dispatch("input");
     assert.deepEqual(list.children.filter(song => !song.hidden), [row], query);
-    assert.equal(elements["tag-result-count"].textContent, "显示 1 / 38 首");
+    assert.equal(elements["tag-result-count"].textContent, "显示 1 / 39 首");
   }
   input.value = "sekai";
   input.dispatch("input");
@@ -143,7 +143,7 @@ test("a data-only 38th song renders and participates in search, singer counts, a
   assert.equal(elements["tag-empty-state"].hidden, false);
   elements["tag-filter-clear"].dispatch("click");
   assert.equal(input.value, "");
-  assert.equal(elements["tag-result-count"].textContent, "显示 38 / 38 首");
+  assert.equal(elements["tag-result-count"].textContent, "显示 39 / 39 首");
   run("Math.random = () => 0.999999; playRandomSong()");
   assert.deepEqual(opened, [[extra.youtube, "_blank", "noopener,noreferrer"]]);
 });
@@ -156,6 +156,6 @@ test("Japanese singer tags filter correctly and counts use Japanese", () => {
   elements["tag-filter-input"].value = "歌愛ユキ";
   elements["tag-filter-input"].dispatch("input");
   assert.ok(list.children.filter(row => !row.hidden).length > 0);
-  assert.match(elements["tag-result-count"].textContent, /37 曲中/);
+  assert.match(elements["tag-result-count"].textContent, /38 曲中/);
   assert.match(list.children[0].querySelector(".song-views").dataset.ja, /回視聴/);
 });

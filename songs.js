@@ -360,5 +360,13 @@ const SONGS = [
     ],
     "viewCount": 2514969,
     "viewsCheckedAt": "2026-09-14"
+  },
+  {
+    "title": "たびのまえ、たびのあと (tabitabi Remix)",
+    "youtube": "https://youtu.be/L38M7qK1Yv4",
+    "album": "SINGLES",
+    "singers": [
+      "初音未来"
+    ]
   }
 ];
