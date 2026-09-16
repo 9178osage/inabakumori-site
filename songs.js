@@ -426,7 +426,7 @@ const SONGS = [
   },
   {
     "title": "篝火 (稲葉曇 Remix)",
-    "youtube": "https://youtu.be/dJQibXdtsa8",
+    "youtube": "https://youtu.be/dmG60q44PJQ",
     "album": "SINGLES",
     "singers": [
       "歌爱雪"
