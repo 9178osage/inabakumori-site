@@ -401,5 +401,11 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ]
+  },
+  {
+    "title": "ダンスロボットダンス (MVアレンジメドレー)",
+    "youtube": "https://youtu.be/Vb-z6AR-2F0",
+    "album": "キメラ",
+    "singers": []
   }
 ];
