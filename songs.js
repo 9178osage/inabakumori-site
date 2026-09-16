@@ -440,5 +440,13 @@ const SONGS = [
     "singers": [
       "宮下遊"
     ]
+  },
+  {
+    "title": "忘れん坊の猫かぶり",
+    "youtube": "https://youtu.be/KLxigReVbk8",
+    "album": "SINGLES",
+    "singers": [
+      "镜音铃"
+    ]
   }
 ];
