@@ -462,5 +462,13 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ]
+  },
+  {
+    "title": "紗痲 (稲葉曇 Cover)",
+    "youtube": "https://youtu.be/DXngar-Nl6g",
+    "album": "SINGLES",
+    "singers": [
+      "歌爱雪"
+    ]
   }
 ];
