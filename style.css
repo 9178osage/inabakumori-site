@@ -28,6 +28,8 @@
   --button-hover: var(--color-black);
   --artist-link: var(--color-ink);
   --ui-surface: rgba(255, 255, 255, 0.80);
+  --link-bg: rgba(255, 255, 255, 0.16);
+  --link-border: rgba(32, 37, 42, 0.12);
   --link-hover-bg: rgba(255, 255, 255, 0.38);
   --ui-surface-solid: #f3f3f3;
   --ui-input-bg: var(--color-white);
@@ -310,9 +312,9 @@ h2 {
 .artist-links a,
 .song-list a,
 .contact-email {
-  border: 1px solid transparent;
+  border: 1px solid var(--link-border);
   border-radius: 14px;
-  background: transparent;
+  background: var(--link-bg);
   color: var(--ui-text);
   text-decoration: none;
   transition: var(--transition-surface);
@@ -462,6 +464,8 @@ body.dark {
   --button-hover: var(--color-white);
   --artist-link: var(--color-light-text);
   --ui-surface: rgba(36, 42, 47, 0.84);
+  --link-bg: rgba(255, 255, 255, 0.035);
+  --link-border: rgba(238, 241, 243, 0.10);
   --link-hover-bg: rgba(255, 255, 255, 0.08);
   --ui-surface-solid: #252b30;
   --ui-input-bg: #171b1f;
