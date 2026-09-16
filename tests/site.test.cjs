@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
 const { DatabaseSync } = require("node:sqlite");
-const source = fs.readFileSync("script.js", "utf8");
+const source = fs.readFileSync("js/script.js", "utf8");
 function setup(options = {}) {
   const elements = {};
   const messages = [];
@@ -22,7 +22,7 @@ function setup(options = {}) {
   Object.assign(context.window, options.window);
   if (options.Image) context.Image = options.Image;
   vm.createContext(context);
-  vm.runInContext(fs.readFileSync("i18n.js", "utf8"), context);
+  vm.runInContext(fs.readFileSync("js/i18n.js", "utf8"), context);
   vm.runInContext(source, context);
   return { context, elements, messages, events, run: (code) => vm.runInContext(code, context) };
 }
@@ -122,7 +122,7 @@ test("all listed hero images exist and switching works immediately", () => {
 test("configuration supports local development and same-origin hosting", () => {
   for (const [hostname, protocol, expected] of [["localhost", "http:", "http://localhost:3001"], ["127.0.0.1", "http:", "http://127.0.0.1:3001"], ["fans.example", "https:", "https://fans.example"]]) {
     const context = { window: { location: { hostname, protocol, origin: `${protocol}//${hostname}` } } };
-    vm.runInNewContext(fs.readFileSync("config.js", "utf8"), context);
+    vm.runInNewContext(fs.readFileSync("js/config.js", "utf8"), context);
     assert.equal(context.window.APP_CONFIG.apiDomain, expected);
   }
 });
@@ -243,7 +243,7 @@ test("auth blocks duplicate requests and mode changes until the request finishes
     signIn: () => { requests++; return new Promise(resolve => { finish = resolve; }); }
   };
   vm.createContext(context);
-  vm.runInContext(fs.readFileSync("i18n.js", "utf8"), context);
+  vm.runInContext(fs.readFileSync("js/i18n.js", "utf8"), context);
   vm.runInContext(fs.readFileSync("src/auth-src.js", "utf8").replace(/^import .*;\n/gm, ""), context);
   const run = code => vm.runInContext(code, context);
   const first = run("submitAuth()");

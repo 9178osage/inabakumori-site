@@ -77,10 +77,10 @@ function setup(extraSong) {
   };
   vm.createContext(context);
   const run = code => vm.runInContext(code, context);
-  run(fs.readFileSync("i18n.js", "utf8"));
-  run(fs.readFileSync("songs.js", "utf8"));
+  run(fs.readFileSync("js/i18n.js", "utf8"));
+  run(fs.readFileSync("js/songs.js", "utf8"));
   if (extraSong) run(`SONGS.push(${JSON.stringify(extraSong)})`);
-  run(fs.readFileSync("script.js", "utf8"));
+  run(fs.readFileSync("js/script.js", "utf8"));
   run("initTagFilter()");
   return { run, elements, list, opened };
 }

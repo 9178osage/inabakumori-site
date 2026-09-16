@@ -42,7 +42,7 @@ function setup(url = "http://localhost:5500/") {
   };
   context.document.activeElement = elements["auth-btn"];
   vm.createContext(context);
-  vm.runInContext(fs.readFileSync("i18n.js", "utf8"), context);
+  vm.runInContext(fs.readFileSync("js/i18n.js", "utf8"), context);
   vm.runInContext(source, context);
   return { context, elements, listeners, events, calls, run: code => vm.runInContext(code, context), language(value) { language = value; listeners.languagechange(); } };
 }

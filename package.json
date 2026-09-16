@@ -2,10 +2,10 @@
   "name": "inabakumori-site",
   "version": "1.0.0",
   "description": "",
-  "main": "script.js",
+  "main": "js/script.js",
   "scripts": {
     "test": "node --test tests/*.test.cjs",
-    "build": "esbuild src/auth-src.js --bundle --platform=browser --format=iife --minify-whitespace --legal-comments=inline --outfile=auth.js"
+    "build": "esbuild src/auth-src.js --bundle --platform=browser --format=iife --minify-whitespace --legal-comments=inline --outfile=js/auth.js"
   },
   "keywords": [],
   "author": "",

@@ -76,8 +76,8 @@ function ui() {
     window: { APP_CONFIG: { apiDomain: 'http://localhost' }, hasCommentSession: async () => true, removeWallMessage: id => removed.push(id), addEventListener(name, fn) { events[name] = fn; } }
   };
   vm.createContext(context);
-  vm.runInContext(fs.readFileSync("i18n.js", "utf8"), context);
-  vm.runInContext(fs.readFileSync('comments-management.js','utf8'), context);
+  vm.runInContext(fs.readFileSync("js/i18n.js", "utf8"), context);
+  vm.runInContext(fs.readFileSync('js/comments-management.js','utf8'), context);
   return { elements, events, context, removed };
 }
 test('delete cancellation sends no request and failed deletion leaves the message available', async () => {
