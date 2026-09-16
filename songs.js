@@ -424,5 +424,13 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ]
+  },
+  {
+    "title": "篝火 (稲葉曇 Remix)",
+    "youtube": "https://youtu.be/dJQibXdtsa8",
+    "album": "二面性 / 濁",
+    "singers": [
+      "歌爱雪"
+    ]
   }
 ];
