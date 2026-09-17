@@ -156,6 +156,9 @@ textarea {
 .hero-content nav {
   margin-top: 40px;
 }
+html:lang(zh-CN) .hero-content nav {
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+}
 .hero-content nav a {
   pointer-events: auto;
   display: inline-block;
