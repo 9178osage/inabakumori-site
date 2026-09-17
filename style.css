@@ -157,7 +157,14 @@ textarea {
   margin-top: 40px;
 }
 html:lang(zh-CN) .hero-content nav {
-  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-weight: 600;
+}
+html:lang(zh-CN) .hero-content nav a {
+  font-size: clamp(16px, 1.4vw, 18px);
+  line-height: 1.65;
+  letter-spacing: 0.06em;
+  padding-bottom: 4px;
 }
 .hero-content nav a {
   pointer-events: auto;
