@@ -81,18 +81,10 @@ const desktopHeroImages = ["images/hero/001.png", "images/hero/002.png", "images
 let heroImages = desktopHeroImages;
 let heroLoadVersion = 0;
 const mobileHeroQuery = window.matchMedia?.("(max-width: 700px), (pointer: coarse) and (max-width: 1000px)");
-function optimizedImagePath(path) {
-  return path.endsWith(".png") ? path.slice(0, -4) + ".webp" : path;
-}
-function setHeroImageSource(element, path) {
-  if (!element) return;
-  element.src = path;
-  element.srcset = path.endsWith(".png") ? `${optimizedImagePath(path)} 1x` : "";
-}
 function preloadNextHeroImage() {
   if (!heroImages.length) return;
   const image = new Image();
-  image.src = optimizedImagePath(heroImages[(currentSlide + 1) % heroImages.length]);
+  image.src = heroImages[(currentSlide + 1) % heroImages.length];
 }
 function loadMobileHeroImage(path) {
   return new Promise((resolve) => {
@@ -109,11 +101,8 @@ async function discoverHeroImages() {
   easterEggHeroComplete = false;
   heroImages = mobileHeroQuery?.matches ? [] : desktopHeroImages;
   if (slide) {
-    if (heroImages.length) setHeroImageSource(slide, heroImages[0]);
-    else {
-      slide.removeAttribute("src");
-      slide.srcset = "";
-    }
+    if (heroImages.length) slide.src = heroImages[0];
+    else slide.removeAttribute("src");
     slide.hidden = !heroImages.length;
   }
   if (!mobileHeroQuery?.matches) {
@@ -131,7 +120,7 @@ async function discoverHeroImages() {
       if (!loaded) continue;
       heroImages.push(path);
       if (heroImages.length === 1 && slide) {
-        setHeroImageSource(slide, path);
+        slide.src = path;
         slide.hidden = false;
       }
       found = true;
@@ -154,7 +143,7 @@ function changeHeroSlide() {
     return;
   }
   currentSlide = (currentSlide + 1) % heroImages.length;
-  setHeroImageSource(heroSlide, heroImages[currentSlide]);
+  heroSlide.src = heroImages[currentSlide];
   preloadNextHeroImage();
   if (!easterEggHeroComplete && currentSlide === heroImages.length - 1) {
     easterEggHeroComplete = true;
@@ -819,7 +808,7 @@ function showEasterEgg() {
   const image = document.getElementById("easter-egg-image");
   if (!overlay || !image) return;
   const randomNumber = Math.floor(Math.random() * MEME_COUNT) + 1;
-  const filename = String(randomNumber).padStart(3, "0") + ".webp";
+  const filename = String(randomNumber).padStart(3, "0") + ".png";
   image.src = MEME_FOLDER + filename;
   image.alt = currentLanguage === "ja" ? `ランダム画像 ${randomNumber}` : currentLanguage === "zh" ? `随机表情包 ${randomNumber}` : `Random meme ${randomNumber}`;
   easterEggOpen = true;
@@ -870,7 +859,7 @@ function closeEasterEgg() {
   currentSlide = 0;
   const heroSlide = document.getElementById("hero-slide");
   if (heroSlide && heroImages.length) {
-    setHeroImageSource(heroSlide, heroImages[0]);
+    heroSlide.src = heroImages[0];
   }
   resetEasterEggProgress();
 }
