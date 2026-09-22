@@ -32,14 +32,30 @@ function applyLanguage() {
   if (messageInput) {
     messageInput.placeholder = pageText("想对稲葉曇说些什么？", "Say something to Inabakumori...");
   }
+  document.title = { zh: "气象观测站 · 稲葉曇", en: "Weather Observation Station · Inabakumori", ja: "気象観測所 · 稲葉曇" }[currentLanguage];
+  const description = document.querySelector('meta[name="description"]');
+  if (description) {
+    description.content = { zh: "稲葉曇的气象观测站：歌曲、MV、创作链接与留言墙。", en: "A weather observation station for Inabakumori songs, videos, links, and messages.", ja: "稲葉曇さんの楽曲、MV、リンク、メッセージを集めた観測所です。" }[currentLanguage];
+  }
   document.querySelector(".site-controls")?.setAttribute("aria-label", currentLanguage === "ja" ? "ページ設定" : currentLanguage === "en" ? "Page controls" : "页面设置");
+  document.querySelector(".hero-content nav")?.setAttribute("aria-label", currentLanguage === "ja" ? "メインナビゲーション" : currentLanguage === "en" ? "Main navigation" : "主导航");
   document.getElementById("tag-suggestions")?.setAttribute("aria-label", currentLanguage === "ja" ? "選択できるタグ" : currentLanguage === "en" ? "Available tags" : "可选标签");
+  updateConnectivityStatus();
   updateMessageLoadStatus();
   document.documentElement.lang = { zh: "zh-CN", en: "en", ja: "ja" }[currentLanguage];
   window.dispatchEvent(new Event("languagechange"));
   document.querySelectorAll(".floating-message").forEach((element) => {
     element.refreshLanguage?.();
   });
+}
+function updateConnectivityStatus() {
+  const status = document.getElementById("site-status");
+  if (!status) return;
+  const online = typeof navigator === "undefined" || navigator.onLine !== false;
+  status.hidden = online;
+  if (!online) {
+    status.textContent = { zh: "当前处于离线状态，留言和登录功能暂时不可用。", en: "You are offline. Messages and sign-in are temporarily unavailable.", ja: "現在オフラインです。メッセージとログインは一時的に利用できません。" }[currentLanguage];
+  }
 }
 function toggleLanguage() {
   currentLanguage = pageLanguages[(pageLanguages.indexOf(currentLanguage) + 1) % pageLanguages.length];
@@ -65,10 +81,18 @@ const desktopHeroImages = ["images/hero/001.png", "images/hero/002.png", "images
 let heroImages = desktopHeroImages;
 let heroLoadVersion = 0;
 const mobileHeroQuery = window.matchMedia?.("(max-width: 700px), (pointer: coarse) and (max-width: 1000px)");
+function optimizedImagePath(path) {
+  return path.endsWith(".png") ? path.slice(0, -4) + ".webp" : path;
+}
+function setHeroImageSource(element, path) {
+  if (!element) return;
+  element.src = path;
+  element.srcset = path.endsWith(".png") ? `${optimizedImagePath(path)} 1x` : "";
+}
 function preloadNextHeroImage() {
   if (!heroImages.length) return;
   const image = new Image();
-  image.src = heroImages[(currentSlide + 1) % heroImages.length];
+  image.src = optimizedImagePath(heroImages[(currentSlide + 1) % heroImages.length]);
 }
 function loadMobileHeroImage(path) {
   return new Promise((resolve) => {
@@ -85,8 +109,11 @@ async function discoverHeroImages() {
   easterEggHeroComplete = false;
   heroImages = mobileHeroQuery?.matches ? [] : desktopHeroImages;
   if (slide) {
-    if (heroImages.length) slide.src = heroImages[0];
-    else slide.removeAttribute("src");
+    if (heroImages.length) setHeroImageSource(slide, heroImages[0]);
+    else {
+      slide.removeAttribute("src");
+      slide.srcset = "";
+    }
     slide.hidden = !heroImages.length;
   }
   if (!mobileHeroQuery?.matches) {
@@ -104,7 +131,7 @@ async function discoverHeroImages() {
       if (!loaded) continue;
       heroImages.push(path);
       if (heroImages.length === 1 && slide) {
-        slide.src = path;
+        setHeroImageSource(slide, path);
         slide.hidden = false;
       }
       found = true;
@@ -127,7 +154,7 @@ function changeHeroSlide() {
     return;
   }
   currentSlide = (currentSlide + 1) % heroImages.length;
-  heroSlide.src = heroImages[currentSlide];
+  setHeroImageSource(heroSlide, heroImages[currentSlide]);
   preloadNextHeroImage();
   if (!easterEggHeroComplete && currentSlide === heroImages.length - 1) {
     easterEggHeroComplete = true;
@@ -333,6 +360,11 @@ window.addEventListener("resize", () => {
   document.querySelectorAll(".floating-message").forEach((element) => element.refreshLayout());
 });
 const OTHER_SINGER_TAG = "其他";
+const TAG_PRIORITY = new Map([
+  ["anticyclone", 0],
+  ["weather station", 1],
+  ["singles", 2]
+]);
 let singerTagCounts = new Map();
 function buildSingerTagCounts() {
   const counts = new Map();
@@ -569,6 +601,7 @@ function parseTagQuery(value) {
 function normalizeTagSearchText(value) {
   return String(value || "").normalize("NFKC").trim().toLowerCase().replace(/\s+/g, " ");
 }
+const tagSearchTermsCache = new Map();
 function fuzzyTagMatches(queryToken, canonicalTag) {
   const queryText = normalizeTagSearchText(queryToken);
   const canonical = normalizeTag(canonicalTag);
@@ -578,14 +611,20 @@ function fuzzyTagMatches(queryToken, canonicalTag) {
   if (normalizeTag(queryText) === canonical) {
     return true;
   }
-  const searchTerms = new Set([canonical, getTagDisplayLabel(canonical), getTagInputLabel(canonical, canonical)]);
-  Object.entries(TAG_ALIASES).forEach(([alias, target]) => {
-    if (normalizeTag(target) === canonical) {
-      searchTerms.add(alias);
-    }
-  });
+  const cacheKey = `${currentLanguage}:${canonical}`;
+  let searchTerms = tagSearchTermsCache.get(cacheKey);
+  if (!searchTerms) {
+    const terms = new Set([canonical, getTagDisplayLabel(canonical), getTagInputLabel(canonical, canonical)]);
+    Object.entries(TAG_ALIASES).forEach(([alias, target]) => {
+      if (normalizeTag(target) === canonical) {
+        terms.add(alias);
+      }
+    });
+    searchTerms = [...terms].map(normalizeTagSearchText);
+    tagSearchTermsCache.set(cacheKey, searchTerms);
+  }
   const needle = normalizeTagSearchText(queryText);
-  return [...searchTerms].some((term) => normalizeTagSearchText(term).includes(needle));
+  return searchTerms.some((term) => term.includes(needle));
 }
 function songMatchesTags(songTags, query) {
   const { plain, required } = query;
@@ -612,9 +651,8 @@ function getAvailableTags() {
     });
   });
   return [...labels.entries()].sort((a, b) => {
-    const priority = new Map([[normalizeTag("ANTICYCLONE"), 0], [normalizeTag("WEATHER STATION"), 1], [normalizeTag("SINGLES"), 2]]);
-    const aPriority = priority.has(a[0]) ? priority.get(a[0]) : 10;
-    const bPriority = priority.has(b[0]) ? priority.get(b[0]) : 10;
+    const aPriority = TAG_PRIORITY.has(a[0]) ? TAG_PRIORITY.get(a[0]) : 10;
+    const bPriority = TAG_PRIORITY.has(b[0]) ? TAG_PRIORITY.get(b[0]) : 10;
     if (aPriority !== bPriority) {
       return aPriority - bPriority;
     }
@@ -635,7 +673,7 @@ function renderTagSuggestions() {
   }
   const query = parseTagQuery(input.value);
   const selected = new Set([...query.plain, ...query.required]);
-  container.innerHTML = "";
+  container.replaceChildren();
   getAvailableTags().forEach(([normalized, label]) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -741,18 +779,24 @@ document.addEventListener("DOMContentLoaded", () => {
   const heroBg = document.getElementById("hero-bg");
   if (heroBg) {
     heroBg.addEventListener("click", (event) => {
-      if (event.button === 0) {
-        event.preventDefault();
-        changeHeroSlide();
-      }
+      if (event.button !== 0) return;
+      event.preventDefault();
+      changeHeroSlide();
+    });
+    heroBg.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      changeHeroSlide();
     });
     heroBg.addEventListener("contextmenu", (event) => {
       event.preventDefault();
       changeHeroSlide();
     });
   }
-  console.log("✅ Fanswalll loaded");
+  console.log("✅ Weather observation station loaded");
 });
+window.addEventListener?.("online", updateConnectivityStatus);
+window.addEventListener?.("offline", updateConnectivityStatus);
 const MEME_COUNT = 6;
 const MEME_FOLDER = "images/memes/";
 let easterEggOpen = false;
@@ -775,7 +819,7 @@ function showEasterEgg() {
   const image = document.getElementById("easter-egg-image");
   if (!overlay || !image) return;
   const randomNumber = Math.floor(Math.random() * MEME_COUNT) + 1;
-  const filename = String(randomNumber).padStart(3, "0") + ".png";
+  const filename = String(randomNumber).padStart(3, "0") + ".webp";
   image.src = MEME_FOLDER + filename;
   image.alt = currentLanguage === "ja" ? `ランダム画像 ${randomNumber}` : currentLanguage === "zh" ? `随机表情包 ${randomNumber}` : `Random meme ${randomNumber}`;
   easterEggOpen = true;
@@ -791,7 +835,7 @@ function showEasterEgg() {
 function createConfetti() {
   const layer = document.getElementById("confetti-layer");
   if (!layer) return;
-  layer.innerHTML = "";
+  layer.replaceChildren();
   const amount = 76;
   const colors = ["#ffffff", "#eeeeee", "#d8d8d8", "#f4cbd7", "#d9c7e8"];
   for (let i = 0; i < amount; i++) {
@@ -812,7 +856,7 @@ function createConfetti() {
     layer.appendChild(piece);
   }
   setTimeout(() => {
-    layer.innerHTML = "";
+    layer.replaceChildren();
   }, 2200);
 }
 function closeEasterEgg() {
@@ -826,7 +870,7 @@ function closeEasterEgg() {
   currentSlide = 0;
   const heroSlide = document.getElementById("hero-slide");
   if (heroSlide && heroImages.length) {
-    heroSlide.src = heroImages[0];
+    setHeroImageSource(heroSlide, heroImages[0]);
   }
   resetEasterEggProgress();
 }

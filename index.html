@@ -5,22 +5,29 @@
 <meta charset="utf-8"/>
 <meta name="referrer" content="no-referrer"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>稲葉曇Fanswalll</title>
+<meta name="description" content="稲葉曇的气象观测站：歌曲、MV、创作链接与留言墙。"/>
+<meta name="theme-color" content="#b2b2b2"/>
+<meta property="og:type" content="website"/>
+<meta property="og:title" content="气象观测站 · 稲葉曇"/>
+<meta property="og:description" content="歌曲、MV、创作链接与留言墙。"/>
+<title>气象观测站 · 稲葉曇</title>
 <link href="fonts/fonts.css" rel="stylesheet"/>
 <link href="style.css" rel="stylesheet"/>
+<link href="site.webmanifest" rel="manifest"/>
 </head>
 <body>
+<a class="skip-link" href="#main-content">跳到主要内容 / Skip to content</a>
 <div class="site-controls" role="group" aria-label="页面设置 / Page controls">
 
-<button id="lang-btn" onclick="toggleLanguage()">
+<button id="lang-btn" type="button" onclick="toggleLanguage()">
         English
     </button>
 
-<button id="theme-btn" onclick="toggleTheme()">
+<button id="theme-btn" type="button" onclick="toggleTheme()">
         ☾
     </button>
 
-<button id="auth-btn" onclick="openAuthModal()">
+<button id="auth-btn" type="button" onclick="openAuthModal()">
     登录 / 注册
 </button>
 
@@ -49,11 +56,12 @@
 
 <header class="hero">
 
-<div class="hero-bg" id="hero-bg">
+<div class="hero-bg" id="hero-bg" role="button" tabindex="0" aria-label="切换背景 / Change background">
     <img
     id="hero-slide"
     class="hero-slide active"
     alt=""
+    fetchpriority="high"
     draggable="false"
 >
 </div>
@@ -85,7 +93,7 @@
                 气象观测站
             </h1>
 
-<nav>
+<nav aria-label="主导航 / Main navigation">
 <a data-en="About" data-zh="关于" data-ja="このサイトについて" href="#about">
                     关于
                 </a>
@@ -100,7 +108,8 @@
 </div>
 </header>
 
-<main>
+<main id="main-content" tabindex="-1">
+<p id="site-status" class="site-status" role="status" aria-live="polite" hidden></p>
 
 <section id="about">
 <h2 data-zh="关于" data-ja="このサイトについて" data-en="ABOUT">关于</h2>
@@ -114,7 +123,7 @@
                 相关链接
             </h2>
 <div class="artist-links">
-<div class="link-subheading" data-zh="视频链接" data-ja="動画・SNS" data-en="VIDEO LINKS" style="font-size:14px; letter-spacing:1px; opacity:.65; margin:6px 0 2px;">视频链接</div>
+<div class="link-subheading link-subheading-first" data-zh="视频链接" data-ja="動画・SNS" data-en="VIDEO LINKS">视频链接</div>
 <a href="https://youtube.com/@inabakumori?si=mht1Fo3UgXl0Mj-D" rel="noopener noreferrer" target="_blank">
 <img alt="YouTube" src="images/youtube.png"/><span>YouTube</span></a>
 <a href="https://twitter.com/inabakumori" rel="noopener noreferrer" target="_blank">
@@ -129,7 +138,7 @@
 <img alt="TikTok" src="images/tiktok.png"/><span>TikTok</span></a>
 <a href="https://www.pixiv.net/users/16662832" rel="noopener noreferrer" target="_blank">
 <img alt="Pixiv" src="images/pixiv.png"/><span>Pixiv</span></a>
-<div class="link-subheading" data-zh="关于更多" data-ja="さらに詳しく" data-en="MORE ABOUT" style="font-size:14px; letter-spacing:1px; opacity:.65; margin:18px 0 2px;">关于更多</div>
+<div class="link-subheading" data-zh="关于更多" data-ja="さらに詳しく" data-en="MORE ABOUT">关于更多</div>
 <a
     href="https://zh.wikipedia.org/wiki/稻叶昙"
     data-href-zh="https://zh.wikipedia.org/wiki/稻叶昙"
@@ -138,7 +147,7 @@
     rel="noopener noreferrer"
 >
     <img src="images/wikipedia.png" alt="Wikipedia"><span>Wikipedia</span></a>
-<a href="https://inabakumori.fandom.com/wiki/Inabakumori_Wiki" target="_blank">
+<a href="https://inabakumori.fandom.com/wiki/Inabakumori_Wiki" rel="noopener noreferrer" target="_blank">
     <img src="images/fandom.png" alt="Inabakumori Wiki"><span>Inabakumori Wiki</span></a>
 <a href="https://vocaloid.fandom.com/wiki/Inabakumori" rel="noopener noreferrer" target="_blank">
     <img src="images/fandom.png" alt="VOCALOID Wiki"><span>VOCALOID Wiki（Fandom）</span></a>
@@ -248,9 +257,9 @@
 <div id="floating-wall"></div>
 
 <div class="message-box">
-<input id="message-name" maxlength="30" placeholder="你的名字 / Name" type="text"/>
-<textarea id="message-input" maxlength="500" placeholder="想对稲葉曇说些什么？ / Say something to Inabakumori..."></textarea>
-<button data-en="Post Message" data-zh="贴到墙上" data-ja="投稿する" onclick="addMessage()">
+<input id="message-name" name="nickname" maxlength="30" placeholder="你的名字 / Name" type="text" autocomplete="nickname"/>
+<textarea id="message-input" name="message" maxlength="500" placeholder="想对稲葉曇说些什么？ / Say something to Inabakumori..."></textarea>
+<button type="button" data-en="Post Message" data-zh="贴到墙上" data-ja="投稿する" onclick="addMessage()">
             贴到墙上
         </button>
 </div>

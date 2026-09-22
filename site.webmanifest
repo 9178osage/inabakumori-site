@@ -1,0 +1,11 @@
+{
+  "name": "气象观测站 · 稲葉曇",
+  "short_name": "气象观测站",
+  "description": "稲葉曇的歌曲、MV、创作链接与留言墙。",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#b2b2b2",
+  "theme_color": "#b2b2b2",
+  "lang": "zh-CN"
+}
