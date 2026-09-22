@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { registerCommentManagement } from "./comment-management.mjs";
 import { passwordResetDelivery } from "./password-reset.mjs";
+import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
@@ -23,6 +24,14 @@ function requiredEnv(name) {
   }
   return value;
 }
+function normalizeOrigin(value, name) {
+  try {
+    return new URL(value).origin;
+  } catch {
+    console.error(`❌ ${name} must be a full URL`);
+    process.exit(1);
+  }
+}
 const SUPERTOKENS_CONNECTION_URI = requiredEnv("SUPERTOKENS_CONNECTION_URI");
 const SUPERTOKENS_API_KEY = requiredEnv("SUPERTOKENS_API_KEY");
 const PORT = Number(process.env.PORT || 3001);
@@ -30,8 +39,13 @@ if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
   console.error("❌ PORT must be an integer between 1 and 65535");
   process.exit(1);
 }
-const API_DOMAIN = (process.env.API_DOMAIN || "http://127.0.0.1:3001").trim();
-const WEBSITE_DOMAIN = (process.env.WEBSITE_DOMAIN || "http://127.0.0.1:5500").trim();
+const API_DOMAIN = normalizeOrigin((process.env.API_DOMAIN || "http://127.0.0.1:3001").trim(), "API_DOMAIN");
+const WEBSITE_DOMAIN = normalizeOrigin((process.env.WEBSITE_DOMAIN || "http://127.0.0.1:5500").trim(), "WEBSITE_DOMAIN");
+const HOST = (process.env.HOST || (IS_PRODUCTION ? "0.0.0.0" : "127.0.0.1")).trim();
+if (!HOST) {
+  console.error("❌ HOST cannot be empty");
+  process.exit(1);
+}
 if (IS_PRODUCTION) {
   if (!API_DOMAIN.startsWith("https://")) {
     console.error("❌ Production API_DOMAIN must use HTTPS");
@@ -72,7 +86,9 @@ app.use(express.json({ limit: "20kb", strict: true }));
 const commentLimiter = rateLimit({ windowMs: 60 * 1e3, limit: 10, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "留言发送过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const databasePath = path.join(__dirname, "comments.db");
+const configuredDatabasePath = process.env.COMMENTS_DB_PATH?.trim();
+const databasePath = configuredDatabasePath ? path.resolve(configuredDatabasePath) : path.join(__dirname, "comments.db");
+mkdirSync(path.dirname(databasePath), { recursive: true });
 const db = new DatabaseSync(databasePath);
 db.exec(`
     PRAGMA journal_mode = WAL;
@@ -191,6 +207,15 @@ app.get("/", (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   res.json({ ok: true, service: "Inabakumori Fanswall Backend" });
 });
+app.get("/healthz", (req, res) => {
+  try {
+    db.prepare("SELECT 1").get();
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({ ok: true, service: "Inabakumori Fanswall Backend", environment: NODE_ENV });
+  } catch {
+    return res.status(503).json({ ok: false, code: "DATABASE_UNAVAILABLE" });
+  }
+});
 app.get("/api/comments", (req, res) => {
   const rows = selectRecentCommentsStatement.all(Date.now(), MAX_PUBLIC_COMMENTS);
   const comments = rows.map((comment) => ({ id: Number(comment.id), nickname: comment.nickname, content: comment.content, isGuest: Boolean(comment.is_guest), createdAt: new Date(comment.created_at).toISOString(), expiresAt: comment.expires_at === null ? null : new Date(comment.expires_at).toISOString() }));
@@ -235,8 +260,8 @@ app.use((err, req, res, next) => {
   }
   return res.status(500).json({ error: "服务器发生错误", code: "INTERNAL_SERVER_ERROR" });
 });
-const server = app.listen(PORT, "127.0.0.1", () => {
-  console.log(`✅ Backend running at http://127.0.0.1:${PORT}`);
+const server = app.listen(PORT, HOST, () => {
+  console.log(`✅ Backend running at http://${HOST}:${PORT}`);
   console.log(`🔐 Environment: ${NODE_ENV}`);
   console.log("💬 Guest comments expire after 30 days");
   console.log("👤 Logged-in comments do not automatically expire");
