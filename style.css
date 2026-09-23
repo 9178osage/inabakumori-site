@@ -1247,34 +1247,41 @@ body.dark .tag-chip.active {
   outline-offset: 2px;
 }
 .auth-window [hidden],
-#my-comments [hidden] {
+#my-comments [hidden],
+#admin-comments[hidden],
+#admin-comments [hidden] {
   display: none !important;
 }
 #auth-status,
-#my-comments-status {
+#my-comments-status,
+#admin-comments-status {
   color: var(--ui-muted);
   font-size: 14px;
   line-height: 1.6;
 }
-#my-comments-list {
+#my-comments-list,
+#admin-comments-list {
   list-style: none;
   padding: 0;
 }
-#my-comments-list li {
+#my-comments-list li,
+#admin-comments-list li {
   display: flex;
   align-items: flex-start;
   gap: 16px;
   padding: 14px 0;
   border-bottom: 1px solid var(--ui-border-strong);
 }
-#my-comments-list p {
+#my-comments-list p,
+#admin-comments-list p {
   flex: 1;
   min-width: 0;
   margin: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-#my-comments-list button {
+#my-comments-list button,
+#admin-comments-list button {
   flex-shrink: 0;
 }
 @media (max-width: 700px), (pointer: coarse) and (max-width: 1000px) {

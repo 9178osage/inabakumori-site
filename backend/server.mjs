@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { registerCommentManagement } from "./comment-management.mjs";
+import { detectCommentSafetyIssue, normalizeCommentForComparison, registerAdminCommentManagement, registerCommentManagement } from "./comment-management.mjs";
 import { passwordResetDelivery } from "./password-reset.mjs";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -34,6 +34,8 @@ function normalizeOrigin(value, name) {
 }
 const SUPERTOKENS_CONNECTION_URI = requiredEnv("SUPERTOKENS_CONNECTION_URI");
 const SUPERTOKENS_API_KEY = requiredEnv("SUPERTOKENS_API_KEY");
+const ADMIN_USER_IDS = new Set((process.env.ADMIN_USER_IDS || "").split(",").map(value => value.trim()).filter(Boolean));
+const ADMIN_EMAILS = new Set((process.env.ADMIN_EMAILS || "").split(",").map(value => value.trim().toLowerCase()).filter(Boolean));
 const PORT = Number(process.env.PORT || 3001);
 if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
   console.error("❌ PORT must be an integer between 1 and 65535");
@@ -84,6 +86,7 @@ app.use(["/auth/signin", "/auth/signup", "/auth/user/password/reset", "/auth/use
 app.use(middleware());
 app.use(express.json({ limit: "20kb", strict: true }));
 const commentLimiter = rateLimit({ windowMs: 60 * 1e3, limit: 10, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "留言发送过于频繁，请稍后再试", code: "RATE_LIMITED" } });
+const guestCommentLimiter = rateLimit({ windowMs: 60 * 60 * 1e3, limit: 3, skipFailedRequests: true, standardHeaders: "draft-7", legacyHeaders: false, skip: req => req.session !== undefined, message: { error: "游客每小时最多留言 3 条，请稍后再试", code: "GUEST_RATE_LIMITED" } });
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const configuredDatabasePath = process.env.COMMENTS_DB_PATH?.trim();
@@ -142,6 +145,12 @@ const insertCommentStatement = db.prepare(`
     )
     VALUES (?, ?, ?, ?, ?, ?)
 `);
+const findRecentDuplicateCommentStatement = db.prepare(`
+    SELECT content
+    FROM comments
+    WHERE created_at > ?
+    ORDER BY created_at DESC
+`);
 const deleteExpiredGuestsStatement = db.prepare(`
     DELETE FROM comments
     WHERE
@@ -185,7 +194,16 @@ function validateCommentInput(body) {
   if (unicodeLength(content) > MAX_COMMENT_LENGTH) {
     return { ok: false, error: `留言不能超过 ${MAX_COMMENT_LENGTH} 个字符` };
   }
+  const safetyIssue = detectCommentSafetyIssue(nickname) || detectCommentSafetyIssue(content);
+  if (safetyIssue) {
+    return { ok: false, error: safetyIssue.error, code: safetyIssue.code };
+  }
   return { ok: true, nickname, content };
+}
+function hasRecentDuplicateComment(content) {
+  const normalized = normalizeCommentForComparison(content);
+  const since = Date.now() - 10 * 60 * 1e3;
+  return findRecentDuplicateCommentStatement.all(since).some(row => normalizeCommentForComparison(row.content) === normalized);
 }
 function requireJsonContentType(req, res, next) {
   if (!req.is("application/json")) {
@@ -221,12 +239,15 @@ app.get("/api/comments", (req, res) => {
   const comments = rows.map((comment) => ({ id: Number(comment.id), nickname: comment.nickname, content: comment.content, isGuest: Boolean(comment.is_guest), createdAt: new Date(comment.created_at).toISOString(), expiresAt: comment.expires_at === null ? null : new Date(comment.expires_at).toISOString() }));
   res.json({ comments });
 });
-app.post("/api/comments", commentLimiter, requireJsonContentType, verifySession({ sessionRequired: false }), (req, res) => {
+app.post("/api/comments", commentLimiter, requireJsonContentType, verifySession({ sessionRequired: false }), guestCommentLimiter, (req, res) => {
   const validation = validateCommentInput(req.body);
   if (!validation.ok) {
-    return res.status(400).json({ error: validation.error, code: "INVALID_COMMENT" });
+    return res.status(400).json({ error: validation.error, code: validation.code || "INVALID_COMMENT" });
   }
   const { nickname, content } = validation;
+  if (hasRecentDuplicateComment(content)) {
+    return res.status(409).json({ error: "相同内容请稍后再留言", code: "DUPLICATE_COMMENT" });
+  }
   const isLoggedIn = req.session !== void 0;
   const userId = isLoggedIn ? req.session.getUserId() : null;
   const isGuest = !isLoggedIn;
@@ -236,6 +257,12 @@ app.post("/api/comments", commentLimiter, requireJsonContentType, verifySession(
   return res.status(201).json({ success: true, comment: { id: Number(result.lastInsertRowid), nickname, content, isGuest, createdAt: new Date(createdAt).toISOString(), expiresAt: expiresAt === null ? null : new Date(expiresAt).toISOString() } });
 });
 registerCommentManagement(app, db, verifySession);
+registerAdminCommentManagement(app, db, verifySession, async userId => {
+  if (ADMIN_USER_IDS.has(userId)) return true;
+  if (!ADMIN_EMAILS.size) return false;
+  const user = await supertokens.getUser(userId);
+  return user?.emails?.some(email => ADMIN_EMAILS.has(email.toLowerCase())) ?? false;
+});
 app.use("/api", (req, res) => {
   res.status(404).json({ error: "API 路径不存在", code: "NOT_FOUND" });
 });

@@ -3,6 +3,20 @@ let currentLanguage = pageLanguages.includes(localStorage.getItem("language")) ?
 function pageText(zh, en) {
   return window.siteText?.(zh, en, currentLanguage) ?? (currentLanguage === "zh" ? zh : en);
 }
+function commentErrorMessage(data, response) {
+  const messages = {
+    PROMOTIONAL_CONTENT: ["留言内容不能包含链接、邮箱、电话号码或广告联系方式", "Messages cannot contain links, email addresses, phone numbers, or promotional contact details."],
+    DUPLICATE_COMMENT: ["相同内容请稍后再留言", "Please wait before posting the same message again."],
+    GUEST_RATE_LIMITED: ["游客每小时最多留言 3 条，请稍后再试", "Guests can post up to 3 messages per hour. Please try again later."],
+    RATE_LIMITED: ["留言发送过于频繁，请稍后再试", "Messages are being sent too quickly. Please try again later."]
+  };
+  const message = messages[data?.code];
+  if (message) return pageText(message[0], message[1]);
+  if (currentLanguage === "ja") {
+    return response.status === 429 ? "投稿が多すぎます。しばらくしてから再試行してください。" : response.status === 400 || response.status === 413 ? "入力内容または文字数を確認して、もう一度お試しください。" : pageText("留言发布失败。", "Failed to post your message.");
+  }
+  return data?.error || pageText("留言发布失败。", "Failed to post your message.");
+}
 let currentTheme = localStorage.getItem("theme") || "light";
 let currentSlide = 0;
 const COMMENTS_API = `${window.APP_CONFIG.apiDomain}/api/comments`;
@@ -196,7 +210,7 @@ async function addMessage() {
     const response = await fetch(COMMENTS_API, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ nickname, content }) });
     const data = await response.json();
     if (!response.ok) {
-      throw new Error(currentLanguage === "ja" ? (response.status === 429 ? "投稿が多すぎます。しばらくしてから再試行してください。" : response.status === 400 || response.status === 413 ? "入力内容または文字数を確認して、もう一度お試しください。" : pageText("留言发布失败。", "Failed to post your message.")) : data.error || pageText("留言发布失败。", "Failed to post your message."));
+      throw new Error(commentErrorMessage(data, response));
     }
     if (!data.comment || !Number.isSafeInteger(data.comment.id)) {
       throw new SyntaxError("Invalid comment response");

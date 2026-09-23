@@ -273,6 +273,12 @@
     <button id="my-comments-more" class="tag-clear-button" type="button" hidden data-zh="加载更多" data-ja="もっと見る" data-en="Load more">加载更多</button>
   </div>
 </section>
+<section id="admin-comments" aria-labelledby="admin-comments-title" hidden>
+  <h2 id="admin-comments-title" data-zh="留言管理" data-ja="メッセージ管理" data-en="Message moderation">留言管理</h2>
+  <p id="admin-comments-status" role="status" aria-live="polite"></p>
+  <button id="admin-comments-retry" class="tag-clear-button" type="button" hidden data-zh="重试" data-ja="再試行" data-en="Retry">重试</button>
+  <ul id="admin-comments-list"></ul>
+</section>
 
 </main>
 
@@ -308,5 +314,6 @@
 <script src="js/mobile-backgrounds.js"></script>
 <script src="script.js"></script>
 <script src="js/comments-management.js"></script>
+<script src="js/admin-comments.js"></script>
 </body>
 </html>
