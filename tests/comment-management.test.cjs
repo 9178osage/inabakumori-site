@@ -13,7 +13,7 @@ async function database() {
   add.run(26, 'other', 'private ownership', 26, 'another-user', 0);
   add.run(27, 'guest', 'guest', 27, null, 1);
   const routes = {};
-  const auth = () => {};
+  const auth = (req, res, next) => next();
   const app = Object.fromEntries(['get', 'delete'].map(method => [method, (path, guard, handler) => {
     assert.equal(guard, auth);
     routes[method] = handler;
@@ -110,4 +110,99 @@ test('Japanese message management shows a localized sign-in prompt', async () =>
   context.window.hasCommentSession = async () => false;
   await events.authchange();
   assert.equal(elements['my-comments-status'].textContent, 'メッセージを管理するにはログインしてください。');
+});
+
+test('comment safety blocks links, contact details and common advertising language', async () => {
+  const { detectCommentSafetyIssue, normalizeCommentForComparison } = await import('../backend/comment-management.mjs');
+  for (const content of [
+    'http://',
+    'https://example.com',
+    'https://exam\u200bple.com',
+    'ｗｗｗ．example.com',
+    'www.example.com',
+    '联系 me@example.com',
+    '加微信 138-0013-8000',
+    '优惠折扣，扫码进群'
+  ]) {
+    assert.equal(detectCommentSafetyIssue(content)?.code, 'PROMOTIONAL_CONTENT');
+  }
+  assert.equal(detectCommentSafetyIssue('这首歌的旋律很喜欢'), null);
+  assert.equal(detectCommentSafetyIssue('The timeline feels calm'), null);
+  assert.equal(normalizeCommentForComparison('  Rain　station\n'), 'rain station');
+});
+
+test('admin comment management lists and deletes any comment only for configured admins', async () => {
+  const { registerAdminCommentManagement } = await import('../backend/comment-management.mjs');
+  const db = new DatabaseSync(':memory:');
+  db.exec('CREATE TABLE comments(id INTEGER PRIMARY KEY, nickname TEXT, content TEXT, created_at INTEGER, user_id TEXT, is_guest INTEGER, expires_at INTEGER)');
+  db.prepare('INSERT INTO comments VALUES(?,?,?,?,?,?,?)').run(1, 'guest', 'remove me', Date.now(), null, 1, null);
+  const routes = {};
+  const auth = (req, res, next) => next();
+  const app = {
+    get(path, ...handlers) { routes[`get ${path}`] = handlers; assert.equal(handlers[0], auth); },
+    delete(path, ...handlers) { routes[`delete ${path}`] = handlers; assert.equal(handlers[0], auth); }
+  };
+  registerAdminCommentManagement(app, db, () => auth, userId => userId === 'admin');
+  const response = () => ({ code: 200, headers: {}, setHeader(k, v) { this.headers[k] = v; }, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } });
+  const run = async (route, req, res) => {
+    let index = 0;
+    const next = () => route[index++]?.(req, res, next);
+    await next();
+  };
+  const denied = response();
+  await run(routes['get /api/admin/comments'], { session: { getUserId: () => 'member' } }, denied);
+  assert.equal(denied.code, 403);
+  const allowed = response();
+  await run(routes['get /api/admin/comments'], { session: { getUserId: () => 'admin' } }, allowed);
+  assert.equal(allowed.body.comments[0].id, 1);
+  const removed = response();
+  await run(routes['delete /api/admin/comments/:id'], { params: { id: '1' }, session: { getUserId: () => 'admin' } }, removed);
+  assert.equal(removed.body.deletedCommentId, 1);
+  assert.equal(db.prepare('SELECT id FROM comments WHERE id = 1').get(), undefined);
+  db.close();
+});
+
+function adminUi() {
+  const element = () => ({ hidden: true, children: [], textContent: '', listeners: {}, append(...items) { this.children.push(...items); }, replaceChildren() { this.children = []; }, setAttribute() {}, addEventListener(name, fn) { this.listeners[name] = fn; } });
+  const elements = Object.fromEntries(['admin-comments', 'admin-comments-list', 'admin-comments-status', 'admin-comments-retry'].map(id => [id, element()]));
+  const events = {};
+  const context = {
+    localStorage: { getItem: () => 'ja' }, confirm: () => true,
+    document: { getElementById: id => elements[id], createElement: element, addEventListener(name, fn) { events[name] = fn; } },
+    window: { APP_CONFIG: { apiDomain: '' }, hasCommentSession: async () => true, addEventListener(name, fn) { events[name] = fn; } }
+  };
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync('js/i18n.js', 'utf8'), context);
+  vm.runInContext(fs.readFileSync('js/admin-comments.js', 'utf8'), context);
+  return { elements, events, context };
+}
+test('admin panel stays hidden for failed permission checks and stale responses after logout', async () => {
+  const { elements, events, context } = adminUi();
+  context.fetch = async () => { throw new Error('offline'); };
+  await events.authchange();
+  assert.equal(elements['admin-comments'].hidden, true);
+  let resolve;
+  context.fetch = () => new Promise(r => { resolve = r; });
+  const pending = events.authchange();
+  await new Promise(r => setImmediate(r));
+  context.window.hasCommentSession = async () => false;
+  await events.authchange();
+  resolve({ ok: true, json: async () => ({ comments: [] }) });
+  await pending;
+  assert.equal(elements['admin-comments'].hidden, true);
+});
+test('admin deletion failures preserve content and translated error; duplicate clicks are blocked', async () => {
+  const { elements, events, context } = adminUi();
+  context.fetch = async () => ({ ok: true, json: async () => ({ comments: [{ id: 1, nickname: 'test', content: '<b>message</b>' }] }) });
+  await events.authchange();
+  const button = elements['admin-comments-list'].children[0].children[1];
+  let calls = 0, resolve;
+  context.fetch = () => { calls++; return new Promise(r => { resolve = r; }); };
+  const pending = button.listeners.click();
+  await button.listeners.click();
+  assert.equal(calls, 1);
+  resolve({ ok: false, status: 500 });
+  await pending;
+  assert.equal(elements['admin-comments-list'].children.length, 1);
+  assert.equal(elements['admin-comments-status'].textContent, '削除に失敗しました。再試行してください。');
 });
