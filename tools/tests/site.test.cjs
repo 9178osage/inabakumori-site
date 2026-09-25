@@ -243,7 +243,7 @@ test("auth blocks duplicate requests and mode changes until the request finishes
   };
   vm.createContext(context);
   vm.runInContext(fs.readFileSync("js/i18n.js", "utf8"), context);
-  vm.runInContext(fs.readFileSync("src/auth-src.js", "utf8").replace(/^import .*;\n/gm, ""), context);
+  vm.runInContext(fs.readFileSync("tools/auth-src.js", "utf8").replace(/^import .*;\n/gm, ""), context);
   const run = code => vm.runInContext(code, context);
   const first = run("submitAuth()");
   await run("submitAuth()");
