@@ -6,11 +6,11 @@
   "scripts": {
     "frontend": "python3 -m http.server 5500 --bind 127.0.0.1",
     "backend": "cd backend && node server.mjs",
-    "test": "node --test tests/*.test.cjs",
-    "build": "esbuild src/auth-src.js --bundle --platform=browser --format=iife --minify-whitespace --legal-comments=inline --outfile=js/auth.js",
+    "test": "node --test tools/tests/*.test.cjs",
+    "build": "esbuild tools/auth-src.js --bundle --platform=browser --format=iife --minify-whitespace --legal-comments=inline --outfile=js/auth.js",
     "check": "npm test && npm run build",
-    "check:links": "node scripts/check-links.mjs",
-    "check:links:strict": "node scripts/check-links.mjs --strict"
+    "check:links": "node tools/check-links.mjs",
+    "check:links:strict": "node tools/check-links.mjs --strict"
   },
   "keywords": [],
   "author": "",

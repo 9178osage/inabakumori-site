@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
-const source = fs.readFileSync("src/auth-src.js", "utf8").replace(/^import .*;\n/gm, "");
+const source = fs.readFileSync("tools/auth-src.js", "utf8").replace(/^import .*;\n/gm, "");
 function setup(url = "http://localhost:5500/") {
   const elements = {}, listeners = {}, events = [], calls = [];
   let language = "zh";
