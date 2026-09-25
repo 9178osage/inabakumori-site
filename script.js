@@ -125,6 +125,22 @@ async function discoverHeroImages() {
   }
   const config = window.MOBILE_BACKGROUNDS;
   if (!config) return;
+  if (Array.isArray(config.files)) {
+    const paths = config.files.map(file => `${config.folder}${file}`);
+    const available = new Set();
+    await Promise.all(paths.map(async path => {
+      if (!await loadMobileHeroImage(path) || version !== heroLoadVersion) return;
+      available.add(path);
+      const selected = heroImages[currentSlide];
+      heroImages = paths.filter(candidate => available.has(candidate));
+      currentSlide = selected ? heroImages.indexOf(selected) : 0;
+      if (!selected && slide) {
+        slide.src = heroImages[0];
+        slide.hidden = false;
+      }
+    }));
+    return;
+  }
   for (let number = 1; number <= config.maxImages; number++) {
     let found = false;
     for (const extension of config.extensions) {

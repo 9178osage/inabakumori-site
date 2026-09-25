@@ -329,3 +329,21 @@ test("language switching cycles through Chinese, English, and Japanese and saves
   assert.equal(context.document.documentElement.lang, "zh-CN");
   assert.deepEqual(saved, [["language", "en"], ["language", "ja"], ["language", "zh"]]);
 });
+
+test('mobile image manifest skips failed images without losing later backgrounds', async () => {
+  const { elements, run } = setup({
+    window: { matchMedia: () => ({ matches: true, addEventListener() {} }), MOBILE_BACKGROUNDS: { folder: 'images/hero-mobile/', files: ['001.jpg', '002.jpg', '003.jpg'] } },
+    Image: class {
+      set src(path) {
+        this.naturalWidth = 1080;
+        this.naturalHeight = 1920;
+        queueMicrotask(() => path.endsWith('001.jpg') ? this.onerror?.() : this.onload?.());
+      }
+    }
+  });
+  const slide = elements['hero-slide'] = { removeAttribute(name) { delete this[name]; } };
+  await run('discoverHeroImages()');
+  assert.equal(slide.src, 'images/hero-mobile/002.jpg');
+  run('changeHeroSlide()');
+  assert.equal(slide.src, 'images/hero-mobile/003.jpg');
+});
