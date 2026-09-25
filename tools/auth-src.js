@@ -20,7 +20,7 @@ SuperTokens.init({
     ...original,
     getResetPasswordTokenFromURL: (input) => resetLinkRequested ? resetToken : original.getResetPasswordTokenFromURL(input),
     getTenantIdFromURL: (input) => resetLinkRequested ? resetTenantId : original.getTenantIdFromURL(input)
-  }) } }), Session.init({ tokenTransferMethod: "cookie" })]
+  }) } }), Session.init({ tokenTransferMethod: "header" })]
 });
 let authMode = "signin";
 let authSubmitting = false;
@@ -213,7 +213,9 @@ async function submitAuth() {
       }
     } else {
       response = await signUp({ formFields: [{ id: "email", value: email }, { id: "password", value: password }] });
-      if (response.status === "EMAIL_ALREADY_EXISTS_ERROR") {
+      const emailAlreadyExists = response.status === "FIELD_ERROR" && response.formFields?.some((field) =>
+        field.id === "email" && field.error === "This email already exists. Please sign in instead.");
+      if (response.status === "EMAIL_ALREADY_EXISTS_ERROR" || emailAlreadyExists) {
         showAuthError("这个邮箱已经注册过了。", "This email is already registered.");
         return;
       }

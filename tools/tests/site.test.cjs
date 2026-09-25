@@ -370,3 +370,10 @@ test('a pending background switch cannot overwrite a responsive layout change', 
   assert.equal(slide.hidden, true);
   assert.equal(slide.src, undefined);
 });
+
+test("English validation failures do not expose untranslated server messages", () => {
+  const { run, context } = setup();
+  context.result = { error: "昵称不能超过 30 个字符" };
+  run('currentLanguage="en"');
+  assert.equal(run('commentErrorMessage(result, { status: 400 })'), 'Please check your input and message length.');
+});

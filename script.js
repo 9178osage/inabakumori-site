@@ -15,6 +15,9 @@ function commentErrorMessage(data, response) {
   if (currentLanguage === "ja") {
     return response.status === 429 ? "投稿が多すぎます。しばらくしてから再試行してください。" : response.status === 400 || response.status === 413 ? "入力内容または文字数を確認して、もう一度お試しください。" : pageText("留言发布失败。", "Failed to post your message.");
   }
+  if (currentLanguage === "en") {
+    return response.status === 400 || response.status === 413 ? "Please check your input and message length." : "Failed to post your message. Please try again.";
+  }
   return data?.error || pageText("留言发布失败。", "Failed to post your message.");
 }
 let currentTheme = localStorage.getItem("theme") || "light";
@@ -282,7 +285,7 @@ async function loadMessages() {
   messageLoadState = "loading";
   updateMessageLoadStatus();
   try {
-    const response = await fetch(COMMENTS_API, { credentials: "include" });
+    const response = await fetch(COMMENTS_API, { credentials: "include", cache: "no-store" });
     if (!response.ok) throw new Error("无法读取留言");
     const data = await response.json();
     if (!Array.isArray(data.comments)) throw new Error("留言响应格式不正确");

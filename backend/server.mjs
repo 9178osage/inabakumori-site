@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { hasVerifiedAdminEmail, detectCommentSafetyIssue, normalizeCommentForComparison, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery } from "./services.mjs";
+import { websiteLocation, resolveDatabasePath, hasVerifiedAdminEmail, detectCommentSafetyIssue, normalizeCommentForComparison, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery } from "./services.mjs";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,7 +25,7 @@ function requiredEnv(name) {
 }
 function normalizeOrigin(value, name) {
   try {
-    return new URL(value).origin;
+    return websiteLocation(value).origin;
   } catch {
     console.error(`❌ ${name} must be a full URL`);
     process.exit(1);
@@ -41,7 +41,8 @@ if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
   process.exit(1);
 }
 const API_DOMAIN = normalizeOrigin((process.env.API_DOMAIN || "http://127.0.0.1:3001").trim(), "API_DOMAIN");
-const WEBSITE_DOMAIN = normalizeOrigin((process.env.WEBSITE_DOMAIN || "http://127.0.0.1:5500").trim(), "WEBSITE_DOMAIN");
+const website = websiteLocation((process.env.WEBSITE_URL || process.env.WEBSITE_DOMAIN || "http://127.0.0.1:5500").trim());
+const WEBSITE_DOMAIN = website.origin;
 const HOST = (process.env.HOST || (IS_PRODUCTION ? "0.0.0.0" : "127.0.0.1")).trim();
 if (!HOST) {
   console.error("❌ HOST cannot be empty");
@@ -68,7 +69,7 @@ if (process.env.TRUST_PROXY) {
   app.set("trust proxy", trustProxy);
 }
 app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: false, strictTransportSecurity: IS_PRODUCTION ? { maxAge: 31536e3, includeSubDomains: true, preload: false } : false }));
-supertokens.init({ framework: "express", supertokens: { connectionURI: SUPERTOKENS_CONNECTION_URI, apiKey: SUPERTOKENS_API_KEY }, appInfo: { appName: "Inabakumori Fanswall", apiDomain: API_DOMAIN, websiteDomain: WEBSITE_DOMAIN, apiBasePath: "/auth", websiteBasePath: "/auth" }, recipeList: [EmailPassword.init({ emailDelivery: passwordResetDelivery(WEBSITE_DOMAIN) }), Session.init({ getTokenTransferMethod: () => "cookie" })] });
+supertokens.init({ framework: "express", supertokens: { connectionURI: SUPERTOKENS_CONNECTION_URI, apiKey: SUPERTOKENS_API_KEY }, appInfo: { appName: "Inabakumori Fanswall", apiDomain: API_DOMAIN, websiteDomain: WEBSITE_DOMAIN, apiBasePath: "/auth", websiteBasePath: "/auth" }, recipeList: [EmailPassword.init({ emailDelivery: passwordResetDelivery(website.url) }), Session.init({ getTokenTransferMethod: () => "header" })] });
 const ALLOWED_ORIGINS = new Set([WEBSITE_DOMAIN, ...IS_PRODUCTION ? [] : ["http://127.0.0.1:5500", "http://localhost:5500"]]);
 const corsOptions = { origin(origin, callback) {
   if (!origin) {
@@ -81,15 +82,23 @@ const corsOptions = { origin(origin, callback) {
 }, allowedHeaders: ["content-type", ...supertokens.getAllCORSHeaders()], methods: ["GET", "POST", "DELETE", "OPTIONS"], credentials: true, maxAge: 600 };
 app.use(cors(corsOptions));
 const authSensitiveLimiter = rateLimit({ windowMs: 15 * 60 * 1e3, limit: 20, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
-app.use(["/auth/signin", "/auth/signup", "/auth/user/password/reset", "/auth/user/password/reset/token"], authSensitiveLimiter);
+app.use((req, res, next) => {
+  if (req.method !== "POST") return next();
+  let pathname;
+  try {
+    pathname = new URL(req.originalUrl || req.url, "http://localhost").pathname;
+  } catch {
+    return next();
+  }
+  return /^\/auth(?:\/|$)/u.test(pathname) ? authSensitiveLimiter(req, res, next) : next();
+});
 app.use(middleware());
 app.use(express.json({ limit: "20kb", strict: true }));
 const commentLimiter = rateLimit({ windowMs: 60 * 1e3, limit: 10, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "留言发送过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 const guestCommentLimiter = rateLimit({ windowMs: 60 * 60 * 1e3, limit: 3, skipFailedRequests: true, standardHeaders: "draft-7", legacyHeaders: false, skip: req => req.session !== undefined, message: { error: "游客每小时最多留言 3 条，请稍后再试", code: "GUEST_RATE_LIMITED" } });
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const configuredDatabasePath = process.env.COMMENTS_DB_PATH?.trim();
-const databasePath = configuredDatabasePath ? path.resolve(configuredDatabasePath) : path.join(__dirname, "comments.db");
+const databasePath = resolveDatabasePath(process.env, __dirname);
 mkdirSync(path.dirname(databasePath), { recursive: true });
 const db = new DatabaseSync(databasePath);
 db.exec(`
@@ -234,6 +243,7 @@ app.get("/healthz", (req, res) => {
   }
 });
 app.get("/api/comments", (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
   const rows = selectRecentCommentsStatement.all(Date.now(), MAX_PUBLIC_COMMENTS);
   const comments = rows.map((comment) => ({ id: Number(comment.id), nickname: comment.nickname, content: comment.content, isGuest: Boolean(comment.is_guest), createdAt: new Date(comment.created_at).toISOString(), expiresAt: comment.expires_at === null ? null : new Date(comment.expires_at).toISOString() }));
   res.json({ comments });

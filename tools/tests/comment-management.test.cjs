@@ -4,6 +4,49 @@ const { DatabaseSync } = require('node:sqlite');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
+test('auth POST throttling covers tenant paths and URL normalization without counting read-only requests', async () => {
+  const express = require('../../backend/node_modules/express');
+  const { rateLimit } = require('../../backend/node_modules/express-rate-limit');
+  const { IncomingMessage, ServerResponse } = require('node:http');
+  const { Duplex } = require('node:stream');
+  const app = express();
+  const backend = fs.readFileSync('backend/server.mjs', 'utf8');
+  const setup = backend.match(/const authSensitiveLimiter =[\s\S]*?(?=app\.use\(middleware\(\)\);)/);
+  assert.ok(setup, 'auth limiter must run before the SuperTokens middleware');
+  vm.runInNewContext(setup[0], { app, rateLimit, URL });
+  app.use((req, res) => res.status(204).end());
+  const request = async (method, pathname) => {
+    const socket = new Duplex({ read() {}, write(chunk, encoding, callback) { callback(); } });
+    Object.defineProperty(socket, 'remoteAddress', { value: '127.0.0.1' });
+    const req = new IncomingMessage(socket);
+    req.method = method;
+    req.url = pathname;
+    req.headers = {};
+    const res = new ServerResponse(req);
+    try {
+      await new Promise((resolve, reject) => {
+        res.end = function () { this.emit('finish'); resolve(); return this; };
+        app.handle(req, res, reject);
+      });
+      return res.statusCode;
+    } finally {
+      socket.destroy();
+    }
+  };
+  for (let i = 0; i < 25; i++) assert.equal(await request('GET', '/auth/signup/email/exists'), 204);
+  const paths = [
+    '/auth/signin', '/auth/public/signin', '/auth/public/signup',
+    '/auth/public/user/password/reset/token', '/auth/public/user/password/reset',
+    '/auth/example-tenant/signin', '/outside/../auth/public/signin',
+    '/outside/%2e%2e/auth/public/signin'
+  ];
+  for (let i = 0; i < 20; i++) assert.equal(await request('POST', paths[i % paths.length]), 204);
+  for (const pathname of paths) assert.equal(await request('POST', pathname), 429, pathname);
+  assert.equal(await request('GET', '/auth/signup/email/exists'), 204);
+  assert.equal(await request('POST', '/api/comments'), 204);
+  assert.equal(await request('POST', '/author'), 204);
+});
+
 async function database() {
   const { registerCommentManagement } = await import('../../backend/services.mjs');
   const db = new DatabaseSync(':memory:');
@@ -71,9 +114,9 @@ function ui() {
   const events = {};
   const removed = [];
   const context = {
-    localStorage: { getItem: () => 'zh' }, confirm: () => true,
+    CustomEvent, localStorage: { getItem: () => 'zh' }, confirm: () => true,
     document: { getElementById: id => elements[id], createElement: element, addEventListener(name, fn) { events[name] = fn; } },
-    window: { APP_CONFIG: { apiDomain: 'http://localhost' }, hasCommentSession: async () => true, removeWallMessage: id => removed.push(id), addEventListener(name, fn) { events[name] = fn; } }
+    window: { APP_CONFIG: { apiDomain: 'http://localhost' }, hasCommentSession: async () => true, removeWallMessage: id => removed.push(id), addEventListener(name, fn) { events[name] = fn; }, dispatchEvent(event) { events[event.type]?.(event); } }
   };
   vm.createContext(context);
   vm.runInContext(fs.readFileSync("js/i18n.js", "utf8"), context);
@@ -182,9 +225,9 @@ function adminUi() {
   const elements = Object.fromEntries(['admin-comments', 'admin-comments-list', 'admin-comments-status', 'admin-comments-retry'].map(id => [id, element()]));
   const events = {};
   const context = {
-    localStorage: { getItem: () => 'ja' }, confirm: () => true,
+    CustomEvent, localStorage: { getItem: () => 'ja' }, confirm: () => true,
     document: { getElementById: id => elements[id], createElement: element, addEventListener(name, fn) { events[name] = fn; } },
-    window: { APP_CONFIG: { apiDomain: '' }, hasCommentSession: async () => true, addEventListener(name, fn) { events[name] = fn; } }
+    window: { APP_CONFIG: { apiDomain: '' }, hasCommentSession: async () => true, addEventListener(name, fn) { events[name] = fn; }, dispatchEvent(event) { events[event.type]?.(event); } }
   };
   vm.createContext(context);
   vm.runInContext(fs.readFileSync('js/i18n.js', 'utf8'), context);
@@ -231,4 +274,112 @@ test('admin email grants require a verified matching login method', async () => 
   assert.equal(hasVerifiedAdminEmail(undefined, emails), false);
   for (const message of ['手机上听这首歌很喜欢', '邮箱收不到邮件', '希望不要有广告', '微信里朋友推荐了这首歌']) assert.equal(detectCommentSafetyIssue(message), null);
   for (const message of ['加微信 abc123', '微信：abc123', 'qq号:123456', '扫码领取优惠']) assert.equal(detectCommentSafetyIssue(message)?.code, 'PROMOTIONAL_CONTENT');
+});
+
+test('deployment preserves the frontend subpath and keeps SQLite inside the volume', async () => {
+  const { websiteLocation, resolveDatabasePath, passwordResetDelivery } = await import('../../backend/services.mjs');
+  const website = websiteLocation('https://9178osage.github.io/inabakumori-site/');
+  assert.equal(website.origin, 'https://9178osage.github.io');
+  let delivered;
+  await passwordResetDelivery(website.url).override({ sendEmail: async input => { delivered = input; } }).sendEmail({ passwordResetLink: 'https://api.example/auth/reset-password?token=test', tenantId: 'public' });
+  assert.equal(new URL(delivered.passwordResetLink).pathname, '/inabakumori-site/');
+  assert.throws(() => websiteLocation('file:///tmp/index.html'));
+  assert.throws(() => websiteLocation('https://user:password@example.com'));
+  assert.equal(resolveDatabasePath({}, '/app/backend'), '/app/backend/comments.db');
+  assert.equal(resolveDatabasePath({ NODE_ENV: 'production', RAILWAY_VOLUME_MOUNT_PATH: '/data' }, '/app/backend'), '/data/comments.db');
+  assert.throws(() => resolveDatabasePath({ NODE_ENV: 'production' }, '/app/backend'));
+  assert.throws(() => resolveDatabasePath({ NODE_ENV: 'production', RAILWAY_SERVICE_ID: 'test-service', COMMENTS_DB_PATH: '/data/comments.db' }, '/app/backend'), /Attach a Railway volume/);
+  assert.throws(() => resolveDatabasePath({ NODE_ENV: 'production', RAILWAY_VOLUME_MOUNT_PATH: './data' }, '/app/backend'), /must be absolute/);
+  assert.equal(resolveDatabasePath({ NODE_ENV: 'production', RAILWAY_SERVICE_ID: 'test-service', RAILWAY_VOLUME_MOUNT_PATH: '/data', COMMENTS_DB_PATH: '/data/comments.db' }, '/app/backend'), '/data/comments.db');
+  assert.throws(() => resolveDatabasePath({ NODE_ENV: 'production', COMMENTS_DB_PATH: './comments.db' }, '/app/backend'));
+  assert.throws(() => resolveDatabasePath({ RAILWAY_VOLUME_MOUNT_PATH: '/data', COMMENTS_DB_PATH: '/data-other/comments.db' }, '/app/backend'));
+});
+
+test('admin deletion remains applied when a concurrent refresh returns stale data', async () => {
+  const { elements, events, context } = adminUi();
+  const row = { id: 1, nickname: 'test', content: 'message' };
+  context.fetch = async () => ({ ok: true, json: async () => ({ comments: [row] }) });
+  await events.authchange();
+  let finishDelete, finishLoad;
+  context.fetch = (_, options) => new Promise(resolve => {
+    if (options.method === 'DELETE') finishDelete = resolve;
+    else finishLoad = resolve;
+  });
+  const deletion = elements['admin-comments-list'].children[0].children[1].listeners.click();
+  const refresh = events.commentposted();
+  await new Promise(resolve => setImmediate(resolve));
+  finishDelete({ ok: true });
+  await deletion;
+  finishLoad({ ok: true, json: async () => ({ comments: [row] }) });
+  await refresh;
+  assert.equal(elements['admin-comments-list'].children.length, 0);
+});
+
+function combinedCommentUi() {
+  const element = () => ({ hidden: true, children: [], textContent: '', listeners: {}, append(...items) { this.children.push(...items); }, replaceChildren() { this.children = []; }, setAttribute() {}, addEventListener(name, fn) { this.listeners[name] = fn; } });
+  const elements = Object.fromEntries([
+    'my-comments-list', 'my-comments-controls', 'my-comments-status', 'my-comments-more', 'my-comments-retry',
+    'admin-comments', 'admin-comments-list', 'admin-comments-status', 'admin-comments-retry', 'admin-comments-more'
+  ].map(id => [id, element()]));
+  const events = {}, listeners = {};
+  const listen = (name, fn) => {
+    (listeners[name] ||= []).push(fn);
+    events[name] = event => Promise.all(listeners[name].map(listener => listener(event)));
+  };
+  const context = {
+    CustomEvent, localStorage: { getItem: () => 'en' }, confirm: () => true,
+    document: { getElementById: id => elements[id], createElement: element, addEventListener: listen },
+    window: {
+      APP_CONFIG: { apiDomain: '' }, hasCommentSession: async () => true,
+      addEventListener: listen, dispatchEvent: event => events[event.type]?.(event)
+    }
+  };
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync('js/comments.js', 'utf8'), context);
+  return { elements, events, context };
+}
+
+for (const sourcePanel of ['my-comments', 'admin-comments']) {
+  test(`${sourcePanel} deletion updates both panels and survives their in-flight refreshes`, async () => {
+    const { elements, events, context } = combinedCommentUi();
+    const row = { id: 1, nickname: 'admin', content: 'my own message' };
+    const response = () => ({ ok: true, json: async () => ({ comments: [row], nextCursor: null }) });
+    context.fetch = async () => response();
+    await events.authchange();
+    assert.equal(elements['my-comments-list'].children.length, 1);
+    assert.equal(elements['admin-comments-list'].children.length, 1);
+
+    let finishDelete;
+    const pendingLoads = [];
+    context.fetch = (_, options) => new Promise(resolve => {
+      if (options.method === 'DELETE') finishDelete = resolve;
+      else pendingLoads.push(resolve);
+    });
+    const deletion = elements[`${sourcePanel}-list`].children[0].children[1].listeners.click();
+    const refresh = events.commentposted();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(pendingLoads.length, 2);
+    finishDelete({ ok: true });
+    await deletion;
+    assert.equal(elements['my-comments-list'].children.length, 0);
+    assert.equal(elements['admin-comments-list'].children.length, 0);
+
+    pendingLoads.forEach(resolve => resolve(response()));
+    await refresh;
+    assert.equal(elements['my-comments-list'].children.length, 0);
+    assert.equal(elements['admin-comments-list'].children.length, 0);
+  });
+}
+
+test('deletion notifications after sign-out cannot reveal either management panel', async () => {
+  const { elements, events, context } = combinedCommentUi();
+  context.fetch = async () => ({ ok: true, json: async () => ({ comments: [{ id: 1, nickname: 'admin', content: 'message' }], nextCursor: null }) });
+  await events.authchange();
+  context.window.hasCommentSession = async () => false;
+  await events.authchange();
+  await context.window.dispatchEvent(new CustomEvent('commentdeleted', { detail: { id: 1 } }));
+  assert.equal(elements['my-comments-controls'].hidden, true);
+  assert.equal(elements['admin-comments'].hidden, true);
+  assert.equal(elements['my-comments-list'].children.length, 0);
+  assert.equal(elements['admin-comments-list'].children.length, 0);
 });
