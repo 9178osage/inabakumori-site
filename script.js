@@ -95,21 +95,43 @@ const desktopHeroImages = ["images/hero/001.png", "images/hero/002.png", "images
 let heroImages = desktopHeroImages;
 let heroLoadVersion = 0;
 const mobileHeroQuery = window.matchMedia?.("(max-width: 700px), (pointer: coarse) and (max-width: 1000px)");
-function preloadNextHeroImage() {
-  if (!heroImages.length) return;
-  const image = new Image();
-  image.src = heroImages[(currentSlide + 1) % heroImages.length];
-}
-function loadMobileHeroImage(path) {
-  return new Promise((resolve) => {
+const loadedHeroImages = new Map();
+let heroSwitchVersion = 0;
+function loadHeroImage(path, retry = true) {
+  if (loadedHeroImages.has(path)) return loadedHeroImages.get(path);
+  const request = new Promise(resolve => {
     const image = new Image();
-    image.onload = () => resolve(image.naturalHeight > image.naturalWidth);
-    image.onerror = () => resolve(false);
+    image.decoding = "async";
+    let timer;
+    const finish = value => {
+      clearTimeout(timer);
+      image.onload = image.onerror = null;
+      resolve(value);
+    };
+    timer = setTimeout(() => finish(null), 12000);
+    image.onload = () => finish(image);
+    image.onerror = () => finish(null);
     image.src = path;
+  }).then(async image => {
+    if (!image) {
+      loadedHeroImages.delete(path);
+      if (retry && !document.hidden) return loadHeroImage(path, false);
+    }
+    return image;
   });
+  loadedHeroImages.set(path, request);
+  return request;
+}
+function preloadNextHeroImage() {
+  if (heroImages.length && !document.hidden) void loadHeroImage(heroImages[(currentSlide + 1) % heroImages.length]);
+}
+async function loadMobileHeroImage(path) {
+  const image = await loadHeroImage(path);
+  return Boolean(image && image.naturalHeight > image.naturalWidth);
 }
 async function discoverHeroImages() {
   const version = ++heroLoadVersion;
+  ++heroSwitchVersion;
   const slide = document.getElementById("hero-slide");
   currentSlide = 0;
   easterEggHeroComplete = false;
@@ -128,8 +150,10 @@ async function discoverHeroImages() {
   if (Array.isArray(config.files)) {
     const paths = config.files.map(file => `${config.folder}${file}`);
     const available = new Set();
-    await Promise.all(paths.map(async path => {
-      if (!await loadMobileHeroImage(path) || version !== heroLoadVersion) return;
+    for (const path of paths) {
+      const loaded = await loadMobileHeroImage(path);
+      if (version !== heroLoadVersion) return;
+      if (!loaded) continue;
       available.add(path);
       const selected = heroImages[currentSlide];
       heroImages = paths.filter(candidate => available.has(candidate));
@@ -138,7 +162,7 @@ async function discoverHeroImages() {
         slide.src = heroImages[0];
         slide.hidden = false;
       }
-    }));
+    }
     return;
   }
   for (let number = 1; number <= config.maxImages; number++) {
@@ -160,7 +184,7 @@ async function discoverHeroImages() {
   }
 }
 mobileHeroQuery?.addEventListener("change", discoverHeroImages);
-function changeHeroSlide() {
+async function changeHeroSlide() {
   if (easterEggOpen) {
     return;
   }
@@ -172,8 +196,13 @@ function changeHeroSlide() {
     easterEggHeroComplete = true;
     return;
   }
-  currentSlide = (currentSlide + 1) % heroImages.length;
-  heroSlide.src = heroImages[currentSlide];
+  const request = ++heroSwitchVersion;
+  const next = (currentSlide + 1) % heroImages.length;
+  const path = heroImages[next];
+  const image = await loadHeroImage(path);
+  if (!image || request !== heroSwitchVersion) return;
+  currentSlide = next;
+  heroSlide.src = path;
   preloadNextHeroImage();
   if (!easterEggHeroComplete && currentSlide === heroImages.length - 1) {
     easterEggHeroComplete = true;
@@ -339,6 +368,11 @@ function createFloatingMessage(message, startInside = false) {
     element.textContent = (message.nickname || message.name || "Anonymous") + identity + "： " + (message.content || message.text || "");
     if (element.isConnected) element.refreshLayout();
   };
+  element.updateMotion = () => {
+    if (!animation) return;
+    if (document.hidden || reducedMotionQuery?.matches) animation.pause?.();
+    else animation.play?.();
+  };
   element.refreshLayout = () => {
     const progress = animation ? animation.currentTime / animation.effect.getTiming().duration % 1 : startInside ? Math.random() : 0;
     if (animation) animation.cancel();
@@ -352,7 +386,8 @@ function createFloatingMessage(message, startInside = false) {
     const endX = -element.offsetWidth - 30;
     const duration = (startX - endX) / 70 * 1e3;
     animation = element.animate([{ transform: `translate(${startX}px, ${y}px)` }, { transform: `translate(${endX}px, ${y}px)` }], { duration, iterations: Infinity, easing: "linear" });
-    animation.currentTime = progress * duration;
+    animation.currentTime = reducedMotionQuery?.matches ? duration * Math.max(0.15, Math.min(0.85, progress)) : progress * duration;
+    element.updateMotion();
   };
   element.disposeMessage = () => {
     if (animation) animation.cancel();
@@ -371,8 +406,17 @@ function removeExpiredMessages() {
     if (Number(element.dataset.expiresAt) <= Date.now()) element.disposeMessage();
   });
 }
-setInterval(removeExpiredMessages, 1e3);
+const reducedMotionQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+function updateMotionState() {
+  document.documentElement.classList?.toggle("page-hidden", Boolean(document.hidden));
+  document.querySelectorAll(".floating-message").forEach(element => element.updateMotion?.());
+}
+reducedMotionQuery?.addEventListener("change", () => {
+  document.querySelectorAll(".floating-message").forEach(element => element.refreshLayout());
+});
+setInterval(() => { if (!document.hidden) removeExpiredMessages(); }, 1000);
 document.addEventListener("visibilitychange", () => {
+  updateMotionState();
   if (!document.hidden) removeExpiredMessages();
 });
 window.addEventListener("resize", () => {
@@ -855,6 +899,7 @@ function createConfetti() {
   const layer = document.getElementById("confetti-layer");
   if (!layer) return;
   layer.replaceChildren();
+  if (reducedMotionQuery?.matches || document.hidden) return;
   const amount = 76;
   const colors = ["#ffffff", "#eeeeee", "#d8d8d8", "#f4cbd7", "#d9c7e8"];
   for (let i = 0; i < amount; i++) {
@@ -886,6 +931,7 @@ function closeEasterEgg() {
   overlay.setAttribute("aria-hidden", "true");
   easterEggOpen = false;
   easterEggCanClose = false;
+  ++heroSwitchVersion;
   currentSlide = 0;
   const heroSlide = document.getElementById("hero-slide");
   if (heroSlide && heroImages.length) {

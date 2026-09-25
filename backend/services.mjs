@@ -1,7 +1,12 @@
 const LINK_PATTERN = /(?:https?:\/\/|www\.)/iu;
 const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/iu;
 const PHONE_PATTERN = /(?:\+?\d[\d\s().-]{5,}\d)/u;
-const PROMOTION_PATTERN = /(广告|推广|引流|返利|优惠|折扣|代购|代理|兼职|招聘|刷单|彩票|贷款|网赚|加微信|加微|微信号|微信|vx号|qq号|telegram|whatsapp|discord|\bline\b|私聊|扫码|二维码|加群|群聊|联系方式|联系我|加好友|客服|邮箱|\bemail\b|\be-mail\b|电话|手机号|(?:手机|电话)\s*[:：]\s*\d|\bcontact\s*me\b|\bbuy\s*now\b|\bdiscount\b|\bpromo\b|\baffiliate\b|\bsponsor\b)/iu;
+const PROMOTION_PATTERN = /(刷单|网赚|返利|代购|贷款|彩票|优惠折扣|扫码.{0,8}(进群|加群|领取)|加\s*(微信|微|好友|群)|(?:微信号|vx号|qq号)\s*[:：]?\s*[a-z0-9_-]+|(?:微信|wechat|qq|telegram|whatsapp|discord|line)\s*[:：]\s*[@a-z0-9_-]+|联系方式\s*[:：]|\bcontact\s*me\b|\bbuy\s*now\b|\bdiscount\b|\bpromo\b|\baffiliate\b)/iu;
+
+export function hasVerifiedAdminEmail(user, allowedEmails) {
+  return Boolean(user?.loginMethods?.some(method => method.verified === true &&
+    typeof method.email === "string" && allowedEmails.has(method.email.trim().toLowerCase())));
+}
 
 export function normalizeCommentForComparison(value) {
   return String(value ?? "")
@@ -62,8 +67,8 @@ export function registerCommentManagement(app, db, verifySession) {
 export function registerAdminCommentManagement(app, db, verifySession, isAdmin) {
   const list = db.prepare(`SELECT id, nickname, content, is_guest, created_at
     FROM comments
-    WHERE expires_at IS NULL OR expires_at > ?
-    ORDER BY created_at DESC LIMIT 200`);
+    WHERE (expires_at IS NULL OR expires_at > ?) AND id < ?
+    ORDER BY id DESC LIMIT 51`);
   const remove = db.prepare("DELETE FROM comments WHERE id = ?");
   const requireAdmin = async (req, res, next) => {
     try {
@@ -77,14 +82,17 @@ export function registerAdminCommentManagement(app, db, verifySession, isAdmin) 
   };
   app.get("/api/admin/comments", verifySession(), requireAdmin, (req, res) => {
     res.setHeader("Cache-Control", "no-store");
-    const comments = list.all(Date.now()).map(row => ({
+    const before = req.query?.before === undefined ? Number.MAX_SAFE_INTEGER : Number(req.query.before);
+    if (!Number.isSafeInteger(before) || before <= 0) return res.status(400).json({ code: "INVALID_CURSOR" });
+    const rows = list.all(Date.now(), before);
+    const comments = rows.slice(0, 50).map(row => ({
       id: Number(row.id),
       nickname: row.nickname,
       content: row.content,
       isGuest: Boolean(row.is_guest),
       createdAt: new Date(row.created_at).toISOString()
     }));
-    res.json({ comments });
+    res.json({ comments, nextCursor: rows.length > 50 ? comments.at(-1).id : null });
   });
   app.delete("/api/admin/comments/:id", verifySession(), requireAdmin, (req, res) => {
     const id = Number(req.params.id);
@@ -96,4 +104,22 @@ export function registerAdminCommentManagement(app, db, verifySession, isAdmin) 
     }
     return res.json({ success: true, deletedCommentId: id });
   });
+}
+
+export function passwordResetDelivery(websiteDomain) {
+  return {
+    override: original => ({
+      ...original,
+      async sendEmail(input) {
+        const source = new URL(input.passwordResetLink);
+        const link = new URL(websiteDomain);
+        link.search = "";
+        link.hash = "";
+        link.searchParams.set("resetPassword", "1");
+        link.searchParams.set("token", source.searchParams.get("token") || "");
+        link.searchParams.set("tenantId", input.tenantId);
+        return original.sendEmail({ ...input, passwordResetLink: link.href });
+      }
+    })
+  };
 }

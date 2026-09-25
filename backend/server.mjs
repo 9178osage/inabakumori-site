@@ -1,6 +1,5 @@
 import "dotenv/config";
-import { detectCommentSafetyIssue, normalizeCommentForComparison, registerAdminCommentManagement, registerCommentManagement } from "./comment-management.mjs";
-import { passwordResetDelivery } from "./password-reset.mjs";
+import { hasVerifiedAdminEmail, detectCommentSafetyIssue, normalizeCommentForComparison, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery } from "./services.mjs";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -261,7 +260,7 @@ registerAdminCommentManagement(app, db, verifySession, async userId => {
   if (ADMIN_USER_IDS.has(userId)) return true;
   if (!ADMIN_EMAILS.size) return false;
   const user = await supertokens.getUser(userId);
-  return user?.emails?.some(email => ADMIN_EMAILS.has(email.toLowerCase())) ?? false;
+  return hasVerifiedAdminEmail(user, ADMIN_EMAILS);
 });
 app.use("/api", (req, res) => {
   res.status(404).json({ error: "API 路径不存在", code: "NOT_FOUND" });
