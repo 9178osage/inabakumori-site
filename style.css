@@ -1551,3 +1551,23 @@ body.dark .tag-chip.active {
     border-color: var(--color-white);
   }
 }
+
+html.page-hidden *,
+html.page-hidden *::before,
+html.page-hidden *::after {
+  animation-play-state: paused !important;
+}
+@media (pointer: coarse) {
+  .hero-content nav a {
+    position: relative;
+  }
+  .hero-content nav a::after {
+    content: "";
+    position: absolute;
+    inset: -8px -5px;
+    min-height: 44px;
+  }
+  button, .hero-content nav a {
+    touch-action: manipulation;
+  }
+}

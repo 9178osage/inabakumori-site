@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 
 async function database() {
-  const { registerCommentManagement } = await import('../backend/comment-management.mjs');
+  const { registerCommentManagement } = await import('../backend/services.mjs');
   const db = new DatabaseSync(':memory:');
   db.exec('CREATE TABLE comments(id INTEGER PRIMARY KEY, nickname TEXT, content TEXT, created_at INTEGER, user_id TEXT, is_guest INTEGER)');
   const add = db.prepare('INSERT INTO comments VALUES(?,?,?,?,?,?)');
@@ -55,7 +55,7 @@ test('delete checks ownership on the server and rejects guests, missing and inva
   } finally { db.close(); }
 });
 test('reset email redirects to the static homepage with original token and tenant', async () => {
-  const { passwordResetDelivery } = await import('../backend/password-reset.mjs');
+  const { passwordResetDelivery } = await import('../backend/services.mjs');
   let sent;
   const service = passwordResetDelivery('https://site.example').override({ sendEmail: async input => { sent = input; } });
   await service.sendEmail({ passwordResetLink: 'https://site.example/auth/reset-password?token=test-token&rid=emailpassword', tenantId: 'public', type: 'PASSWORD_RESET', user: { email: 'nobody@example.com' } });
@@ -77,7 +77,7 @@ function ui() {
   };
   vm.createContext(context);
   vm.runInContext(fs.readFileSync("js/i18n.js", "utf8"), context);
-  vm.runInContext(fs.readFileSync('js/comments-management.js','utf8'), context);
+  vm.runInContext(fs.readFileSync('js/comments.js','utf8'), context);
   return { elements, events, context, removed };
 }
 test('delete cancellation sends no request and failed deletion leaves the message available', async () => {
@@ -113,7 +113,7 @@ test('Japanese message management shows a localized sign-in prompt', async () =>
 });
 
 test('comment safety blocks links, contact details and common advertising language', async () => {
-  const { detectCommentSafetyIssue, normalizeCommentForComparison } = await import('../backend/comment-management.mjs');
+  const { detectCommentSafetyIssue, normalizeCommentForComparison } = await import('../backend/services.mjs');
   for (const content of [
     'http://',
     'https://example.com',
@@ -132,7 +132,7 @@ test('comment safety blocks links, contact details and common advertising langua
 });
 
 test('admin comment management lists and deletes any comment only for configured admins', async () => {
-  const { registerAdminCommentManagement } = await import('../backend/comment-management.mjs');
+  const { registerAdminCommentManagement } = await import('../backend/services.mjs');
   const db = new DatabaseSync(':memory:');
   db.exec('CREATE TABLE comments(id INTEGER PRIMARY KEY, nickname TEXT, content TEXT, created_at INTEGER, user_id TEXT, is_guest INTEGER, expires_at INTEGER)');
   db.prepare('INSERT INTO comments VALUES(?,?,?,?,?,?,?)').run(1, 'guest', 'remove me', Date.now(), null, 1, null);
@@ -155,6 +155,21 @@ test('admin comment management lists and deletes any comment only for configured
   const allowed = response();
   await run(routes['get /api/admin/comments'], { session: { getUserId: () => 'admin' } }, allowed);
   assert.equal(allowed.body.comments[0].id, 1);
+  const insert = db.prepare('INSERT INTO comments VALUES(?,?,?,?,?,?,?)');
+  for (let id = 2; id <= 122; id++) insert.run(id, 'guest', 'page test', Date.now(), null, 1, id === 122 ? 1 : null);
+  const seen = [];
+  let cursor;
+  do {
+    const page = response();
+    await run(routes['get /api/admin/comments'], { query: cursor ? { before: cursor } : {}, session: { getUserId: () => 'admin' } }, page);
+    assert.ok(page.body.comments.length <= 50);
+    seen.push(...page.body.comments.map(comment => comment.id));
+    cursor = page.body.nextCursor;
+  } while (cursor);
+  assert.deepEqual(seen, Array.from({ length: 121 }, (_, i) => 121 - i));
+  const invalid = response();
+  await run(routes['get /api/admin/comments'], { query: { before: 'bad' }, session: { getUserId: () => 'admin' } }, invalid);
+  assert.equal(invalid.code, 400);
   const removed = response();
   await run(routes['delete /api/admin/comments/:id'], { params: { id: '1' }, session: { getUserId: () => 'admin' } }, removed);
   assert.equal(removed.body.deletedCommentId, 1);
@@ -173,7 +188,7 @@ function adminUi() {
   };
   vm.createContext(context);
   vm.runInContext(fs.readFileSync('js/i18n.js', 'utf8'), context);
-  vm.runInContext(fs.readFileSync('js/admin-comments.js', 'utf8'), context);
+  vm.runInContext(fs.readFileSync('js/comments.js', 'utf8'), context);
   return { elements, events, context };
 }
 test('admin panel stays hidden for failed permission checks and stale responses after logout', async () => {
@@ -205,4 +220,15 @@ test('admin deletion failures preserve content and translated error; duplicate c
   await pending;
   assert.equal(elements['admin-comments-list'].children.length, 1);
   assert.equal(elements['admin-comments-status'].textContent, '削除に失敗しました。再試行してください。');
+});
+
+test('admin email grants require a verified matching login method', async () => {
+  const { hasVerifiedAdminEmail, detectCommentSafetyIssue } = await import('../backend/services.mjs');
+  const emails = new Set(['admin@example.com']);
+  assert.equal(hasVerifiedAdminEmail({ emails: ['admin@example.com'], loginMethods: [{ email: 'admin@example.com', verified: false }] }, emails), false);
+  assert.equal(hasVerifiedAdminEmail({ loginMethods: [{ email: 'other@example.com', verified: true }, { email: 'admin@example.com', verified: false }] }, emails), false);
+  assert.equal(hasVerifiedAdminEmail({ loginMethods: [{ email: 'ADMIN@example.com', verified: true }] }, emails), true);
+  assert.equal(hasVerifiedAdminEmail(undefined, emails), false);
+  for (const message of ['手机上听这首歌很喜欢', '邮箱收不到邮件', '希望不要有广告', '微信里朋友推荐了这首歌']) assert.equal(detectCommentSafetyIssue(message), null);
+  for (const message of ['加微信 abc123', '微信：abc123', 'qq号:123456', '扫码领取优惠']) assert.equal(detectCommentSafetyIssue(message)?.code, 'PROMOTIONAL_CONTENT');
 });
