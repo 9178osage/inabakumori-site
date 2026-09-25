@@ -6,12 +6,13 @@ const source = fs.readFileSync("tools/auth-src.js", "utf8").replace(/^import .*;
 function setup(url = "http://localhost:5500/") {
   const elements = {}, listeners = {}, events = [], calls = [];
   let language = "zh";
+  const session = {};
   const context = {
     URL, Event, console: { error() {} },
     localStorage: { getItem: () => language },
     SuperTokens: { init() {} },
     EmailPassword: { init(config) { calls.push(config); } },
-    Session: { init() {} },
+    Session: { init(config) { session.config = config; } },
     doesSessionExist: async () => false,
     signIn: async () => ({ status: "OK" }), signUp: async () => ({ status: "OK" }), signOut: async () => {},
     sendPasswordResetEmail: async () => ({ status: "OK" }), submitNewPassword: async () => ({ status: "OK" }),
@@ -44,8 +45,12 @@ function setup(url = "http://localhost:5500/") {
   vm.createContext(context);
   vm.runInContext(fs.readFileSync("js/i18n.js", "utf8"), context);
   vm.runInContext(source, context);
-  return { context, elements, listeners, events, calls, run: code => vm.runInContext(code, context), language(value) { language = value; listeners.languagechange(); } };
+  return { context, elements, listeners, events, calls, session, run: code => vm.runInContext(code, context), language(value) { language = value; listeners.languagechange(); } };
 }
+test("cross-site sessions use header authentication", () => {
+  const app = setup();
+  assert.equal(app.session.config.tokenTransferMethod, "header");
+});
 test("reset link token is scrubbed from URL but remains available to the SDK", async () => {
   const app = setup("http://localhost:5500/?resetPassword=1&token=fake-token&tenantId=demo&keep=1#songs");
   assert.equal(app.calls[0].next, "/?keep=1#songs");
@@ -171,6 +176,35 @@ test("auth placeholders and existing server errors follow the selected language"
   assert.match(app.elements['auth-error'].innerText, /currently not available/);
   app.language('zh');
   assert.equal(app.elements['auth-error'].innerText, '暂时无法完成操作，请稍后重试。');
+});
+
+test("signup distinguishes the SDK's duplicate-email field error from invalid email in all languages", async () => {
+  const app = setup();
+  app.run('showAuthModal("signup")');
+  app.elements["auth-email"].value = "person@example.com";
+  app.elements["auth-password"].value = "Password123";
+  for (const [language, duplicateMessage, invalidMessage] of [
+    ["zh", "这个邮箱已经注册过了。", "请输入有效的邮箱地址。"],
+    ["en", "This email is already registered.", "Please enter a valid email address."],
+    ["ja", "このメールアドレスはすでに登録されています。", "有効なメールアドレスを入力してください。"]
+  ]) {
+    app.language(language);
+    app.context.signUp = async () => ({
+      status: "FIELD_ERROR",
+      formFields: [{ id: "email", error: "This email already exists. Please sign in instead." }]
+    });
+    await app.run("submitAuth()");
+    assert.equal(app.elements["auth-error"].innerText, duplicateMessage);
+    assert.equal(app.run("authMode"), "signup");
+    assert.equal(app.elements["auth-submit"].disabled, false);
+
+    app.context.signUp = async () => ({
+      status: "FIELD_ERROR",
+      formFields: [{ id: "email", error: "Email is invalid" }]
+    });
+    await app.run("submitAuth()");
+    assert.equal(app.elements["auth-error"].innerText, invalidMessage);
+  }
 });
 
 test("Japanese authentication covers validation, reset instructions, and language changes", async () => {

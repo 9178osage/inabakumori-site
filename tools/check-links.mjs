@@ -15,8 +15,9 @@ if (!songs.length) {
 async function checkSong(song) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let response;
   try {
-    const response = await fetch(song.url, {
+    response = await fetch(song.url, {
       redirect: "follow",
       signal: controller.signal,
       headers: {
@@ -24,8 +25,10 @@ async function checkSong(song) {
         range: "bytes=0-0"
       }
     });
+    await response.body?.cancel();
     return { ...song, ok: response.status < 400, status: response.status, finalUrl: response.url };
   } catch (error) {
+    await response?.body?.cancel();
     return { ...song, ok: false, status: error.name === "AbortError" ? "TIMEOUT" : error.code || error.name || "ERROR", detail: error.message };
   } finally {
     clearTimeout(timer);
@@ -51,5 +54,5 @@ if (failed.length) {
   console.error(`\n发现 ${failed.length} 个链接需要人工确认。`);
   if (strict) process.exit(2);
 } else {
-  console.log("\n✅ 所有链接都能正常响应。");
+  console.log("\n✅ 所有链接都能正常响应；视频是否可播放仍需人工确认。");
 }

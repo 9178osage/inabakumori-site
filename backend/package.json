@@ -2,9 +2,10 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "server.mjs",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.mjs",
+    "check": "node --check server.mjs && node --check services.mjs"
   },
   "keywords": [],
   "author": "",
@@ -17,5 +18,8 @@
     "express-rate-limit": "^8.7.0",
     "helmet": "^8.3.0",
     "supertokens-node": "^24.0.3"
+  },
+  "engines": {
+    "node": "24.x"
   }
 }

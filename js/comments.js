@@ -81,6 +81,7 @@
       deleted.add(id);
       comments.delete(id);
       window.removeWallMessage?.(id);
+      window.dispatchEvent(new CustomEvent("commentdeleted", { detail: { id } }));
       if (current === version) state = "deleted";
     } catch {
       if (current === version) state = "deleteError";
@@ -96,6 +97,13 @@
   });
   window.addEventListener("authchange", () => load());
   window.addEventListener("commentposted", () => load());
+  window.addEventListener("commentdeleted", ({ detail }) => {
+    const id = detail?.id;
+    if (!Number.isSafeInteger(id) || id <= 0) return;
+    deleted.add(id);
+    if (comments.delete(id) && !busy) state = "deleted";
+    render();
+  });
   window.addEventListener("languagechange", render);
 })();
 
@@ -108,6 +116,7 @@
   let nextCursor = null;
   const deleted = new Set();
   let authorized = false;
+  let authVersion = 0;
   let error = "";
   const deleting = new Set();
   const label = (zh, en) => window.siteText?.(zh, en) ?? (localStorage.getItem("language") === "en" ? en : zh);
@@ -177,21 +186,22 @@
   async function remove(id) {
     if (!authorized || deleting.has(id)) return;
     if (!confirm(label("确定删除这条留言吗？删除后无法恢复。", "Delete this message? This cannot be undone."))) return;
-    const current = version;
+    const current = authVersion;
     deleting.add(id);
     error = "";
     render();
     try {
       const response = await fetch(`${api}/${id}`, { method: "DELETE", credentials: "include" });
-      if (current !== version) return;
+      if (current !== authVersion) return;
       if (response.status === 401 || response.status === 403) return hide();
       if (!response.ok && response.status !== 404) throw new Error("Could not delete message");
       deleted.add(id);
       comments = comments.filter(comment => comment.id !== id);
       window.removeWallMessage?.(id);
+      window.dispatchEvent(new CustomEvent("commentdeleted", { detail: { id } }));
       render();
     } catch {
-      if (current === version) error = "delete";
+      if (current === authVersion) error = "delete";
     } finally {
       deleting.delete(id);
       render();
@@ -202,7 +212,14 @@
     document.getElementById("admin-comments-more")?.addEventListener("click", () => load(true));
     load();
   });
-  window.addEventListener("authchange", () => { hide(); return load(); });
+  window.addEventListener("authchange", () => { authVersion++; hide(); return load(); });
   window.addEventListener("commentposted", () => load());
+  window.addEventListener("commentdeleted", ({ detail }) => {
+    const id = detail?.id;
+    if (!Number.isSafeInteger(id) || id <= 0) return;
+    deleted.add(id);
+    comments = comments.filter(comment => comment.id !== id);
+    render();
+  });
   window.addEventListener("languagechange", render);
 })();

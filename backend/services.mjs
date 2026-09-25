@@ -1,3 +1,40 @@
+import path from "node:path";
+
+export function websiteLocation(value) {
+  const url = new URL(value);
+  if (!["https:", "http:"].includes(url.protocol) || url.username || url.password) {
+    throw new Error("Website URL must be an HTTP(S) URL without credentials");
+  }
+  url.search = "";
+  url.hash = "";
+  return { origin: url.origin, url: url.href };
+}
+
+export function resolveDatabasePath(env, directory) {
+  const configured = env.COMMENTS_DB_PATH?.trim();
+  const mount = env.RAILWAY_VOLUME_MOUNT_PATH?.trim();
+  if (env.NODE_ENV === "production" && env.RAILWAY_SERVICE_ID && !mount) {
+    throw new Error("Attach a Railway volume before storing production comments");
+  }
+  if (mount && !path.isAbsolute(mount)) {
+    throw new Error("RAILWAY_VOLUME_MOUNT_PATH must be absolute");
+  }
+  if (env.NODE_ENV === "production" && !configured && !mount) {
+    throw new Error("Production requires COMMENTS_DB_PATH or a Railway volume");
+  }
+  if (env.NODE_ENV === "production" && configured && !path.isAbsolute(configured)) {
+    throw new Error("Production COMMENTS_DB_PATH must be absolute");
+  }
+  const databasePath = configured ? path.resolve(configured) : path.join(mount || directory, "comments.db");
+  if (mount) {
+    const relative = path.relative(path.resolve(mount), databasePath);
+    if (!relative || relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+      throw new Error("COMMENTS_DB_PATH must be inside the Railway volume");
+    }
+  }
+  return databasePath;
+}
+
 const LINK_PATTERN = /(?:https?:\/\/|www\.)/iu;
 const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/iu;
 const PHONE_PATTERN = /(?:\+?\d[\d\s().-]{5,}\d)/u;
