@@ -1,6 +1,6 @@
 # Weather Observation Station · 稲葉曇
 
-[中文](README.md) | **English**
+[中文](README.md) | **English** | [日本語](README_JA.md)
 
 > An unofficial fan website created simply because I really love **稲葉曇 / Inabakumori**.  
 > It collects songs, MVs, related creator links, and also includes a message wall and account features.
