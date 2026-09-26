@@ -335,4 +335,4 @@ I made it because I like Inabakumori and wanted to build a weather observation s
 
 **If even a few people see it, that is already enough.**
 
-🌧️ *Enjoy the rain.*
+**Long live Inabakumori!**
