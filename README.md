@@ -1,6 +1,8 @@
+<a id="readme-zh"></a>
+
 # 🌧️ 气象观测站 · 稲葉曇
 
-🇨🇳 **中文** | 🇺🇸 [English](README_EN.md) | 🇯🇵 [日本語](README_JA.md)
+🇨🇳 **中文** | 🇺🇸 [English](#readme-en) | 🇯🇵 [日本語](#readme-ja)
 
 > 一个因为太喜欢 **稲葉曇 / Inabakumori** 而做出来的非官方粉丝网站。  
 > 收集歌曲、MV、相关创作者链接，并提供留言墙与账号功能。
@@ -336,3 +338,692 @@ npm run check:links:strict
 **有人看到，就已经很好了。**
 
 ☔ **稲葉曇万岁！**
+
+
+---
+
+<a id="readme-en"></a>
+
+# 🌧️ Weather Observation Station · 稲葉曇
+
+🇨🇳 [中文](#readme-zh) | 🇺🇸 **English** | 🇯🇵 [日本語](#readme-ja)
+
+> An unofficial fan website created simply because I really love **稲葉曇 / Inabakumori**.  
+> It collects songs, MVs, related creator links, and also includes a message wall and account features.
+
+🌐 **Live site:** https://9178osage.github.io/inabakumori-site/
+
+---
+
+## 🌧️ About This Project
+
+**Weather Observation Station** is a personal fan website dedicated to Inabakumori.
+
+The site is built mainly with vanilla HTML, CSS, and JavaScript, without a large frontend framework. In addition to song information and related links, it includes multilingual support, theme switching, responsive layouts, an account system, and a message wall.
+
+This project is still being actively updated. The content may not be professional or complete, but it has been carefully organized.
+
+> This is an unofficial, non-commercial fan project and is not affiliated with Inabakumori, Nukunuku Nigirimeshi, or any official label/platform.
+
+---
+
+## ✨ Features
+
+### 🎵 Song Library
+
+- Inabakumori songs and MV links
+- Album, vocalist, and other tag information
+- Recorded YouTube view counts and check dates
+- Fuzzy search by song title / tags
+- Multi-keyword search
+- Required keywords with `+keyword`
+- Tag filtering
+- Random song button
+- Search result count
+
+### 🌐 Languages
+
+Currently supported:
+
+- 中文
+- English
+- 日本語
+
+The selected language is saved in the browser.
+
+### 🌙 Interface & Visuals
+
+- Light / dark theme switching
+- Responsive desktop / mobile layout
+- Separate desktop and mobile backgrounds
+- Click to switch backgrounds
+- Rain effects
+- Title visual effects
+- Saved theme and language preferences
+- Web App Manifest
+
+### 🔗 Inabakumori & NKNK Links
+
+The site includes related links for platforms such as:
+
+- YouTube
+- X / Twitter
+- Niconico
+- Bilibili
+- Instagram
+- TikTok
+- Pixiv
+- Wikipedia
+- Inabakumori Wiki
+- VOCALOID Wiki
+
+It also includes links related to **ぬくぬくにぎりめし (NKNK)**.
+
+### 👤 Account System
+
+The account system is powered by **SuperTokens**:
+
+- Email / password registration
+- Sign in / sign out
+- Session management
+- Forgot password / password reset
+
+### 💬 Message Wall
+
+- Guest messages
+- Signed-in user messages
+- View your own messages
+- Delete your own messages
+- Pagination
+- Admin message moderation
+- Message length limits
+- Rate limiting
+- Basic spam / contact-information filtering
+- Automatic expiration for guest messages
+
+---
+
+## 🛠️ Tech Stack
+
+### 🖥️ Frontend
+
+- HTML5
+- CSS3
+- Vanilla JavaScript
+- SuperTokens Web JS
+- esbuild
+
+### ⚙️ Backend
+
+- Node.js 24
+- Express 5
+- SuperTokens Node
+- Node.js built-in SQLite (`node:sqlite`)
+- Helmet
+- CORS
+- express-rate-limit
+- dotenv
+
+---
+
+## 📁 Project Structure
+
+```text
+inabakumori-site/
+├── index.html
+├── style.css
+├── script.js
+├── site.webmanifest
+├── robots.txt
+├── package.json
+│
+├── js/
+│   ├── auth.js
+│   ├── comments.js
+│   ├── config.js
+│   ├── i18n.js
+│   └── songs.js
+│
+├── images/
+├── fonts/
+│
+├── backend/
+│   ├── .env.example
+│   ├── package.json
+│   ├── server.mjs
+│   └── services.mjs
+│
+└── tools/
+```
+
+---
+
+## 🚀 Run Locally
+
+### 📋 Requirements
+
+- **Node.js 24.x**
+- npm
+- Python 3 (the current frontend dev server uses `python3 -m http.server`)
+- A working SuperTokens Core / Managed SuperTokens instance
+
+### 1. 📥 Clone the repository
+
+```bash
+git clone https://github.com/9178osage/inabakumori-site.git
+cd inabakumori-site
+```
+
+### 2. 📦 Install frontend tooling dependencies
+
+```bash
+npm install
+```
+
+### 3. 📦 Install backend dependencies
+
+```bash
+cd backend
+npm install
+cd ..
+```
+
+### 4. 🔐 Configure backend environment variables
+
+First, copy the example file:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+For local development, configure SuperTokens and use local website/API addresses. For example:
+
+```env
+NODE_ENV=development
+HOST=127.0.0.1
+API_DOMAIN=http://127.0.0.1:3001
+WEBSITE_URL=http://127.0.0.1:5500
+
+SUPERTOKENS_CONNECTION_URI=YOUR_SUPERTOKENS_CONNECTION_URI
+SUPERTOKENS_API_KEY=YOUR_SUPERTOKENS_API_KEY
+```
+
+Do not commit real API keys to GitHub.
+
+### 5. ⚙️ Start the backend
+
+From the repository root:
+
+```bash
+npm run backend
+```
+
+Default API address:
+
+```text
+http://127.0.0.1:3001
+```
+
+### 6. 🌐 Start the frontend
+
+Open another terminal and run this from the repository root:
+
+```bash
+npm run frontend
+```
+
+Then visit:
+
+```text
+http://127.0.0.1:5500
+```
+
+---
+
+## ✅ Checks & Build
+
+Run tests and rebuild the authentication bundle:
+
+```bash
+npm run check
+```
+
+Run tests only:
+
+```bash
+npm test
+```
+
+Rebuild `js/auth.js`:
+
+```bash
+npm run build
+```
+
+Check site links:
+
+```bash
+npm run check:links
+```
+
+Strict mode:
+
+```bash
+npm run check:links:strict
+```
+
+---
+
+## ☁️ Deployment
+
+The frontend can be deployed as a static website, for example with **GitHub Pages**.
+
+The account system and message wall are dynamic features, so they also require a separately hosted Node.js backend configured with:
+
+- `API_DOMAIN`
+- `WEBSITE_URL`
+- `SUPERTOKENS_CONNECTION_URI`
+- `SUPERTOKENS_API_KEY`
+- Persistent SQLite storage
+
+The backend already includes handling for Railway persistent Volumes. In production, make sure the database file is stored on persistent storage rather than an ephemeral filesystem.
+
+---
+
+## 🔒 Security & Privacy
+
+The backend currently includes several basic protections:
+
+- Helmet HTTP security headers
+- CORS origin restrictions
+- Authentication rate limiting
+- Message endpoint rate limiting
+- Guest message limits
+- Input length validation
+- Message filtering for ads / links / contact information
+- Admin permission checks
+
+In production, always keep secrets in environment variables. Never commit `.env`, API keys, or other private credentials to the repository.
+
+---
+
+## ⚠️ Disclaimer
+
+This is an **unofficial, non-commercial fan project**.
+
+Music, MVs, illustrations, character designs, names, trademarks, and any other copyrighted content featured on the site belong to their respective authors, creators, and rights holders.
+
+This project does not claim ownership of any official Inabakumori-related content.
+
+If you are a copyright or rights holder and believe any content on the site should be corrected, credited differently, or removed, please use the contact information provided on the website.
+
+---
+
+## 🤝 Feedback / Contributions
+
+If you find:
+
+- Incorrect song information
+- Broken links
+- Bugs
+- Translation issues
+- A feature that would fit the project
+
+Feel free to open an **Issue** or send a suggestion.
+
+---
+
+## ❤️ Finally
+
+This website does not have a complicated goal.
+
+I made a “Weather Observation Station” because I like Inabakumori — a tribute to the title of the second album.
+
+**If even a few people see it, that is already enough.**
+
+☔ **Long live Inabakumori!**
+
+
+---
+
+<a id="readme-ja"></a>
+
+# 🌧️ 気象観測所 · 稲葉曇
+
+🇨🇳 [中文](#readme-zh) | 🇺🇸 [English](#readme-en) | 🇯🇵 **日本語**
+
+> **稲葉曇 / Inabakumori** が大好きだから作った、非公式のファンサイトです。  
+> 楽曲、MV、関連クリエイターへのリンクをまとめ、メッセージウォールやアカウント機能も備えています。
+
+🌐 **サイトを見る：** https://9178osage.github.io/inabakumori-site/
+
+---
+
+## 🌧️ このプロジェクトについて
+
+**気象観測所** は、稲葉曇をテーマにした個人制作のファンサイトです。
+
+フロントエンドは主に素の HTML、CSS、JavaScript で構成されており、大規模なフレームワークは使用していません。楽曲情報や関連リンクに加えて、多言語対応、テーマ切り替え、レスポンシブデザイン、アカウント機能、メッセージウォールなどを実装しています。
+
+このプロジェクトは現在も更新中です。内容は必ずしも専門的・完全ではありませんが、一つひとつ丁寧に整理しています。
+
+> This is an unofficial, non-commercial fan project and is not affiliated with Inabakumori, Nukunuku Nigirimeshi, or any official label/platform.
+
+---
+
+## ✨ 主な機能
+
+### 🎵 楽曲ライブラリ
+
+- 稲葉曇の楽曲と MV へのリンク
+- アルバム、ボーカルなどのタグ情報
+- YouTube 再生回数と確認日の記録
+- 曲名 / タグのあいまい検索
+- 複数キーワード検索
+- `+キーワード` による必須条件指定
+- タグフィルター
+- ランダム楽曲
+- 検索結果件数の表示
+
+### 🌐 多言語対応
+
+現在対応している言語：
+
+- 中文
+- English
+- 日本語
+
+選択した言語はブラウザに保存されます。
+
+### 🌙 UI・ビジュアル
+
+- ライト / ダークテーマ切り替え
+- PC / モバイル対応のレスポンシブレイアウト
+- PC 用 / モバイル用の背景
+- クリックで背景切り替え
+- 雨のエフェクト
+- タイトルのビジュアルエフェクト
+- テーマと言語設定の保存
+- Web App Manifest
+
+### 🔗 稲葉曇・NKNK 関連リンク
+
+以下を含む関連リンクを掲載しています：
+
+- YouTube
+- X / Twitter
+- Niconico
+- Bilibili
+- Instagram
+- TikTok
+- Pixiv
+- Wikipedia
+- Inabakumori Wiki
+- VOCALOID Wiki
+
+**ぬくぬくにぎりめし（NKNK）** に関連するページへのリンクも掲載しています。
+
+### 👤 アカウント機能
+
+アカウント機能には **SuperTokens** を使用しています：
+
+- メールアドレス / パスワードでの登録
+- ログイン / ログアウト
+- セッション管理
+- パスワードを忘れた場合のリセット
+
+### 💬 メッセージウォール
+
+- ゲスト投稿
+- ログインユーザーの投稿
+- 自分の投稿一覧
+- 自分の投稿の削除
+- ページネーション
+- 管理者による投稿管理
+- 投稿文字数制限
+- レート制限
+- 基本的なスパム / 連絡先情報のフィルタリング
+- ゲスト投稿の自動期限切れ
+
+---
+
+## 🛠️ 技術スタック
+
+### 🖥️ Frontend
+
+- HTML5
+- CSS3
+- Vanilla JavaScript
+- SuperTokens Web JS
+- esbuild
+
+### ⚙️ Backend
+
+- Node.js 24
+- Express 5
+- SuperTokens Node
+- Node.js built-in SQLite (`node:sqlite`)
+- Helmet
+- CORS
+- express-rate-limit
+- dotenv
+
+---
+
+## 📁 プロジェクト構成
+
+```text
+inabakumori-site/
+├── index.html
+├── style.css
+├── script.js
+├── site.webmanifest
+├── robots.txt
+├── package.json
+│
+├── js/
+│   ├── auth.js
+│   ├── comments.js
+│   ├── config.js
+│   ├── i18n.js
+│   └── songs.js
+│
+├── images/
+├── fonts/
+│
+├── backend/
+│   ├── .env.example
+│   ├── package.json
+│   ├── server.mjs
+│   └── services.mjs
+│
+└── tools/
+```
+
+---
+
+## 🚀 ローカルで実行する
+
+### 📋 必要な環境
+
+- **Node.js 24.x**
+- npm
+- Python 3（現在のフロントエンド開発用サーバーは `python3 -m http.server` を使用）
+- 利用可能な SuperTokens Core / Managed SuperTokens インスタンス
+
+### 1. 📥 リポジトリをクローン
+
+```bash
+git clone https://github.com/9178osage/inabakumori-site.git
+cd inabakumori-site
+```
+
+### 2. 📦 フロントエンド用ツール依存関係をインストール
+
+```bash
+npm install
+```
+
+### 3. 📦 バックエンド依存関係をインストール
+
+```bash
+cd backend
+npm install
+cd ..
+```
+
+### 4. 🔐 バックエンドの環境変数を設定
+
+まずサンプルファイルをコピーします：
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+ローカル開発では、SuperTokens を正しく設定し、Web サイトと API の URL をローカル用にします。例：
+
+```env
+NODE_ENV=development
+HOST=127.0.0.1
+API_DOMAIN=http://127.0.0.1:3001
+WEBSITE_URL=http://127.0.0.1:5500
+
+SUPERTOKENS_CONNECTION_URI=YOUR_SUPERTOKENS_CONNECTION_URI
+SUPERTOKENS_API_KEY=YOUR_SUPERTOKENS_API_KEY
+```
+
+実際の API キーを GitHub にコミットしないでください。
+
+### 5. ⚙️ バックエンドを起動
+
+リポジトリのルートで実行：
+
+```bash
+npm run backend
+```
+
+デフォルトの API アドレス：
+
+```text
+http://127.0.0.1:3001
+```
+
+### 6. 🌐 フロントエンドを起動
+
+別のターミナルを開き、リポジトリのルートで実行：
+
+```bash
+npm run frontend
+```
+
+その後、以下にアクセスします：
+
+```text
+http://127.0.0.1:5500
+```
+
+---
+
+## ✅ チェックとビルド
+
+テストを実行し、認証スクリプトを再ビルド：
+
+```bash
+npm run check
+```
+
+テストのみ：
+
+```bash
+npm test
+```
+
+`js/auth.js` を再ビルド：
+
+```bash
+npm run build
+```
+
+サイト内リンクをチェック：
+
+```bash
+npm run check:links
+```
+
+厳格モード：
+
+```bash
+npm run check:links:strict
+```
+
+---
+
+## ☁️ デプロイ
+
+フロントエンドは静的サイトとして、たとえば **GitHub Pages** にデプロイできます。
+
+アカウント機能とメッセージウォールは動的機能のため、別途 Node.js バックエンドを実行し、以下を設定する必要があります：
+
+- `API_DOMAIN`
+- `WEBSITE_URL`
+- `SUPERTOKENS_CONNECTION_URI`
+- `SUPERTOKENS_API_KEY`
+- 永続化された SQLite ストレージ
+
+バックエンドには Railway の永続 Volume に対応する処理が含まれています。本番環境では、データベースファイルを一時ファイルシステムではなく永続ストレージ上に配置してください。
+
+---
+
+## 🔒 セキュリティとプライバシー
+
+バックエンドには現在、以下の基本的な保護機能があります：
+
+- Helmet による HTTP セキュリティヘッダー
+- CORS Origin 制限
+- 認証エンドポイントのレート制限
+- メッセージ投稿のレート制限
+- ゲスト投稿制限
+- 入力文字数の検証
+- 広告 / リンク / 連絡先情報のフィルタリング
+- 管理者権限チェック
+
+本番環境では、秘密情報を必ず環境変数で管理してください。`.env`、API キー、その他の機密情報をリポジトリにコミットしないでください。
+
+---
+
+## ⚠️ 免責事項
+
+これは **非公式・非営利のファンプロジェクト** です。
+
+サイト内の音楽、MV、イラスト、キャラクターデザイン、名称、商標、その他の著作物に関する権利は、それぞれの作者・クリエイター・権利者に帰属します。
+
+本プロジェクトは、稲葉曇に関する公式コンテンツの権利を主張するものではありません。
+
+著作権者・権利者の方で、掲載内容の修正、クレジット変更、削除をご希望の場合は、サイト内の連絡先からご連絡ください。
+
+---
+
+## 🤝 フィードバック / コントリビューション
+
+以下のような点を見つけた場合：
+
+- 楽曲情報の誤り
+- リンク切れ
+- バグ
+- 翻訳の修正
+- 追加すると良さそうな機能
+
+Issue を作成するか、提案を送ってください。
+
+---
+
+## ❤️ 最後に
+
+このサイトに、難しい目標はありません。
+
+稲葉曇が好きだから、「気象観測所」を作りました（2ndアルバムのタイトルへのオマージュです）。
+
+**誰か一人でも見てくれたら、それだけで十分です。**
+
+☔ **稲葉曇万歳！**
+
