@@ -19,6 +19,11 @@
     "helmet": "^8.3.0",
     "supertokens-node": "^24.0.3"
   },
+  "overrides": {
+    "supertokens-node": {
+      "nodemailer": "9.1.1"
+    }
+  },
   "engines": {
     "node": "24.x"
   }
