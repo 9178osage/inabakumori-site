@@ -1,6 +1,6 @@
-# 气象观测站 · 稲葉曇
+# 🌧️ 气象观测站 · 稲葉曇
 
-**中文** | [English](README_EN.md) | [日本語](README_JA.md)
+🇨🇳 **中文** | 🇺🇸 [English](README_EN.md) | 🇯🇵 [日本語](README_JA.md)
 
 > 一个因为太喜欢 **稲葉曇 / Inabakumori** 而做出来的非官方粉丝网站。  
 > 收集歌曲、MV、相关创作者链接，并提供留言墙与账号功能。
@@ -99,7 +99,7 @@
 
 ## 🛠️ 技术栈
 
-### Frontend
+### 🖥️ Frontend
 
 - HTML5
 - CSS3
@@ -107,7 +107,7 @@
 - SuperTokens Web JS
 - esbuild
 
-### Backend
+### ⚙️ Backend
 
 - Node.js 24
 - Express 5
@@ -154,27 +154,27 @@ inabakumori-site/
 
 ## 🚀 本地运行
 
-### 环境要求
+### 📋 环境要求
 
 - **Node.js 24.x**
 - npm
 - Python 3（仓库当前的前端本地服务器脚本使用 `python3 -m http.server`）
 - 可用的 SuperTokens Core / Managed SuperTokens 实例
 
-### 1. 克隆仓库
+### 1. 📥 克隆仓库
 
 ```bash
 git clone https://github.com/9178osage/inabakumori-site.git
 cd inabakumori-site
 ```
 
-### 2. 安装前端工具依赖
+### 2. 📦 安装前端工具依赖
 
 ```bash
 npm install
 ```
 
-### 3. 安装后端依赖
+### 3. 📦 安装后端依赖
 
 ```bash
 cd backend
@@ -182,7 +182,7 @@ npm install
 cd ..
 ```
 
-### 4. 配置后端环境变量
+### 4. 🔐 配置后端环境变量
 
 先复制示例文件：
 
@@ -204,7 +204,7 @@ SUPERTOKENS_API_KEY=YOUR_SUPERTOKENS_API_KEY
 
 不要把真实 API Key 提交到 GitHub。
 
-### 5. 启动后端
+### 5. ⚙️ 启动后端
 
 在仓库根目录运行：
 
@@ -218,7 +218,7 @@ npm run backend
 http://127.0.0.1:3001
 ```
 
-### 6. 启动前端
+### 6. 🌐 启动前端
 
 打开另一个终端，在仓库根目录运行：
 
@@ -335,4 +335,4 @@ npm run check:links:strict
 
 **有人看到，就已经很好了。**
 
-**稲葉曇万岁！**
+☔ **稲葉曇万岁！**
