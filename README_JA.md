@@ -1,6 +1,6 @@
-# 気象観測所 · 稲葉曇
+# 🌧️ 気象観測所 · 稲葉曇
 
-[中文](README.md) | [English](README_EN.md) | **日本語**
+🇨🇳 [中文](README.md) | 🇺🇸 [English](README_EN.md) | 🇯🇵 **日本語**
 
 > **稲葉曇 / Inabakumori** が大好きだから作った、非公式のファンサイトです。  
 > 楽曲、MV、関連クリエイターへのリンクをまとめ、メッセージウォールやアカウント機能も備えています。
@@ -99,7 +99,7 @@
 
 ## 🛠️ 技術スタック
 
-### Frontend
+### 🖥️ Frontend
 
 - HTML5
 - CSS3
@@ -107,7 +107,7 @@
 - SuperTokens Web JS
 - esbuild
 
-### Backend
+### ⚙️ Backend
 
 - Node.js 24
 - Express 5
@@ -154,27 +154,27 @@ inabakumori-site/
 
 ## 🚀 ローカルで実行する
 
-### 必要な環境
+### 📋 必要な環境
 
 - **Node.js 24.x**
 - npm
 - Python 3（現在のフロントエンド開発用サーバーは `python3 -m http.server` を使用）
 - 利用可能な SuperTokens Core / Managed SuperTokens インスタンス
 
-### 1. リポジトリをクローン
+### 1. 📥 リポジトリをクローン
 
 ```bash
 git clone https://github.com/9178osage/inabakumori-site.git
 cd inabakumori-site
 ```
 
-### 2. フロントエンド用ツール依存関係をインストール
+### 2. 📦 フロントエンド用ツール依存関係をインストール
 
 ```bash
 npm install
 ```
 
-### 3. バックエンド依存関係をインストール
+### 3. 📦 バックエンド依存関係をインストール
 
 ```bash
 cd backend
@@ -182,7 +182,7 @@ npm install
 cd ..
 ```
 
-### 4. バックエンドの環境変数を設定
+### 4. 🔐 バックエンドの環境変数を設定
 
 まずサンプルファイルをコピーします：
 
@@ -204,7 +204,7 @@ SUPERTOKENS_API_KEY=YOUR_SUPERTOKENS_API_KEY
 
 実際の API キーを GitHub にコミットしないでください。
 
-### 5. バックエンドを起動
+### 5. ⚙️ バックエンドを起動
 
 リポジトリのルートで実行：
 
@@ -218,7 +218,7 @@ npm run backend
 http://127.0.0.1:3001
 ```
 
-### 6. フロントエンドを起動
+### 6. 🌐 フロントエンドを起動
 
 別のターミナルを開き、リポジトリのルートで実行：
 
@@ -335,4 +335,4 @@ Issue を作成するか、提案を送ってください。
 
 **誰か一人でも見てくれたら、それだけで十分です。**
 
-**稲葉曇万歳！**
+☔ **稲葉曇万歳！**
