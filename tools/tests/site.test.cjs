@@ -118,8 +118,8 @@ test("all listed hero images exist and switching waits for loading", async () =>
   await run("changeHeroSlide()");
   assert.equal(slide.src, "images/hero/002.png");
 });
-test("configuration supports local development and same-origin hosting", () => {
-  for (const [hostname, protocol, expected] of [["localhost", "http:", "http://localhost:3001"], ["127.0.0.1", "http:", "http://127.0.0.1:3001"], ["fans.example", "https:", "https://fans.example"]]) {
+test("configuration supports local development and Railway from GitHub Pages", () => {
+  for (const [hostname, protocol, expected] of [["localhost", "http:", "http://localhost:3001"], ["127.0.0.1", "http:", "http://127.0.0.1:3001"], ["9178osage.github.io", "https:", "https://inabakumori-site-production.up.railway.app"]]) {
     const context = { window: { location: { hostname, protocol, origin: `${protocol}//${hostname}` } } };
     vm.runInNewContext(fs.readFileSync("js/config.js", "utf8"), context);
     assert.equal(context.window.APP_CONFIG.apiDomain, expected);
