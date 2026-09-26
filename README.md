@@ -335,4 +335,4 @@ npm run check:links:strict
 
 **有人看到，就已经很好了。**
 
-🌧️ *Enjoy the rain.*
+**稲葉曇万岁！**
