@@ -4,8 +4,8 @@
 
 🇺🇸 **English** | 🇨🇳 [中文](#readme-zh) | 🇯🇵 [日本語](#readme-ja)
 
-> An unofficial fan website created simply because I really love **稲葉曇 / Inabakumori**.  
-> It collects songs, MVs, related creator links, and also includes a message wall and account features.
+> An unofficial fan site made out of a love for **稲葉曇 / Inabakumori**.  
+> It brings together songs, MVs, related creator links, plus a message wall and account features.
 
 🌐 **Live site:** https://9178osage.github.io/inabakumori-site/
 
@@ -13,11 +13,11 @@
 
 ## 🌧️ About This Project
 
-**Weather Observation Station** is a personal fan website dedicated to Inabakumori.
+**Weather Observation Station** is a personal fan site dedicated to Inabakumori.
 
-The site is built mainly with vanilla HTML, CSS, and JavaScript, without a large frontend framework. In addition to song information and related links, it includes multilingual support, theme switching, responsive layouts, an account system, and a message wall.
+The frontend is built mainly with vanilla HTML, CSS, and JavaScript, without a large framework. Alongside song information and related links, the site includes multilingual support, theme switching, responsive layouts, an account system, and a message wall.
 
-This project is still being actively updated. The content may not be professional or complete, but it has been carefully organized.
+The project is still evolving. It is not meant to be authoritative or exhaustive; it is simply a carefully maintained fan project.
 
 > This is an unofficial, non-commercial fan project and is not affiliated with Inabakumori, Nukunuku Nigirimeshi, or any official label/platform.
 
@@ -27,15 +27,15 @@ This project is still being actively updated. The content may not be professiona
 
 ### 🎵 Song Library
 
-- Inabakumori songs and MV links
-- Album, vocalist, and other tag information
-- Recorded YouTube view counts and check dates
-- Fuzzy search by song title / tags
+- Inabakumori songs with links to their MVs
+- Album, vocalist, and tag metadata
+- Recorded YouTube view counts with the date last checked
+- Fuzzy search across song titles and tags
 - Multi-keyword search
-- Required keywords with `+keyword`
-- Tag filtering
-- Random song button
-- Search result count
+- Require terms with `+keyword`
+- Filter by tags
+- Pick a random song
+- Search-result count
 
 ### 🌐 Languages
 
@@ -45,22 +45,22 @@ Currently supported:
 - English
 - 日本語
 
-The selected language is saved in the browser.
+Your language preference is saved locally in the browser.
 
 ### 🌙 Interface & Visuals
 
 - Light / dark theme switching
-- Responsive desktop / mobile layout
-- Separate desktop and mobile backgrounds
-- Click to switch backgrounds
+- Responsive layouts for desktop and mobile
+- Separate background sets for desktop and mobile
+- Click or tap to cycle through backgrounds
 - Rain effects
-- Title visual effects
-- Saved theme and language preferences
+- Title effects
+- Theme and language preferences saved locally
 - Web App Manifest
 
 ### 🔗 Inabakumori & NKNK Links
 
-The site includes related links for platforms such as:
+The site collects Inabakumori-related links and resources across:
 
 - YouTube
 - X / Twitter
@@ -77,25 +77,23 @@ It also includes links related to **ぬくぬくにぎりめし (NKNK)**.
 
 ### 👤 Account System
 
-The account system is powered by **SuperTokens**:
+Authentication is powered by **SuperTokens**:
 
-- Email / password registration
+- Email/password sign-up
 - Sign in / sign out
 - Session management
-- Forgot password / password reset
+- Password reset
 
 ### 💬 Message Wall
 
-- Guest messages
-- Signed-in user messages
-- View your own messages
-- Delete your own messages
-- Pagination
-- Admin message moderation
-- Message length limits
+- Guest and signed-in posting
+- Signed-in users can review and delete their own posts
+- Paginated loading
+- Admin moderation tools
+- Message-length limits
 - Rate limiting
-- Basic spam / contact-information filtering
-- Automatic expiration for guest messages
+- Basic spam, link, and contact-information filtering
+- Automatic expiration for guest posts
 
 ---
 
@@ -192,7 +190,7 @@ First, copy the example file:
 cp backend/.env.example backend/.env
 ```
 
-For local development, configure SuperTokens and use local website/API addresses. For example:
+For local development, configure SuperTokens and point the site and API to local addresses. For example:
 
 ```env
 NODE_ENV=development
@@ -272,9 +270,9 @@ npm run check:links:strict
 
 ## ☁️ Deployment
 
-The frontend can be deployed as a static website, for example with **GitHub Pages**.
+The frontend can be deployed as a static site, for example with **GitHub Pages**.
 
-The account system and message wall are dynamic features, so they also require a separately hosted Node.js backend configured with:
+Because the account system and message wall are dynamic, they also require a separately hosted Node.js backend configured with:
 
 - `API_DOMAIN`
 - `WEBSITE_URL`
@@ -282,13 +280,13 @@ The account system and message wall are dynamic features, so they also require a
 - `SUPERTOKENS_API_KEY`
 - Persistent SQLite storage
 
-The backend already includes handling for Railway persistent Volumes. In production, make sure the database file is stored on persistent storage rather than an ephemeral filesystem.
+The backend already includes support for Railway persistent Volumes. In production, keep the database on persistent storage rather than an ephemeral filesystem.
 
 ---
 
 ## 🔒 Security & Privacy
 
-The backend currently includes several basic protections:
+The backend includes several baseline protections:
 
 - Helmet HTTP security headers
 - CORS origin restrictions
@@ -317,13 +315,13 @@ If you are a copyright or rights holder and believe any content on the site shou
 
 ## 🤝 Feedback / Contributions
 
-If you find:
+Issues and suggestions are welcome, especially for:
 
 - Incorrect song information
 - Broken links
 - Bugs
 - Translation issues
-- A feature that would fit the project
+- Features that would fit the project
 
 Feel free to open an **Issue** or send a suggestion.
 
@@ -331,11 +329,11 @@ Feel free to open an **Issue** or send a suggestion.
 
 ## ❤️ Finally
 
-This website does not have a complicated goal.
+There is no grand goal behind this site.
 
-I made a “Weather Observation Station” because I like Inabakumori — a tribute to the title of the second album.
+I like Inabakumori, so I made a “Weather Observation Station” — a nod to the title of the second album.
 
-**If even a few people see it, that is already enough.**
+**If even a few people discover and enjoy it, that is already enough.**
 
 ☔ **Long live Inabakumori!**
 
@@ -347,8 +345,8 @@ I made a “Weather Observation Station” because I like Inabakumori — a trib
 
 🇺🇸 [English](#readme-en) | 🇨🇳 **中文** | 🇯🇵 [日本語](#readme-ja)
 
-> 一个因为太喜欢 **稲葉曇 / Inabakumori** 而做出来的非官方粉丝网站。  
-> 收集歌曲、MV、相关创作者链接，并提供留言墙与账号功能。
+> 一个因为喜欢 **稲葉曇 / Inabakumori** 而做出来的非官方粉丝网站。  
+> 整理歌曲、MV、相关创作者链接，也提供留言墙与账号功能。
 
 🌐 **在线访问：** https://9178osage.github.io/inabakumori-site/
 
@@ -358,9 +356,9 @@ I made a “Weather Observation Station” because I like Inabakumori — a trib
 
 **气象观测站** 是一个以稲葉曇为主题的个人粉丝网站。
 
-网站以原生 HTML、CSS 和 JavaScript 为主，没有使用大型前端框架。除了歌曲资料和相关链接，也加入了多语言、主题切换、响应式界面、账号系统和留言墙等功能。
+前端主要使用原生 HTML、CSS 和 JavaScript，没有引入大型前端框架。除了歌曲资料和相关链接，网站还包含多语言、主题切换、响应式布局、账号系统和留言墙等功能。
 
-这个项目仍在持续更新中。内容不一定专业或完整，但都是认真整理的。
+项目仍在持续更新中。它不追求权威或绝对完整，但会尽量把内容认真整理好。
 
 > This is an unofficial, non-commercial fan project and is not affiliated with Inabakumori, Nukunuku Nigirimeshi, or any official label/platform.
 
@@ -370,14 +368,14 @@ I made a “Weather Observation Station” because I like Inabakumori — a trib
 
 ### 🎵 歌曲资料库
 
-- 稲葉曇歌曲与 MV 链接
-- 专辑、歌手等标签信息
-- YouTube 播放量记录与检查日期
-- 歌名 / 标签模糊搜索
+- 稲葉曇歌曲与对应 MV 链接
+- 专辑、歌手及其他标签信息
+- YouTube 播放量记录及最后检查日期
+- 歌名与标签模糊搜索
 - 多关键词搜索
-- 使用 `+关键词` 设置必须匹配的条件
-- 标签筛选
-- 随机歌曲
+- 使用 `+关键词` 指定必须匹配的条件
+- 按标签筛选
+- 随机选择歌曲
 - 搜索结果计数
 
 ### 🌐 多语言
@@ -388,22 +386,22 @@ I made a “Weather Observation Station” because I like Inabakumori — a trib
 - English
 - 日本語
 
-语言选择会保存在浏览器中。
+语言偏好会保存在浏览器本地。
 
 ### 🌙 页面与视觉效果
 
 - 明暗主题切换
-- 桌面端 / 移动端响应式布局
-- 桌面与手机版背景
-- 点击切换背景
+- 桌面端与移动端响应式布局
+- 桌面端与移动端独立背景
+- 点击或轻触切换背景
 - 雨滴效果
-- 标题视觉效果
-- 主题与语言偏好保存
+- 标题特效
+- 本地保存主题与语言偏好
 - Web App Manifest
 
 ### 🔗 稲葉曇与 NKNK 相关链接
 
-网站整理了包括以下平台在内的相关链接：
+网站整理了稲葉曇及相关资料在以下平台上的链接：
 
 - YouTube
 - X / Twitter
@@ -420,25 +418,23 @@ I made a “Weather Observation Station” because I like Inabakumori — a trib
 
 ### 👤 账号系统
 
-账号功能基于 **SuperTokens**：
+账号与认证功能基于 **SuperTokens**：
 
 - Email / Password 注册
 - 登录 / 登出
 - Session 管理
-- 忘记密码 / 密码重置
+- 密码重置
 
 ### 💬 留言墙
 
-- 游客留言
-- 登录用户留言
-- 登录用户查看自己的留言
-- 删除自己的留言
-- 分页加载
-- 管理员留言管理
+- 游客与登录用户均可留言
+- 登录用户可查看并删除自己的留言
+- 分页加载留言
+- 管理员审核与管理
 - 留言长度限制
 - 频率限制
-- 基础垃圾广告 / 联系方式过滤
-- 游客留言自动过期机制
+- 基础广告、链接与联系方式过滤
+- 游客与登录用户均可留言自动过期机制
 
 ---
 
@@ -535,7 +531,7 @@ cd ..
 cp backend/.env.example backend/.env
 ```
 
-本地开发时至少需要正确配置 SuperTokens，并将网站/API 地址设为本地地址。例如：
+本地开发时需要正确配置 SuperTokens，并将网站与 API 地址指向本地环境。例如：
 
 ```env
 NODE_ENV=development
@@ -617,7 +613,7 @@ npm run check:links:strict
 
 前端可以作为静态网站部署，例如使用 **GitHub Pages**。
 
-账号和留言墙属于动态功能，因此还需要单独运行 Node.js 后端，并配置：
+账号系统和留言墙属于动态功能，因此还需要单独部署 Node.js 后端，并配置：
 
 - `API_DOMAIN`
 - `WEBSITE_URL`
@@ -625,19 +621,19 @@ npm run check:links:strict
 - `SUPERTOKENS_API_KEY`
 - 持久化的 SQLite 数据目录
 
-仓库中的后端已经包含 Railway 持久化 Volume 相关处理；生产环境下请确保数据库文件位于持久化存储中，而不是临时文件系统。
+后端已经包含 Railway 持久化 Volume 的相关处理；生产环境中请确保数据库文件位于持久化存储，而不是临时文件系统。
 
 ---
 
 ## 🔒 安全与隐私
 
-后端目前包含一些基础保护：
+后端目前包含以下基础保护：
 
 - Helmet HTTP 安全头
 - CORS Origin 限制
 - 登录接口频率限制
 - 留言接口频率限制
-- 游客留言限制
+- 游客与登录用户均可留言限制
 - 输入长度验证
 - 留言广告 / 链接 / 联系方式过滤
 - 管理员权限检查
@@ -660,25 +656,23 @@ npm run check:links:strict
 
 ## 🤝 Feedback / Contributions
 
-如果你发现：
+如果你发现以下问题，或者有新的想法，欢迎提交 **Issue** 或提出建议：
 
-- 歌曲资料有错误
+- 歌曲资料有误
 - 链接失效
 - 页面出现 Bug
 - 翻译需要修改
 - 有适合加入的新功能
 
-欢迎提交 **Issue** 或提出建议。
-
 ---
 
 ## ❤️ 最后
 
-这个网站没有什么很复杂的目标。
+这个网站没有什么宏大的目标。
 
 只是因为喜欢稲葉曇，所以做了一个“气象观测站”（致敬第二张专辑名）。
 
-**有人看到，就已经很好了。**
+**有人愿意点进来看看，就已经很好了。**
 
 ☔ **稲葉曇万岁！**
 
@@ -690,8 +684,8 @@ npm run check:links:strict
 
 🇺🇸 [English](#readme-en) | 🇨🇳 [中文](#readme-zh) | 🇯🇵 **日本語**
 
-> **稲葉曇 / Inabakumori** が大好きだから作った、非公式のファンサイトです。  
-> 楽曲、MV、関連クリエイターへのリンクをまとめ、メッセージウォールやアカウント機能も備えています。
+> **稲葉曇 / Inabakumori** が好きで作った、非公式のファンサイトです。  
+> 楽曲やMV、関連クリエイターへのリンクをまとめ、メッセージウォールやアカウント機能も用意しています。
 
 🌐 **サイトを見る：** https://9178osage.github.io/inabakumori-site/
 
@@ -701,9 +695,9 @@ npm run check:links:strict
 
 **気象観測所** は、稲葉曇をテーマにした個人制作のファンサイトです。
 
-フロントエンドは主に素の HTML、CSS、JavaScript で構成されており、大規模なフレームワークは使用していません。楽曲情報や関連リンクに加えて、多言語対応、テーマ切り替え、レスポンシブデザイン、アカウント機能、メッセージウォールなどを実装しています。
+フロントエンドは主に素の HTML、CSS、JavaScript で構成し、大規模なフレームワークは使用していません。楽曲情報や関連リンクに加え、多言語対応、テーマ切り替え、レスポンシブレイアウト、アカウント機能、メッセージウォールなどを実装しています。
 
-このプロジェクトは現在も更新中です。内容は必ずしも専門的・完全ではありませんが、一つひとつ丁寧に整理しています。
+このプロジェクトは現在も更新中です。網羅性や専門性を目的としたものではありませんが、できるだけ丁寧に情報を整理しています。
 
 > This is an unofficial, non-commercial fan project and is not affiliated with Inabakumori, Nukunuku Nigirimeshi, or any official label/platform.
 
@@ -713,14 +707,14 @@ npm run check:links:strict
 
 ### 🎵 楽曲ライブラリ
 
-- 稲葉曇の楽曲と MV へのリンク
+- 稲葉曇の楽曲と対応する MV へのリンク
 - アルバム、ボーカルなどのタグ情報
-- YouTube 再生回数と確認日の記録
-- 曲名 / タグのあいまい検索
+- YouTube 再生回数と最終確認日の記録
+- 曲名・タグのあいまい検索
 - 複数キーワード検索
-- `+キーワード` による必須条件指定
-- タグフィルター
-- ランダム楽曲
+- `+キーワード` で必須条件を指定
+- タグによる絞り込み
+- ランダム選曲
 - 検索結果件数の表示
 
 ### 🌐 多言語対応
@@ -737,16 +731,16 @@ npm run check:links:strict
 
 - ライト / ダークテーマ切り替え
 - PC / モバイル対応のレスポンシブレイアウト
-- PC 用 / モバイル用の背景
-- クリックで背景切り替え
+- PC 用 / モバイル用の個別背景
+- クリック / タップで背景を切り替え
 - 雨のエフェクト
-- タイトルのビジュアルエフェクト
-- テーマと言語設定の保存
+- タイトルエフェクト
+- テーマと言語設定をローカルに保存
 - Web App Manifest
 
 ### 🔗 稲葉曇・NKNK 関連リンク
 
-以下を含む関連リンクを掲載しています：
+稲葉曇や関連情報について、以下のサービスへのリンクをまとめています：
 
 - YouTube
 - X / Twitter
@@ -763,25 +757,23 @@ npm run check:links:strict
 
 ### 👤 アカウント機能
 
-アカウント機能には **SuperTokens** を使用しています：
+アカウント認証には **SuperTokens** を使用しています：
 
 - メールアドレス / パスワードでの登録
 - ログイン / ログアウト
 - セッション管理
-- パスワードを忘れた場合のリセット
+- パスワードリセット
 
 ### 💬 メッセージウォール
 
-- ゲスト投稿
-- ログインユーザーの投稿
-- 自分の投稿一覧
-- 自分の投稿の削除
-- ページネーション
-- 管理者による投稿管理
+- ゲスト / ログインユーザーの投稿
+- ログインユーザーは自分の投稿を確認・削除可能
+- ページネーションによる読み込み
+- 管理者向けの投稿管理
 - 投稿文字数制限
 - レート制限
-- 基本的なスパム / 連絡先情報のフィルタリング
-- ゲスト投稿の自動期限切れ
+- 基本的なスパム、リンク、連絡先情報のフィルタリング
+- ゲスト / ログインユーザーの投稿の自動期限切れ
 
 ---
 
@@ -878,7 +870,7 @@ cd ..
 cp backend/.env.example backend/.env
 ```
 
-ローカル開発では、SuperTokens を正しく設定し、Web サイトと API の URL をローカル用にします。例：
+ローカル開発では、SuperTokens を設定し、Web サイトと API の URL をローカル環境向けに変更します。例：
 
 ```env
 NODE_ENV=development
@@ -960,7 +952,7 @@ npm run check:links:strict
 
 フロントエンドは静的サイトとして、たとえば **GitHub Pages** にデプロイできます。
 
-アカウント機能とメッセージウォールは動的機能のため、別途 Node.js バックエンドを実行し、以下を設定する必要があります：
+アカウント機能とメッセージウォールは動的機能のため、別途 Node.js バックエンドをデプロイし、以下を設定する必要があります：
 
 - `API_DOMAIN`
 - `WEBSITE_URL`
@@ -968,19 +960,19 @@ npm run check:links:strict
 - `SUPERTOKENS_API_KEY`
 - 永続化された SQLite ストレージ
 
-バックエンドには Railway の永続 Volume に対応する処理が含まれています。本番環境では、データベースファイルを一時ファイルシステムではなく永続ストレージ上に配置してください。
+バックエンドには Railway の永続 Volume に対応する処理が含まれています。本番環境では、データベースファイルを一時領域ではなく永続ストレージ上に配置してください。
 
 ---
 
 ## 🔒 セキュリティとプライバシー
 
-バックエンドには現在、以下の基本的な保護機能があります：
+バックエンドには、以下の基本的な保護機能があります：
 
 - Helmet による HTTP セキュリティヘッダー
 - CORS Origin 制限
 - 認証エンドポイントのレート制限
 - メッセージ投稿のレート制限
-- ゲスト投稿制限
+- ゲスト / ログインユーザーの投稿制限
 - 入力文字数の検証
 - 広告 / リンク / 連絡先情報のフィルタリング
 - 管理者権限チェック
@@ -1003,24 +995,22 @@ npm run check:links:strict
 
 ## 🤝 フィードバック / コントリビューション
 
-以下のような点を見つけた場合：
+以下のような点に気づいた場合や、追加したいアイデアがある場合は、Issue や提案を歓迎します：
 
 - 楽曲情報の誤り
 - リンク切れ
 - バグ
 - 翻訳の修正
-- 追加すると良さそうな機能
-
-Issue を作成するか、提案を送ってください。
+- このプロジェクトに合いそうな新機能
 
 ---
 
 ## ❤️ 最後に
 
-このサイトに、難しい目標はありません。
+このサイトに、大げさな目標はありません。
 
-稲葉曇が好きだから、「気象観測所」を作りました（2ndアルバムのタイトルへのオマージュです）。
+稲葉曇が好きだから、「気象観測所」を作りました（2ndアルバムのタイトルにちなんだ名前です）。
 
-**誰か一人でも見てくれたら、それだけで十分です。**
+**誰かが見つけて楽しんでくれたら、それだけで十分です。**
 
 ☔ **稲葉曇万歳！**
