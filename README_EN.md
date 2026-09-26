@@ -1,6 +1,6 @@
-# Weather Observation Station · 稲葉曇
+# 🌧️ Weather Observation Station · 稲葉曇
 
-[中文](README.md) | **English** | [日本語](README_JA.md)
+🇨🇳 [中文](README.md) | 🇺🇸 **English** | 🇯🇵 [日本語](README_JA.md)
 
 > An unofficial fan website created simply because I really love **稲葉曇 / Inabakumori**.  
 > It collects songs, MVs, related creator links, and also includes a message wall and account features.
@@ -99,7 +99,7 @@ The account system is powered by **SuperTokens**:
 
 ## 🛠️ Tech Stack
 
-### Frontend
+### 🖥️ Frontend
 
 - HTML5
 - CSS3
@@ -107,7 +107,7 @@ The account system is powered by **SuperTokens**:
 - SuperTokens Web JS
 - esbuild
 
-### Backend
+### ⚙️ Backend
 
 - Node.js 24
 - Express 5
@@ -154,27 +154,27 @@ inabakumori-site/
 
 ## 🚀 Run Locally
 
-### Requirements
+### 📋 Requirements
 
 - **Node.js 24.x**
 - npm
 - Python 3 (the current frontend dev server uses `python3 -m http.server`)
 - A working SuperTokens Core / Managed SuperTokens instance
 
-### 1. Clone the repository
+### 1. 📥 Clone the repository
 
 ```bash
 git clone https://github.com/9178osage/inabakumori-site.git
 cd inabakumori-site
 ```
 
-### 2. Install frontend tooling dependencies
+### 2. 📦 Install frontend tooling dependencies
 
 ```bash
 npm install
 ```
 
-### 3. Install backend dependencies
+### 3. 📦 Install backend dependencies
 
 ```bash
 cd backend
@@ -182,7 +182,7 @@ npm install
 cd ..
 ```
 
-### 4. Configure backend environment variables
+### 4. 🔐 Configure backend environment variables
 
 First, copy the example file:
 
@@ -204,7 +204,7 @@ SUPERTOKENS_API_KEY=YOUR_SUPERTOKENS_API_KEY
 
 Do not commit real API keys to GitHub.
 
-### 5. Start the backend
+### 5. ⚙️ Start the backend
 
 From the repository root:
 
@@ -218,7 +218,7 @@ Default API address:
 http://127.0.0.1:3001
 ```
 
-### 6. Start the frontend
+### 6. 🌐 Start the frontend
 
 Open another terminal and run this from the repository root:
 
@@ -335,4 +335,4 @@ I made it because I like Inabakumori and wanted to build a weather observation s
 
 **If even a few people see it, that is already enough.**
 
-**Long live Inabakumori!**
+☔ **Long live Inabakumori!**
