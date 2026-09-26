@@ -331,7 +331,7 @@ Feel free to open an **Issue** or send a suggestion.
 
 This website does not have a complicated goal.
 
-I made it because I like Inabakumori and wanted to build a weather observation station of my own.
+I made a “Weather Observation Station” because I like Inabakumori — a tribute to the title of the second album.
 
 **If even a few people see it, that is already enough.**
 
