@@ -3,6 +3,26 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
 const source = fs.readFileSync("tools/auth-src.js", "utf8").replace(/^import .*;\n/gm, "");
+test("updated mail transport composes SuperTokens reset emails without sending real mail", async () => {
+  const nodemailer = require("../../backend/node_modules/nodemailer");
+  const { getServiceImplementation } = require("../../backend/node_modules/supertokens-node/lib/build/recipe/emailpassword/emaildelivery/services/smtp/serviceImplementation");
+  const { getPasswordResetEmailHTML } = require("../../backend/node_modules/supertokens-node/lib/build/recipe/emailpassword/emaildelivery/services/smtp/passwordReset");
+  const transport = nodemailer.createTransport({ streamTransport: true, buffer: true });
+  const send = transport.sendMail.bind(transport);
+  let delivered;
+  transport.sendMail = async options => { delivered = await send(options); return delivered; };
+  const service = getServiceImplementation(transport, { name: "Station", email: "station@example.com" });
+  const link = "https://9178osage.github.io/inabakumori-site/?resetPassword=1&token=test-token";
+  const body = getPasswordResetEmailHTML("Station", "reader@example.com", link);
+  assert.ok(body.includes(link));
+  await service.sendRawEmail({ toEmail: "reader@example.com", subject: "Password reset instructions", body, isHtml: true, userContext: {} });
+  assert.deepEqual(delivered.envelope.to, ["reader@example.com"]);
+  assert.equal(delivered.envelope.from, "station@example.com");
+  assert.match(delivered.message.toString(), /Content-Type: text\/html/);
+  assert.match(delivered.message.toString(), /Subject: Password reset instructions/);
+  await assert.rejects(send({ from: "station@example.com", to: "reader@example.com", disableFileAccess: true, raw: { path: "/tmp/should-not-be-read.eml" } }), /File access rejected/i);
+  transport.close();
+});
 function setup(url = "http://localhost:5500/") {
   const elements = {}, listeners = {}, events = [], calls = [];
   let language = "zh";
