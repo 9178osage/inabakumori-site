@@ -148,6 +148,28 @@ test("an additional data-only song renders and participates in search, singer co
   assert.deepEqual(opened, [[extra.youtube, "_blank", "noopener,noreferrer"]]);
 });
 
+test("random play respects filtering, opens nothing for no matches, and recovers after clearing", () => {
+  const { run, list, elements, opened } = setup();
+  const input = elements["tag-filter-input"];
+  input.value = "+ANTICYCLONE";
+  input.dispatch("input");
+  const visible = list.children.filter(song => !song.hidden);
+  assert.ok(visible.length > 1 && visible.length < list.children.length);
+  run("Math.random = () => 0; playRandomSong()");
+  run("Math.random = () => 0.999999; playRandomSong()");
+  assert.deepEqual(opened, [visible[0], visible.at(-1)].map(song => [song.href, "_blank", "noopener,noreferrer"]));
+
+  input.value = "+no-such-song-123456";
+  input.dispatch("input");
+  assert.ok(list.children.every(song => song.hidden));
+  run("playRandomSong()");
+  assert.equal(opened.length, 2);
+
+  elements["tag-filter-clear"].dispatch("click");
+  run("playRandomSong()");
+  assert.equal(opened.at(-1)[0], list.children.at(-1).href);
+});
+
 test("Japanese singer tags filter correctly and counts use Japanese", () => {
   const { run, list, elements } = setup();
   run('currentLanguage = "ja"; updateTagLanguage()');
