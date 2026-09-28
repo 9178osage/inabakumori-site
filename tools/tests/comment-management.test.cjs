@@ -97,13 +97,14 @@ test('delete checks ownership on the server and rejects guests, missing and inva
     assert.equal(db.prepare('SELECT count(*) AS n FROM comments WHERE id IN (26,27)').get().n, 2);
   } finally { db.close(); }
 });
-test('reset email redirects to the static homepage with original token and tenant', async () => {
+test('reset email redirects to the GitHub Pages homepage with original token and tenant', async () => {
   const { passwordResetDelivery } = await import('../../backend/services.mjs');
   let sent;
-  const service = passwordResetDelivery('https://site.example').override({ sendEmail: async input => { sent = input; } });
+  const service = passwordResetDelivery('https://9178osage.github.io/inabakumori-site/').override({ sendEmail: async input => { sent = input; } });
   await service.sendEmail({ passwordResetLink: 'https://site.example/auth/reset-password?token=test-token&rid=emailpassword', tenantId: 'public', type: 'PASSWORD_RESET', user: { email: 'nobody@example.com' } });
   const url = new URL(sent.passwordResetLink);
-  assert.equal(url.pathname, '/');
+  assert.equal(url.pathname, '/inabakumori-site/');
+  assert.equal(url.origin, 'https://9178osage.github.io');
   assert.equal(url.searchParams.get('resetPassword'), '1');
   assert.equal(url.searchParams.get('token'), 'test-token');
   assert.equal(url.searchParams.get('tenantId'), 'public');
@@ -383,4 +384,35 @@ test('deletion notifications after sign-out cannot reveal either management pane
   assert.equal(elements['admin-comments'].hidden, true);
   assert.equal(elements['my-comments-list'].children.length, 0);
   assert.equal(elements['admin-comments-list'].children.length, 0);
+});
+
+test('duplicate comments are scoped to the signed-in account and expire after ten minutes', async () => {
+  const { createRecentDuplicateChecker } = await import('../../backend/services.mjs');
+  const db = new DatabaseSync(':memory:');
+  try {
+    db.exec('CREATE TABLE comments(content TEXT, user_id TEXT, is_guest INTEGER, created_at INTEGER)');
+    const now = 1800000000000;
+    const insert = db.prepare('INSERT INTO comments VALUES(?,?,?,?)');
+    insert.run('  Great　song!  ', 'alice', 0, now - 1000);
+    insert.run('old comment', 'alice', 0, now - 600000);
+    insert.run('guest comment', null, 1, now);
+    const duplicate = createRecentDuplicateChecker(db);
+    assert.equal(duplicate('great song!', 'alice', now), true);
+    assert.equal(duplicate('great song!', 'bob', now), false);
+    assert.equal(duplicate('great song!', null, now), false);
+    assert.equal(duplicate('guest comment', null, now), false);
+    assert.equal(duplicate('guest comment', 'alice', now), false);
+    assert.equal(duplicate('old comment', 'alice', now), false);
+    assert.equal(duplicate('another song', 'alice', now), false);
+  } finally { db.close(); }
+});
+
+test('ordinary friendship comments pass while contact and promotional content remain blocked', async () => {
+  const { detectCommentSafetyIssue } = await import('../../backend/services.mjs');
+  for (const content of ['加好友', '想和喜欢这首歌的人加好友', '大家可以一起聊音乐']) {
+    assert.equal(detectCommentSafetyIssue(content), null, content);
+  }
+  for (const content of ['加好友，微信：abc123', '加好友 me@example.com', '加好友 https://example.com', '加好友，优惠折扣', '加好友 13800138000']) {
+    assert.equal(detectCommentSafetyIssue(content)?.code, 'PROMOTIONAL_CONTENT', content);
+  }
 });

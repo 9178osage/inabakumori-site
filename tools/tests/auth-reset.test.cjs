@@ -71,6 +71,33 @@ test("cross-site sessions use header authentication", () => {
   const app = setup();
   assert.equal(app.session.config.tokenTransferMethod, "header");
 });
+test("GitHub Pages reset email reaches the homepage, preserves SDK credentials, and completes the UI flow", async () => {
+  const { passwordResetDelivery } = await import('../../backend/services.mjs');
+  let email;
+  const delivery = passwordResetDelivery('https://9178osage.github.io/inabakumori-site/').override({
+    sendEmail: async input => { email = input; }
+  });
+  await delivery.sendEmail({ passwordResetLink: 'https://9178osage.github.io/auth/reset-password?token=test%2Btoken%2F123', tenantId: 'public' });
+  const app = setup(email.passwordResetLink);
+  assert.equal(app.calls[0].next, '/inabakumori-site/');
+  const recipe = app.calls[1].override.functions({});
+  await app.listeners.DOMContentLoaded();
+  assert.equal(app.run('authMode'), 'reset');
+  let submitted = false;
+  app.context.submitNewPassword = async input => {
+    submitted = true;
+    assert.equal(recipe.getResetPasswordTokenFromURL({}), 'test+token/123');
+    assert.equal(recipe.getTenantIdFromURL({}), 'public');
+    assert.equal(input.formFields[0].value, 'newpassword123');
+    return { status: 'OK' };
+  };
+  app.elements['auth-password'].value = 'newpassword123';
+  app.elements['auth-password-confirm'].value = 'newpassword123';
+  await app.run('submitAuth()');
+  assert.equal(submitted, true);
+  assert.equal(app.run('authMode'), 'signin');
+  assert.equal(recipe.getResetPasswordTokenFromURL({}), '');
+});
 test("reset link token is scrubbed from URL but remains available to the SDK", async () => {
   const app = setup("http://localhost:5500/?resetPassword=1&token=fake-token&tenantId=demo&keep=1#songs");
   assert.equal(app.calls[0].next, "/?keep=1#songs");
