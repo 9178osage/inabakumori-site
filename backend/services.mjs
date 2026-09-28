@@ -38,7 +38,7 @@ export function resolveDatabasePath(env, directory) {
 const LINK_PATTERN = /(?:https?:\/\/|www\.)/iu;
 const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/iu;
 const PHONE_PATTERN = /(?:\+?\d[\d\s().-]{5,}\d)/u;
-const PROMOTION_PATTERN = /(刷单|网赚|返利|代购|贷款|彩票|优惠折扣|扫码.{0,8}(进群|加群|领取)|加\s*(微信|微|好友|群)|(?:微信号|vx号|qq号)\s*[:：]?\s*[a-z0-9_-]+|(?:微信|wechat|qq|telegram|whatsapp|discord|line)\s*[:：]\s*[@a-z0-9_-]+|联系方式\s*[:：]|\bcontact\s*me\b|\bbuy\s*now\b|\bdiscount\b|\bpromo\b|\baffiliate\b)/iu;
+const PROMOTION_PATTERN = /(刷单|网赚|返利|代购|贷款|彩票|优惠折扣|扫码.{0,8}(进群|加群|领取)|加\s*(微信|微|群)|(?:微信号|vx号|qq号)\s*[:：]?\s*[a-z0-9_-]+|(?:微信|wechat|qq|telegram|whatsapp|discord|line)\s*[:：]\s*[@a-z0-9_-]+|联系方式\s*[:：]|\bcontact\s*me\b|\bbuy\s*now\b|\bdiscount\b|\bpromo\b|\baffiliate\b)/iu;
 
 export function hasVerifiedAdminEmail(user, allowedEmails) {
   return Boolean(user?.loginMethods?.some(method => method.verified === true &&
@@ -52,6 +52,18 @@ export function normalizeCommentForComparison(value) {
     .replace(/\s+/gu, " ")
     .trim()
     .toLocaleLowerCase("und");
+}
+
+// Guests have no stable account identity; their existing rate limits still apply.
+export function createRecentDuplicateChecker(db) {
+  const recent = db.prepare(`SELECT content FROM comments
+    WHERE user_id = ? AND is_guest = 0 AND created_at > ?`);
+  return (content, userId, now = Date.now()) => {
+    if (!userId) return false;
+    const normalized = normalizeCommentForComparison(content);
+    return recent.all(userId, now - 10 * 60 * 1000)
+      .some(row => normalizeCommentForComparison(row.content) === normalized);
+  };
 }
 
 export function detectCommentSafetyIssue(content) {

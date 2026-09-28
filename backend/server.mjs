@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { websiteLocation, resolveDatabasePath, hasVerifiedAdminEmail, detectCommentSafetyIssue, normalizeCommentForComparison, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery } from "./services.mjs";
+import { websiteLocation, resolveDatabasePath, hasVerifiedAdminEmail, detectCommentSafetyIssue, createRecentDuplicateChecker, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery } from "./services.mjs";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -153,12 +153,7 @@ const insertCommentStatement = db.prepare(`
     )
     VALUES (?, ?, ?, ?, ?, ?)
 `);
-const findRecentDuplicateCommentStatement = db.prepare(`
-    SELECT content
-    FROM comments
-    WHERE created_at > ?
-    ORDER BY created_at DESC
-`);
+const hasRecentDuplicateComment = createRecentDuplicateChecker(db);
 const deleteExpiredGuestsStatement = db.prepare(`
     DELETE FROM comments
     WHERE
@@ -208,11 +203,6 @@ function validateCommentInput(body) {
   }
   return { ok: true, nickname, content };
 }
-function hasRecentDuplicateComment(content) {
-  const normalized = normalizeCommentForComparison(content);
-  const since = Date.now() - 10 * 60 * 1e3;
-  return findRecentDuplicateCommentStatement.all(since).some(row => normalizeCommentForComparison(row.content) === normalized);
-}
 function requireJsonContentType(req, res, next) {
   if (!req.is("application/json")) {
     return res.status(415).json({ error: "请求必须使用 application/json", code: "UNSUPPORTED_MEDIA_TYPE" });
@@ -254,11 +244,11 @@ app.post("/api/comments", commentLimiter, requireJsonContentType, verifySession(
     return res.status(400).json({ error: validation.error, code: validation.code || "INVALID_COMMENT" });
   }
   const { nickname, content } = validation;
-  if (hasRecentDuplicateComment(content)) {
-    return res.status(409).json({ error: "相同内容请稍后再留言", code: "DUPLICATE_COMMENT" });
-  }
   const isLoggedIn = req.session !== void 0;
   const userId = isLoggedIn ? req.session.getUserId() : null;
+  if (hasRecentDuplicateComment(content, userId)) {
+    return res.status(409).json({ error: "相同内容请稍后再留言", code: "DUPLICATE_COMMENT" });
+  }
   const isGuest = !isLoggedIn;
   const createdAt = Date.now();
   const expiresAt = isGuest ? createdAt + 30 * 24 * 60 * 60 * 1e3 : null;
