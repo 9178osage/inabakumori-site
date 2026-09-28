@@ -213,6 +213,7 @@ test('admin comment management lists and deletes any comment only for configured
   const invalid = response();
   await run(routes['get /api/admin/comments'], { query: { before: 'bad' }, session: { getUserId: () => 'admin' } }, invalid);
   assert.equal(invalid.code, 400);
+  assert.deepEqual(invalid.body, { error: '留言分页参数无效', code: 'INVALID_CURSOR' });
   const removed = response();
   await run(routes['delete /api/admin/comments/:id'], { params: { id: '1' }, session: { getUserId: () => 'admin' } }, removed);
   assert.equal(removed.body.deletedCommentId, 1);

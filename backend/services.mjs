@@ -120,7 +120,7 @@ export function registerAdminCommentManagement(app, db, verifySession, isAdmin) 
   app.get("/api/admin/comments", verifySession(), requireAdmin, (req, res) => {
     res.setHeader("Cache-Control", "no-store");
     const before = req.query?.before === undefined ? Number.MAX_SAFE_INTEGER : Number(req.query.before);
-    if (!Number.isSafeInteger(before) || before <= 0) return res.status(400).json({ code: "INVALID_CURSOR" });
+    if (!Number.isSafeInteger(before) || before <= 0) return res.status(400).json({ error: "留言分页参数无效", code: "INVALID_CURSOR" });
     const rows = list.all(Date.now(), before);
     const comments = rows.slice(0, 50).map(row => ({
       id: Number(row.id),

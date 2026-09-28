@@ -367,7 +367,9 @@ const SONGS = [
     "album": "SINGLES",
     "singers": [
       "初音未来"
-    ]
+    ],
+    "viewCount": 1106253,
+    "viewsCheckedAt": "2026-09-28"
   },
   {
     "title": "あいたい星人 (大気圏外 Remix)",
@@ -375,7 +377,9 @@ const SONGS = [
     "album": "SINGLES",
     "singers": [
       "初音未来"
-    ]
+    ],
+    "viewCount": 47244,
+    "viewsCheckedAt": "2026-09-28"
   },
   {
     "title": "僕のサイノウ (稲葉曇 Arrange)",
@@ -384,7 +388,9 @@ const SONGS = [
     "singers": [
       "歌爱雪",
       "初音未来"
-    ]
+    ],
+    "viewCount": 51097,
+    "viewsCheckedAt": "2026-09-28"
   },
   {
     "title": "かにだいすき",
@@ -392,7 +398,9 @@ const SONGS = [
     "album": "SINGLES",
     "singers": [
       "歌爱雪"
-    ]
+    ],
+    "viewCount": 30476,
+    "viewsCheckedAt": "2026-09-28"
   },
   {
     "title": "もち",
@@ -400,13 +408,17 @@ const SONGS = [
     "album": "SINGLES",
     "singers": [
       "歌爱雪"
-    ]
+    ],
+    "viewCount": 35194,
+    "viewsCheckedAt": "2026-09-28"
   },
   {
     "title": "ダンスロボットダンス (MVアレンジメドレー)",
     "youtube": "https://youtu.be/Vb-z6AR-2F0",
     "album": "SINGLES",
-    "singers": []
+    "singers": [],
+    "viewCount": 15601464,
+    "viewsCheckedAt": "2026-09-28"
   },
   {
     "title": "おはようオーパーツ (稲葉曇 Cover)",
@@ -414,7 +426,9 @@ const SONGS = [
     "album": "SINGLES",
     "singers": [
       "歌爱雪"
-    ]
+    ],
+    "viewCount": 194266,
+    "viewsCheckedAt": "2026-09-28"
   },
   {
     "title": "失敗作少女 (稲葉曇 Remix)",
@@ -422,7 +436,9 @@ const SONGS = [
     "album": "SINGLES",
     "singers": [
       "歌爱雪"
-    ]
+    ],
+    "viewCount": 181121,
+    "viewsCheckedAt": "2026-09-28"
   },
   {
     "title": "篝火 (稲葉曇 Remix)",
@@ -430,13 +446,17 @@ const SONGS = [
     "album": "SINGLES",
     "singers": [
       "歌爱雪"
-    ]
+    ],
+    "viewCount": 48003,
+    "viewsCheckedAt": "2026-09-28"
   },
   {
     "title": "ラストリヴ",
     "youtube": "https://youtu.be/LqlD2Btv0KI",
     "album": "SINGLES",
-    "singers": []
+    "singers": [],
+    "viewCount": 528629,
+    "viewsCheckedAt": "2026-09-28"
   },
   {
     "title": "忘れん坊の猫かぶり",
@@ -444,7 +464,9 @@ const SONGS = [
     "album": "SINGLES",
     "singers": [
       "镜音铃"
-    ]
+    ],
+    "viewCount": 71983,
+    "viewsCheckedAt": "2026-09-28"
   },
   {
     "title": "ロールレスウエポン (稲葉曇×Neru)",
@@ -453,7 +475,9 @@ const SONGS = [
     "singers": [
       "歌爱雪",
       "镜音连"
-    ]
+    ],
+    "viewCount": 1833090,
+    "viewsCheckedAt": "2026-09-28"
   },
   {
     "title": "ノンユース (Original Version)",
@@ -461,7 +485,9 @@ const SONGS = [
     "album": "SINGLES",
     "singers": [
       "歌爱雪"
-    ]
+    ],
+    "viewCount": 96618,
+    "viewsCheckedAt": "2026-09-28"
   },
   {
     "title": "紗痲 (稲葉曇 Cover)",
@@ -469,6 +495,8 @@ const SONGS = [
     "album": "SINGLES",
     "singers": [
       "歌爱雪"
-    ]
+    ],
+    "viewCount": 498109,
+    "viewsCheckedAt": "2026-09-28"
   }
 ];

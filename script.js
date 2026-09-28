@@ -998,7 +998,7 @@ function initEasterEgg() {
   });
 }
 function playRandomSong() {
-  const songs = Array.from(document.querySelectorAll("#song-list a[href]"));
+  const songs = Array.from(document.querySelectorAll("#song-list a[href]")).filter(song => !song.hidden);
   if (!songs.length) return;
   const song = songs[Math.floor(Math.random() * songs.length)];
   window.open(song.href, "_blank", "noopener,noreferrer");
