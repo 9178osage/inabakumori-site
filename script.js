@@ -237,16 +237,40 @@ function updateMessageLoadStatus() {
   }
   if (retry) retry.hidden = messageLoadState !== "error";
 }
+const MAX_NICKNAME_LENGTH = 30;
+const MAX_COMMENT_LENGTH = 500;
+function unicodeLength(value) {
+  return Array.from(String(value ?? "")).length;
+}
+function enforceCommentFieldLimits(nameInput, messageInput) {
+  if (nameInput && unicodeLength(nameInput.value) > MAX_NICKNAME_LENGTH) {
+    nameInput.value = Array.from(nameInput.value).slice(0, MAX_NICKNAME_LENGTH).join("");
+  }
+  if (messageInput && unicodeLength(messageInput.value) > MAX_COMMENT_LENGTH) {
+    messageInput.value = Array.from(messageInput.value).slice(0, MAX_COMMENT_LENGTH).join("");
+  }
+}
 async function addMessage() {
   if (messageSubmitting) return;
   const nameInput = document.getElementById("message-name");
   const messageInput = document.getElementById("message-input");
   if (!nameInput || !messageInput) return;
+  enforceCommentFieldLimits(nameInput, messageInput);
   const nickname = nameInput.value.trim();
   const content = messageInput.value.trim();
   if (!nickname || !content) {
     alert(!nickname ? pageText("请输入昵称。", "Please enter your name.") : pageText("请输入留言内容。", "Please enter a message."));
     (!nickname ? nameInput : messageInput).focus();
+    return;
+  }
+  if (unicodeLength(nickname) > MAX_NICKNAME_LENGTH) {
+    alert(pageText(`昵称不能超过 ${MAX_NICKNAME_LENGTH} 个字符。`, `Names cannot exceed ${MAX_NICKNAME_LENGTH} characters.`));
+    nameInput.focus();
+    return;
+  }
+  if (unicodeLength(content) > MAX_COMMENT_LENGTH) {
+    alert(pageText(`留言不能超过 ${MAX_COMMENT_LENGTH} 个字符。`, `Messages cannot exceed ${MAX_COMMENT_LENGTH} characters.`));
+    messageInput.focus();
     return;
   }
   const button = document.querySelector(".message-box button");
@@ -692,17 +716,6 @@ function fuzzyTagMatches(queryToken, canonicalTag) {
   const needle = normalizeTagSearchText(queryText);
   return searchTerms.some((term) => term.includes(needle));
 }
-function songMatchesTags(songTags, query) {
-  const { plain, required } = query;
-  const requiredMatched = required.every((queryToken) => songTags.some((songTag) => fuzzyTagMatches(queryToken, songTag)));
-  if (!requiredMatched) {
-    return false;
-  }
-  if (!plain.length) {
-    return true;
-  }
-  return plain.some((queryToken) => songTags.some((songTag) => fuzzyTagMatches(queryToken, songTag)));
-}
 function getAvailableTags() {
   const labels = new Map();
   document.querySelectorAll(".song-scroll a").forEach((link) => {
@@ -842,6 +855,11 @@ document.addEventListener("DOMContentLoaded", () => {
   initEasterEgg();
   initTagFilter();
   loadMessages();
+  const nameInput = document.getElementById("message-name");
+  const messageInput = document.getElementById("message-input");
+  const trimCommentFields = () => enforceCommentFieldLimits(nameInput, messageInput);
+  nameInput?.addEventListener("input", trimCommentFields);
+  messageInput?.addEventListener("input", trimCommentFields);
   const heroBg = document.getElementById("hero-bg");
   if (heroBg) {
     heroBg.addEventListener("click", (event) => {

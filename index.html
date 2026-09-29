@@ -263,8 +263,8 @@
 <div id="floating-wall"></div>
 
 <div class="message-box">
-<input id="message-name" name="nickname" maxlength="30" placeholder="你的名字 / Name" type="text" autocomplete="nickname"/>
-<textarea id="message-input" name="message" maxlength="500" placeholder="想对稲葉曇说些什么？ / Say something to Inabakumori..."></textarea>
+<input id="message-name" name="nickname" maxlength="60" placeholder="你的名字 / Name" type="text" autocomplete="nickname" data-max-code-points="30"/>
+<textarea id="message-input" name="message" maxlength="1000" placeholder="想对稲葉曇说些什么？ / Say something to Inabakumori..." data-max-code-points="500"></textarea>
 <button type="button" data-en="Post Message" data-zh="贴到墙上" data-ja="投稿する" onclick="addMessage()">
             贴到墙上
         </button>

@@ -400,10 +400,28 @@ test('duplicate comments are scoped to the signed-in account and expire after te
     assert.equal(duplicate('great song!', 'alice', now), true);
     assert.equal(duplicate('great song!', 'bob', now), false);
     assert.equal(duplicate('great song!', null, now), false);
-    assert.equal(duplicate('guest comment', null, now), false);
+    assert.equal(duplicate('guest comment', null, now), true);
     assert.equal(duplicate('guest comment', 'alice', now), false);
     assert.equal(duplicate('old comment', 'alice', now), false);
     assert.equal(duplicate('another song', 'alice', now), false);
+  } finally { db.close(); }
+});
+
+test('guest same-text dedup uses a short global window and ignores member posts', async () => {
+  const { createRecentDuplicateChecker } = await import('../../backend/services.mjs');
+  const db = new DatabaseSync(':memory:');
+  try {
+    db.exec('CREATE TABLE comments(content TEXT, user_id TEXT, is_guest INTEGER, created_at INTEGER)');
+    const now = 1800000000000;
+    const insert = db.prepare('INSERT INTO comments VALUES(?,?,?,?)');
+    insert.run('  Nice　track  ', null, 1, now - 60_000);
+    insert.run('Nice track', 'member', 0, now - 30_000);
+    insert.run('stale guest', null, 1, now - 6 * 60_000);
+    const duplicate = createRecentDuplicateChecker(db);
+    assert.equal(duplicate('nice track', null, now), true);
+    assert.equal(duplicate('nice track', 'other', now), false);
+    assert.equal(duplicate('stale guest', null, now), false);
+    assert.equal(duplicate('brand new', null, now), false);
   } finally { db.close(); }
 });
 
@@ -415,4 +433,31 @@ test('ordinary friendship comments pass while contact and promotional content re
   for (const content of ['加好友，微信：abc123', '加好友 me@example.com', '加好友 https://example.com', '加好友，优惠折扣', '加好友 13800138000']) {
     assert.equal(detectCommentSafetyIssue(content)?.code, 'PROMOTIONAL_CONTENT', content);
   }
+});
+
+test('phone filter ignores long plain numbers and dotted IPs but still blocks phone-like contact', async () => {
+  const { detectCommentSafetyIssue } = await import('../../backend/services.mjs');
+  for (const content of ['听了1000000次', '听了1234567遍', '192.168.1.1 这个地址', '版本号 20240928']) {
+    assert.equal(detectCommentSafetyIssue(content), null, content);
+  }
+  for (const content of ['138-0013-8000', '+86 13800138000', '+8613800138000', '010-1234-5678']) {
+    assert.equal(detectCommentSafetyIssue(content)?.code, 'PROMOTIONAL_CONTENT', content);
+  }
+});
+
+test('wechat and qq colloquial bypasses are blocked without catching ordinary friendship talk', async () => {
+  const { detectCommentSafetyIssue } = await import('../../backend/services.mjs');
+  for (const content of ['加个微信 abc123', '加一下微信 abc', '加一下我的微信 hello', '加QQ 123456', 'vx:abc_1', 'wx：test_01']) {
+    assert.equal(detectCommentSafetyIssue(content)?.code, 'PROMOTIONAL_CONTENT', content);
+  }
+  for (const content of ['加好友', '想和喜欢这首歌的人加好友', '微信里朋友推荐了这首歌']) {
+    assert.equal(detectCommentSafetyIssue(content), null, content);
+  }
+});
+
+test('helmet keeps an explicit API CSP instead of disabling it', () => {
+  const source = fs.readFileSync('backend/server.mjs', 'utf8');
+  assert.match(source, /contentSecurityPolicy\s*:\s*\{/);
+  assert.doesNotMatch(source, /contentSecurityPolicy\s*:\s*false/);
+  assert.match(source, /defaultSrc:\s*\["'none'"\]/);
 });
