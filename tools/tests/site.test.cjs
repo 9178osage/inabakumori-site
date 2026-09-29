@@ -34,7 +34,7 @@ test("Other toggles off and keeps matching after language changes", () => {
   assert.equal(input.value, "Other");
   assert.equal(run('parseTagQuery("Other").plain[0]'), "其他");
   run('currentLanguage="zh"');
-  assert.equal(run('songMatchesTags(["其他"],parseTagQuery("Other"))'), true);
+  assert.equal(run('songMatchesSearch({dataset:{songTitle:""},textContent:"",_songTags:["其他"]},parseTagQuery("Other"))'), true);
   run('toggleTagInInput("其他",getTagInputLabel("其他"))');
   assert.equal(input.value, "");
 });
@@ -376,4 +376,20 @@ test("English validation failures do not expose untranslated server messages", (
   context.result = { error: "昵称不能超过 30 个字符" };
   run('currentLanguage="en"');
   assert.equal(run('commentErrorMessage(result, { status: 400 })'), 'Please check your input and message length.');
+});
+
+test("unicodeLength aligns frontend limits with backend Array.from code points", () => {
+  const { run, elements } = setup();
+  assert.equal(run('unicodeLength("hi")'), 2);
+  assert.equal(run('unicodeLength("👍")'), 1);
+  assert.equal(run('unicodeLength("👨‍👩‍👧‍👦")'), Array.from("👨‍👩‍👧‍👦").length);
+  assert.equal(run('MAX_NICKNAME_LENGTH'), 30);
+  assert.equal(run('MAX_COMMENT_LENGTH'), 500);
+  elements["message-name"] = { value: "👍".repeat(31) };
+  elements["message-input"] = { value: "🎵".repeat(501) };
+  run("enforceCommentFieldLimits(document.getElementById('message-name'), document.getElementById('message-input'))");
+  assert.equal(elements["message-name"].value, "👍".repeat(30));
+  assert.equal(elements["message-input"].value, "🎵".repeat(500));
+  assert.equal(Array.from(elements["message-name"].value).length, 30);
+  assert.equal(Array.from(elements["message-input"].value).length, 500);
 });

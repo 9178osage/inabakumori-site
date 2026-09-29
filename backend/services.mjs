@@ -37,8 +37,8 @@ export function resolveDatabasePath(env, directory) {
 
 const LINK_PATTERN = /(?:https?:\/\/|www\.)/iu;
 const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/iu;
-const PHONE_PATTERN = /(?:\+?\d[\d\s().-]{5,}\d)/u;
-const PROMOTION_PATTERN = /(刷单|网赚|返利|代购|贷款|彩票|优惠折扣|扫码.{0,8}(进群|加群|领取)|加\s*(微信|微|群)|(?:微信号|vx号|qq号)\s*[:：]?\s*[a-z0-9_-]+|(?:微信|wechat|qq|telegram|whatsapp|discord|line)\s*[:：]\s*[@a-z0-9_-]+|联系方式\s*[:：]|\bcontact\s*me\b|\bbuy\s*now\b|\bdiscount\b|\bpromo\b|\baffiliate\b)/iu;
+const PHONE_PATTERN = /(?<![\d])(?:\+\d{1,3}[\s.-]*)?(?:1[3-9](?:[\s.-]*\d){9}|(?:\(?\d{2,4}\)?[\s.-]+){1,3}\d{2,4})(?![\d.])/u;
+const PROMOTION_PATTERN = /(刷单|网赚|返利|代购|贷款|彩票|优惠折扣|扫码.{0,8}(进群|加群|领取)|加\s*(?:一下|一个|下|个|只)?\s*(?:我的\s*)?(微信|微信号?|微|群|qq|vx|v信|威信|wx)|(?:微信号|vx号|qq号)\s*[:：]?\s*[a-z0-9_-]+|(?:微信|wechat|qq|telegram|whatsapp|discord|line|vx|wx|v信)\s*[:：]\s*[@a-z0-9_-]+|联系方式\s*[:：]|\bcontact\s*me\b|\bbuy\s*now\b|\bdiscount\b|\bpromo\b|\baffiliate\b)/iu;
 
 export function hasVerifiedAdminEmail(user, allowedEmails) {
   return Boolean(user?.loginMethods?.some(method => method.verified === true &&
@@ -54,14 +54,23 @@ export function normalizeCommentForComparison(value) {
     .toLocaleLowerCase("und");
 }
 
-// Guests have no stable account identity; their existing rate limits still apply.
-export function createRecentDuplicateChecker(db) {
-  const recent = db.prepare(`SELECT content FROM comments
+// Members: same text within 10 minutes is scoped to the account.
+// Guests: mild global same-text window (5 minutes) without IP storage; rate limits still apply.
+export function createRecentDuplicateChecker(db, {
+  memberWindowMs = 10 * 60 * 1000,
+  guestWindowMs = 5 * 60 * 1000
+} = {}) {
+  const recentMember = db.prepare(`SELECT content FROM comments
     WHERE user_id = ? AND is_guest = 0 AND created_at > ?`);
+  const recentGuest = db.prepare(`SELECT content FROM comments
+    WHERE is_guest = 1 AND created_at > ?`);
   return (content, userId, now = Date.now()) => {
-    if (!userId) return false;
     const normalized = normalizeCommentForComparison(content);
-    return recent.all(userId, now - 10 * 60 * 1000)
+    if (userId) {
+      return recentMember.all(userId, now - memberWindowMs)
+        .some(row => normalizeCommentForComparison(row.content) === normalized);
+    }
+    return recentGuest.all(now - guestWindowMs)
       .some(row => normalizeCommentForComparison(row.content) === normalized);
   };
 }

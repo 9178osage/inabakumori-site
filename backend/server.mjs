@@ -68,7 +68,22 @@ if (process.env.TRUST_PROXY) {
   }
   app.set("trust proxy", trustProxy);
 }
-app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: false, strictTransportSecurity: IS_PRODUCTION ? { maxAge: 31536e3, includeSubDomains: true, preload: false } : false }));
+// API-only backend: CSP hardens JSON/auth responses on Railway.
+// The GitHub Pages static site is not served here, so frontend YouTube/fonts/scripts are unaffected.
+app.use(helmet({
+  contentSecurityPolicy: {
+    useDefaults: false,
+    directives: {
+      defaultSrc: ["'none'"],
+      baseUri: ["'none'"],
+      formAction: ["'none'"],
+      frameAncestors: ["'none'"],
+      objectSrc: ["'none'"]
+    }
+  },
+  crossOriginResourcePolicy: false,
+  strictTransportSecurity: IS_PRODUCTION ? { maxAge: 31536e3, includeSubDomains: true, preload: false } : false
+}));
 supertokens.init({ framework: "express", supertokens: { connectionURI: SUPERTOKENS_CONNECTION_URI, apiKey: SUPERTOKENS_API_KEY }, appInfo: { appName: "Inabakumori Fanswall", apiDomain: API_DOMAIN, websiteDomain: WEBSITE_DOMAIN, apiBasePath: "/auth", websiteBasePath: "/auth" }, recipeList: [EmailPassword.init({ emailDelivery: passwordResetDelivery(website.url) }), Session.init({ getTokenTransferMethod: () => "header" })] });
 const ALLOWED_ORIGINS = new Set([WEBSITE_DOMAIN, ...IS_PRODUCTION ? [] : ["http://127.0.0.1:5500", "http://localhost:5500"]]);
 const corsOptions = { origin(origin, callback) {
