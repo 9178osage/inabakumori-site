@@ -33,19 +33,21 @@ test("intro section includes artist bio and unofficial disclaimer", () => {
 });
 
 test("related links are categorized and include known destinations only", () => {
-  for (const label of ["音乐", "社交", "资料", "本站资源"]) {
+  for (const label of ["音乐", "社交", "资料"]) {
     assert.match(html, new RegExp(`data-zh="${label}"`));
   }
   for (const url of EXPECTED_EXTERNAL) {
     assert.ok(html.includes(url), `missing expected URL: ${url}`);
   }
-  assert.match(html, /href="#songs"/);
-  assert.match(html, /href="#artwork"/);
-  assert.match(html, /href="#messages"/);
+  assert.doesNotMatch(html, /本站资源/);
+  assert.doesNotMatch(html, /site-resource-link/);
   assert.doesNotMatch(html, /\?si=/);
   assert.doesNotMatch(html, /spm_id_from=/);
 
   const aboutBlock = html.match(/id="about"[\s\S]*?<\/section>/)[0];
+  assert.doesNotMatch(aboutBlock, /href="#songs"/);
+  assert.doesNotMatch(aboutBlock, /href="#artwork"/);
+  assert.doesNotMatch(aboutBlock, /href="#messages"/);
   const hrefs = [...aboutBlock.matchAll(/\bhref="([^"]+)"/g)].map((m) => m[1]);
   const external = hrefs.filter((href) => /^https?:/i.test(href));
   for (const href of external) {
@@ -57,7 +59,7 @@ test("related links are categorized and include known destinations only", () => 
 });
 
 test("i18n.js includes Japanese copy for intro and link categories", () => {
-  for (const key of ["简介", "音乐", "社交", "资料", "本站资源", "非官方粉丝站「气象观测站」"]) {
+  for (const key of ["简介", "音乐", "社交", "资料", "非官方粉丝站「气象观测站」"]) {
     assert.ok(i18n.includes(`"${key}`) || i18n.includes(key), `missing i18n coverage for: ${key}`);
   }
   assert.match(i18n, /気象観測所/);

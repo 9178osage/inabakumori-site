@@ -364,9 +364,6 @@ h2 {
 .links-intro {
   margin-bottom: 8px;
 }
-.artist-links a.site-resource-link {
-  min-height: 76px;
-}
 .artwork-links {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
