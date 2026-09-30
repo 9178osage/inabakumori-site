@@ -1,6 +1,6 @@
 > **2026-09 optimization / 本轮优化 / 今回の改善**
 >
-> `npm run check` validates tests, backend syntax and the public production build. `npm run preview` serves `dist/` on port 5500. Publish **only `dist/`**, not the repository root. See [优化与运维说明](OPTIMIZATION.md) for the change list, verification and deployment steps.
+> `npm run check` validates tests, backend syntax and the public production build. `npm run preview` serves `dist/` on port 5500. Publish **only `dist/`**, not the repository root. See [优化与运维说明](docs/OPTIMIZATION.md) for the change list, verification and deployment steps.
 >
 > 新增歌曲收藏、排序、筛选链接、静态留言阅读、会话草稿；WebP 按需加载；安全依赖升级、数据库备份和 CI 检查。`npm run test:integration` 使用独立临时数据库验证真实 HTTP 流程。
 
@@ -130,30 +130,30 @@ Authentication is powered by **SuperTokens**:
 
 ```text
 inabakumori-site/
-├── index.html
+├── index.html              # Frontend entry (keep at repo root)
 ├── style.css
 ├── script.js
 ├── site.webmanifest
-├── robots.txt
+├── robots.txt / sitemap.xml / 404.html
 ├── package.json
+├── README.md
 │
-├── js/
-│   ├── auth.js
-│   ├── comments.js
-│   ├── config.js
-│   ├── i18n.js
-│   └── songs.js
-│
+├── js/                     # Frontend modules
 ├── images/
+│   ├── hero/               # Original desktop hero art (source)
+│   ├── hero-mobile/        # Original mobile hero art (source)
+│   ├── optimized/          # WebP used by production build / Pages
+│   ├── icons/
+│   └── memes/
 ├── fonts/
 │
-├── backend/
-│   ├── .env.example
-│   ├── package.json
-│   ├── server.mjs
-│   └── services.mjs
+├── docs/                   # Project docs (not published to Pages)
+│   ├── OPTIMIZATION.md
+│   └── AI_HANDOFF.md
 │
-└── tools/
+├── backend/                # Railway service root
+├── tools/                  # Build, preview, tests, image optimize
+└── .github/workflows/      # CI + Pages publish from dist/
 ```
 
 ---
@@ -471,30 +471,30 @@ I like Inabakumori, so I made a “Weather Observation Station” — a nod to t
 
 ```text
 inabakumori-site/
-├── index.html
+├── index.html              # Frontend entry (keep at repo root)
 ├── style.css
 ├── script.js
 ├── site.webmanifest
-├── robots.txt
+├── robots.txt / sitemap.xml / 404.html
 ├── package.json
+├── README.md
 │
-├── js/
-│   ├── auth.js
-│   ├── comments.js
-│   ├── config.js
-│   ├── i18n.js
-│   └── songs.js
-│
+├── js/                     # Frontend modules
 ├── images/
+│   ├── hero/               # Original desktop hero art (source)
+│   ├── hero-mobile/        # Original mobile hero art (source)
+│   ├── optimized/          # WebP used by production build / Pages
+│   ├── icons/
+│   └── memes/
 ├── fonts/
 │
-├── backend/
-│   ├── .env.example
-│   ├── package.json
-│   ├── server.mjs
-│   └── services.mjs
+├── docs/                   # Project docs (not published to Pages)
+│   ├── OPTIMIZATION.md
+│   └── AI_HANDOFF.md
 │
-└── tools/
+├── backend/                # Railway service root
+├── tools/                  # Build, preview, tests, image optimize
+└── .github/workflows/      # CI + Pages publish from dist/
 ```
 
 ---
@@ -810,30 +810,30 @@ npm run check:links:strict
 
 ```text
 inabakumori-site/
-├── index.html
+├── index.html              # Frontend entry (keep at repo root)
 ├── style.css
 ├── script.js
 ├── site.webmanifest
-├── robots.txt
+├── robots.txt / sitemap.xml / 404.html
 ├── package.json
+├── README.md
 │
-├── js/
-│   ├── auth.js
-│   ├── comments.js
-│   ├── config.js
-│   ├── i18n.js
-│   └── songs.js
-│
+├── js/                     # Frontend modules
 ├── images/
+│   ├── hero/               # Original desktop hero art (source)
+│   ├── hero-mobile/        # Original mobile hero art (source)
+│   ├── optimized/          # WebP used by production build / Pages
+│   ├── icons/
+│   └── memes/
 ├── fonts/
 │
-├── backend/
-│   ├── .env.example
-│   ├── package.json
-│   ├── server.mjs
-│   └── services.mjs
+├── docs/                   # Project docs (not published to Pages)
+│   ├── OPTIMIZATION.md
+│   └── AI_HANDOFF.md
 │
-└── tools/
+├── backend/                # Railway service root
+├── tools/                  # Build, preview, tests, image optimize
+└── .github/workflows/      # CI + Pages publish from dist/
 ```
 
 ---

@@ -37,7 +37,9 @@
 | `backend/.env.example` | 后端环境变量示例 |
 | `tools/tests/*.test.cjs` | 现有自动化测试 |
 | `tools/check-links.mjs` | 链接检查工具 |
-| `images/`、`fonts/` | 本地图片与字体 |
+| `images/`、`fonts/` | 本地图片与字体；线上背景用 `images/optimized/`，原始稿在 `images/hero/` 与 `images/hero-mobile/` |
+| `docs/OPTIMIZATION.md` | 优化与运维说明 |
+| `docs/AI_HANDOFF.md` | 本文（AI 交接说明） |
 
 ## 本地运行与检查
 
@@ -81,7 +83,7 @@ npm --prefix backend run check
 - 后端公网地址：`https://inabakumori-site-production.up.railway.app`
 - Railway 服务使用 `/backend` 作为根目录，启动命令为 `npm start`，健康检查路径为 `/healthz`，SQLite 数据位于 Railway 持久化卷的 `/data/comments.db`。
 - 本次线上检查：`/healthz` 返回 HTTP 200，留言接口返回 HTTP 200 并读取到 4 条留言。
-- GitHub 提交已触发 Railway 自动部署。构建日志显示 `npm install` 成功并报告 `found 0 vulnerabilities`；如果需要确认最终切换，查看 Railway 部署页中 `Upgrade Nodemailer to 10.0.2` 是否标记为 `Active`。
+- GitHub 提交已触发 Railway 自动部署。构建日志显示 `npm install` 成功并报告 `found 0 vulnerabilities`；用户已确认 Railway 中 `Upgrade Nodemailer to 10.0.2` 部署状态为 `Active`。
 
 ## 最近检查结果
 

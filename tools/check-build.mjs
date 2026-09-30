@@ -10,7 +10,7 @@ let bytes = 0;
 async function checkFolder(folder) {
   for (const entry of await readdir(folder, { withFileTypes: true })) {
     const name = path.relative(root, path.join(folder, entry.name));
-    assert.ok(!/(^|\/)(backend|tools|node_modules|trusted-read[^/]*|\.git|\.env)/i.test(name), `Private file in build: ${name}`);
+    assert.ok(!/(^|\/)(backend|tools|docs|node_modules|trusted-read[^/]*|\.git|\.env)/i.test(name), `Private file in build: ${name}`);
     assert.ok(!/\.(db|mjs|map|md)$/i.test(name), `Non-public file in build: ${name}`);
     if (entry.isDirectory()) await checkFolder(path.join(folder, entry.name));
     else {

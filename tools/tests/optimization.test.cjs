@@ -25,7 +25,7 @@ test("cursor parser rejects coercion, repeated query params, unsafe numbers and 
 
 test("public preview cannot expose source, environment, database or directory listings", async () => {
   const { publicPath } = await import("../static-server.mjs");
-  for (const url of ["/backend/.env", "/backend/server.mjs", "/AI_HANDOFF.md", "/trusted-read-20260929/test.json", "/.git/config", "/node_modules/x.js", "/images/../../backend/.env", "/images/%2e%2e%2fbackend%2f.env", "/images", "/js", "/js/missing.js", "/%E0%A4%A"]) assert.equal(publicPath(url), null, url);
+  for (const url of ["/backend/.env", "/backend/server.mjs", "/AI_HANDOFF.md", "/docs/AI_HANDOFF.md", "/docs/OPTIMIZATION.md", "/trusted-read-20260929/test.json", "/.git/config", "/node_modules/x.js", "/images/../../backend/.env", "/images/%2e%2e%2fbackend%2f.env", "/images", "/js", "/js/missing.js", "/%E0%A4%A"]) assert.equal(publicPath(url), null, url);
   assert.equal(publicPath("/?q=rain"), "index.html");
   assert.equal(publicPath("/script.js?v=123"), "script.js");
   assert.equal(publicPath("/images/optimized/hero/001.webp"), "images/optimized/hero/001.webp");
