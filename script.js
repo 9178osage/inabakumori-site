@@ -87,7 +87,7 @@ function applyTheme() {
   const themeButton = document.getElementById("theme-btn");
   document.body.classList.toggle("dark", currentTheme === "dark");
   if (document.documentElement.dataset) document.documentElement.dataset.theme = currentTheme;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", currentTheme === "dark" ? "#171b1f" : "#eeeee8");
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", currentTheme === "dark" ? "#171b1f" : "#c4c4c0");
   if (themeButton) {
     themeButton.innerText = currentTheme === "dark" ? "☀" : "☾";
     themeButton.setAttribute("aria-label", currentTheme === "dark" ? pageText("切换浅色主题", "Switch to light theme") : pageText("切换深色主题", "Switch to dark theme"));
