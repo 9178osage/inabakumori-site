@@ -346,6 +346,27 @@ h2 {
   font-size: 19px;
   line-height: 1.8;
 }
+.artist-profile {
+  margin-bottom: 48px;
+}
+.artist-intro,
+.links-intro {
+  font-family: var(--font-heading);
+  font-size: 19px;
+  line-height: 1.8;
+}
+.unofficial-note {
+  margin-top: 14px;
+  color: var(--ui-muted);
+  font-size: 15px;
+  line-height: 1.7;
+}
+.links-intro {
+  margin-bottom: 8px;
+}
+.artist-links a.site-resource-link {
+  min-height: 76px;
+}
 .artwork-links {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
