@@ -15,12 +15,12 @@
   --color-light-text: #eef1f3;
   --color-black: #080808;
   --color-gray: #777777;
-  --color-paper: #eeeeee;
+  --color-paper: #e2e2e0;
   --color-ink: #20252a;
   --color-white: #ffffff;
-  --page-bg: #eeeee8;
+  --page-bg: #d4d4d0;
   --page-text: var(--color-ink);
-  --main-bg: #eeeee8;
+  --main-bg: #d4d4d0;
   --main-text: var(--color-ink);
   --hero-text: #f2f2f2;
   --button-bg: var(--color-ink);
@@ -31,7 +31,7 @@
   --link-bg: rgba(255, 255, 255, 0.16);
   --link-border: rgba(32, 37, 42, 0.12);
   --link-hover-bg: rgba(255, 255, 255, 0.38);
-  --ui-surface-solid: #f3f3f3;
+  --ui-surface-solid: #e8e8e6;
   --ui-input-bg: var(--color-white);
   --ui-text: var(--color-ink);
   --ui-muted: #575e61;
