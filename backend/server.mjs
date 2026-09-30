@@ -1,5 +1,6 @@
 import "dotenv/config";
-import { websiteLocation, resolveDatabasePath, hasVerifiedAdminEmail, detectCommentSafetyIssue, createRecentDuplicateChecker, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery } from "./services.mjs";
+import { validateCommentInput, websiteLocation, resolveDatabasePath, hasVerifiedAdminEmail, createRecentDuplicateChecker, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery } from "./services.mjs";
+import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -60,6 +61,13 @@ if (IS_PRODUCTION) {
 }
 const app = express();
 app.disable("x-powered-by");
+app.set("query parser", "simple");
+app.use((req, res, next) => {
+  req.requestId = randomUUID();
+  res.setHeader("X-Request-Id", req.requestId);
+  res.setHeader("Cache-Control", "no-store");
+  next();
+});
 if (process.env.TRUST_PROXY) {
   const trustProxy = Number(process.env.TRUST_PROXY);
   if (!Number.isInteger(trustProxy) || trustProxy < 1) {
@@ -94,8 +102,9 @@ const corsOptions = { origin(origin, callback) {
     return callback(null, true);
   }
   return callback(new Error("Origin not allowed by CORS"));
-}, allowedHeaders: ["content-type", ...supertokens.getAllCORSHeaders()], methods: ["GET", "POST", "DELETE", "OPTIONS"], credentials: true, maxAge: 600 };
+}, exposedHeaders: ["X-Request-Id", "Retry-After"], allowedHeaders: ["content-type", ...supertokens.getAllCORSHeaders()], methods: ["GET", "POST", "DELETE", "OPTIONS"], credentials: true, maxAge: 600 };
 app.use(cors(corsOptions));
+app.use(express.json({ limit: "20kb", strict: true }));
 const authSensitiveLimiter = rateLimit({ windowMs: 15 * 60 * 1e3, limit: 20, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 app.use((req, res, next) => {
   if (req.method !== "POST") return next();
@@ -108,7 +117,6 @@ app.use((req, res, next) => {
   return /^\/auth(?:\/|$)/u.test(pathname) ? authSensitiveLimiter(req, res, next) : next();
 });
 app.use(middleware());
-app.use(express.json({ limit: "20kb", strict: true }));
 const commentLimiter = rateLimit({ windowMs: 60 * 1e3, limit: 10, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "留言发送过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 const guestCommentLimiter = rateLimit({ windowMs: 60 * 60 * 1e3, limit: 3, skipFailedRequests: true, standardHeaders: "draft-7", legacyHeaders: false, skip: req => req.session !== undefined, message: { error: "游客每小时最多留言 3 条，请稍后再试", code: "GUEST_RATE_LIMITED" } });
 const __filename = fileURLToPath(import.meta.url);
@@ -142,6 +150,10 @@ db.exec(`
 
     CREATE INDEX IF NOT EXISTS idx_comments_user
     ON comments(user_id);
+
+    CREATE INDEX IF NOT EXISTS idx_comments_member_cursor ON comments(user_id, id DESC) WHERE is_guest = 0;
+    CREATE INDEX IF NOT EXISTS idx_comments_member_recent ON comments(user_id, created_at DESC) WHERE is_guest = 0;
+    CREATE INDEX IF NOT EXISTS idx_comments_guest_recent ON comments(created_at DESC) WHERE is_guest = 1;
 `);
 console.log("✅ Comments database ready");
 const selectRecentCommentsStatement = db.prepare(`
@@ -154,7 +166,7 @@ const selectRecentCommentsStatement = db.prepare(`
         expires_at
     FROM comments
     WHERE expires_at IS NULL OR expires_at > ?
-    ORDER BY created_at DESC
+    ORDER BY id DESC
     LIMIT ?
 `);
 const insertCommentStatement = db.prepare(`
@@ -176,48 +188,7 @@ const deleteExpiredGuestsStatement = db.prepare(`
         AND expires_at IS NOT NULL
         AND expires_at <= ?
 `);
-const MAX_NICKNAME_LENGTH = 30;
-const MAX_COMMENT_LENGTH = 500;
 const MAX_PUBLIC_COMMENTS = 100;
-function unicodeLength(value) {
-  return Array.from(value).length;
-}
-function normalizeUserText(value) {
-  return value.normalize("NFC").trim();
-}
-function validateCommentInput(body) {
-  if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return { ok: false, error: "请求格式不正确" };
-  }
-  if (typeof body.nickname !== "string") {
-    return { ok: false, error: "昵称格式不正确" };
-  }
-  if (typeof body.content !== "string") {
-    return { ok: false, error: "留言格式不正确" };
-  }
-  const nickname = normalizeUserText(body.nickname);
-  const content = normalizeUserText(body.content);
-  if (!nickname) {
-    return { ok: false, error: "请输入昵称" };
-  }
-  if (unicodeLength(nickname) > MAX_NICKNAME_LENGTH) {
-    return { ok: false, error: `昵称不能超过 ${MAX_NICKNAME_LENGTH} 个字符` };
-  }
-  if (/\r|\n|\t/u.test(nickname)) {
-    return { ok: false, error: "昵称不能包含换行符" };
-  }
-  if (!content) {
-    return { ok: false, error: "请输入留言内容" };
-  }
-  if (unicodeLength(content) > MAX_COMMENT_LENGTH) {
-    return { ok: false, error: `留言不能超过 ${MAX_COMMENT_LENGTH} 个字符` };
-  }
-  const safetyIssue = detectCommentSafetyIssue(nickname) || detectCommentSafetyIssue(content);
-  if (safetyIssue) {
-    return { ok: false, error: safetyIssue.error, code: safetyIssue.code };
-  }
-  return { ok: true, nickname, content };
-}
 function requireJsonContentType(req, res, next) {
   if (!req.is("application/json")) {
     return res.status(415).json({ error: "请求必须使用 application/json", code: "UNSUPPORTED_MEDIA_TYPE" });
@@ -232,7 +203,10 @@ function deleteExpiredGuestComments() {
   }
 }
 deleteExpiredGuestComments();
-const guestCleanupTimer = setInterval(deleteExpiredGuestComments, 60 * 60 * 1e3);
+const guestCleanupTimer = setInterval(() => {
+  try { deleteExpiredGuestComments(); }
+  catch (error) { console.error("Guest cleanup failed", { name: error.name, code: error.code }); }
+}, 60 * 60 * 1e3);
 guestCleanupTimer.unref();
 app.get("/", (req, res) => {
   res.setHeader("Cache-Control", "no-store");
@@ -247,6 +221,9 @@ app.get("/healthz", (req, res) => {
     return res.status(503).json({ ok: false, code: "DATABASE_UNAVAILABLE" });
   }
 });
+const commentReadLimiter = rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: "draft-7", legacyHeaders: false,
+  message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
+app.use("/api", commentReadLimiter);
 app.get("/api/comments", (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   const rows = selectRecentCommentsStatement.all(Date.now(), MAX_PUBLIC_COMMENTS);
@@ -295,11 +272,15 @@ app.use((err, req, res, next) => {
     return next(err);
   }
   if (IS_PRODUCTION) {
-    console.error("Internal server error", { name: err?.name, message: err?.message });
+    console.error("Internal server error", { requestId: req.requestId, name: err?.name, code: err?.code });
   } else {
     console.error(err);
   }
-  return res.status(500).json({ error: "服务器发生错误", code: "INTERNAL_SERVER_ERROR" });
+  if (err?.code === "ERR_SQLITE_ERROR" && /(?:busy|locked)/iu.test(err.message || "")) {
+    res.setHeader("Retry-After", "2");
+    return res.status(503).json({ error: "服务器忙，请稍后重试", code: "DATABASE_BUSY", requestId: req.requestId });
+  }
+  return res.status(500).json({ error: "服务器发生错误", code: "INTERNAL_SERVER_ERROR", requestId: req.requestId });
 });
 const server = app.listen(PORT, HOST, () => {
   console.log(`✅ Backend running at http://${HOST}:${PORT}`);
@@ -308,16 +289,30 @@ const server = app.listen(PORT, HOST, () => {
   console.log("👤 Logged-in comments do not automatically expire");
   console.log("🛡️ Core security enabled (lightweight mode)");
 });
+server.requestTimeout = 30_000;
+server.headersTimeout = 15_000;
+server.keepAliveTimeout = 5_000;
+let shuttingDown = false;
 function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  const deadline = setTimeout(() => {
+    console.error("Shutdown deadline exceeded");
+    server.closeAllConnections();
+    process.exit(1);
+  }, 10_000);
+  deadline.unref();
   console.log(`🛑 Received ${signal}. Shutting down...`);
   clearInterval(guestCleanupTimer);
   server.close(() => {
     try {
+      db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
       db.close();
       console.log("✅ Database closed safely");
     } catch (error) {
       console.error("❌ Failed to close database", error);
     }
+    clearTimeout(deadline);
     console.log("✅ Server shut down safely");
     process.exit(0);
   });

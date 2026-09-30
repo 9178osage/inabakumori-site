@@ -27,8 +27,20 @@ let authSubmitting = false;
 let authReturnFocus = null;
 let authNotice = "";
 let authErrorMessages = ["", ""];
+let inertBackground = [];
+function setAuthBackgroundInert(open) {
+  if (open) {
+    if (inertBackground.length) return;
+    inertBackground = [...(document.body?.children || [])].filter(element =>
+      element.id !== "auth-modal" && element.tagName !== "SCRIPT" && !element.inert);
+    inertBackground.forEach(element => { element.inert = true; });
+  } else {
+    inertBackground.forEach(element => { element.inert = false; });
+    inertBackground = [];
+  }
+}
 function currentPageLanguage() {
-  return localStorage.getItem("language") || "zh";
+  return (window.siteStorage || localStorage).getItem("language") || "zh";
 }
 function authText(zh, en) {
   return window.siteText?.(zh, en) ?? (currentPageLanguage() === "zh" ? zh : en);
@@ -51,6 +63,8 @@ function showAuthModal(mode) {
   if (modal) {
     authReturnFocus = document.activeElement;
     modal.classList.add("open");
+    document.body?.classList.add("modal-open");
+    setAuthBackgroundInert(true);
     document.getElementById(mode === "reset" ? "auth-password" : "auth-email")?.focus?.();
   }
 }
@@ -89,6 +103,8 @@ function closeAuthModal() {
   const modal = document.getElementById("auth-modal");
   if (modal) {
     modal.classList.remove("open");
+    document.body?.classList.remove("modal-open");
+    setAuthBackgroundInert(false);
     authReturnFocus?.focus?.();
   }
   clearAuthPasswords();

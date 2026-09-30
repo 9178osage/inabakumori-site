@@ -4,13 +4,16 @@
   "description": "稲葉曇气象观测站粉丝网站",
   "main": "script.js",
   "scripts": {
-    "frontend": "python3 -m http.server 5500 --bind 127.0.0.1",
+    "frontend": "node tools/static-server.mjs",
     "backend": "cd backend && node server.mjs",
     "test": "node --test tools/tests/*.test.cjs",
-    "build": "esbuild tools/auth-src.js --bundle --platform=browser --format=iife --minify-whitespace --legal-comments=inline --outfile=js/auth.js",
-    "check": "npm test && npm run build",
+    "build": "node tools/build-site.mjs",
+    "check": "npm test && npm --prefix backend run check && npm run build && node tools/check-build.mjs",
     "check:links": "node tools/check-links.mjs",
-    "check:links:strict": "node tools/check-links.mjs --strict"
+    "check:links:strict": "node tools/check-links.mjs --strict",
+    "preview": "node tools/static-server.mjs --dist",
+    "test:integration": "node tools/integration.mjs",
+    "optimize:images": "node tools/optimize-images.mjs"
   },
   "keywords": [],
   "author": "",

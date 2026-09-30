@@ -1,5 +1,5 @@
 const pageLanguages = ["zh", "en", "ja"];
-let currentLanguage = pageLanguages.includes(localStorage.getItem("language")) ? localStorage.getItem("language") : "zh";
+let currentLanguage = pageLanguages.includes((window.siteStorage || localStorage).getItem("language")) ? (window.siteStorage || localStorage).getItem("language") : "zh";
 function pageText(zh, en) {
   return window.siteText?.(zh, en, currentLanguage) ?? (currentLanguage === "zh" ? zh : en);
 }
@@ -20,7 +20,7 @@ function commentErrorMessage(data, response) {
   }
   return data?.error || pageText("留言发布失败。", "Failed to post your message.");
 }
-let currentTheme = localStorage.getItem("theme") || "light";
+let currentTheme = document.documentElement?.dataset?.theme || (window.siteStorage || localStorage).getItem("theme") || "light";
 let currentSlide = 0;
 const COMMENTS_API = `${window.APP_CONFIG.apiDomain}/api/comments`;
 function applyLanguage() {
@@ -59,6 +59,7 @@ function applyLanguage() {
   document.getElementById("tag-suggestions")?.setAttribute("aria-label", currentLanguage === "ja" ? "選択できるタグ" : currentLanguage === "en" ? "Available tags" : "可选标签");
   updateConnectivityStatus();
   updateMessageLoadStatus();
+  if (document.body) applyTheme();
   document.documentElement.lang = { zh: "zh-CN", en: "en", ja: "ja" }[currentLanguage];
   window.dispatchEvent(new Event("languagechange"));
   document.querySelectorAll(".floating-message").forEach((element) => {
@@ -76,7 +77,7 @@ function updateConnectivityStatus() {
 }
 function toggleLanguage() {
   currentLanguage = pageLanguages[(pageLanguages.indexOf(currentLanguage) + 1) % pageLanguages.length];
-  localStorage.setItem("language", currentLanguage);
+  (window.siteStorage || localStorage).setItem("language", currentLanguage);
   applyLanguage();
   if (typeof updateTagLanguage === "function") {
     updateTagLanguage();
@@ -85,16 +86,20 @@ function toggleLanguage() {
 function applyTheme() {
   const themeButton = document.getElementById("theme-btn");
   document.body.classList.toggle("dark", currentTheme === "dark");
+  if (document.documentElement.dataset) document.documentElement.dataset.theme = currentTheme;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", currentTheme === "dark" ? "#171b1f" : "#eeeee8");
   if (themeButton) {
     themeButton.innerText = currentTheme === "dark" ? "☀" : "☾";
+    themeButton.setAttribute("aria-label", currentTheme === "dark" ? pageText("切换浅色主题", "Switch to light theme") : pageText("切换深色主题", "Switch to dark theme"));
+    themeButton.setAttribute("aria-pressed", String(currentTheme === "dark"));
   }
 }
 function toggleTheme() {
   currentTheme = currentTheme === "light" ? "dark" : "light";
-  localStorage.setItem("theme", currentTheme);
+  (window.siteStorage || localStorage).setItem("theme", currentTheme);
   applyTheme();
 }
-const desktopHeroImages = ["images/hero/001.png", "images/hero/002.png", "images/hero/003.png", "images/hero/004.png", "images/hero/005.png", "images/hero/006.png", "images/hero/007.png", "images/hero/008.png", "images/hero/009.png", "images/hero/010.png", "images/hero/011.png", "images/hero/012.png", "images/hero/013.png", "images/hero/014.png", "images/hero/015.png", "images/hero/016.png", "images/hero/017.png", "images/hero/018.png", "images/hero/019.png", "images/hero/020.png", "images/hero/021.png", "images/hero/022.png", "images/hero/023.png", "images/hero/024.png", "images/hero/025.png", "images/hero/026.png", "images/hero/027.png", "images/hero/028.png", "images/hero/029.png", "images/hero/030.png", "images/hero/031.png", "images/hero/032.png", "images/hero/033.png", "images/hero/034.png", "images/hero/035.png", "images/hero/036.png", "images/hero/037.png", "images/hero/038.png", "images/hero/039.png", "images/hero/040.png", "images/hero/041.png", "images/hero/042.png", "images/hero/043.png", "images/hero/044.png", "images/hero/045.png", "images/hero/046.png", "images/hero/047.png", "images/hero/048.png", "images/hero/049.png", "images/hero/050.png", "images/hero/051.png", "images/hero/052.png", "images/hero/053.png", "images/hero/054.png", "images/hero/055.png", "images/hero/056.png", "images/hero/057.png", "images/hero/058.png", "images/hero/059.png"];
+const desktopHeroImages = ["images/optimized/hero/001.webp", "images/optimized/hero/002.webp", "images/optimized/hero/003.webp", "images/optimized/hero/004.webp", "images/optimized/hero/005.webp", "images/optimized/hero/006.webp", "images/optimized/hero/007.webp", "images/optimized/hero/008.webp", "images/optimized/hero/009.webp", "images/optimized/hero/010.webp", "images/optimized/hero/011.webp", "images/optimized/hero/012.webp", "images/optimized/hero/013.webp", "images/optimized/hero/014.webp", "images/optimized/hero/015.webp", "images/optimized/hero/016.webp", "images/optimized/hero/017.webp", "images/optimized/hero/018.webp", "images/optimized/hero/019.webp", "images/optimized/hero/020.webp", "images/optimized/hero/021.webp", "images/optimized/hero/022.webp", "images/optimized/hero/023.webp", "images/optimized/hero/024.webp", "images/optimized/hero/025.webp", "images/optimized/hero/026.webp", "images/optimized/hero/027.webp", "images/optimized/hero/028.webp", "images/optimized/hero/029.webp", "images/optimized/hero/030.webp", "images/optimized/hero/031.webp", "images/optimized/hero/032.webp", "images/optimized/hero/033.webp", "images/optimized/hero/034.webp", "images/optimized/hero/035.webp", "images/optimized/hero/036.webp", "images/optimized/hero/037.webp", "images/optimized/hero/038.webp", "images/optimized/hero/039.webp", "images/optimized/hero/040.webp", "images/optimized/hero/041.webp", "images/optimized/hero/042.webp", "images/optimized/hero/043.webp", "images/optimized/hero/044.webp", "images/optimized/hero/045.webp", "images/optimized/hero/046.webp", "images/optimized/hero/047.webp", "images/optimized/hero/048.webp", "images/optimized/hero/049.webp", "images/optimized/hero/050.webp", "images/optimized/hero/051.webp", "images/optimized/hero/052.webp", "images/optimized/hero/053.webp", "images/optimized/hero/054.webp", "images/optimized/hero/055.webp", "images/optimized/hero/056.webp", "images/optimized/hero/057.webp", "images/optimized/hero/058.webp", "images/optimized/hero/059.webp"];
 let heroImages = desktopHeroImages;
 let heroLoadVersion = 0;
 const mobileHeroQuery = window.matchMedia?.("(max-width: 700px), (pointer: coarse) and (max-width: 1000px)");
@@ -122,11 +127,18 @@ function loadHeroImage(path, retry = true) {
     }
     return image;
   });
+  // Keep a small decoded-image cache rather than retaining every full-size background.
+  if (loadedHeroImages.size >= 3) loadedHeroImages.delete(loadedHeroImages.keys().next().value);
   loadedHeroImages.set(path, request);
   return request;
 }
+function setHeroSource(slide, path) {
+  slide.src = path;
+  const mobileSource = document.getElementById("hero-mobile-source");
+  if (mobileSource) mobileSource.srcset = path;
+}
 function preloadNextHeroImage() {
-  if (heroImages.length && !document.hidden) void loadHeroImage(heroImages[(currentSlide + 1) % heroImages.length]);
+  if (heroImages.length && !document.hidden && !(typeof navigator !== "undefined" && navigator.connection?.saveData)) void loadHeroImage(heroImages[(currentSlide + 1) % heroImages.length]);
 }
 async function loadMobileHeroImage(path) {
   const image = await loadHeroImage(path);
@@ -140,16 +152,23 @@ async function discoverHeroImages() {
   easterEggHeroComplete = false;
   heroImages = mobileHeroQuery?.matches ? [] : desktopHeroImages;
   if (slide) {
-    if (heroImages.length) slide.src = heroImages[0];
+    if (heroImages.length) setHeroSource(slide, heroImages[0]);
     else slide.removeAttribute("src");
     slide.hidden = !heroImages.length;
   }
   if (!mobileHeroQuery?.matches) {
-    preloadNextHeroImage();
     return;
   }
   const config = window.MOBILE_BACKGROUNDS;
   if (!config) return;
+  if (config.lazy && Array.isArray(config.files)) {
+    heroImages = config.files.map(file => `${config.folder}${file}`);
+    if (slide && heroImages.length) {
+      setHeroSource(slide, heroImages[0]);
+      slide.hidden = false;
+    }
+    return;
+  }
   if (Array.isArray(config.files)) {
     const paths = config.files.map(file => `${config.folder}${file}`);
     const available = new Set();
@@ -162,7 +181,7 @@ async function discoverHeroImages() {
       heroImages = paths.filter(candidate => available.has(candidate));
       currentSlide = selected ? heroImages.indexOf(selected) : 0;
       if (!selected && slide) {
-        slide.src = heroImages[0];
+        setHeroSource(slide, heroImages[0]);
         slide.hidden = false;
       }
     }
@@ -177,7 +196,7 @@ async function discoverHeroImages() {
       if (!loaded) continue;
       heroImages.push(path);
       if (heroImages.length === 1 && slide) {
-        slide.src = path;
+        setHeroSource(slide, path);
         slide.hidden = false;
       }
       found = true;
@@ -205,7 +224,7 @@ async function changeHeroSlide() {
   const image = await loadHeroImage(path);
   if (!image || request !== heroSwitchVersion) return;
   currentSlide = next;
-  heroSlide.src = path;
+  setHeroSource(heroSlide, path);
   preloadNextHeroImage();
   if (!easterEggHeroComplete && currentSlide === heroImages.length - 1) {
     easterEggHeroComplete = true;
@@ -259,17 +278,17 @@ async function addMessage() {
   const nickname = nameInput.value.trim();
   const content = messageInput.value.trim();
   if (!nickname || !content) {
-    alert(!nickname ? pageText("请输入昵称。", "Please enter your name.") : pageText("请输入留言内容。", "Please enter a message."));
+    showMessageFeedback(!nickname ? pageText("请输入昵称。", "Please enter your name.") : pageText("请输入留言内容。", "Please enter a message."));
     (!nickname ? nameInput : messageInput).focus();
     return;
   }
   if (unicodeLength(nickname) > MAX_NICKNAME_LENGTH) {
-    alert(pageText(`昵称不能超过 ${MAX_NICKNAME_LENGTH} 个字符。`, `Names cannot exceed ${MAX_NICKNAME_LENGTH} characters.`));
+    showMessageFeedback(pageText(`昵称不能超过 ${MAX_NICKNAME_LENGTH} 个字符。`, `Names cannot exceed ${MAX_NICKNAME_LENGTH} characters.`));
     nameInput.focus();
     return;
   }
   if (unicodeLength(content) > MAX_COMMENT_LENGTH) {
-    alert(pageText(`留言不能超过 ${MAX_COMMENT_LENGTH} 个字符。`, `Messages cannot exceed ${MAX_COMMENT_LENGTH} characters.`));
+    showMessageFeedback(pageText(`留言不能超过 ${MAX_COMMENT_LENGTH} 个字符。`, `Messages cannot exceed ${MAX_COMMENT_LENGTH} characters.`));
     messageInput.focus();
     return;
   }
@@ -277,9 +296,10 @@ async function addMessage() {
   const originalName = nameInput.value;
   const originalContent = messageInput.value;
   messageSubmitting = true;
+  showMessageFeedback(pageText("正在发送…", "Posting…"), false);
   if (button) button.disabled = true;
   try {
-    const response = await fetch(COMMENTS_API, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ nickname, content }) });
+    const response = await (window.siteFetch || fetch)(COMMENTS_API, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ nickname, content }) });
     const data = await response.json();
     if (!response.ok) {
       throw new Error(commentErrorMessage(data, response));
@@ -294,10 +314,11 @@ async function addMessage() {
     if (messageLoadState === "empty") messageLoadState = "ready";
     updateMessageLoadStatus();
     createFloatingMessage(data.comment, false);
+    showMessageFeedback(pageText("留言已贴到墙上。", "Your message is on the wall."), false);
     window.dispatchEvent(new Event("commentposted"));
   } catch (error) {
     console.error("留言发布失败：", error);
-    alert(error instanceof TypeError || error instanceof SyntaxError ? pageText("无法连接服务器或响应异常，请稍后重试。", "The server is unavailable or returned an invalid response. Please try again.") : error.message);
+    showMessageFeedback(error instanceof TypeError || error instanceof SyntaxError || error.name === "TimeoutError" || error.name === "AbortError" ? pageText("无法连接服务器或响应异常，请稍后重试。", "The server is unavailable or returned an invalid response. Please try again.") : error.message);
   } finally {
     messageSubmitting = false;
     if (button) button.disabled = false;
@@ -309,7 +330,7 @@ async function loadMessages() {
   messageLoadState = "loading";
   updateMessageLoadStatus();
   try {
-    const response = await fetch(COMMENTS_API, { credentials: "include", cache: "no-store" });
+    const response = await (window.siteFetch || fetch)(COMMENTS_API, { credentials: "include", cache: "no-store" });
     if (!response.ok) throw new Error("无法读取留言");
     const data = await response.json();
     if (!Array.isArray(data.comments)) throw new Error("留言响应格式不正确");
@@ -334,7 +355,15 @@ async function loadMessages() {
     updateMessageLoadStatus();
   }
 }
+function showMessageFeedback(message, error = true) {
+  const status = document.getElementById("message-submit-status");
+  if (!status) { if (error) alert(message); return; }
+  status.textContent = message;
+  status.dataset.error = String(error);
+}
 const messageTracks = [];
+let wallInView = true;
+let wallStatic = false;
 const MAX_OVERLAP = 0.4;
 function getVerticalOverlapRatio(y1, h1, y2, h2) {
   const top = Math.max(y1, y2);
@@ -397,10 +426,16 @@ function createFloatingMessage(message, startInside = false) {
   };
   element.updateMotion = () => {
     if (!animation) return;
-    if (document.hidden || reducedMotionQuery?.matches) animation.pause?.();
+    if (document.hidden || reducedMotionQuery?.matches || wallStatic || !wallInView) animation.pause?.();
     else animation.play?.();
   };
   element.refreshLayout = () => {
+    if (wallStatic || reducedMotionQuery?.matches) {
+      animation?.cancel();
+      animation = null;
+      if (track) { const index = messageTracks.indexOf(track); if (index >= 0) messageTracks.splice(index, 1); track = null; }
+      return;
+    }
     const progress = animation ? animation.currentTime / animation.effect.getTiming().duration % 1 : startInside ? Math.random() : 0;
     if (animation) animation.cancel();
     if (track) {
@@ -446,8 +481,10 @@ document.addEventListener("visibilitychange", () => {
   updateMotionState();
   if (!document.hidden) removeExpiredMessages();
 });
+let wallResizeTimer;
 window.addEventListener("resize", () => {
-  document.querySelectorAll(".floating-message").forEach((element) => element.refreshLayout());
+  clearTimeout(wallResizeTimer);
+  wallResizeTimer = setTimeout(() => document.querySelectorAll(".floating-message").forEach(element => element.refreshLayout()), 150);
 });
 const OTHER_SINGER_TAG = "其他";
 const TAG_PRIORITY = new Map([
@@ -805,7 +842,7 @@ function updateTagFilter() {
   let totalSongs = 0;
   document.querySelectorAll(".song-scroll a").forEach((link) => {
     totalSongs++;
-    const matched = songMatchesSearch(link, query);
+    const matched = songMatchesSearch(link, query) && (window.includeFavoriteSong?.(link) ?? true);
     link.hidden = !matched;
     if (matched) {
       visibleSongs++;
@@ -819,6 +856,9 @@ function updateTagFilter() {
     count.textContent = currentLanguage === "ja" ? `${totalSongs} 曲中 ${visibleSongs} 曲を表示` : currentLanguage === "zh" ? `显示 ${visibleSongs} / ${totalSongs} 首` : `Showing ${visibleSongs} / ${totalSongs} songs`;
   }
   renderTagSuggestions();
+  const random = document.getElementById("random-song-button");
+  if (random) random.disabled = visibleSongs === 0;
+  window.dispatchEvent?.(new Event("songsfiltered"));
 }
 function updateTagLanguage() {
   const input = document.getElementById("tag-filter-input");
@@ -854,7 +894,20 @@ document.addEventListener("DOMContentLoaded", () => {
   discoverHeroImages();
   initEasterEgg();
   initTagFilter();
-  loadMessages();
+  const messagesSection = document.getElementById("messages");
+  if (typeof IntersectionObserver !== "undefined" && messagesSection) {
+    const loader = new IntersectionObserver(entries => {
+      if (!entries.some(entry => entry.isIntersecting)) return;
+      loader.disconnect();
+      loadMessages();
+    }, { rootMargin: "400px" });
+    loader.observe(messagesSection);
+    const wallObserver = new IntersectionObserver(entries => {
+      wallInView = entries[0].isIntersecting;
+      updateMotionState();
+    });
+    wallObserver.observe(messagesSection);
+  } else loadMessages();
   const nameInput = document.getElementById("message-name");
   const messageInput = document.getElementById("message-input");
   const trimCommentFields = () => enforceCommentFieldLimits(nameInput, messageInput);
@@ -956,7 +1009,7 @@ function closeEasterEgg() {
   currentSlide = 0;
   const heroSlide = document.getElementById("hero-slide");
   if (heroSlide && heroImages.length) {
-    heroSlide.src = heroImages[0];
+    setHeroSource(heroSlide, heroImages[0]);
   }
   resetEasterEggProgress();
 }

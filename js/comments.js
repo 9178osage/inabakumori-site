@@ -8,7 +8,7 @@
   const comments = new Map();
   const deleting = new Set();
   const deleted = new Set();
-  const label = (zh, en) => window.siteText?.(zh, en) ?? (localStorage.getItem("language") === "en" ? en : zh);
+  const label = (zh, en) => window.siteText?.(zh, en) ?? ((window.siteStorage || localStorage).getItem("language") === "en" ? en : zh);
   function render() {
     const list = document.getElementById("my-comments-list");
     if (!list) return;
@@ -53,7 +53,7 @@
       if (current !== version) return;
       document.getElementById("my-comments-controls").hidden = !signedIn;
       if (!signedIn) { state = "signedOut"; return; }
-      const response = await fetch(`${api}/mine${more ? `?before=${nextCursor}` : ""}`, { credentials: "include", cache: "no-store" });
+      const response = await (window.siteFetch || fetch)(`${api}/mine${more ? `?before=${nextCursor}` : ""}`, { credentials: "include", cache: "no-store" });
       if (!response.ok) throw new Error("Could not load messages");
       const data = await response.json();
       if (!Array.isArray(data.comments)) throw new Error("Invalid messages");
@@ -76,7 +76,7 @@
     deleting.add(id);
     render();
     try {
-      const response = await fetch(`${api}/${id}`, { method: "DELETE", credentials: "include" });
+      const response = await (window.siteFetch || fetch)(`${api}/${id}`, { method: "DELETE", credentials: "include" });
       if (!response.ok && response.status !== 404) throw new Error("Could not delete message");
       deleted.add(id);
       comments.delete(id);
@@ -119,7 +119,7 @@
   let authVersion = 0;
   let error = "";
   const deleting = new Set();
-  const label = (zh, en) => window.siteText?.(zh, en) ?? (localStorage.getItem("language") === "en" ? en : zh);
+  const label = (zh, en) => window.siteText?.(zh, en) ?? ((window.siteStorage || localStorage).getItem("language") === "en" ? en : zh);
   const panel = () => document.getElementById("admin-comments");
   function hide() {
     const element = panel();
@@ -165,7 +165,7 @@
       const signedIn = await window.hasCommentSession?.();
       if (current !== version) return;
       if (!signedIn) return hide();
-      const response = await fetch(`${api}${more ? `?before=${nextCursor}` : ""}`, { credentials: "include", cache: "no-store" });
+      const response = await (window.siteFetch || fetch)(`${api}${more ? `?before=${nextCursor}` : ""}`, { credentials: "include", cache: "no-store" });
       if (current !== version) return;
       if (response.status === 401 || response.status === 403) return hide();
       if (!response.ok) throw new Error("Could not load moderation messages");
@@ -191,7 +191,7 @@
     error = "";
     render();
     try {
-      const response = await fetch(`${api}/${id}`, { method: "DELETE", credentials: "include" });
+      const response = await (window.siteFetch || fetch)(`${api}/${id}`, { method: "DELETE", credentials: "include" });
       if (current !== authVersion) return;
       if (response.status === 401 || response.status === 403) return hide();
       if (!response.ok && response.status !== 404) throw new Error("Could not delete message");
