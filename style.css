@@ -18,9 +18,9 @@
   --color-paper: #e2e2e0;
   --color-ink: #20252a;
   --color-white: #ffffff;
-  --page-bg: #d4d4d0;
+  --page-bg: #c4c4c0;
   --page-text: var(--color-ink);
-  --main-bg: #d4d4d0;
+  --main-bg: #c4c4c0;
   --main-text: var(--color-ink);
   --hero-text: #f2f2f2;
   --button-bg: var(--color-ink);
