@@ -10,3 +10,4 @@ backend/.backups/
 
 dist/
 artifacts/
+trusted-read-*/
