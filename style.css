@@ -119,14 +119,9 @@ textarea {
   height: 100%;
   overflow: hidden;
   z-index: 0;
-  cursor: pointer;
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
-}
-.hero-bg:focus-visible {
-  outline: 3px solid var(--color-white);
-  outline-offset: -8px;
 }
 .hero-slide {
   position: absolute;

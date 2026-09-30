@@ -21,7 +21,6 @@ function commentErrorMessage(data, response) {
   return data?.error || pageText("留言发布失败。", "Failed to post your message.");
 }
 let currentTheme = document.documentElement?.dataset?.theme || (window.siteStorage || localStorage).getItem("theme") || "light";
-let currentSlide = 0;
 const COMMENTS_API = `${window.APP_CONFIG.apiDomain}/api/comments`;
 function applyLanguage() {
   document.querySelectorAll("[data-zh][data-en]").forEach((element) => {
@@ -98,137 +97,6 @@ function toggleTheme() {
   currentTheme = currentTheme === "light" ? "dark" : "light";
   (window.siteStorage || localStorage).setItem("theme", currentTheme);
   applyTheme();
-}
-const desktopHeroImages = ["images/optimized/hero/001.webp", "images/optimized/hero/002.webp", "images/optimized/hero/003.webp", "images/optimized/hero/004.webp", "images/optimized/hero/005.webp", "images/optimized/hero/006.webp", "images/optimized/hero/007.webp", "images/optimized/hero/008.webp", "images/optimized/hero/009.webp", "images/optimized/hero/010.webp", "images/optimized/hero/011.webp", "images/optimized/hero/012.webp", "images/optimized/hero/013.webp", "images/optimized/hero/014.webp", "images/optimized/hero/015.webp", "images/optimized/hero/016.webp", "images/optimized/hero/017.webp", "images/optimized/hero/018.webp", "images/optimized/hero/019.webp", "images/optimized/hero/020.webp", "images/optimized/hero/021.webp", "images/optimized/hero/022.webp", "images/optimized/hero/023.webp", "images/optimized/hero/024.webp", "images/optimized/hero/025.webp", "images/optimized/hero/026.webp", "images/optimized/hero/027.webp", "images/optimized/hero/028.webp", "images/optimized/hero/029.webp", "images/optimized/hero/030.webp", "images/optimized/hero/031.webp", "images/optimized/hero/032.webp", "images/optimized/hero/033.webp", "images/optimized/hero/034.webp", "images/optimized/hero/035.webp", "images/optimized/hero/036.webp", "images/optimized/hero/037.webp", "images/optimized/hero/038.webp", "images/optimized/hero/039.webp", "images/optimized/hero/040.webp", "images/optimized/hero/041.webp", "images/optimized/hero/042.webp", "images/optimized/hero/043.webp", "images/optimized/hero/044.webp", "images/optimized/hero/045.webp", "images/optimized/hero/046.webp", "images/optimized/hero/047.webp", "images/optimized/hero/048.webp", "images/optimized/hero/049.webp", "images/optimized/hero/050.webp", "images/optimized/hero/051.webp", "images/optimized/hero/052.webp", "images/optimized/hero/053.webp", "images/optimized/hero/054.webp", "images/optimized/hero/055.webp", "images/optimized/hero/056.webp", "images/optimized/hero/057.webp", "images/optimized/hero/058.webp", "images/optimized/hero/059.webp"];
-let heroImages = desktopHeroImages;
-let heroLoadVersion = 0;
-const mobileHeroQuery = window.matchMedia?.("(max-width: 700px), (pointer: coarse) and (max-width: 1000px)");
-const loadedHeroImages = new Map();
-let heroSwitchVersion = 0;
-function loadHeroImage(path, retry = true) {
-  if (loadedHeroImages.has(path)) return loadedHeroImages.get(path);
-  const request = new Promise(resolve => {
-    const image = new Image();
-    image.decoding = "async";
-    let timer;
-    const finish = value => {
-      clearTimeout(timer);
-      image.onload = image.onerror = null;
-      resolve(value);
-    };
-    timer = setTimeout(() => finish(null), 12000);
-    image.onload = () => finish(image);
-    image.onerror = () => finish(null);
-    image.src = path;
-  }).then(async image => {
-    if (!image) {
-      loadedHeroImages.delete(path);
-      if (retry && !document.hidden) return loadHeroImage(path, false);
-    }
-    return image;
-  });
-  // Keep a small decoded-image cache rather than retaining every full-size background.
-  if (loadedHeroImages.size >= 3) loadedHeroImages.delete(loadedHeroImages.keys().next().value);
-  loadedHeroImages.set(path, request);
-  return request;
-}
-function setHeroSource(slide, path) {
-  slide.src = path;
-  const mobileSource = document.getElementById("hero-mobile-source");
-  if (mobileSource) mobileSource.srcset = path;
-}
-function preloadNextHeroImage() {
-  if (heroImages.length && !document.hidden && !(typeof navigator !== "undefined" && navigator.connection?.saveData)) void loadHeroImage(heroImages[(currentSlide + 1) % heroImages.length]);
-}
-async function loadMobileHeroImage(path) {
-  const image = await loadHeroImage(path);
-  return Boolean(image && image.naturalHeight > image.naturalWidth);
-}
-async function discoverHeroImages() {
-  const version = ++heroLoadVersion;
-  ++heroSwitchVersion;
-  const slide = document.getElementById("hero-slide");
-  currentSlide = 0;
-  easterEggHeroComplete = false;
-  heroImages = mobileHeroQuery?.matches ? [] : desktopHeroImages;
-  if (slide) {
-    if (heroImages.length) setHeroSource(slide, heroImages[0]);
-    else slide.removeAttribute("src");
-    slide.hidden = !heroImages.length;
-  }
-  if (!mobileHeroQuery?.matches) {
-    return;
-  }
-  const config = window.MOBILE_BACKGROUNDS;
-  if (!config) return;
-  if (config.lazy && Array.isArray(config.files)) {
-    heroImages = config.files.map(file => `${config.folder}${file}`);
-    if (slide && heroImages.length) {
-      setHeroSource(slide, heroImages[0]);
-      slide.hidden = false;
-    }
-    return;
-  }
-  if (Array.isArray(config.files)) {
-    const paths = config.files.map(file => `${config.folder}${file}`);
-    const available = new Set();
-    for (const path of paths) {
-      const loaded = await loadMobileHeroImage(path);
-      if (version !== heroLoadVersion) return;
-      if (!loaded) continue;
-      available.add(path);
-      const selected = heroImages[currentSlide];
-      heroImages = paths.filter(candidate => available.has(candidate));
-      currentSlide = selected ? heroImages.indexOf(selected) : 0;
-      if (!selected && slide) {
-        setHeroSource(slide, heroImages[0]);
-        slide.hidden = false;
-      }
-    }
-    return;
-  }
-  for (let number = 1; number <= config.maxImages; number++) {
-    let found = false;
-    for (const extension of config.extensions) {
-      const path = `${config.folder}${String(number).padStart(3, "0")}.${extension}`;
-      const loaded = await loadMobileHeroImage(path);
-      if (version !== heroLoadVersion) return;
-      if (!loaded) continue;
-      heroImages.push(path);
-      if (heroImages.length === 1 && slide) {
-        setHeroSource(slide, path);
-        slide.hidden = false;
-      }
-      found = true;
-      break;
-    }
-    if (!found) break;
-  }
-}
-mobileHeroQuery?.addEventListener("change", discoverHeroImages);
-async function changeHeroSlide() {
-  if (easterEggOpen) {
-    return;
-  }
-  const heroSlide = document.getElementById("hero-slide");
-  if (!heroSlide || !heroImages.length) {
-    return;
-  }
-  if (heroImages.length === 1) {
-    easterEggHeroComplete = true;
-    return;
-  }
-  const request = ++heroSwitchVersion;
-  const next = (currentSlide + 1) % heroImages.length;
-  const path = heroImages[next];
-  const image = await loadHeroImage(path);
-  if (!image || request !== heroSwitchVersion) return;
-  currentSlide = next;
-  setHeroSource(heroSlide, path);
-  preloadNextHeroImage();
-  if (!easterEggHeroComplete && currentSlide === heroImages.length - 1) {
-    easterEggHeroComplete = true;
-  }
 }
 let messageSubmitting = false;
 let wallRevision = 0;
@@ -891,7 +759,6 @@ function initTagFilter() {
 document.addEventListener("DOMContentLoaded", () => {
   applyLanguage();
   applyTheme();
-  discoverHeroImages();
   initEasterEgg();
   initTagFilter();
   const messagesSection = document.getElementById("messages");
@@ -913,23 +780,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const trimCommentFields = () => enforceCommentFieldLimits(nameInput, messageInput);
   nameInput?.addEventListener("input", trimCommentFields);
   messageInput?.addEventListener("input", trimCommentFields);
-  const heroBg = document.getElementById("hero-bg");
-  if (heroBg) {
-    heroBg.addEventListener("click", (event) => {
-      if (event.button !== 0) return;
-      event.preventDefault();
-      changeHeroSlide();
-    });
-    heroBg.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      changeHeroSlide();
-    });
-    heroBg.addEventListener("contextmenu", (event) => {
-      event.preventDefault();
-      changeHeroSlide();
-    });
-  }
   console.log("✅ Weather observation station loaded");
 });
 window.addEventListener?.("online", updateConnectivityStatus);
@@ -939,13 +789,13 @@ const MEME_FOLDER = "images/memes/";
 let easterEggOpen = false;
 let easterEggCanClose = false;
 let easterEggCloseTimer = null;
-let easterEggHeroComplete = false;
+let easterEggHeroComplete = true;
 let easterEggRelatedClicked = false;
 let easterEggTriggered = false;
 let easterEggPendingReturn = false;
 let easterEggVisitorLeftPage = false;
 function resetEasterEggProgress() {
-  easterEggHeroComplete = false;
+  easterEggHeroComplete = true;
   easterEggRelatedClicked = false;
   easterEggTriggered = false;
   easterEggPendingReturn = false;
@@ -1005,12 +855,6 @@ function closeEasterEgg() {
   overlay.setAttribute("aria-hidden", "true");
   easterEggOpen = false;
   easterEggCanClose = false;
-  ++heroSwitchVersion;
-  currentSlide = 0;
-  const heroSlide = document.getElementById("hero-slide");
-  if (heroSlide && heroImages.length) {
-    setHeroSource(heroSlide, heroImages[0]);
-  }
   resetEasterEggProgress();
 }
 function initEasterEgg() {
