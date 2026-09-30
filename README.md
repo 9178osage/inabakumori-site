@@ -58,7 +58,6 @@ Your language preference is saved locally in the browser.
 - Light / dark theme switching
 - Responsive layouts for desktop and mobile
 - Separate background sets for desktop and mobile
-- Click or tap to cycle through backgrounds
 - Rain effects
 - Title effects
 - Theme and language preferences saved locally
@@ -399,7 +398,6 @@ I like Inabakumori, so I made a “Weather Observation Station” — a nod to t
 - 明暗主题切换
 - 桌面端与移动端响应式布局
 - 桌面端与移动端独立背景
-- 点击或轻触切换背景
 - 雨滴效果
 - 标题特效
 - 本地保存主题与语言偏好
@@ -738,7 +736,6 @@ npm run check:links:strict
 - ライト / ダークテーマ切り替え
 - PC / モバイル対応のレスポンシブレイアウト
 - PC 用 / モバイル用の個別背景
-- クリック / タップで背景を切り替え
 - 雨のエフェクト
 - タイトルエフェクト
 - テーマと言語設定をローカルに保存
