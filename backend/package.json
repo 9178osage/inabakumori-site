@@ -5,7 +5,8 @@
   "main": "server.mjs",
   "scripts": {
     "start": "node server.mjs",
-    "check": "node --check server.mjs && node --check services.mjs"
+    "check": "node --check server.mjs && node --check services.mjs && node --check backup.mjs",
+    "backup": "node backup.mjs"
   },
   "keywords": [],
   "author": "",
@@ -21,7 +22,10 @@
   },
   "overrides": {
     "supertokens-node": {
-      "nodemailer": "10.0.2"
+      "nodemailer": "10.0.13"
+    },
+    "express-rate-limit": {
+      "ip-address": "10.7.2"
     }
   },
   "engines": {

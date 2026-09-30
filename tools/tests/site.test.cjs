@@ -116,7 +116,7 @@ test("all listed hero images exist and switching waits for loading", async () =>
   const slide = elements["hero-slide"] = {};
   for (const path of run("heroImages")) assert.ok(fs.existsSync(path), path);
   await run("changeHeroSlide()");
-  assert.equal(slide.src, "images/hero/002.png");
+  assert.equal(slide.src, "images/optimized/hero/002.webp");
 });
 test("configuration supports local development and Railway from GitHub Pages", () => {
   for (const [hostname, protocol, expected] of [["localhost", "http:", "http://localhost:3001"], ["127.0.0.1", "http:", "http://127.0.0.1:3001"], ["9178osage.github.io", "https:", "https://inabakumori-site-production.up.railway.app"]]) {
@@ -300,7 +300,7 @@ test("mobile backgrounds load numbered portrait files and never use desktop imag
   assert.ok(paths.every(path => path.startsWith("images/hero-mobile/")));
   query.matches = false;
   await run("discoverHeroImages()");
-  assert.equal(slide.src, "images/hero/001.png");
+  assert.equal(slide.src, "images/optimized/hero/001.webp");
 });
 
 test("an empty mobile folder leaves the image hidden without falling back to desktop", async () => {
@@ -392,4 +392,39 @@ test("unicodeLength aligns frontend limits with backend Array.from code points",
   assert.equal(elements["message-input"].value, "🎵".repeat(500));
   assert.equal(Array.from(elements["message-name"].value).length, 30);
   assert.equal(Array.from(elements["message-input"].value).length, 500);
+});
+
+test("mobile manifest opens the first optimized image without eagerly downloading the gallery", async () => {
+  let requests = 0;
+  const { run, elements } = setup({
+    window: { matchMedia: () => ({ matches: true, addEventListener() {} }), MOBILE_BACKGROUNDS: { lazy: true, folder: "images/optimized/hero-mobile/", files: ["001.webp", "002.webp"] } },
+    Image: class { constructor() { requests++; } }
+  });
+  elements["hero-slide"] = { removeAttribute() {} };
+  await run("discoverHeroImages()");
+  assert.equal(requests, 0);
+  assert.equal(elements["hero-slide"].src, "images/optimized/hero-mobile/001.webp");
+  assert.equal(run("heroImages.length"), 2);
+});
+
+test("static wall messages do not allocate animations or overlapping tracks", () => {
+  const { run, context, elements, messages } = setup();
+  elements["floating-wall"] = { appendChild(element) { element.isConnected = true; messages.push(element); } };
+  context.document.createElement = () => ({ dataset: {}, style: {}, animate() { throw new Error("Static mode must not animate"); } });
+  run('wallStatic=true; createFloatingMessage({id:1,nickname:"站员",content:"安静阅读"})');
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0].textContent, "站员： 安静阅读");
+  assert.equal(run("messageTracks.length"), 0);
+});
+
+test("inline message validation keeps focus on the empty field without a blocking alert", async () => {
+  const { run, elements, events } = setup();
+  let focused = false;
+  elements["message-name"] = { value: "", focus() { focused = true; } };
+  elements["message-input"] = { value: "draft" };
+  elements["message-submit-status"] = { dataset: {} };
+  await run("addMessage()");
+  assert.equal(elements["message-submit-status"].textContent, "请输入昵称。");
+  assert.equal(focused, true);
+  assert.equal(events.length, 0);
 });

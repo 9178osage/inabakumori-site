@@ -1,5 +1,35 @@
 import path from "node:path";
 
+export function positiveInteger(value, fallback = null) {
+  if (value === undefined) return fallback;
+  if (typeof value === "number") return Number.isSafeInteger(value) && value > 0 ? value : null;
+  if (typeof value !== "string" || !/^[1-9]\d{0,15}$/u.test(value)) return null;
+  const number = Number(value);
+  return Number.isSafeInteger(number) ? number : null;
+}
+
+export function validateCommentInput(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body) ||
+      typeof body.nickname !== "string" || typeof body.content !== "string") {
+    return { ok: false, error: "昵称和留言必须为文本", code: "INVALID_COMMENT" };
+  }
+  const nickname = body.nickname.normalize("NFC").trim();
+  const content = body.content.normalize("NFC").trim();
+  const visible = value => value.replace(/[\s\u200B-\u200D\uFEFF]/gu, "").length > 0;
+  // Preserve emoji joiners and normal line breaks; reject terminal and bidi controls.
+  const unsafeControls = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u202A-\u202E\u2066-\u2069]/u;
+  if (!visible(nickname) || !visible(content) || /[\r\n\t]/u.test(nickname) ||
+      unsafeControls.test(nickname) || unsafeControls.test(content)) {
+    return { ok: false, error: "请输入有效的昵称和留言", code: "INVALID_COMMENT" };
+  }
+  if (Array.from(nickname).length > 30 || Array.from(content).length > 500) {
+    return { ok: false, error: "昵称最多 30 字，留言最多 500 字", code: "INVALID_COMMENT" };
+  }
+  const issue = detectCommentSafetyIssue(nickname) || detectCommentSafetyIssue(content);
+  if (issue) return { ok: false, ...issue };
+  return { ok: true, nickname, content };
+}
+
 export function websiteLocation(value) {
   const url = new URL(value);
   if (!["https:", "http:"].includes(url.protocol) || url.username || url.password) {
@@ -93,7 +123,7 @@ export function registerCommentManagement(app, db, verifySession) {
   const remove = db.prepare("DELETE FROM comments WHERE id = ? AND user_id = ? AND is_guest = 0");
   app.get("/api/comments/mine", verifySession(), (req, res) => {
     res.setHeader("Cache-Control", "no-store");
-    const before = req.query.before === undefined ? Number.MAX_SAFE_INTEGER : Number(req.query.before);
+    const before = positiveInteger(req.query.before, Number.MAX_SAFE_INTEGER);
     if (!Number.isSafeInteger(before) || before <= 0) {
       return res.status(400).json({ error: "留言分页参数无效", code: "INVALID_CURSOR" });
     }
@@ -105,7 +135,7 @@ export function registerCommentManagement(app, db, verifySession) {
     res.json({ comments, nextCursor: rows.length > 20 ? comments.at(-1).id : null });
   });
   app.delete("/api/comments/:id", verifySession(), (req, res) => {
-    const id = Number(req.params.id);
+    const id = positiveInteger(req.params.id);
     if (!Number.isSafeInteger(id) || id <= 0) {
       return res.status(400).json({ error: "留言 ID 无效", code: "INVALID_COMMENT_ID" });
     }
@@ -140,7 +170,7 @@ export function registerAdminCommentManagement(app, db, verifySession, isAdmin) 
   };
   app.get("/api/admin/comments", verifySession(), requireAdmin, (req, res) => {
     res.setHeader("Cache-Control", "no-store");
-    const before = req.query?.before === undefined ? Number.MAX_SAFE_INTEGER : Number(req.query.before);
+    const before = positiveInteger(req.query?.before, Number.MAX_SAFE_INTEGER);
     if (!Number.isSafeInteger(before) || before <= 0) return res.status(400).json({ error: "留言分页参数无效", code: "INVALID_CURSOR" });
     const rows = list.all(Date.now(), before);
     const comments = rows.slice(0, 50).map(row => ({
@@ -153,7 +183,7 @@ export function registerAdminCommentManagement(app, db, verifySession, isAdmin) 
     res.json({ comments, nextCursor: rows.length > 50 ? comments.at(-1).id : null });
   });
   app.delete("/api/admin/comments/:id", verifySession(), requireAdmin, (req, res) => {
-    const id = Number(req.params.id);
+    const id = positiveInteger(req.params.id);
     if (!Number.isSafeInteger(id) || id <= 0) {
       return res.status(400).json({ error: "留言 ID 无效", code: "INVALID_COMMENT_ID" });
     }

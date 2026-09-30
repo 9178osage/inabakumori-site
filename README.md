@@ -1,3 +1,9 @@
+> **2026-09 optimization / 本轮优化 / 今回の改善**
+>
+> `npm run check` validates tests, backend syntax and the public production build. `npm run preview` serves `dist/` on port 5500. Publish **only `dist/`**, not the repository root. See [优化与运维说明](OPTIMIZATION.md) for the change list, verification and deployment steps.
+>
+> 新增歌曲收藏、排序、筛选链接、静态留言阅读、会话草稿；WebP 按需加载；安全依赖升级、数据库备份和 CI 检查。`npm run test:integration` 使用独立临时数据库验证真实 HTTP 流程。
+
 <a id="readme-en"></a>
 
 # 🌧️ Weather Observation Station · 稲葉曇
@@ -158,7 +164,7 @@ inabakumori-site/
 
 - **Node.js 24.x**
 - npm
-- Python 3 (the current frontend dev server uses `python3 -m http.server`)
+- The frontend preview uses Node.js; no Python dependency.
 - A working SuperTokens Core / Managed SuperTokens instance
 
 ### 1. 📥 Clone the repository
@@ -434,7 +440,7 @@ I like Inabakumori, so I made a “Weather Observation Station” — a nod to t
 - 留言长度限制
 - 频率限制
 - 基础广告、链接与联系方式过滤
-- 游客与登录用户均可留言自动过期机制
+- 游客留言 30 天过期，登录用户留言长期保留
 
 ---
 
@@ -499,7 +505,7 @@ inabakumori-site/
 
 - **Node.js 24.x**
 - npm
-- Python 3（仓库当前的前端本地服务器脚本使用 `python3 -m http.server`）
+- 前端预览使用 Node.js，无需 Python。
 - 可用的 SuperTokens Core / Managed SuperTokens 实例
 
 ### 1. 📥 克隆仓库
@@ -633,7 +639,7 @@ npm run check:links:strict
 - CORS Origin 限制
 - 登录接口频率限制
 - 留言接口频率限制
-- 游客与登录用户均可留言限制
+- 游客留言频率限制
 - 输入长度验证
 - 留言广告 / 链接 / 联系方式过滤
 - 管理员权限检查
@@ -773,7 +779,7 @@ npm run check:links:strict
 - 投稿文字数制限
 - レート制限
 - 基本的なスパム、リンク、連絡先情報のフィルタリング
-- ゲスト / ログインユーザーの投稿の自動期限切れ
+- ゲスト投稿は30日後に期限切れ、ログイン投稿は保持
 
 ---
 
@@ -838,7 +844,7 @@ inabakumori-site/
 
 - **Node.js 24.x**
 - npm
-- Python 3（現在のフロントエンド開発用サーバーは `python3 -m http.server` を使用）
+- フロントエンドのプレビューには Node.js を使用します。Python は不要です。
 - 利用可能な SuperTokens Core / Managed SuperTokens インスタンス
 
 ### 1. 📥 リポジトリをクローン
