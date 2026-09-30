@@ -110,14 +110,19 @@ test("language refresh updates document and existing messages", () => {
   assert.equal(refreshed, true);
   assert.ok(events.includes("languagechange"));
 });
-test("hero scenery is static and has no tap-to-switch controls", () => {
+test("all listed hero images exist and switching waits for loading", async () => {
+  const { run, context, elements } = setup();
+  context.Image = class { set src(value) { queueMicrotask(() => this.onload?.()); } };
+  const slide = elements["hero-slide"] = {};
+  for (const path of run("heroImages")) assert.ok(fs.existsSync(path), path);
+  await run("changeHeroSlide()");
+  assert.equal(slide.src, "images/optimized/hero/002.webp");
+});
+test("hero scenery remains an unadvertised click target", () => {
   const html = fs.readFileSync("index.html", "utf8");
-  const script = fs.readFileSync("script.js", "utf8");
   const hero = html.match(/<div class="hero-bg"[^>]*>/)?.[0] || "";
   assert.match(hero, /id="hero-bg"/);
   assert.doesNotMatch(hero, /role="button"|tabindex="0"|aria-label=/);
-  assert.doesNotMatch(html, /轻触画面|Tap the scene|画面をタップ/);
-  assert.doesNotMatch(script, /changeHeroSlide|discoverHeroImages|heroBg\.addEventListener/);
 });
 test("configuration supports local development and Railway from GitHub Pages", () => {
   for (const [hostname, protocol, expected] of [["localhost", "http:", "http://localhost:3001"], ["127.0.0.1", "http:", "http://127.0.0.1:3001"], ["9178osage.github.io", "https:", "https://inabakumori-site-production.up.railway.app"]]) {
@@ -276,6 +281,47 @@ test("a delayed wall refresh cannot bring back a deleted message", async () => {
   assert.deepEqual(rendered, [2]);
 });
 
+test("mobile backgrounds load numbered portrait files and never use desktop images", async () => {
+  const paths = [];
+  const query = { matches: true, addEventListener() {} };
+  const { elements, run } = setup({
+    window: { matchMedia: () => query, MOBILE_BACKGROUNDS: { folder: "images/hero-mobile/", extensions: ["png", "jpg"], maxImages: 3 } },
+    Image: class {
+      set src(path) {
+        paths.push(path);
+        this.naturalWidth = 1080;
+        this.naturalHeight = 1920;
+        queueMicrotask(() => /00[12]\.jpg$/.test(path) ? this.onload?.() : this.onerror?.());
+      }
+    }
+  });
+  const slide = elements["hero-slide"] = { removeAttribute(name) { delete this[name]; } };
+  await run("discoverHeroImages()");
+  assert.equal(slide.src, "images/hero-mobile/001.jpg");
+  assert.equal(slide.hidden, false);
+  await run("changeHeroSlide()");
+  assert.equal(slide.src, "images/hero-mobile/002.jpg");
+  await run("changeHeroSlide()");
+  assert.equal(slide.src, "images/hero-mobile/001.jpg");
+  assert.ok(paths.every(path => path.startsWith("images/hero-mobile/")));
+  query.matches = false;
+  await run("discoverHeroImages()");
+  assert.equal(slide.src, "images/optimized/hero/001.webp");
+});
+
+test("an empty mobile folder leaves the image hidden without falling back to desktop", async () => {
+  const { elements, run } = setup({
+    window: { matchMedia: () => ({ matches: true, addEventListener() {} }), MOBILE_BACKGROUNDS: { folder: "images/hero-mobile/", extensions: ["png"], maxImages: 99 } },
+    Image: class { set src(path) { queueMicrotask(() => this.onerror()); } }
+  });
+  const slide = elements["hero-slide"] = { removeAttribute(name) { delete this[name]; } };
+  await run("discoverHeroImages()");
+  assert.equal(slide.hidden, true);
+  assert.equal(slide.src, undefined);
+  await run("changeHeroSlide()");
+  assert.equal(slide.src, undefined);
+});
+
 test("language switching cycles through Chinese, English, and Japanese and saves the selection", () => {
   const { run, context } = setup();
   const saved = [];
@@ -287,6 +333,48 @@ test("language switching cycles through Chinese, English, and Japanese and saves
   run('toggleLanguage()');
   assert.equal(context.document.documentElement.lang, "zh-CN");
   assert.deepEqual(saved, [["language", "en"], ["language", "ja"], ["language", "zh"]]);
+});
+
+test('mobile image manifest skips failed images without losing later backgrounds', async () => {
+  const { elements, run } = setup({
+    window: { matchMedia: () => ({ matches: true, addEventListener() {} }), MOBILE_BACKGROUNDS: { folder: 'images/hero-mobile/', files: ['001.jpg', '002.jpg', '003.jpg'] } },
+    Image: class {
+      set src(path) {
+        this.naturalWidth = 1080;
+        this.naturalHeight = 1920;
+        queueMicrotask(() => path.endsWith('001.jpg') ? this.onerror?.() : this.onload?.());
+      }
+    }
+  });
+  const slide = elements['hero-slide'] = { removeAttribute(name) { delete this[name]; } };
+  await run('discoverHeroImages()');
+  assert.equal(slide.src, 'images/hero-mobile/002.jpg');
+  await run('changeHeroSlide()');
+  assert.equal(slide.src, 'images/hero-mobile/003.jpg');
+});
+
+test('failed background loading retains current image and retries only once', async () => {
+  let attempts = 0;
+  const { elements, run } = setup({ Image: class { set src(path) { attempts++; queueMicrotask(() => this.onerror?.()); } } });
+  const slide = elements['hero-slide'] = { src: 'images/hero/001.png' };
+  await run('changeHeroSlide()');
+  assert.equal(slide.src, 'images/hero/001.png');
+  assert.equal(run('currentSlide'), 0);
+  assert.equal(attempts, 2);
+});
+
+test('a pending background switch cannot overwrite a responsive layout change', async () => {
+  const pending = [];
+  const query = { matches: false, addEventListener() {} };
+  const { elements, run } = setup({ window: { matchMedia: () => query }, Image: class { set src(path) { pending.push(this); } } });
+  const slide = elements['hero-slide'] = { src: 'images/hero/001.png', removeAttribute(name) { delete this[name]; } };
+  const switching = run('changeHeroSlide()');
+  query.matches = true;
+  await run('discoverHeroImages()');
+  pending[0].onload();
+  await switching;
+  assert.equal(slide.hidden, true);
+  assert.equal(slide.src, undefined);
 });
 
 test("English validation failures do not expose untranslated server messages", () => {
@@ -310,6 +398,19 @@ test("unicodeLength aligns frontend limits with backend Array.from code points",
   assert.equal(elements["message-input"].value, "🎵".repeat(500));
   assert.equal(Array.from(elements["message-name"].value).length, 30);
   assert.equal(Array.from(elements["message-input"].value).length, 500);
+});
+
+test("mobile manifest opens the first optimized image without eagerly downloading the gallery", async () => {
+  let requests = 0;
+  const { run, elements } = setup({
+    window: { matchMedia: () => ({ matches: true, addEventListener() {} }), MOBILE_BACKGROUNDS: { lazy: true, folder: "images/optimized/hero-mobile/", files: ["001.webp", "002.webp"] } },
+    Image: class { constructor() { requests++; } }
+  });
+  elements["hero-slide"] = { removeAttribute() {} };
+  await run("discoverHeroImages()");
+  assert.equal(requests, 0);
+  assert.equal(elements["hero-slide"].src, "images/optimized/hero-mobile/001.webp");
+  assert.equal(run("heroImages.length"), 2);
 });
 
 test("static wall messages do not allocate animations or overlapping tracks", () => {
