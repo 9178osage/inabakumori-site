@@ -267,12 +267,15 @@ test('admin deletion failures preserve content and translated error; duplicate c
   assert.equal(elements['admin-comments-status'].textContent, '削除に失敗しました。再試行してください。');
 });
 
-test('admin email grants require a verified matching login method', async () => {
+test('admin email grants require a matching login-method email', async () => {
   const { hasVerifiedAdminEmail, detectCommentSafetyIssue } = await import('../../backend/services.mjs');
   const emails = new Set(['admin@example.com']);
-  assert.equal(hasVerifiedAdminEmail({ emails: ['admin@example.com'], loginMethods: [{ email: 'admin@example.com', verified: false }] }, emails), false);
-  assert.equal(hasVerifiedAdminEmail({ loginMethods: [{ email: 'other@example.com', verified: true }, { email: 'admin@example.com', verified: false }] }, emails), false);
+  // EmailPassword leaves verified=false without EmailVerification; allowlist still grants admin.
+  assert.equal(hasVerifiedAdminEmail({ emails: ['admin@example.com'], loginMethods: [{ email: 'admin@example.com', verified: false }] }, emails), true);
+  assert.equal(hasVerifiedAdminEmail({ loginMethods: [{ email: 'other@example.com', verified: true }, { email: 'admin@example.com', verified: false }] }, emails), true);
   assert.equal(hasVerifiedAdminEmail({ loginMethods: [{ email: 'ADMIN@example.com', verified: true }] }, emails), true);
+  assert.equal(hasVerifiedAdminEmail({ loginMethods: [{ email: 'someone@else.com', verified: true }] }, emails), false);
+  assert.equal(hasVerifiedAdminEmail({ emails: ['admin@example.com'], loginMethods: [] }, emails), false);
   assert.equal(hasVerifiedAdminEmail(undefined, emails), false);
   for (const message of ['手机上听这首歌很喜欢', '邮箱收不到邮件', '希望不要有广告', '微信里朋友推荐了这首歌']) assert.equal(detectCommentSafetyIssue(message), null);
   for (const message of ['加微信 abc123', '微信：abc123', 'qq号:123456', '扫码领取优惠']) assert.equal(detectCommentSafetyIssue(message)?.code, 'PROMOTIONAL_CONTENT');
