@@ -1,6 +1,27 @@
 # 网站优化与运维说明
 
-本轮在原生 HTML / CSS / JavaScript 与 Express / SuperTokens / SQLite 架构上完成。歌曲资料、账号体系与已有数据库格式继续兼容；没有修改线上数据库，也没有发送真实密码重置邮件。修改当前保存在本地工作区，尚未推送或上线。
+本轮（2026-10-01）在既有 HTML / CSS / JavaScript 与 Express / SuperTokens / SQLite 架构上做了一轮综合加固与体验打磨；歌曲资料、账号体系与数据库格式继续兼容。没有修改线上数据库，也没有向生产环境发送测试留言或密码重置邮件。
+
+## 2026-10-01 本轮变更摘要
+
+### 前端
+- 无障碍：语言按钮与主题按钮补齐/同步 `aria-label` 与 `aria-pressed`；章节导航、留言墙、跳过链接随语言更新；留言墙加载时设置 `aria-busy`。
+- 焦点：搜索框与留言输入改为 `:focus-visible`，章节导航与发送按钮补齐可见焦点环。
+- 性能：增加 API / YouTube 缩略图 `dns-prefetch` 与 API `preconnect`；首屏主题色在 `preferences.js` 尽早写入，减少闪烁。
+- SEO：补充 `og:locale` 及备用语言；sitemap 增加 `lastmod` / `changefreq`；404 使用相对回站链接并带 theme-color。
+- 安全：首页增加 CSP meta（允许现有 inline 处理器与雨景样式变量）；本地静态预览服务器增加 CSP、Permissions-Policy、X-Frame-Options、COOP，未知路径返回 `404.html`。
+- 留言墙：发送按钮固定 id，加载状态更准确反馈。
+
+### 后端
+- Helmet：`Cross-Origin-Resource-Policy: cross-origin`（跨域 Pages → Railway JSON）；增加 `Permissions-Policy`。
+- `/healthz` 增加无秘密的 `uptimeSec`。
+- 对 `/api/comments/:id` 与 `/api/admin/comments/:id` 的 DELETE 单独限流（每分钟 30 次）。
+- 依赖：传递依赖 axios 升级，后端 `npm audit` 为 0。
+
+### 文档与检查
+- 更新本文与 `AI_HANDOFF.md`；新增静态头/CSP/DELETE 限流相关测试。
+
+---
 
 ## 页面与使用体验
 

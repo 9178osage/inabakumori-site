@@ -89,9 +89,13 @@ app.use(helmet({
       objectSrc: ["'none'"]
     }
   },
-  crossOriginResourcePolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" },
   strictTransportSecurity: IS_PRODUCTION ? { maxAge: 31536e3, includeSubDomains: true, preload: false } : false
 }));
+app.use((_req, res, next) => {
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()");
+  next();
+});
 supertokens.init({ framework: "express", supertokens: { connectionURI: SUPERTOKENS_CONNECTION_URI, apiKey: SUPERTOKENS_API_KEY }, appInfo: { appName: "Inabakumori Fanswall", apiDomain: API_DOMAIN, websiteDomain: WEBSITE_DOMAIN, apiBasePath: "/auth", websiteBasePath: "/auth" }, recipeList: [EmailPassword.init({ emailDelivery: passwordResetDelivery(website.url) }), Session.init({ getTokenTransferMethod: () => "header" })] });
 const ALLOWED_ORIGINS = new Set([WEBSITE_DOMAIN, ...IS_PRODUCTION ? [] : ["http://127.0.0.1:5500", "http://localhost:5500"]]);
 const corsOptions = { origin(origin, callback) {
@@ -216,14 +220,31 @@ app.get("/healthz", (req, res) => {
   try {
     db.prepare("SELECT 1").get();
     res.setHeader("Cache-Control", "no-store");
-    return res.json({ ok: true, service: "Inabakumori Fanswall Backend", environment: NODE_ENV });
+    return res.json({
+      ok: true,
+      service: "Inabakumori Fanswall Backend",
+      environment: NODE_ENV,
+      uptimeSec: Math.floor(process.uptime())
+    });
   } catch {
     return res.status(503).json({ ok: false, code: "DATABASE_UNAVAILABLE" });
   }
 });
 const commentReadLimiter = rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: "draft-7", legacyHeaders: false,
   message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
+const commentDeleteLimiter = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: "draft-7", legacyHeaders: false,
+  message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 app.use("/api", commentReadLimiter);
+app.use((req, res, next) => {
+  if (req.method !== "DELETE") return next();
+  let pathname;
+  try {
+    pathname = new URL(req.originalUrl || req.url, "http://localhost").pathname;
+  } catch {
+    return next();
+  }
+  return /^\/api\/(?:admin\/)?comments(?:\/|$)/u.test(pathname) ? commentDeleteLimiter(req, res, next) : next();
+});
 app.get("/api/comments", (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   const rows = selectRecentCommentsStatement.all(Date.now(), MAX_PUBLIC_COMMENTS);

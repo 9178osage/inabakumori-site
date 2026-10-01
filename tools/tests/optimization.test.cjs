@@ -79,3 +79,52 @@ test("SQLite online backup includes WAL data, verifies integrity and refuses ove
     assert.equal(db.prepare("SELECT count(*) AS n FROM comments").get().n, 1);
   } finally { db.close(); await fs.rm(directory, { recursive: true, force: true }); }
 });
+
+test("static preview sends security headers and HTML 404 pages", async () => {
+  const http = require("node:http");
+  const { createStaticServer } = await import("../static-server.mjs");
+  const server = createStaticServer(path.join(process.cwd()));
+  await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const { port } = server.address();
+    const request = (url) => new Promise((resolve, reject) => {
+      http.get({ host: "127.0.0.1", port, path: url }, res => {
+        const chunks = [];
+        res.on("data", chunk => chunks.push(chunk));
+        res.on("end", () => resolve({ status: res.statusCode, headers: res.headers, body: Buffer.concat(chunks).toString("utf8") }));
+      }).on("error", reject);
+    });
+    const home = await request("/");
+    assert.equal(home.status, 200);
+    assert.equal(home.headers["x-content-type-options"], "nosniff");
+    assert.equal(home.headers["x-frame-options"], "DENY");
+    assert.equal(home.headers["cross-origin-opener-policy"], "same-origin");
+    assert.match(home.headers["content-security-policy"], /frame-ancestors 'none'/);
+    assert.match(home.headers["permissions-policy"], /camera=\(\)/);
+    const missing = await request("/no-such-page");
+    assert.equal(missing.status, 404);
+    assert.match(missing.headers["content-type"], /text\/html/);
+    assert.match(missing.body, /404/);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});
+
+test("homepage ships CSP meta, locale hints and dns-prefetch for API/thumbnails", async () => {
+  const html = await fs.readFile("index.html", "utf8");
+  assert.match(html, /http-equiv="Content-Security-Policy"/);
+  assert.match(html, /og:locale/);
+  assert.match(html, /dns-prefetch" href="https:\/\/inabakumori-site-production\.up\.railway\.app"/);
+  assert.match(html, /dns-prefetch" href="https:\/\/i\.ytimg\.com"/);
+  assert.match(html, /id="message-submit"/);
+  assert.match(html, /aria-busy="false"/);
+});
+
+test("comment DELETE paths are rate-limited separately from reads", async () => {
+  const backend = await fs.readFile("backend/server.mjs", "utf8");
+  assert.match(backend, /commentDeleteLimiter/);
+  assert.match(backend, /admin\\\/\)\?comments/);
+  assert.match(backend, /Permissions-Policy/);
+  assert.match(backend, /uptimeSec/);
+  assert.match(backend, /cross-origin/);
+});
