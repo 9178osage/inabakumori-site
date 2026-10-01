@@ -944,14 +944,23 @@ body.dark .song-thumbnail {
 .easter-egg-box {
   position: relative;
   z-index: 10002;
-  max-width: min(420px, 72vw);
-  max-height: 70vh;
+  width: min(440px, calc(100vw - 40px));
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+  padding: 28px;
+  text-align: center;
+  color: var(--ui-text);
+  background: var(--ui-surface-solid);
+  border: 1px solid var(--ui-border-strong);
+  border-radius: 18px;
+  box-shadow: 0 24px 80px #0005;
   animation: easterEggPop 0.38s ease;
 }
 .easter-egg-box img {
   display: block;
   max-width: 100%;
-  max-height: 70vh;
+  max-height: 24dvh;
+  margin: 20px auto;
   width: auto;
   height: auto;
   object-fit: contain;
@@ -1733,4 +1742,42 @@ body.modal-open { overflow: hidden; }
 @media (max-width: 360px) {
   .song-thumbnail { display: none; }
   .section-nav a { padding-inline: 8px; }
+}
+
+/* Hidden forecast: monochrome celebration, only animated while open. */
+#easter-egg-trigger {
+  pointer-events: auto; color: inherit; font: inherit; letter-spacing: inherit;
+  text-shadow: inherit; line-height: inherit; background: transparent;
+  border: 0; border-radius: 4px; padding: 0; cursor: pointer; touch-action: manipulation;
+}
+#easter-egg-trigger:focus-visible { outline: 2px solid currentColor; outline-offset: 8px; }
+body.easter-egg-open { overflow: hidden; }
+.easter-egg-overlay { background: rgba(20, 20, 20, .64); }
+.easter-egg-kicker { font: 10px/1.6 var(--font-data); letter-spacing: .15em; color: var(--ui-muted); }
+#easter-egg-title { font: 600 clamp(20px, 4vw, 28px)/1.5 var(--font-heading); margin: 14px 0; }
+.easter-egg-stars { font-size: 28px; letter-spacing: .12em; margin: 8px 0; }
+#easter-egg-description { font-size: 13px; line-height: 1.8; color: var(--ui-muted); }
+#easter-egg-close { min-height: 44px; padding: 10px 24px; border-radius: 6px; }
+.forecast-particle {
+  position: absolute; top: -160px; left: var(--left); will-change: transform;
+  animation: forecastFall var(--duration) linear var(--delay) infinite;
+  color: #292929; background: #e5e5e5; border: 1px solid #777;
+  box-shadow: 0 4px 12px #0002;
+}
+.forecast-card { width: 116px; padding: 10px; border-radius: 4px; }
+.forecast-card small { display: block; font: 9px/1.6 var(--font-data); overflow-wrap: anywhere; }
+.forecast-card strong { display: block; margin: 8px 0; font: 14px/1.5 var(--font-song); overflow-wrap: anywhere; }
+.forecast-symbol { width: 42px; height: 42px; border-radius: 50%; text-align: center; font: 26px/40px sans-serif; }
+@keyframes forecastFall {
+  from { transform: translate3d(0, 0, 0) rotate(0deg); }
+  to { transform: translate3d(var(--drift), calc(100dvh + 320px), 0) rotate(var(--turn)); }
+}
+.easter-egg-overlay.motion-paused .forecast-particle { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .easter-egg-box { animation: none; }
+  .forecast-particle { display: none; animation: none; }
+}
+@media (max-width: 500px) {
+  .easter-egg-box { padding: 22px 18px; }
+  .forecast-card { width: 92px; }
 }

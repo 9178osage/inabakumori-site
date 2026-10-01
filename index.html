@@ -115,9 +115,9 @@
 
 <div class="hero-content">
 <p class="hero-eyebrow">稲葉曇 · INABAKUMORI</p>
-<h1 class="glitch" data-en="WEATHER OBSERVATION STATION" data-text="气象观测站" data-zh="气象观测站" data-ja="気象観測所">
+<h1><button type="button" id="easter-egg-trigger" class="glitch" data-en="WEATHER OBSERVATION STATION" data-text="气象观测站" data-zh="气象观测站" data-ja="気象観測所">
                 气象观测站
-            </h1>
+            </button></h1>
 
 <p class="hero-description" data-zh="在声音与雨之间，停留一会儿。" data-en="Stay a while, between sound and rain." data-ja="音と雨のあいだで、ひと休み。">在声音与雨之间，停留一会儿。</p>
 <a class="hero-cta" href="#songs"><span data-zh="探索歌曲" data-en="Explore the music" data-ja="楽曲を探す">探索歌曲</span><span aria-hidden="true">↗</span></a>
@@ -379,8 +379,13 @@
 
 
 <div id="easter-egg-overlay" class="easter-egg-overlay" aria-hidden="true">
-    <div class="easter-egg-box" role="dialog" aria-modal="true">
+    <div class="easter-egg-box" role="dialog" aria-modal="true" aria-labelledby="easter-egg-title" aria-describedby="easter-egg-description">
+        <p class="easter-egg-kicker">SPECIAL WEATHER REPORT · 05</p>
+        <h2 id="easter-egg-title" data-zh="你发现了隐藏气象！" data-en="A secret forecast, just for you." data-ja="ひみつの天気を発見！">你发现了隐藏气象！</h2>
+        <p class="easter-egg-stars" aria-hidden="true">★ ★ ★ ★ ★</p>
+        <p id="easter-egg-description" data-zh="今日预报：有云，有歌，还有一点小惊喜。" data-en="Today's forecast: clouds, songs, and a little surprise." data-ja="今日の予報：雲と音楽、ときどき小さなサプライズ。">今日预报：有云，有歌，还有一点小惊喜。</p>
         <img id="easter-egg-image" alt="随机表情包" draggable="false">
+        <button type="button" id="easter-egg-close" data-zh="收下这份惊喜" data-en="Back to the station" data-ja="観測所に戻る">收下这份惊喜</button>
     </div>
     <div id="confetti-layer" aria-hidden="true"></div>
 </div>
