@@ -1,8 +1,8 @@
-> **2026-09 optimization / 本轮优化 / 今回の改善**
+> **Project status / 项目状态 / プロジェクトの状態**
 >
-> `npm run check` validates tests, backend syntax and the public production build. `npm run preview` serves `dist/` on port 5500. Publish **only `dist/`**, not the repository root. See [优化与运维说明](docs/OPTIMIZATION.md) for the change list, verification and deployment steps.
+> The public site is built from `dist/` by GitHub Actions. Run `npm run check` before publishing; it covers the frontend tests, backend syntax, production build, asset allowlist, metadata, and pre-rendered songs. The full HTTP integration check is available with `npm run test:integration`.
 >
-> 新增歌曲收藏、排序、筛选链接、静态留言阅读、会话草稿；WebP 按需加载；安全依赖升级、数据库备份和 CI 检查。`npm run test:integration` 使用独立临时数据库验证真实 HTTP 流程。
+> 生产环境只发布 `dist/`，不要直接把仓库根目录作为静态网站目录。优化记录、验证结果与运维说明见 [docs/OPTIMIZATION.md](docs/OPTIMIZATION.md)。
 
 <a id="readme-en"></a>
 
@@ -13,7 +13,20 @@
 > An unofficial fan site made out of a love for **稲葉曇 / Inabakumori**.  
 > It brings together songs, MVs, related creator links, plus a message wall and account features.
 
-🌐 **Live site:** https://9178osage.github.io/inabakumori-site/
+🌐 **Live site:** [9178osage.github.io/inabakumori-site](https://9178osage.github.io/inabakumori-site/)
+
+![Build](https://github.com/9178osage/inabakumori-site/actions/workflows/check.yml/badge.svg)
+![Pages](https://github.com/9178osage/inabakumori-site/actions/workflows/pages.yml/badge.svg)
+
+### Contents
+
+- [Features](#-features)
+- [Tech stack](#️-tech-stack)
+- [Run locally](#-run-locally)
+- [Checks and build](#-checks--build)
+- [Deployment](#️-deployment)
+- [中文](#readme-zh)
+- [日本語](#readme-ja)
 
 ---
 
@@ -60,6 +73,7 @@ Your language preference is saved locally in the browser.
 - Separate background sets for desktop and mobile
 - Rain effects
 - Title effects
+- A hidden forecast easter egg triggered by five title clicks
 - Theme and language preferences saved locally
 - Web App Manifest
 
@@ -247,17 +261,34 @@ Run tests and rebuild the authentication bundle:
 npm run check
 ```
 
+The check command is the release gate used by GitHub Actions. It does not start the backend or publish files.
+
 Run tests only:
 
 ```bash
 npm test
 ```
 
-Rebuild `js/auth.js`:
+Build the public production directory:
 
 ```bash
 npm run build
 ```
+
+Preview the generated public directory:
+
+```bash
+npm run preview
+```
+
+Other useful commands:
+
+| Command | Purpose |
+| --- | --- |
+| `npm test` | Run frontend, backend-service, and behavior tests |
+| `npm run test:integration` | Exercise the real HTTP API with an isolated temporary database |
+| `npm run check:links` | Check all recorded external song links |
+| `npm run optimize:images` | Generate optimized WebP hero assets |
 
 Check site links:
 
@@ -275,7 +306,9 @@ npm run check:links:strict
 
 ## ☁️ Deployment
 
-The frontend can be deployed as a static site, for example with **GitHub Pages**.
+The frontend is deployed to **GitHub Pages** by `.github/workflows/pages.yml`. The workflow builds the public directory, runs the release checks, and deploys only `dist/`.
+
+The repository root contains source files, test tools, backend code, and documentation. It must not be used as the Pages artifact.
 
 Because the account system and message wall are dynamic, they also require a separately hosted Node.js backend configured with:
 
@@ -285,7 +318,7 @@ Because the account system and message wall are dynamic, they also require a sep
 - `SUPERTOKENS_API_KEY`
 - Persistent SQLite storage
 
-The backend already includes support for Railway persistent Volumes. In production, keep the database on persistent storage rather than an ephemeral filesystem.
+The backend is a separate Node.js service. The existing Railway setup uses the `backend/` directory as its service root. Keep SQLite on a persistent volume and set the frontend `API_DOMAIN` to the public backend URL.
 
 ---
 
@@ -353,7 +386,7 @@ I like Inabakumori, so I made a “Weather Observation Station” — a nod to t
 > 一个因为喜欢 **稲葉曇 / Inabakumori** 而做出来的非官方粉丝网站。  
 > 整理歌曲、MV、相关创作者链接，也提供留言墙与账号功能。
 
-🌐 **在线访问：** https://9178osage.github.io/inabakumori-site/
+🌐 **在线访问：** [9178osage.github.io/inabakumori-site](https://9178osage.github.io/inabakumori-site/)
 
 ---
 
@@ -400,6 +433,7 @@ I like Inabakumori, so I made a “Weather Observation Station” — a nod to t
 - 桌面端与移动端独立背景
 - 雨滴效果
 - 标题特效
+- 连续点击首页标题五次触发的隐藏彩蛋
 - 本地保存主题与语言偏好
 - Web App Manifest
 
@@ -587,17 +621,34 @@ http://127.0.0.1:5500
 npm run check
 ```
 
+`npm run check` 是 GitHub Actions 使用的发布前检查，不会启动后端，也不会自动发布文件。
+
 只运行测试：
 
 ```bash
 npm test
 ```
 
-重新构建 `js/auth.js`：
+构建公开生产目录：
 
 ```bash
 npm run build
 ```
+
+预览构建后的公开目录：
+
+```bash
+npm run preview
+```
+
+常用命令：
+
+| 命令 | 用途 |
+| --- | --- |
+| `npm test` | 运行前端、后端服务和交互测试 |
+| `npm run test:integration` | 使用独立临时数据库验证真实 HTTP 接口 |
+| `npm run check:links` | 检查歌曲资料中的外部链接 |
+| `npm run optimize:images` | 生成优化后的 WebP 背景资源 |
 
 检查站内链接：
 
@@ -615,7 +666,9 @@ npm run check:links:strict
 
 ## ☁️ 部署说明
 
-前端可以作为静态网站部署，例如使用 **GitHub Pages**。
+前端由 `.github/workflows/pages.yml` 自动构建并部署到 **GitHub Pages**。工作流会运行发布前检查，只把 `dist/` 作为公开构建产物。
+
+仓库根目录包含源代码、测试工具、后端和文档，不能直接作为 Pages 静态目录。
 
 账号系统和留言墙属于动态功能，因此还需要单独部署 Node.js 后端，并配置：
 
@@ -625,7 +678,7 @@ npm run check:links:strict
 - `SUPERTOKENS_API_KEY`
 - 持久化的 SQLite 数据目录
 
-后端已经包含 Railway 持久化 Volume 的相关处理；生产环境中请确保数据库文件位于持久化存储，而不是临时文件系统。
+后端是独立的 Node.js 服务，现有 Railway 配置使用 `backend/` 作为服务根目录。生产环境请使用持久化 Volume 保存 SQLite，并将前端的 `API_DOMAIN` 指向公开后端地址。
 
 ---
 
@@ -691,7 +744,7 @@ npm run check:links:strict
 > **稲葉曇 / Inabakumori** が好きで作った、非公式のファンサイトです。  
 > 楽曲やMV、関連クリエイターへのリンクをまとめ、メッセージウォールやアカウント機能も用意しています。
 
-🌐 **サイトを見る：** https://9178osage.github.io/inabakumori-site/
+🌐 **サイトを見る：** [9178osage.github.io/inabakumori-site](https://9178osage.github.io/inabakumori-site/)
 
 ---
 
@@ -738,6 +791,7 @@ npm run check:links:strict
 - PC 用 / モバイル用の個別背景
 - 雨のエフェクト
 - タイトルエフェクト
+- タイトルを5回連続でクリックすると現れる隠しイースターエッグ
 - テーマと言語設定をローカルに保存
 - Web App Manifest
 
