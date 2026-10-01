@@ -8,6 +8,13 @@
 <meta name="description" content="稲葉曇的气象观测站：歌曲、MV、创作链接与留言墙。"/>
 <meta name="theme-color" content="#c4c4c0"/>
 <meta name="color-scheme" content="light dark"/>
+<meta property="og:locale" content="zh_CN"/>
+<meta property="og:locale:alternate" content="en_US"/>
+<meta property="og:locale:alternate" content="ja_JP"/>
+<link rel="dns-prefetch" href="https://inabakumori-site-production.up.railway.app"/>
+<link rel="dns-prefetch" href="https://i.ytimg.com"/>
+<link rel="preconnect" href="https://inabakumori-site-production.up.railway.app" crossorigin/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; img-src 'self' data: https://i.ytimg.com https://img.youtube.com; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https://inabakumori-site-production.up.railway.app http://127.0.0.1:3001 http://localhost:3001"/>
 <link rel="canonical" href="https://9178osage.github.io/inabakumori-site/"/>
 <meta property="og:url" content="https://9178osage.github.io/inabakumori-site/"/>
 <meta property="og:site_name" content="气象观测站 · 稲葉曇"/>
@@ -38,11 +45,11 @@
 <a class="skip-link" href="#main-content">跳到主要内容 / Skip to content</a>
 <div class="site-controls" role="group" aria-label="页面设置 / Page controls">
 
-<button id="lang-btn" type="button" onclick="toggleLanguage()">
+<button id="lang-btn" type="button" onclick="toggleLanguage()" aria-label="切换语言 / Switch language">
         English
     </button>
 
-<button id="theme-btn" type="button" onclick="toggleTheme()">
+<button id="theme-btn" type="button" onclick="toggleTheme()" aria-label="切换深色主题" aria-pressed="false">
         ☾
     </button>
 
@@ -326,7 +333,7 @@
         data-zh="重新加载" data-ja="再読み込み" data-en="Retry" onclick="loadMessages()">重新加载</button>
 </div>
 <div class="wall-toolbar"><button type="button" id="wall-mode" class="tag-clear-button" aria-pressed="false" aria-controls="floating-wall" data-zh="静态阅读" data-en="Read as a list" data-ja="一覧で読む">静态阅读</button><span class="wall-note" data-zh="来自喜欢同一片雨的人。" data-en="From people who love the same rain." data-ja="同じ雨が好きな人たちから。">来自喜欢同一片雨的人。</span></div>
-<div id="floating-wall" role="region" aria-label="留言 / Messages" tabindex="0"></div>
+<div id="floating-wall" role="region" aria-label="留言 / Messages" aria-busy="false" tabindex="0"></div>
 
 <div class="message-box">
 <label for="message-name" data-zh="昵称" data-en="Nickname" data-ja="ニックネーム">昵称</label>
@@ -335,7 +342,7 @@
 <textarea aria-describedby="message-policy message-counter" id="message-input" name="message" maxlength="1000" placeholder="想对稲葉曇说些什么？ / Say something to Inabakumori..." data-max-code-points="500"></textarea>
 <div class="message-meta"><p id="message-policy" data-zh="游客留言保留 30 天，每小时最多 3 条。请勿发布联系方式或广告。" data-en="Guest messages stay for 30 days, up to 3 per hour. No contact details or ads." data-ja="ゲストの投稿は30日間保存、1時間に3件まで。連絡先や広告は投稿しないでください。">游客留言保留 30 天，每小时最多 3 条。请勿发布联系方式或广告。</p><span id="message-counter">0 / 500</span></div>
 <p id="message-submit-status" role="status" aria-live="polite"></p>
-<button type="button" data-en="Post Message" data-zh="贴到墙上" data-ja="投稿する" onclick="addMessage()">
+<button type="button" id="message-submit" data-en="Post Message" data-zh="贴到墙上" data-ja="投稿する" onclick="addMessage()">
             贴到墙上
         </button>
 </div>

@@ -40,6 +40,7 @@ function applyLanguage() {
   const langButton = document.getElementById("lang-btn");
   if (langButton) {
     langButton.innerText = { zh: "English", en: "日本語", ja: "中文" }[currentLanguage];
+    langButton.setAttribute("aria-label", { zh: "切换语言，当前：中文", en: "Switch language, current: English", ja: "言語を切り替え、現在：日本語" }[currentLanguage]);
   }
   const nameInput = document.getElementById("message-name");
   const messageInput = document.getElementById("message-input");
@@ -56,7 +57,10 @@ function applyLanguage() {
   }
   document.querySelector(".site-controls")?.setAttribute("aria-label", currentLanguage === "ja" ? "ページ設定" : currentLanguage === "en" ? "Page controls" : "页面设置");
   document.querySelector(".hero-content nav")?.setAttribute("aria-label", currentLanguage === "ja" ? "メインナビゲーション" : currentLanguage === "en" ? "Main navigation" : "主导航");
+  document.querySelector(".section-nav")?.setAttribute("aria-label", currentLanguage === "ja" ? "セクションナビ" : currentLanguage === "en" ? "Section navigation" : "章节导航");
   document.getElementById("tag-suggestions")?.setAttribute("aria-label", currentLanguage === "ja" ? "選択できるタグ" : currentLanguage === "en" ? "Available tags" : "可选标签");
+  document.getElementById("floating-wall")?.setAttribute("aria-label", currentLanguage === "ja" ? "メッセージ" : currentLanguage === "en" ? "Messages" : "留言");
+  document.querySelector(".skip-link")?.replaceChildren(document.createTextNode({ zh: "跳到主要内容", en: "Skip to content", ja: "メインコンテンツへ" }[currentLanguage]));
   updateConnectivityStatus();
   updateMessageLoadStatus();
   if (document.body) applyTheme();
@@ -243,11 +247,13 @@ window.removeWallMessage = (id) => {
 function updateMessageLoadStatus() {
   const status = document.getElementById("message-load-status");
   const retry = document.getElementById("message-retry");
+  const wall = document.getElementById("floating-wall");
   if (status) {
     const text = { loading: ["正在加载留言…", "Loading messages…"], error: ["留言加载失败，请检查连接后重试。", "Could not load messages. Check your connection and retry."], empty: ["还没有留言，留下第一条讯息吧。", "No messages yet. Leave the first one."], ready: ["", ""], idle: ["", ""] };
     status.textContent = pageText(...text[messageLoadState]);
   }
   if (retry) retry.hidden = messageLoadState !== "error";
+  wall?.setAttribute?.("aria-busy", String(messageLoadState === "loading"));
 }
 const MAX_NICKNAME_LENGTH = 30;
 const MAX_COMMENT_LENGTH = 500;
@@ -285,7 +291,7 @@ async function addMessage() {
     messageInput.focus();
     return;
   }
-  const button = document.querySelector(".message-box button");
+  const button = document.getElementById("message-submit") || document.querySelector(".message-box button");
   const originalName = nameInput.value;
   const originalContent = messageInput.value;
   messageSubmitting = true;

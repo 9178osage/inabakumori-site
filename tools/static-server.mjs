@@ -19,10 +19,19 @@ export function publicPath(url) {
   if (/^fonts\/[\w-]+\.(woff2|css|txt)$/iu.test(pathname)) return pathname;
   return null;
 }
+const SECURITY_HEADERS = {
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "no-referrer",
+  "X-Frame-Options": "DENY",
+  "Cross-Origin-Opener-Policy": "same-origin",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
+  // Scripts use a few inline handlers; styles include rain variables. Keep object/base/frame locked down.
+  "Content-Security-Policy": "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data: https://i.ytimg.com https://img.youtube.com; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https://inabakumori-site-production.up.railway.app http://127.0.0.1:3001 http://localhost:3001"
+};
+
 export function createStaticServer(directory = root) {
   return http.createServer(async (req, res) => {
-    res.setHeader("X-Content-Type-Options", "nosniff");
-    res.setHeader("Referrer-Policy", "no-referrer");
+    for (const [name, value] of Object.entries(SECURITY_HEADERS)) res.setHeader(name, value);
     res.setHeader("Cache-Control", "no-store");
     if (!["GET", "HEAD"].includes(req.method)) { res.writeHead(405, { Allow: "GET, HEAD" }); return res.end(); }
     const file = publicPath(req.url);
@@ -33,8 +42,14 @@ export function createStaticServer(directory = root) {
         return res.end(req.method === "HEAD" ? undefined : data);
       } catch { /* Return a neutral 404; never a directory listing or filesystem path. */ }
     }
-    res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-    res.end(req.method === "HEAD" ? undefined : "Not found");
+    try {
+      const data = await readFile(path.join(directory, "404.html"));
+      res.writeHead(404, { "Content-Type": "text/html; charset=utf-8" });
+      return res.end(req.method === "HEAD" ? undefined : data);
+    } catch {
+      res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+      return res.end(req.method === "HEAD" ? undefined : "Not found");
+    }
   });
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

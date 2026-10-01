@@ -61,7 +61,8 @@
   transform: translateY(-160%);
   transition: transform 0.18s ease;
 }
-.skip-link:focus {
+.skip-link:focus,
+.skip-link:focus-visible {
   transform: translateY(0);
 }
 .sr-only {
@@ -745,7 +746,7 @@ main > section#messages {
   white-space: nowrap;
   color: var(--ui-text);
 }
-#tag-filter-input:focus {
+#tag-filter-input:focus-visible {
   outline: 1px dotted var(--color-ink);
   outline-offset: -4px;
   border-color: var(--ui-border-strong);
@@ -1062,7 +1063,7 @@ body.dark .auth-switch:hover {
   background: var(--color-light-text);
   color: var(--color-ink);
 }
-body.dark #tag-filter-input:focus {
+body.dark #tag-filter-input:focus-visible {
   outline-color: var(--color-light-text);
   border-color: var(--ui-border-strong);
 }
@@ -1121,8 +1122,8 @@ body.dark footer {
   color: var(--ui-muted);
   opacity: 1;
 }
-#message-name:focus,
-#message-input:focus {
+#message-name:focus-visible,
+#message-input:focus-visible {
   border-color: var(--ui-border-strong);
   box-shadow: 0 0 0 3px var(--ui-focus-ring);
 }
@@ -1168,8 +1169,8 @@ body.dark #message-input {
   background: var(--ui-input-bg);
   border: 1px solid var(--ui-border);
 }
-body.dark #message-name:focus,
-body.dark #message-input:focus {
+body.dark #message-name:focus-visible,
+body.dark #message-input:focus-visible {
   border-color: var(--ui-border-strong);
 }
 body.dark .tag-filter-panel {
@@ -1188,6 +1189,11 @@ body.dark .tag-chip.active {
   color: var(--ui-action-text);
   background: var(--ui-action-bg);
   border-color: var(--ui-action-bg);
+}
+#message-submit:focus-visible,
+.message-box button:focus-visible {
+  outline: 3px solid var(--ui-border-strong);
+  outline-offset: 3px;
 }
 .message-box button:disabled {
   opacity: 0.5;
@@ -1619,6 +1625,7 @@ button, select { touch-action: manipulation; }
 }
 .section-nav a { padding: 8px 0; color: var(--ui-muted); text-decoration: none; white-space: nowrap; font-size: 13px; }
 .section-nav a[aria-current] { color: var(--ui-text); box-shadow: 0 2px currentColor; }
+.section-nav a:focus-visible { outline: 2px solid var(--ui-text); outline-offset: 3px; }
 .section-nav .back-top { margin-left: auto; padding: 6px 14px; font-size: 20px; }
 .section-kicker { font: 500 11px/1.6 var(--font-data); letter-spacing: .18em; color: var(--ui-muted); margin: 0 0 26px; }
 main > section:not(#songs) { width: min(1120px, calc(100% - 64px)); }
