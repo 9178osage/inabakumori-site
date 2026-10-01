@@ -929,7 +929,8 @@ const MEME_COUNT = 6;
 const MEME_FOLDER = "images/memes/";
 let easterEggOpen = false;
 let easterEggCanClose = false;
-let easterEggCloseTimer = null;
+let easterEggPreviousFocus = null;
+let easterEggInertState = [];
 let easterEggHeroComplete = false;
 let easterEggRelatedClicked = false;
 let easterEggTriggered = false;
@@ -945,48 +946,50 @@ function resetEasterEggProgress() {
 function showEasterEgg() {
   const overlay = document.getElementById("easter-egg-overlay");
   const image = document.getElementById("easter-egg-image");
-  if (!overlay || !image) return;
+  if (!overlay || !image || easterEggOpen) return;
   const randomNumber = Math.floor(Math.random() * MEME_COUNT) + 1;
   const filename = String(randomNumber).padStart(3, "0") + ".png";
   image.src = MEME_FOLDER + filename;
   image.alt = currentLanguage === "ja" ? `ランダム画像 ${randomNumber}` : currentLanguage === "zh" ? `随机表情包 ${randomNumber}` : `Random meme ${randomNumber}`;
   easterEggOpen = true;
-  easterEggCanClose = false;
+  easterEggCanClose = true;
+  easterEggPreviousFocus = document.activeElement;
+  easterEggInertState = [...document.body.children].filter(node => node !== overlay && node.tagName !== "SCRIPT").map(node => [node, node.inert]);
+  easterEggInertState.forEach(([node]) => { node.inert = true; });
+  document.body.classList.add("easter-egg-open");
   overlay.classList.add("show");
   overlay.setAttribute("aria-hidden", "false");
   createConfetti();
-  clearTimeout(easterEggCloseTimer);
-  easterEggCloseTimer = setTimeout(() => {
-    easterEggCanClose = true;
-  }, 650);
+  document.getElementById("easter-egg-close")?.focus();
 }
 function createConfetti() {
   const layer = document.getElementById("confetti-layer");
   if (!layer) return;
   layer.replaceChildren();
   if (reducedMotionQuery?.matches || document.hidden) return;
-  const amount = 76;
-  const colors = ["#ffffff", "#eeeeee", "#d8d8d8", "#f4cbd7", "#d9c7e8"];
+  const amount = window.innerWidth < 700 ? 22 : 42;
+  const symbols = ["☁", "☆", "☂", "☺"];
   for (let i = 0; i < amount; i++) {
     const piece = document.createElement("div");
-    piece.className = "confetti-piece";
-    const angle = Math.random() * Math.PI * 2;
-    const distance = 130 + Math.random() * 390;
-    const x = Math.cos(angle) * distance;
-    const y = Math.sin(angle) * distance;
-    piece.style.setProperty("--x", `${x}px`);
-    piece.style.setProperty("--y", `${y}px`);
-    piece.style.setProperty("--rotate", `${Math.random() * 900 - 450}deg`);
-    piece.style.setProperty("--delay", `${Math.random() * 0.12}s`);
-    piece.style.background = colors[Math.floor(Math.random() * colors.length)];
-    const size = 7 + Math.random() * 8;
-    piece.style.width = `${size}px`;
-    piece.style.height = `${size * 1.45}px`;
+    const card = i % 3 === 0;
+    piece.className = card ? "forecast-particle forecast-card" : "forecast-particle forecast-symbol";
+    if (card) {
+      const song = SONGS[Math.floor(Math.random() * SONGS.length)];
+      const number = document.createElement("small");
+      number.textContent = `FM · ${String(i + 1).padStart(2, "0")}`;
+      const title = document.createElement("strong");
+      title.textContent = song.title;
+      const album = document.createElement("small");
+      album.textContent = song.album;
+      piece.append(number, title, album);
+    } else piece.textContent = symbols[i % symbols.length];
+    piece.style.setProperty("--left", `${Math.random() * 100}%`);
+    piece.style.setProperty("--drift", `${Math.random() * 180 - 90}px`);
+    piece.style.setProperty("--turn", `${Math.random() * 100 - 50}deg`);
+    piece.style.setProperty("--duration", `${10 + Math.random() * 10}s`);
+    piece.style.setProperty("--delay", `${-Math.random() * 20}s`);
     layer.appendChild(piece);
   }
-  setTimeout(() => {
-    layer.replaceChildren();
-  }, 2200);
 }
 function closeEasterEgg() {
   if (!easterEggOpen || !easterEggCanClose) return;
@@ -994,6 +997,11 @@ function closeEasterEgg() {
   if (!overlay) return;
   overlay.classList.remove("show");
   overlay.setAttribute("aria-hidden", "true");
+  document.getElementById("confetti-layer")?.replaceChildren();
+  document.body.classList.remove("easter-egg-open");
+  easterEggInertState.forEach(([node, wasInert]) => { node.inert = wasInert; });
+  easterEggInertState = [];
+  easterEggPreviousFocus?.focus?.({ preventScroll: true });
   easterEggOpen = false;
   easterEggCanClose = false;
   ++heroSwitchVersion;
@@ -1007,8 +1015,25 @@ function closeEasterEgg() {
 function initEasterEgg() {
   const overlay = document.getElementById("easter-egg-overlay");
   if (!overlay) return;
-  overlay.addEventListener("click", closeEasterEgg);
+  overlay.addEventListener("click", event => { if (event.target === overlay) closeEasterEgg(); });
+  const closeButton = document.getElementById("easter-egg-close");
+  closeButton?.addEventListener("click", closeEasterEgg);
+  let taps = 0, lastTap = 0;
+  document.getElementById("easter-egg-trigger")?.addEventListener("click", () => {
+    const now = Date.now();
+    taps = now - lastTap <= 1500 ? taps + 1 : 1;
+    lastTap = now;
+    if (taps >= 5) { taps = 0; showEasterEgg(); }
+  });
+  document.addEventListener("visibilitychange", () => {
+    overlay.classList.toggle("motion-paused", document.hidden);
+  });
+  reducedMotionQuery?.addEventListener?.("change", () => { if (easterEggOpen) createConfetti(); });
   document.addEventListener("keydown", (event) => {
+    if (event.key === "Tab" && easterEggOpen) {
+      event.preventDefault();
+      closeButton?.focus();
+    }
     if (event.key === "Escape" && easterEggOpen) {
       easterEggCanClose = true;
       closeEasterEgg();
