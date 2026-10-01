@@ -149,7 +149,6 @@ async function discoverHeroImages() {
   ++heroSwitchVersion;
   const slide = document.getElementById("hero-slide");
   currentSlide = 0;
-  easterEggHeroComplete = false;
   heroImages = mobileHeroQuery?.matches ? [] : desktopHeroImages;
   if (slide) {
     if (heroImages.length) setHeroSource(slide, heroImages[0]);
@@ -207,15 +206,12 @@ async function discoverHeroImages() {
 }
 mobileHeroQuery?.addEventListener("change", discoverHeroImages);
 async function changeHeroSlide() {
-  if (easterEggOpen) {
-    return;
-  }
+  if (easterEggOpen) return;
   const heroSlide = document.getElementById("hero-slide");
   if (!heroSlide || !heroImages.length) {
     return;
   }
   if (heroImages.length === 1) {
-    easterEggHeroComplete = true;
     return;
   }
   const request = ++heroSwitchVersion;
@@ -226,9 +222,6 @@ async function changeHeroSlide() {
   currentSlide = next;
   setHeroSource(heroSlide, path);
   preloadNextHeroImage();
-  if (!easterEggHeroComplete && currentSlide === heroImages.length - 1) {
-    easterEggHeroComplete = true;
-  }
 }
 let messageSubmitting = false;
 let wallRevision = 0;
@@ -931,18 +924,6 @@ let easterEggOpen = false;
 let easterEggCanClose = false;
 let easterEggPreviousFocus = null;
 let easterEggInertState = [];
-let easterEggHeroComplete = false;
-let easterEggRelatedClicked = false;
-let easterEggTriggered = false;
-let easterEggPendingReturn = false;
-let easterEggVisitorLeftPage = false;
-function resetEasterEggProgress() {
-  easterEggHeroComplete = false;
-  easterEggRelatedClicked = false;
-  easterEggTriggered = false;
-  easterEggPendingReturn = false;
-  easterEggVisitorLeftPage = false;
-}
 function showEasterEgg() {
   const overlay = document.getElementById("easter-egg-overlay");
   const image = document.getElementById("easter-egg-image");
@@ -1004,13 +985,6 @@ function closeEasterEgg() {
   easterEggPreviousFocus?.focus?.({ preventScroll: true });
   easterEggOpen = false;
   easterEggCanClose = false;
-  ++heroSwitchVersion;
-  currentSlide = 0;
-  const heroSlide = document.getElementById("hero-slide");
-  if (heroSlide && heroImages.length) {
-    setHeroSource(heroSlide, heroImages[0]);
-  }
-  resetEasterEggProgress();
 }
 function initEasterEgg() {
   const overlay = document.getElementById("easter-egg-overlay");
@@ -1037,50 +1011,6 @@ function initEasterEgg() {
     if (event.key === "Escape" && easterEggOpen) {
       easterEggCanClose = true;
       closeEasterEgg();
-    }
-  });
-  document.querySelectorAll(".artist-links a").forEach((link) => {
-    link.addEventListener("click", () => {
-      if (!easterEggHeroComplete || easterEggTriggered) {
-        return;
-      }
-      easterEggRelatedClicked = true;
-    });
-  });
-  const songList = document.getElementById("song-list");
-  if (songList) {
-    songList.addEventListener("click", (event) => {
-      const songLink = event.target.closest("a");
-      if (!songLink || !songList.contains(songLink)) {
-        return;
-      }
-      if (!easterEggHeroComplete || !easterEggRelatedClicked || easterEggTriggered || easterEggOpen) {
-        return;
-      }
-      easterEggTriggered = true;
-      easterEggPendingReturn = true;
-      easterEggVisitorLeftPage = false;
-    });
-  }
-  document.addEventListener("visibilitychange", () => {
-    if (easterEggPendingReturn && document.hidden) {
-      easterEggVisitorLeftPage = true;
-      return;
-    }
-    if (easterEggPendingReturn && easterEggVisitorLeftPage && document.visibilityState === "visible" && !easterEggOpen) {
-      easterEggPendingReturn = false;
-      showEasterEgg();
-    }
-  });
-  window.addEventListener("blur", () => {
-    if (easterEggPendingReturn) {
-      easterEggVisitorLeftPage = true;
-    }
-  });
-  window.addEventListener("focus", () => {
-    if (easterEggPendingReturn && easterEggVisitorLeftPage && document.visibilityState === "visible" && !easterEggOpen) {
-      easterEggPendingReturn = false;
-      showEasterEgg();
     }
   });
 }
