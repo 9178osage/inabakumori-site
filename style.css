@@ -989,30 +989,6 @@ body.dark .song-thumbnail {
   pointer-events: none;
   z-index: 10001;
 }
-.confetti-piece {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 10px;
-  height: 16px;
-  border-radius: 50% 0 50% 50%;
-  pointer-events: none;
-  animation: confettiBurst 1.7s ease-out forwards;
-  animation-delay: var(--delay, 0s);
-}
-@keyframes confettiBurst {
-  0% {
-    opacity: 1;
-    transform: translate(-50%, -50%) rotate(0deg) scale(0.4);
-  }
-  70% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-    transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))) rotate(var(--rotate)) scale(1);
-  }
-}
 .tag-filter-panel {
   transition: var(--transition-surface);
   margin: -6px 0 38px;
