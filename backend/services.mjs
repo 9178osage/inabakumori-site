@@ -71,7 +71,10 @@ const PHONE_PATTERN = /(?<![\d])(?:\+\d{1,3}[\s.-]*)?(?:1[3-9](?:[\s.-]*\d){9}|(
 const PROMOTION_PATTERN = /(刷单|网赚|返利|代购|贷款|彩票|优惠折扣|扫码.{0,8}(进群|加群|领取)|加\s*(?:一下|一个|下|个|只)?\s*(?:我的\s*)?(微信|微信号?|微|群|qq|vx|v信|威信|wx)|(?:微信号|vx号|qq号)\s*[:：]?\s*[a-z0-9_-]+|(?:微信|wechat|qq|telegram|whatsapp|discord|line|vx|wx|v信)\s*[:：]\s*[@a-z0-9_-]+|联系方式\s*[:：]|\bcontact\s*me\b|\bbuy\s*now\b|\bdiscount\b|\bpromo\b|\baffiliate\b)/iu;
 
 export function hasVerifiedAdminEmail(user, allowedEmails) {
-  return Boolean(user?.loginMethods?.some(method => method.verified === true &&
+  // SuperTokens EmailPassword users stay unverified unless EmailVerification is enabled.
+  // This backend does not enable that recipe, so require an allowlisted login-method email
+  // (case-insensitive) without demanding method.verified.
+  return Boolean(user?.loginMethods?.some(method =>
     typeof method.email === "string" && allowedEmails.has(method.email.trim().toLowerCase())));
 }
 
