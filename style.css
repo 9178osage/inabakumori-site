@@ -1622,8 +1622,7 @@ button, select { touch-action: manipulation; }
 .hero-content nav a { margin: 10px 15px; font-size: 13px; border-bottom-color: #ffffff50; }
 .hero-bottom {
   position: absolute; z-index: 10; bottom: 28px; left: 32px; right: 32px;
-  display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  color: #eee; font: 500 10px/1.6 var(--font-data); letter-spacing: .1em; pointer-events: none;
+  display: flex; align-items: center; justify-content: flex-end; pointer-events: none;
 }
 .hero-bottom a { pointer-events: auto; color: white; font-size: 24px; text-decoration: none; padding: 0 15px; }
 .hero.out-of-view .hero-rain span, .hero.out-of-view .glitch::before, .hero.out-of-view .glitch::after { animation-play-state: paused; }
@@ -1703,7 +1702,6 @@ body.modal-open { overflow: hidden; }
   .hero-content nav { gap: 2px; margin-top: 20px; }
   .hero-content nav a { margin: 0; padding: 8px 10px; font-size: 12px; }
   .hero-bottom { left: 22px; right: 22px; bottom: max(20px, env(safe-area-inset-bottom)); }
-  .hero-bottom > span:first-child { display: none; }
   .section-nav { top: calc(66px + env(safe-area-inset-top)); gap: 0; justify-content: space-around; padding: 6px 12px; min-height: 52px; }
   .section-nav a { padding: 8px 12px; font-size: 12px; }
   .section-nav .back-top { margin: 0; }
