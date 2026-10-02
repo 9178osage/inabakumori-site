@@ -193,6 +193,8 @@ const deleteExpiredGuestsStatement = db.prepare(`
         AND expires_at <= ?
 `);
 const MAX_PUBLIC_COMMENTS = 100;
+const GUEST_COMMENT_RETENTION_DAYS = 182;
+const GUEST_COMMENT_RETENTION_MS = GUEST_COMMENT_RETENTION_DAYS * 24 * 60 * 60 * 1e3;
 function requireJsonContentType(req, res, next) {
   if (!req.is("application/json")) {
     return res.status(415).json({ error: "请求必须使用 application/json", code: "UNSUPPORTED_MEDIA_TYPE" });
@@ -264,7 +266,7 @@ app.post("/api/comments", commentLimiter, requireJsonContentType, verifySession(
   }
   const isGuest = !isLoggedIn;
   const createdAt = Date.now();
-  const expiresAt = isGuest ? createdAt + 30 * 24 * 60 * 60 * 1e3 : null;
+  const expiresAt = isGuest ? createdAt + GUEST_COMMENT_RETENTION_MS : null;
   const result = insertCommentStatement.run(nickname, content, userId, isGuest ? 1 : 0, createdAt, expiresAt);
   return res.status(201).json({ success: true, comment: { id: Number(result.lastInsertRowid), nickname, content, isGuest, createdAt: new Date(createdAt).toISOString(), expiresAt: expiresAt === null ? null : new Date(expiresAt).toISOString() } });
 });
@@ -306,7 +308,7 @@ app.use((err, req, res, next) => {
 const server = app.listen(PORT, HOST, () => {
   console.log(`✅ Backend running at http://${HOST}:${PORT}`);
   console.log(`🔐 Environment: ${NODE_ENV}`);
-  console.log("💬 Guest comments expire after 30 days");
+  console.log(`💬 Guest comments expire after 6 months (${GUEST_COMMENT_RETENTION_DAYS} days)`);
   console.log("👤 Logged-in comments do not automatically expire");
   console.log("🛡️ Core security enabled (lightweight mode)");
 });
