@@ -893,6 +893,17 @@ document.addEventListener("DOMContentLoaded", () => {
   discoverHeroImages();
   initEasterEgg();
   initTagFilter();
+  // Bind controls in JS so CSP can omit script-src 'unsafe-inline'.
+  document.getElementById("lang-btn")?.addEventListener("click", toggleLanguage);
+  document.getElementById("theme-btn")?.addEventListener("click", toggleTheme);
+  document.getElementById("auth-btn")?.addEventListener("click", () => window.openAuthModal?.());
+  document.getElementById("auth-close")?.addEventListener("click", () => window.closeAuthModal?.());
+  document.getElementById("auth-submit")?.addEventListener("click", () => window.submitAuth?.());
+  document.getElementById("auth-switch")?.addEventListener("click", () => window.switchAuthMode?.());
+  document.getElementById("auth-forgot")?.addEventListener("click", () => window.forgotPassword?.());
+  document.getElementById("random-song-button")?.addEventListener("click", playRandomSong);
+  document.getElementById("message-retry")?.addEventListener("click", loadMessages);
+  document.getElementById("message-submit")?.addEventListener("click", addMessage);
   const messagesSection = document.getElementById("messages");
   if (typeof IntersectionObserver !== "undefined" && messagesSection) {
     const loader = new IntersectionObserver(entries => {

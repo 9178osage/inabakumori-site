@@ -168,6 +168,24 @@ textarea {
   background: linear-gradient(transparent, rgba(242, 242, 242, 0.85));
   animation: gentle-rain var(--rain-duration) linear var(--rain-delay) infinite;
 }
+.hero-rain span:nth-child(1) { --rain-x:7%; --rain-duration:2.60s; --rain-delay:-0.00s; --rain-length:28px; }
+.hero-rain span:nth-child(2) { --rain-x:44%; --rain-duration:2.95s; --rain-delay:-0.73s; --rain-length:41px; }
+.hero-rain span:nth-child(3) { --rain-x:81%; --rain-duration:3.30s; --rain-delay:-1.46s; --rain-length:54px; }
+.hero-rain span:nth-child(4) { --rain-x:18%; --rain-duration:3.65s; --rain-delay:-2.19s; --rain-length:34px; }
+.hero-rain span:nth-child(5) { --rain-x:55%; --rain-duration:4.00s; --rain-delay:-2.92s; --rain-length:47px; }
+.hero-rain span:nth-child(6) { --rain-x:92%; --rain-duration:2.60s; --rain-delay:-3.65s; --rain-length:60px; }
+.hero-rain span:nth-child(7) { --rain-x:29%; --rain-duration:2.95s; --rain-delay:-0.38s; --rain-length:40px; }
+.hero-rain span:nth-child(8) { --rain-x:66%; --rain-duration:3.30s; --rain-delay:-1.11s; --rain-length:53px; }
+.hero-rain span:nth-child(9) { --rain-x:3%; --rain-duration:3.65s; --rain-delay:-1.84s; --rain-length:33px; }
+.hero-rain span:nth-child(10) { --rain-x:40%; --rain-duration:4.00s; --rain-delay:-2.57s; --rain-length:46px; }
+.hero-rain span:nth-child(11) { --rain-x:77%; --rain-duration:2.60s; --rain-delay:-3.30s; --rain-length:59px; }
+.hero-rain span:nth-child(12) { --rain-x:14%; --rain-duration:2.95s; --rain-delay:-0.03s; --rain-length:39px; }
+.hero-rain span:nth-child(13) { --rain-x:51%; --rain-duration:3.30s; --rain-delay:-0.76s; --rain-length:52px; }
+.hero-rain span:nth-child(14) { --rain-x:88%; --rain-duration:3.65s; --rain-delay:-1.49s; --rain-length:32px; }
+.hero-rain span:nth-child(15) { --rain-x:25%; --rain-duration:4.00s; --rain-delay:-2.22s; --rain-length:45px; }
+.hero-rain span:nth-child(16) { --rain-x:62%; --rain-duration:2.60s; --rain-delay:-2.95s; --rain-length:58px; }
+.hero-rain span:nth-child(17) { --rain-x:99%; --rain-duration:2.95s; --rain-delay:-3.68s; --rain-length:38px; }
+.hero-rain span:nth-child(18) { --rain-x:36%; --rain-duration:3.30s; --rain-delay:-0.41s; --rain-length:51px; }
 @keyframes gentle-rain {
   from { transform: translate3d(0, 0, 0) rotate(8deg); }
   to { transform: translate3d(-60px, calc(100vh + 140px), 0) rotate(8deg); }

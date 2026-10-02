@@ -2,6 +2,26 @@
 
 本轮（2026-10-01）在既有 HTML / CSS / JavaScript 与 Express / SuperTokens / SQLite 架构上做了一轮综合加固与体验打磨；歌曲资料、账号体系与数据库格式继续兼容。没有修改线上数据库，也没有向生产环境发送测试留言或密码重置邮件。
 
+## 2026-10-02 本轮变更摘要
+
+### CSP
+- 去掉 HTML `onclick` / 内联处理器，改在 `script.js` 的 `DOMContentLoaded` 里用 `addEventListener` 绑定（语言、主题、登录、随机歌曲、留言重试/发送等）。
+- 雨景 CSS 变量从 `<span style="--rain-…">` 迁到 `style.css` 的 `.hero-rain span:nth-child(n)`，首页与本地预览服务器的 CSP 均可去掉 `script-src` / `style-src` 的 `'unsafe-inline'`。
+- 后端 API 的 Helmet CSP 仍为 `default-src 'none'`（只服务 JSON），无需改动。三语切换与标题连点 5 次彩蛋逻辑不变。
+
+### YouTube 播放量定时刷新
+- 已有 `tools/refresh-youtube-views.mjs`（失败不编造数字）。新增 `.github/workflows/refresh-youtube-views.yml`：每周一 cron + `workflow_dispatch`。
+- **必须**在仓库 Settings → Secrets and variables → Actions 设置 `YOUTUBE_API_KEY`（YouTube Data API v3）。切勿写入仓库或 `.env` 提交。
+- 工作流用 `GITHUB_TOKEN`（`contents: write`）在有变更时直接提交 `js/songs.js`。`GITHUB_TOKEN` 触发的 push 不会再次跑工作流。若组织禁止 token 推 main，工作流注释里写了改开 PR 的备选步骤。
+- 本地：`YOUTUBE_API_KEY=... node tools/refresh-youtube-views.mjs`
+
+### 原始 hero 图与发布体积
+- **决定**：继续把 `images/hero/`、`images/hero-mobile/` 留在仓库，供 `npm run optimize:images`（cwebp）生成 `images/optimized/**`。
+- `npm run build` / GitHub Pages **只复制** `images/optimized/**`（及图标、梗图、根目录社交图标），**不会**把原始 PNG 打进 `dist/`，因此 Pages 产物不会因原图膨胀。静态预览白名单同样只服务公开路径。
+- 若将来要进一步缩小克隆体积，可再把原图迁到未部署的 `archive/` 并 gitignore，但当前优先保留优化源文件。
+
+---
+
 ## 2026-10-01 本轮变更摘要
 
 ### 前端
@@ -9,7 +29,7 @@
 - 焦点：搜索框与留言输入改为 `:focus-visible`，章节导航与发送按钮补齐可见焦点环。
 - 性能：增加 API / YouTube 缩略图 `dns-prefetch` 与 API `preconnect`；首屏主题色在 `preferences.js` 尽早写入，减少闪烁。
 - SEO：补充 `og:locale` 及备用语言；sitemap 增加 `lastmod` / `changefreq`；404 使用相对回站链接并带 theme-color。
-- 安全：首页增加 CSP meta（允许现有 inline 处理器与雨景样式变量）；本地静态预览服务器增加 CSP、Permissions-Policy、X-Frame-Options、COOP，未知路径返回 `404.html`。
+- 安全：首页增加 CSP meta；本地静态预览服务器增加 CSP、Permissions-Policy、X-Frame-Options、COOP，未知路径返回 `404.html`。（2026-10-02 已去掉 inline 处理器与雨景 style 属性上的 `unsafe-inline`。）
 - 留言墙：发送按钮固定 id，加载状态更准确反馈。
 
 ### 后端
@@ -40,7 +60,7 @@
 | 认证脚本 | 250,906 bytes | 约 176 KB（构建时完整压缩） |
 | 发布包 | 原先直接使用仓库根目录 | 约 5.1 MiB，仅公开文件 |
 
-原始背景继续保留在 `images/hero/` 和 `images/hero-mobile/`，线上使用 `images/optimized/`。图片通过本机 cwebp 以质量 82 转换，不依赖第三方在线压缩服务。安装 cwebp 后可运行 `npm run optimize:images` 重建；日常 `npm run build` 使用已生成资源，无需安装图片工具。增加首图的响应式 picture 与预加载；手机端不会在首屏下载完整背景库；切换后只预取下一张，节流模式不预取；解码图片缓存最多保留三项。
+原始背景继续保留在 `images/hero/` 和 `images/hero-mobile/`（供 `optimize:images` 使用；**不**打入 `dist`/Pages），线上只部署 `images/optimized/`。图片通过本机 cwebp 以质量 82 转换，不依赖第三方在线压缩服务。安装 cwebp 后可运行 `npm run optimize:images` 重建；日常 `npm run build` 使用已生成资源，无需安装图片工具。增加首图的响应式 picture 与预加载；手机端不会在首屏下载完整背景库；切换后只预取下一张，节流模式不预取；解码图片缓存最多保留三项。
 
 脚本延迟解析，生产构建压缩 CSS / JS，资源 URL 使用内容摘要避免更新后加载旧版本。留言 API 在接近留言区时才读取。构建后的 51 首歌曲直接写入 HTML，即使 JavaScript 未运行仍可打开歌曲链接。以上为资源与功能验证结果，不是 Lighthouse 分数或真实用户性能指标。
 

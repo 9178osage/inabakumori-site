@@ -120,6 +120,39 @@ test("homepage ships CSP meta, locale hints and dns-prefetch for API/thumbnails"
   assert.match(html, /aria-busy="false"/);
 });
 
+test("CSP drops script/style unsafe-inline; controls bind in JS; rain vars live in CSS", async () => {
+  const html = await fs.readFile("index.html", "utf8");
+  const csp = html.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/)[1];
+  assert.match(csp, /script-src 'self'/);
+  assert.match(csp, /style-src 'self'/);
+  assert.doesNotMatch(csp, /unsafe-inline/);
+  assert.doesNotMatch(html, /\bonclick\s*=/);
+  assert.match(html, /id="auth-switch"/);
+  assert.match(html, /class="hero-rain"[^>]*>\s*(?:<span><\/span>\s*){18}<\/div>/);
+  const server = await fs.readFile("tools/static-server.mjs", "utf8");
+  const serverCsp = server.match(/"Content-Security-Policy":\s*"([^"]+)"/)[1];
+  assert.doesNotMatch(serverCsp, /unsafe-inline/);
+  const script = await fs.readFile("script.js", "utf8");
+  assert.match(script, /getElementById\("lang-btn"\)\?\.addEventListener\("click", toggleLanguage\)/);
+  assert.match(script, /getElementById\("message-submit"\)\?\.addEventListener\("click", addMessage\)/);
+  assert.match(script, /easter-egg-trigger/);
+  assert.match(script, /taps >= 5/);
+  const css = await fs.readFile("style.css", "utf8");
+  assert.match(css, /\.hero-rain span:nth-child\(1\)/);
+  assert.match(css, /\.hero-rain span:nth-child\(18\)/);
+});
+
+test("YouTube view refresh has a documented Actions cron path without embedding secrets", async () => {
+  const workflow = await fs.readFile(".github/workflows/refresh-youtube-views.yml", "utf8");
+  assert.match(workflow, /cron:/);
+  assert.match(workflow, /secrets\.YOUTUBE_API_KEY/);
+  assert.match(workflow, /tools\/refresh-youtube-views\.mjs/);
+  assert.doesNotMatch(workflow, /AIza[0-9A-Za-z_-]{20,}/);
+  const tool = await fs.readFile("tools/refresh-youtube-views.mjs", "utf8");
+  assert.match(tool, /YOUTUBE_API_KEY/);
+  assert.match(tool, /does not invent numbers|Do not invent numbers/i);
+});
+
 test("comment DELETE paths are rate-limited separately from reads", async () => {
   const backend = await fs.readFile("backend/server.mjs", "utf8");
   assert.match(backend, /commentDeleteLimiter/);

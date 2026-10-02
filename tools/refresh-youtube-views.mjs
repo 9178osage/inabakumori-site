@@ -5,6 +5,9 @@
  * Usage:
  *   YOUTUBE_API_KEY=... node tools/refresh-youtube-views.mjs
  *
+ * Scheduled: .github/workflows/refresh-youtube-views.yml (weekly cron +
+ * workflow_dispatch) reads YOUTUBE_API_KEY from GitHub Actions secrets.
+ *
  * Never put the API key in tracked files. On failure for a video, keeps the
  * previous viewCount (does not invent numbers).
  */
