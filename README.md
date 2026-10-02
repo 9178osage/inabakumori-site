@@ -472,7 +472,7 @@ I like Inabakumori, so I made a “Weather Observation Station” — a nod to t
 - 留言长度限制
 - 频率限制
 - 基础广告、链接与联系方式过滤
-- 游客留言 30 天过期，登录用户留言长期保留
+- 游客留言半年过期，登录用户留言长期保留
 
 ---
 

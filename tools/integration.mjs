@@ -58,7 +58,9 @@ try {
   assert.equal(created.status, 201, await created.clone().text());
   const { comment } = await created.json();
   assert.equal(comment.isGuest, true);
-  assert.ok(Date.parse(comment.expiresAt) > Date.now());
+  const createdAt = Date.parse(comment.createdAt);
+  const expiresAt = Date.parse(comment.expiresAt);
+  assert.equal(expiresAt - createdAt, 182 * 24 * 60 * 60 * 1e3);
   assert.equal((await post({ nickname: "另一个昵称", content: comment.content })).status, 409);
   assert.equal((await request(`${api}/api/comments/mine`)).status, 401);
   assert.equal((await request(`${api}/api/comments/${comment.id}`, { method: "DELETE" })).status, 401);
