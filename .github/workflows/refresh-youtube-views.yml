@@ -1,0 +1,56 @@
+# Weekly refresh of YouTube viewCount / viewsCheckedAt in js/songs.js.
+# Requires repository secret YOUTUBE_API_KEY (YouTube Data API v3). Do not put the key in the repo.
+# Local equivalent:
+#   YOUTUBE_API_KEY=... node tools/refresh-youtube-views.mjs
+#
+# GITHUB_TOKEN with contents:write can commit to the default branch. Commits made with
+# GITHUB_TOKEN do not re-trigger workflows (avoids a refresh loop). If your org blocks
+# token pushes to main, switch the final step to open a PR instead (see comments below).
+name: Refresh YouTube view counts
+on:
+  schedule:
+    # Mondays 15:00 UTC ≈ Monday 08:00 PT
+    - cron: "0 15 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: refresh-youtube-views
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Require YouTube API key secret
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: |
+          if [ -z "$YOUTUBE_API_KEY" ]; then
+            echo "::error::Missing repository secret YOUTUBE_API_KEY. Add it under Settings → Secrets and variables → Actions. Do not commit the key."
+            exit 1
+          fi
+      - name: Refresh view counts
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: node tools/refresh-youtube-views.mjs
+      - name: Commit updates when counts changed
+        run: |
+          if git diff --quiet -- js/songs.js; then
+            echo "No view-count changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add js/songs.js
+          git commit -m "chore: refresh YouTube view counts"
+          git push origin HEAD:${{ github.ref_name }}
+          # If push to main is blocked for GITHUB_TOKEN, replace the push with a PR flow:
+          #   git checkout -b chore/youtube-views-$(date -u +%Y%m%d)
+          #   git push -u origin HEAD
+          #   gh pr create --title "chore: refresh YouTube view counts" --body "Automated weekly refresh via tools/refresh-youtube-views.mjs."
+          # and add permissions: pull-requests: write
