@@ -28,27 +28,34 @@ test("NKNK gallery config is sequential and points at optimized webp assets", ()
   assert.ok(total < 5 * 1024 * 1024, `gallery assets should stay under 5 MiB, got ${(total / 1024 / 1024).toFixed(2)} MiB`);
 });
 
-test("NKNK gallery markup and UI avoid inline handlers and defer/paging load", () => {
+test("NKNK gallery uses a two-row marquee with accessible lightbox and CSP-safe bindings", () => {
   const html = fs.readFileSync("index.html", "utf8");
   const ui = fs.readFileSync("js/nknk-gallery-ui.js", "utf8");
+  const css = fs.readFileSync("style.css", "utf8");
   const gen = fs.readFileSync("tools/generate-nknk-gallery.mjs", "utf8");
   assert.match(html, /id="nknk-gallery"/);
   assert.match(html, /id="nknk-lightbox"/);
-  assert.match(html, /id="nknk-gallery-more"/);
   assert.match(html, /js\/nknk-gallery\.js/);
   assert.match(html, /js\/nknk-gallery-ui\.js/);
+  assert.doesNotMatch(html, /nknk-gallery-more/);
   assert.doesNotMatch(html, /onclick=/);
-  assert.doesNotMatch(ui, /\bonclick\b|\bstyle\s*=/);
+  assert.doesNotMatch(ui, /\bonclick\b/);
+  assert.doesNotMatch(css, /nknk-gallery-more/);
+  assert.match(ui, /ROW_COUNT = 2/);
+  assert.match(ui, /translate3d/);
+  assert.match(ui, /requestAnimationFrame/);
+  assert.match(ui, /prefers-reduced-motion/);
+  assert.match(ui, /IntersectionObserver/);
+  assert.match(ui, /aria-hidden/);
+  assert.match(ui, /DRAG_THRESHOLD/);
+  assert.match(ui, /pointerdown/);
   assert.match(ui, /ArrowLeft/);
   assert.match(ui, /Escape/);
-  assert.match(ui, /touchstart/);
-  assert.match(ui, /NKNK 插画/);
-  assert.match(ui, /IntersectionObserver/);
-  assert.match(ui, /PAGE_SIZE = 24/);
-  assert.match(ui, /加载更多/);
-  assert.match(ui, /Load more/);
-  assert.match(ui, /もっと見る/);
   assert.match(ui, /preloadAdjacent/);
+  assert.match(ui, /NKNK 插画/);
+  assert.match(css, /mask-image/);
+  assert.match(css, /nknk-marquee/);
+  assert.match(css, /scroll-snap-type/);
   assert.match(gen, /THUMB_WIDTH = 300/);
   assert.match(gen, /FULL_LONG_EDGE = 1080/);
   assert.match(gen, /metadata/);
