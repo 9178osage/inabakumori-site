@@ -1931,3 +1931,36 @@ body.nknk-lightbox-open {
     transform: translateY(-1px);
   }
 }
+
+.nknk-gallery-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin: 18px auto 8px;
+  padding: 10px 22px;
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  background: var(--ui-surface-solid);
+  color: var(--ui-text);
+  font: 500 14px/1.4 var(--font-heading, sans-serif);
+  cursor: pointer;
+  transition: var(--transition-surface);
+}
+.nknk-gallery-more[hidden] {
+  display: none;
+}
+.nknk-gallery-more:focus-visible {
+  outline: 3px solid var(--ui-text);
+  outline-offset: 3px;
+}
+.nknk-gallery-more:hover,
+.nknk-gallery-more:active {
+  background: var(--link-hover-bg, var(--ui-surface));
+}
+#artwork .nknk-gallery-more {
+  display: flex;
+}
+#artwork .nknk-gallery-more[hidden] {
+  display: none;
+}
