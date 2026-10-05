@@ -241,8 +241,13 @@ test("auth blocks duplicate requests and mode changes until the request finishes
   let requests = 0;
   let finish;
   const context = {
-    SuperTokens: { init() {} }, EmailPassword: { init() {} }, Session: { init() {} },
-    window: { APP_CONFIG: { apiDomain: "http://localhost:3001" }, location: { origin: "http://localhost:5500" }, addEventListener() {} },
+    URL, URLSearchParams, SuperTokens: { init() {} }, EmailPassword: { init() {} }, Session: { init() {} },
+    window: {
+      APP_CONFIG: { apiDomain: "http://localhost:3001" },
+      location: new URL("http://localhost:5500/"),
+      history: { state: null, replaceState() {} },
+      addEventListener() {}
+    },
     document: { getElementById: id => elements[id], querySelector() {}, addEventListener() {} },
     localStorage: { getItem: () => "zh" }, console,
     signIn: () => { requests++; return new Promise(resolve => { finish = resolve; }); }

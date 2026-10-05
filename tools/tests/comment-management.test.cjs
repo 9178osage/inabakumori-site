@@ -4,7 +4,7 @@ const { DatabaseSync } = require('node:sqlite');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
-test('auth POST throttling covers tenant paths and URL normalization without counting read-only requests', async () => {
+test('auth POST throttling covers tenant paths and URL normalization; email-exists is limited separately', async () => {
   const express = require('../../backend/node_modules/express');
   const { rateLimit } = require('../../backend/node_modules/express-rate-limit');
   const { IncomingMessage, ServerResponse } = require('node:http');
@@ -33,7 +33,10 @@ test('auth POST throttling covers tenant paths and URL normalization without cou
       socket.destroy();
     }
   };
-  for (let i = 0; i < 25; i++) assert.equal(await request('GET', '/auth/signup/email/exists'), 204);
+  for (let i = 0; i < 8; i++) assert.equal(await request('GET', '/auth/signup/email/exists'), 204);
+  assert.equal(await request('GET', '/auth/signup/email/exists'), 429);
+  assert.equal(await request('GET', '/auth/public/signup/email/exists'), 429);
+  for (let i = 0; i < 25; i++) assert.equal(await request('GET', '/auth/signin'), 204);
   const paths = [
     '/auth/signin', '/auth/public/signin', '/auth/public/signup',
     '/auth/public/user/password/reset/token', '/auth/public/user/password/reset',
@@ -42,7 +45,7 @@ test('auth POST throttling covers tenant paths and URL normalization without cou
   ];
   for (let i = 0; i < 20; i++) assert.equal(await request('POST', paths[i % paths.length]), 204);
   for (const pathname of paths) assert.equal(await request('POST', pathname), 429, pathname);
-  assert.equal(await request('GET', '/auth/signup/email/exists'), 204);
+  assert.equal(await request('GET', '/auth/signin'), 204);
   assert.equal(await request('POST', '/api/comments'), 204);
   assert.equal(await request('POST', '/author'), 204);
 });
@@ -97,7 +100,7 @@ test('delete checks ownership on the server and rejects guests, missing and inva
     assert.equal(db.prepare('SELECT count(*) AS n FROM comments WHERE id IN (26,27)').get().n, 2);
   } finally { db.close(); }
 });
-test('reset email redirects to the GitHub Pages homepage with original token and tenant', async () => {
+test('reset email redirects to the GitHub Pages homepage and keeps the token in the fragment', async () => {
   const { passwordResetDelivery } = await import('../../backend/services.mjs');
   let sent;
   const service = passwordResetDelivery('https://9178osage.github.io/inabakumori-site/').override({ sendEmail: async input => { sent = input; } });
@@ -106,8 +109,11 @@ test('reset email redirects to the GitHub Pages homepage with original token and
   assert.equal(url.pathname, '/inabakumori-site/');
   assert.equal(url.origin, 'https://9178osage.github.io');
   assert.equal(url.searchParams.get('resetPassword'), '1');
-  assert.equal(url.searchParams.get('token'), 'test-token');
-  assert.equal(url.searchParams.get('tenantId'), 'public');
+  assert.equal(url.searchParams.get('token'), null);
+  assert.equal(url.searchParams.get('tenantId'), null);
+  const fragment = new URLSearchParams(url.hash.slice(1));
+  assert.equal(fragment.get('token'), 'test-token');
+  assert.equal(fragment.get('tenantId'), 'public');
 });
 function ui() {
   function element() { return { children: [], hidden: false, listeners: {}, textContent: '', append(...items) { this.children.push(...items); }, replaceChildren() { this.children = []; }, setAttribute() {}, addEventListener(name, fn) { this.listeners[name] = fn; } }; }
@@ -287,9 +293,12 @@ test('deployment preserves the frontend subpath and keeps SQLite inside the volu
   assert.equal(website.origin, 'https://9178osage.github.io');
   let delivered;
   await passwordResetDelivery(website.url).override({ sendEmail: async input => { delivered = input; } }).sendEmail({ passwordResetLink: 'https://api.example/auth/reset-password?token=test', tenantId: 'public' });
-  assert.equal(new URL(delivered.passwordResetLink).pathname, '/inabakumori-site/');
+  const resetUrl = new URL(delivered.passwordResetLink);
+  assert.equal(resetUrl.pathname, '/inabakumori-site/');
+  assert.equal(resetUrl.searchParams.get('token'), null);
+  assert.equal(new URLSearchParams(resetUrl.hash.slice(1)).get('token'), 'test');
   assert.throws(() => websiteLocation('file:///tmp/index.html'));
-  assert.throws(() => websiteLocation('https://user:password@example.com'));
+  assert.throws(() => websiteLocation('http://user:secret@example.com/'));
   assert.equal(resolveDatabasePath({}, '/app/backend'), '/app/backend/comments.db');
   assert.equal(resolveDatabasePath({ NODE_ENV: 'production', RAILWAY_VOLUME_MOUNT_PATH: '/data' }, '/app/backend'), '/data/comments.db');
   assert.throws(() => resolveDatabasePath({ NODE_ENV: 'production' }, '/app/backend'));

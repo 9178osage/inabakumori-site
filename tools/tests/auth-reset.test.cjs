@@ -28,7 +28,7 @@ function setup(url = "http://localhost:5500/") {
   let language = "zh";
   const session = {};
   const context = {
-    URL, Event, console: { error() {} },
+    URL, URLSearchParams, Event, console: { error() {} },
     localStorage: { getItem: () => language },
     SuperTokens: { init() {} },
     EmailPassword: { init(config) { calls.push(config); } },
@@ -109,6 +109,18 @@ test("reset link token is scrubbed from URL but remains available to the SDK", a
   assert.equal(app.elements["auth-email"].hidden, true);
   assert.equal(app.elements["auth-password-confirm"].hidden, false);
   assert.equal(app.context.document.activeElement.id, "auth-password");
+});
+test("fragment reset token is read and scrubbed from the hash", async () => {
+  const app = setup("http://localhost:5500/?resetPassword=1#token=frag-token&tenantId=public&keep=1");
+  assert.equal(app.calls[0].next, "/#keep=1");
+  assert.equal(app.calls[0].state.unchanged, true);
+  const recipe = app.calls[1].override.functions({});
+  assert.equal(recipe.getResetPasswordTokenFromURL({}), "frag-token");
+  assert.equal(recipe.getTenantIdFromURL({}), "public");
+  await app.listeners.DOMContentLoaded();
+  assert.equal(app.run("authMode"), "reset");
+  assert.equal(app.elements["auth-email"].hidden, true);
+  assert.equal(app.elements["auth-password-confirm"].hidden, false);
 });
 test("reset email requests need only email, avoid duplicates, and show private bilingual feedback", async () => {
   const app = setup();
