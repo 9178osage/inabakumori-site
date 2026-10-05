@@ -46,6 +46,8 @@ test("NKNK gallery uses a single-row marquee with accessible lightbox and CSP-sa
   assert.match(ui, /requestAnimationFrame/);
   assert.match(ui, /prefers-reduced-motion/);
   assert.match(ui, /IntersectionObserver/);
+  assert.match(ui, /Mount immediately|mount\(\)/);
+  assert.doesNotMatch(ui, /if \(visible\) mount\(\)/);
   assert.match(ui, /aria-hidden/);
   assert.match(ui, /DRAG_THRESHOLD/);
   assert.match(ui, /pointerdown/);

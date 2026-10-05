@@ -398,24 +398,30 @@
       mounted = false;
       stopLoop();
       rows.length = 0;
-      if (sectionVisible) mount();
+      mount();
+      syncPauseState();
     });
 
     window.addEventListener("languagechange", syncChromeLabels);
 
+    // Mount immediately so the row has height as soon as JS runs. IntersectionObserver
+    // only toggles sectionVisible (auto-scroll pause) — never gates first paint.
+    mount();
+
     const target = section || root;
     if (typeof IntersectionObserver === "undefined") {
       sectionVisible = true;
-      mount();
+      syncPauseState();
       return;
     }
     const observer = new IntersectionObserver((entries) => {
-      const visible = entries.some(entry => entry.isIntersecting);
-      sectionVisible = visible;
-      if (visible) mount();
+      sectionVisible = entries.some(entry => entry.isIntersecting);
       syncPauseState();
-    }, { rootMargin: "300px 0px" });
+    }, { rootMargin: "400px 0px" });
     observer.observe(target);
+    // Synchronous first paint may be offscreen; treat as not visible until IO reports.
+    sectionVisible = false;
+    syncPauseState();
   }
 
   document.addEventListener("DOMContentLoaded", initNknkGallery);
