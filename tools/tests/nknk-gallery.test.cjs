@@ -28,7 +28,7 @@ test("NKNK gallery config is sequential and points at optimized webp assets", ()
   assert.ok(total < 5 * 1024 * 1024, `gallery assets should stay under 5 MiB, got ${(total / 1024 / 1024).toFixed(2)} MiB`);
 });
 
-test("NKNK gallery uses a two-row marquee with accessible lightbox and CSP-safe bindings", () => {
+test("NKNK gallery uses a single-row marquee with accessible lightbox and CSP-safe bindings", () => {
   const html = fs.readFileSync("index.html", "utf8");
   const ui = fs.readFileSync("js/nknk-gallery-ui.js", "utf8");
   const css = fs.readFileSync("style.css", "utf8");
@@ -41,7 +41,7 @@ test("NKNK gallery uses a two-row marquee with accessible lightbox and CSP-safe 
   assert.doesNotMatch(html, /onclick=/);
   assert.doesNotMatch(ui, /\bonclick\b/);
   assert.doesNotMatch(css, /nknk-gallery-more/);
-  assert.match(ui, /ROW_COUNT = 2/);
+  assert.match(ui, /ROW_COUNT = 1/);
   assert.match(ui, /translate3d/);
   assert.match(ui, /requestAnimationFrame/);
   assert.match(ui, /prefers-reduced-motion/);
