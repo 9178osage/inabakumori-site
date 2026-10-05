@@ -5,7 +5,9 @@ on:
       - main
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
+  pages: write
+  id-token: write
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -26,10 +28,21 @@ jobs:
       - run: npm --prefix backend ci
       - run: npm run check
       - run: npm run test:integration
+      - name: assert-dist-hashed
+        run: |
+          grep -q 'data-song-title=' dist/index.html
+          grep -E 'nknk-gallery-ui\.js\?v=[a-f0-9]{12}' dist/index.html
+          ! grep -q 'nknk-gallery-ui.js?v=20260930' dist/index.html
+          ! grep -q 'nknk-gallery-ui.js?v=20261005nknk' dist/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
           path: dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: public-site-dist
+          path: dist
+          retention-days: 3
   deploy:
     if: github.ref == 'refs/heads/main'
     needs: build
@@ -43,3 +56,27 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+  # Mirror hashed dist/ onto gh-pages so Settings → Pages can use Branch: gh-pages
+  # when GitHub Actions is not selected as the Pages source (which currently serves repo root).
+  publish-gh-pages-branch:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          name: public-site-dist
+          path: _site
+      - name: verify-mirrored-dist
+        run: |
+          test -f _site/index.html
+          grep -q 'data-song-title=' _site/index.html
+          grep -E 'nknk-gallery-ui\.js\?v=[a-f0-9]{12}' _site/index.html
+          touch _site/.nojekyll
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./_site
+          force_orphan: true
+          enable_jekyll: false
