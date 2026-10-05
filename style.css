@@ -1821,7 +1821,7 @@ body.easter-egg-open { overflow: hidden; }
   border-radius: 8px;
   background: var(--page-bg);
   overflow: hidden;
-  height: 148px;
+  height: 180px;
   width: auto;
   color: inherit;
   font: inherit;
@@ -1867,7 +1867,7 @@ body.easter-egg-open { overflow: hidden; }
     padding: 8px;
   }
   .nknk-marquee-item {
-    height: 108px;
+    height: 130px;
   }
 }
 

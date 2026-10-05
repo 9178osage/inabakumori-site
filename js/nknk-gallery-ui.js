@@ -1,7 +1,7 @@
 (() => {
-  const SPEED_PX_PER_SEC = 28;
+  const SPEED_PX_PER_SEC = 30;
   const DRAG_THRESHOLD = 6;
-  const ROW_COUNT = 2;
+  const ROW_COUNT = 1;
 
   const altFor = (id) => {
     const lang = typeof currentLanguage === "string" ? currentLanguage : "zh";
