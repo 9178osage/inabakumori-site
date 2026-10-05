@@ -4,14 +4,25 @@ import Session, { doesSessionExist, signOut } from "supertokens-web-js/recipe/se
 let resetToken = "";
 let resetTenantId = "public";
 let resetLinkRequested = false;
-if (window.location.search) {
+{
   const url = new URL(window.location.href);
-  if (url.searchParams.get("resetPassword") === "1") {
+  const hashText = url.hash.replace(/^#/, "");
+  const hashParams = hashText.includes("token=") ? new URLSearchParams(hashText) : null;
+  const fromQuery = url.searchParams.get("resetPassword") === "1";
+  const hashToken = hashParams?.get("token") || "";
+  if (fromQuery || hashToken) {
     resetLinkRequested = true;
-    resetToken = url.searchParams.get("token") || "";
-    resetTenantId = url.searchParams.get("tenantId") || "public";
+    resetToken = hashToken || url.searchParams.get("token") || "";
+    resetTenantId = hashParams?.get("tenantId") || url.searchParams.get("tenantId") || "public";
     for (const key of ["resetPassword", "token", "tenantId"]) url.searchParams.delete(key);
-    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+    let hash = url.hash;
+    if (hashParams) {
+      hashParams.delete("token");
+      hashParams.delete("tenantId");
+      const rest = hashParams.toString();
+      hash = rest ? `#${rest}` : "";
+    }
+    window.history.replaceState(window.history.state, "", url.pathname + url.search + hash);
   }
 }
 SuperTokens.init({

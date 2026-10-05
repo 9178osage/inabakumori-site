@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { validateCommentInput, websiteLocation, resolveDatabasePath, hasVerifiedAdminEmail, createRecentDuplicateChecker, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery } from "./services.mjs";
+import { validateCommentInput, websiteLocation, resolveDatabasePath, hasVerifiedAdminEmail, createRecentDuplicateChecker, insertFreshComment, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery } from "./services.mjs";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -50,6 +50,10 @@ if (!HOST) {
   process.exit(1);
 }
 if (IS_PRODUCTION) {
+  if (!process.env.TRUST_PROXY?.trim()) {
+    console.error("❌ Production requires TRUST_PROXY set to the trusted proxy hop count (use 1 on Railway)");
+    process.exit(1);
+  }
   if (!API_DOMAIN.startsWith("https://")) {
     console.error("❌ Production API_DOMAIN must use HTTPS");
     process.exit(1);
@@ -96,7 +100,25 @@ app.use((_req, res, next) => {
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()");
   next();
 });
-supertokens.init({ framework: "express", supertokens: { connectionURI: SUPERTOKENS_CONNECTION_URI, apiKey: SUPERTOKENS_API_KEY }, appInfo: { appName: "Inabakumori Fanswall", apiDomain: API_DOMAIN, websiteDomain: WEBSITE_DOMAIN, apiBasePath: "/auth", websiteBasePath: "/auth" }, recipeList: [EmailPassword.init({ emailDelivery: passwordResetDelivery(website.url) }), Session.init({ getTokenTransferMethod: () => "header" })] });
+supertokens.init({
+  framework: "express",
+  supertokens: { connectionURI: SUPERTOKENS_CONNECTION_URI, apiKey: SUPERTOKENS_API_KEY },
+  appInfo: { appName: "Inabakumori Fanswall", apiDomain: API_DOMAIN, websiteDomain: WEBSITE_DOMAIN, apiBasePath: "/auth", websiteBasePath: "/auth" },
+  recipeList: [
+    EmailPassword.init({
+      emailDelivery: passwordResetDelivery(website.url),
+      override: {
+        apis: original => {
+          const next = { ...original };
+          // Unused by this site. Leaving it open allows bulk email enumeration.
+          delete next.emailExistsGET;
+          return next;
+        }
+      }
+    }),
+    Session.init({ getTokenTransferMethod: () => "header" })
+  ]
+});
 const ALLOWED_ORIGINS = new Set([WEBSITE_DOMAIN, ...IS_PRODUCTION ? [] : ["http://127.0.0.1:5500", "http://localhost:5500"]]);
 const corsOptions = { origin(origin, callback) {
   if (!origin) {
@@ -110,19 +132,46 @@ const corsOptions = { origin(origin, callback) {
 app.use(cors(corsOptions));
 app.use(express.json({ limit: "20kb", strict: true }));
 const authSensitiveLimiter = rateLimit({ windowMs: 15 * 60 * 1e3, limit: 20, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
-app.use((req, res, next) => {
-  if (req.method !== "POST") return next();
+const emailExistsLimiter = rateLimit({ windowMs: 15 * 60 * 1e3, limit: 8, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
+function normalizedRequestPath(value) {
   let pathname;
   try {
-    pathname = new URL(req.originalUrl || req.url, "http://localhost").pathname;
+    pathname = new URL(value, "http://localhost").pathname;
   } catch {
-    return next();
+    return "";
   }
-  return /^\/auth(?:\/|$)/u.test(pathname) ? authSensitiveLimiter(req, res, next) : next();
+  const parts = [];
+  for (const part of pathname.split("/")) {
+    if (!part || part === ".") continue;
+    if (part === "..") parts.pop();
+    else parts.push(part);
+  }
+  return `/${parts.join("/")}`;
+}
+app.use((req, res, next) => {
+  if (req.method !== "POST" && req.method !== "GET") return next();
+  const pathname = normalizedRequestPath(req.originalUrl || req.url);
+  if (pathname !== "/auth" && !pathname.startsWith("/auth/")) return next();
+  if (/\/(?:emailpassword\/email\/exists|signup\/email\/exists)$/u.test(pathname)) {
+    return emailExistsLimiter(req, res, next);
+  }
+  if (req.method !== "POST") return next();
+  return authSensitiveLimiter(req, res, next);
 });
 app.use(middleware());
 const commentLimiter = rateLimit({ windowMs: 60 * 1e3, limit: 10, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "留言发送过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 const guestCommentLimiter = rateLimit({ windowMs: 60 * 60 * 1e3, limit: 3, skipFailedRequests: true, standardHeaders: "draft-7", legacyHeaders: false, skip: req => req.session !== undefined, message: { error: "游客每小时最多留言 3 条，请稍后再试", code: "GUEST_RATE_LIMITED" } });
+const memberCommentLimiter = rateLimit({
+  windowMs: 60 * 60 * 1e3,
+  limit: 20,
+  skipFailedRequests: true,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  skip: req => req.session === undefined,
+  keyGenerator: req => `member:${req.session.getUserId()}`,
+  validate: false,
+  message: { error: "登录用户每小时最多留言 20 条，请稍后再试", code: "MEMBER_RATE_LIMITED" }
+});
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const databasePath = resolveDatabasePath(process.env, __dirname);
@@ -184,6 +233,9 @@ const insertCommentStatement = db.prepare(`
     )
     VALUES (?, ?, ?, ?, ?, ?)
 `);
+const countMemberCommentsStatement = db.prepare(`
+    SELECT COUNT(*) AS n FROM comments WHERE user_id = ? AND is_guest = 0
+`);
 const hasRecentDuplicateComment = createRecentDuplicateChecker(db);
 const deleteExpiredGuestsStatement = db.prepare(`
     DELETE FROM comments
@@ -193,6 +245,7 @@ const deleteExpiredGuestsStatement = db.prepare(`
         AND expires_at <= ?
 `);
 const MAX_PUBLIC_COMMENTS = 100;
+const MEMBER_COMMENT_CAP = 100;
 const GUEST_COMMENT_RETENTION_DAYS = 182;
 const GUEST_COMMENT_RETENTION_MS = GUEST_COMMENT_RETENTION_DAYS * 24 * 60 * 60 * 1e3;
 function requireJsonContentType(req, res, next) {
@@ -253,7 +306,7 @@ app.get("/api/comments", (req, res) => {
   const comments = rows.map((comment) => ({ id: Number(comment.id), nickname: comment.nickname, content: comment.content, isGuest: Boolean(comment.is_guest), createdAt: new Date(comment.created_at).toISOString(), expiresAt: comment.expires_at === null ? null : new Date(comment.expires_at).toISOString() }));
   res.json({ comments });
 });
-app.post("/api/comments", commentLimiter, requireJsonContentType, verifySession({ sessionRequired: false }), guestCommentLimiter, (req, res) => {
+app.post("/api/comments", commentLimiter, requireJsonContentType, verifySession({ sessionRequired: false }), guestCommentLimiter, memberCommentLimiter, (req, res) => {
   const validation = validateCommentInput(req.body);
   if (!validation.ok) {
     return res.status(400).json({ error: validation.error, code: validation.code || "INVALID_COMMENT" });
@@ -261,14 +314,23 @@ app.post("/api/comments", commentLimiter, requireJsonContentType, verifySession(
   const { nickname, content } = validation;
   const isLoggedIn = req.session !== void 0;
   const userId = isLoggedIn ? req.session.getUserId() : null;
-  if (hasRecentDuplicateComment(content, userId)) {
-    return res.status(409).json({ error: "相同内容请稍后再留言", code: "DUPLICATE_COMMENT" });
-  }
   const isGuest = !isLoggedIn;
   const createdAt = Date.now();
   const expiresAt = isGuest ? createdAt + GUEST_COMMENT_RETENTION_MS : null;
-  const result = insertCommentStatement.run(nickname, content, userId, isGuest ? 1 : 0, createdAt, expiresAt);
-  return res.status(201).json({ success: true, comment: { id: Number(result.lastInsertRowid), nickname, content, isGuest, createdAt: new Date(createdAt).toISOString(), expiresAt: expiresAt === null ? null : new Date(expiresAt).toISOString() } });
+  const inserted = insertFreshComment(db, {
+    duplicate: hasRecentDuplicateComment,
+    insert: insertCommentStatement,
+    countMember: countMemberCommentsStatement,
+    memberCap: MEMBER_COMMENT_CAP,
+    row: { nickname, content, userId, isGuest, createdAt, expiresAt }
+  });
+  if (!inserted.ok && inserted.code === "DUPLICATE_COMMENT") {
+    return res.status(409).json({ error: "相同内容请稍后再留言", code: "DUPLICATE_COMMENT" });
+  }
+  if (!inserted.ok) {
+    return res.status(409).json({ error: "每个账号最多保留 100 条留言，请先删除旧留言", code: "MEMBER_COMMENT_CAP" });
+  }
+  return res.status(201).json({ success: true, comment: { id: inserted.id, nickname, content, isGuest, createdAt: new Date(createdAt).toISOString(), expiresAt: expiresAt === null ? null : new Date(expiresAt).toISOString() } });
 });
 registerCommentManagement(app, db, verifySession);
 registerAdminCommentManagement(app, db, verifySession, async userId => {
@@ -311,6 +373,7 @@ const server = app.listen(PORT, HOST, () => {
   console.log(`💬 Guest comments expire after 6 months (${GUEST_COMMENT_RETENTION_DAYS} days)`);
   console.log("👤 Logged-in comments do not automatically expire");
   console.log("🛡️ Core security enabled (lightweight mode)");
+  console.log("🗄️ SQLite comment storage is single-instance; do not run multiple replicas");
 });
 server.requestTimeout = 30_000;
 server.headersTimeout = 15_000;
