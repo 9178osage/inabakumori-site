@@ -11,7 +11,7 @@ await build({ entryPoints: [path.join(root, "tools/auth-src.js")], bundle: true,
 // dist is generated exclusively by this script. Only explicitly public assets are copied.
 await rm(out, { recursive: true, force: true });
 await mkdir(out, { recursive: true });
-const scripts = ["script.js", ...["preferences", "config", "network", "i18n", "auth", "songs", "experience", "comments"].map(name => `js/${name}.js`)];
+const scripts = ["script.js", ...["preferences", "config", "network", "i18n", "auth", "songs", "nknk-gallery", "nknk-gallery-ui", "experience", "comments"].map(name => `js/${name}.js`)];
 const css = ["style.css", "fonts/fonts.css"];
 const hashes = new Map();
 for (const file of [...scripts, ...css]) {
