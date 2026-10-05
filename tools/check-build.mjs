@@ -51,5 +51,6 @@ for (const item of nknk) {
 }
 assert.ok(html.includes('id="nknk-gallery"'), "NKNK gallery mount missing");
 assert.ok(html.includes('id="nknk-lightbox"'), "NKNK lightbox missing");
-assert.ok(bytes < 16 * 1024 * 1024, `Public build exceeds 16 MiB: ${bytes}`);
+assert.ok(html.includes('id="nknk-gallery-more"'), "NKNK load-more missing");
+assert.ok(bytes < 12 * 1024 * 1024, `Public build exceeds 12 MiB: ${bytes}`);
 console.log(`Public build verified: references, anchors, JS syntax, metadata, pre-rendering, privacy allowlist; ${(bytes / 1024 / 1024).toFixed(2)} MiB.`);

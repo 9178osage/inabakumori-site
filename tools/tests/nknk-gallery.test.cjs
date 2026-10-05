@@ -12,24 +12,29 @@ test("NKNK gallery config is sequential and points at optimized webp assets", ()
   assert.ok(Array.isArray(gallery));
   assert.equal(gallery.length, context.window.NKNK_GALLERY.length);
   assert.ok(gallery.length >= 1);
+  let total = 0;
   gallery.forEach((item, index) => {
     assert.equal(item.id, index + 1);
     assert.match(item.thumb, /^images\/optimized\/nknk\/\d+\.webp$/);
     assert.match(item.full, /^images\/optimized\/nknk\/full\/\d+\.webp$/);
     assert.ok(fs.existsSync(item.thumb), item.thumb);
     assert.ok(fs.existsSync(item.full), item.full);
+    total += fs.statSync(item.thumb).size + fs.statSync(item.full).size;
     const stem = path.basename(item.thumb, ".webp");
     assert.equal(stem, String(item.id));
     const originals = [".jpg", ".jpeg", ".png", ".webp", ".gif"].map((ext) => path.join("NKNK", `${item.id}${ext}`));
     assert.ok(originals.some((file) => fs.existsSync(file)), `missing original for ${item.id}`);
   });
+  assert.ok(total < 5 * 1024 * 1024, `gallery assets should stay under 5 MiB, got ${(total / 1024 / 1024).toFixed(2)} MiB`);
 });
 
-test("NKNK gallery markup and UI avoid inline handlers", () => {
+test("NKNK gallery markup and UI avoid inline handlers and defer/paging load", () => {
   const html = fs.readFileSync("index.html", "utf8");
   const ui = fs.readFileSync("js/nknk-gallery-ui.js", "utf8");
+  const gen = fs.readFileSync("tools/generate-nknk-gallery.mjs", "utf8");
   assert.match(html, /id="nknk-gallery"/);
   assert.match(html, /id="nknk-lightbox"/);
+  assert.match(html, /id="nknk-gallery-more"/);
   assert.match(html, /js\/nknk-gallery\.js/);
   assert.match(html, /js\/nknk-gallery-ui\.js/);
   assert.doesNotMatch(html, /onclick=/);
@@ -38,4 +43,13 @@ test("NKNK gallery markup and UI avoid inline handlers", () => {
   assert.match(ui, /Escape/);
   assert.match(ui, /touchstart/);
   assert.match(ui, /NKNK 插画/);
+  assert.match(ui, /IntersectionObserver/);
+  assert.match(ui, /PAGE_SIZE = 24/);
+  assert.match(ui, /加载更多/);
+  assert.match(ui, /Load more/);
+  assert.match(ui, /もっと見る/);
+  assert.match(ui, /preloadAdjacent/);
+  assert.match(gen, /THUMB_WIDTH = 300/);
+  assert.match(gen, /FULL_LONG_EDGE = 1080/);
+  assert.match(gen, /metadata/);
 });

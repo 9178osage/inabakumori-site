@@ -1,4 +1,7 @@
 (() => {
+  const PAGE_SIZE = 24;
+  const THUMB_SIZE = 300;
+
   const altFor = (id) => {
     const lang = typeof currentLanguage === "string" ? currentLanguage : "zh";
     if (lang === "ja") return `NKNK イラスト ${id}`;
@@ -12,14 +15,17 @@
       gallery: { zh: "NKNK 插画库", en: "NKNK illustration gallery", ja: "NKNK イラストギャラリー" },
       close: { zh: "关闭", en: "Close", ja: "閉じる" },
       prev: { zh: "上一张", en: "Previous", ja: "前へ" },
-      next: { zh: "下一张", en: "Next", ja: "次へ" }
+      next: { zh: "下一张", en: "Next", ja: "次へ" },
+      more: { zh: "加载更多", en: "Load more", ja: "もっと見る" }
     };
     return labels[kind][lang] || labels[kind].zh;
   };
 
   function initNknkGallery() {
     const items = Array.isArray(window.NKNK_GALLERY) ? window.NKNK_GALLERY : [];
+    const section = document.getElementById("artwork");
     const grid = document.getElementById("nknk-gallery");
+    const moreBtn = document.getElementById("nknk-gallery-more");
     const lightbox = document.getElementById("nknk-lightbox");
     const image = document.getElementById("nknk-lightbox-image");
     const caption = document.getElementById("nknk-lightbox-caption");
@@ -29,10 +35,13 @@
     if (!grid || !lightbox || !image || !items.length) return;
 
     let index = 0;
+    let visibleCount = 0;
+    let mounted = false;
     let open = false;
     let previousFocus = null;
     let touchStartX = 0;
     let touchStartY = 0;
+    const preloadCache = new Map();
 
     const syncChromeLabels = () => {
       grid.setAttribute("aria-label", chromeLabel("gallery"));
@@ -40,6 +49,10 @@
       closeBtn?.setAttribute("aria-label", chromeLabel("close"));
       prevBtn?.setAttribute("aria-label", chromeLabel("prev"));
       nextBtn?.setAttribute("aria-label", chromeLabel("next"));
+      if (moreBtn) {
+        moreBtn.textContent = chromeLabel("more");
+        moreBtn.setAttribute("aria-label", chromeLabel("more"));
+      }
       grid.querySelectorAll("[data-gallery-id]").forEach((button) => {
         const id = Number(button.dataset.galleryId);
         const img = button.querySelector("img");
@@ -51,8 +64,28 @@
         const current = items[index];
         if (current) {
           image.alt = altFor(current.id);
-          if (caption) caption.textContent = altFor(current.id);
+          if (caption) caption.textContent = `${altFor(current.id)} · ${index + 1} / ${items.length}`;
         }
+      }
+    };
+
+    const updateMoreButton = () => {
+      if (!moreBtn) return;
+      const remaining = items.length - visibleCount;
+      moreBtn.hidden = remaining <= 0;
+      moreBtn.disabled = remaining <= 0;
+      moreBtn.textContent = chromeLabel("more");
+      moreBtn.setAttribute("aria-label", chromeLabel("more"));
+    };
+
+    const preloadAdjacent = (center) => {
+      for (const offset of [-1, 1]) {
+        const item = items[(center + offset + items.length) % items.length];
+        if (!item || preloadCache.has(item.full)) continue;
+        const pre = new Image();
+        pre.decoding = "async";
+        pre.src = item.full;
+        preloadCache.set(item.full, pre);
       }
     };
 
@@ -63,6 +96,7 @@
       image.alt = altFor(item.id);
       if (caption) caption.textContent = `${altFor(item.id)} · ${index + 1} / ${items.length}`;
       lightbox.setAttribute("aria-label", altFor(item.id));
+      preloadAdjacent(index);
     };
 
     const openAt = (nextIndex) => {
@@ -88,8 +122,7 @@
       previousFocus = null;
     };
 
-    const fragment = document.createDocumentFragment();
-    items.forEach((item, itemIndex) => {
+    const createItem = (item, itemIndex) => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "nknk-gallery-item";
@@ -101,14 +134,32 @@
       img.alt = altFor(item.id);
       img.loading = "lazy";
       img.decoding = "async";
-      img.width = 400;
-      img.height = 400;
+      img.width = THUMB_SIZE;
+      img.height = THUMB_SIZE;
       button.appendChild(img);
       button.addEventListener("click", () => openAt(itemIndex));
-      fragment.appendChild(button);
-    });
-    grid.replaceChildren(fragment);
+      return button;
+    };
 
+    const appendBatch = (count = PAGE_SIZE) => {
+      const fragment = document.createDocumentFragment();
+      const end = Math.min(items.length, visibleCount + count);
+      for (let i = visibleCount; i < end; i++) fragment.appendChild(createItem(items[i], i));
+      grid.appendChild(fragment);
+      visibleCount = end;
+      updateMoreButton();
+    };
+
+    const mount = () => {
+      if (mounted) return;
+      mounted = true;
+      grid.replaceChildren();
+      visibleCount = 0;
+      appendBatch(PAGE_SIZE);
+      syncChromeLabels();
+    };
+
+    moreBtn?.addEventListener("click", () => appendBatch(PAGE_SIZE));
     closeBtn?.addEventListener("click", close);
     prevBtn?.addEventListener("click", () => openAt(index - 1));
     nextBtn?.addEventListener("click", () => openAt(index + 1));
@@ -148,6 +199,20 @@
 
     window.addEventListener("languagechange", syncChromeLabels);
     syncChromeLabels();
+    updateMoreButton();
+    if (moreBtn) moreBtn.hidden = true;
+
+    const target = section || grid;
+    if (typeof IntersectionObserver === "undefined") {
+      mount();
+      return;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some(entry => entry.isIntersecting)) return;
+      observer.disconnect();
+      mount();
+    }, { rootMargin: "400px 0px" });
+    observer.observe(target);
   }
 
   document.addEventListener("DOMContentLoaded", initNknkGallery);
