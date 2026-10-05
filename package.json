@@ -13,7 +13,8 @@
     "check:links:strict": "node tools/check-links.mjs --strict",
     "preview": "node tools/static-server.mjs --dist",
     "test:integration": "node tools/integration.mjs",
-    "optimize:images": "node tools/optimize-images.mjs"
+    "optimize:images": "node tools/optimize-images.mjs",
+    "generate:nknk": "node tools/generate-nknk-gallery.mjs"
   },
   "keywords": [],
   "author": "",

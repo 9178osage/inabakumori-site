@@ -29,6 +29,7 @@ test("public preview cannot expose source, environment, database or directory li
   assert.equal(publicPath("/?q=rain"), "index.html");
   assert.equal(publicPath("/script.js?v=123"), "script.js");
   assert.equal(publicPath("/images/optimized/hero/001.webp"), "images/optimized/hero/001.webp");
+  assert.equal(publicPath("/images/optimized/nknk/1.webp"), "images/optimized/nknk/1.webp");
 });
 
 test("blocked storage still permits theme, language and favorites for the session", async () => {

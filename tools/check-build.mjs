@@ -37,5 +37,19 @@ const metadata = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/s
 assert.equal(JSON.parse(metadata[1])["@type"], "WebSite");
 const manifest = JSON.parse(await readFile(path.join(root, "site.webmanifest"), "utf8"));
 for (const icon of manifest.icons) await stat(path.join(root, icon.src.split("?")[0]));
-assert.ok(bytes < 7 * 1024 * 1024, `Public build exceeds 7 MiB: ${bytes}`);
+
+const nknkSource = await readFile(path.join(root, "js/nknk-gallery.js"), "utf8");
+const nknkContext = vm.createContext({});
+vm.runInContext(nknkSource, nknkContext);
+const nknk = vm.runInContext("NKNK_GALLERY", nknkContext);
+assert.ok(Array.isArray(nknk) && nknk.length > 0, "NKNK gallery must be present");
+assert.equal(nknk.length, new Set(nknk.map(item => item.id)).size, "NKNK gallery ids must be unique");
+for (const item of nknk) {
+  assert.equal(item.id, Number(item.id));
+  await stat(path.join(root, item.thumb));
+  await stat(path.join(root, item.full));
+}
+assert.ok(html.includes('id="nknk-gallery"'), "NKNK gallery mount missing");
+assert.ok(html.includes('id="nknk-lightbox"'), "NKNK lightbox missing");
+assert.ok(bytes < 16 * 1024 * 1024, `Public build exceeds 16 MiB: ${bytes}`);
 console.log(`Public build verified: references, anchors, JS syntax, metadata, pre-rendering, privacy allowlist; ${(bytes / 1024 / 1024).toFixed(2)} MiB.`);
