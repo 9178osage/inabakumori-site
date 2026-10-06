@@ -4,10 +4,9 @@ on:
     branches:
       - main
   workflow_dispatch:
+# Least privilege: jobs get read-only contents unless they declare more below.
 permissions:
-  contents: write
-  pages: write
-  id-token: write
+  contents: read
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -15,6 +14,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # npm ci runs third-party install scripts here, so this job never gets a write token.
+    permissions:
+      contents: read
+      pages: read
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v4
@@ -34,6 +37,7 @@ jobs:
           grep -E 'nknk-gallery-ui\.js\?v=[a-f0-9]{12}' dist/index.html
           ! grep -q 'nknk-gallery-ui.js?v=20260930' dist/index.html
           ! grep -q 'nknk-gallery-ui.js?v=20261005nknk' dist/index.html
+          ! grep -Eq 'connect-src[^"]*(localhost|127\.0\.0\.1)' dist/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
@@ -62,6 +66,8 @@ jobs:
     if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v6
       - uses: actions/download-artifact@v4
@@ -74,7 +80,7 @@ jobs:
           grep -q 'data-song-title=' _site/index.html
           grep -E 'nknk-gallery-ui\.js\?v=[a-f0-9]{12}' _site/index.html
           touch _site/.nojekyll
-      - uses: peaceiris/actions-gh-pages@v4
+      - uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4.1.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./_site
