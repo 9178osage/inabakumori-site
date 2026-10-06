@@ -162,3 +162,24 @@ test("comment DELETE paths are rate-limited separately from reads", async () => 
   assert.match(backend, /uptimeSec/);
   assert.match(backend, /cross-origin/);
 });
+
+test("local preview keeps the localhost API in CSP while production builds strip it", () => {
+  const fs = require("node:fs");
+  const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+  assert.equal(pkg.scripts.build, "node tools/build-site.mjs", "production build must not keep local CSP");
+  assert.equal(pkg.scripts["build:local"], "node tools/build-site.mjs --keep-local-api-csp");
+  assert.match(pkg.scripts.preview, /^npm run build:local && node tools\/static-server\.mjs --dist$/);
+  assert.match(pkg.scripts.check, /npm run build && node tools\/check-build\.mjs/);
+  assert.doesNotMatch(pkg.scripts.check, /build:local|keep-local-api-csp|KEEP_LOCAL_API_CSP/);
+  const build = fs.readFileSync("tools/build-site.mjs", "utf8");
+  assert.match(build, /process\.argv\.includes\("--keep-local-api-csp"\)/);
+  assert.match(build, /if \(!keepLocalApiCsp\)/);
+  const checkBuild = fs.readFileSync("tools/check-build.mjs", "utf8");
+  assert.match(checkBuild, /assert\.doesNotMatch\(csp, \/localhost\|127\\\.0\\\.0\\\.1\//);
+  for (const workflow of fs.readdirSync(".github/workflows")) {
+    const yml = fs.readFileSync(`.github/workflows/${workflow}`, "utf8");
+    assert.doesNotMatch(yml, /build:local|keep-local-api-csp|KEEP_LOCAL_API_CSP|npm run preview/, `${workflow} must use the production build`);
+  }
+  const source = fs.readFileSync("index.html", "utf8");
+  assert.match(source, /connect-src [^"]*http:\/\/127\.0\.0\.1:3001 http:\/\/localhost:3001/, "source CSP keeps local API for npm run frontend");
+});

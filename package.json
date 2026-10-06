@@ -8,10 +8,11 @@
     "backend": "cd backend && node server.mjs",
     "test": "node --test tools/tests/*.test.cjs",
     "build": "node tools/build-site.mjs",
+    "build:local": "node tools/build-site.mjs --keep-local-api-csp",
     "check": "npm test && npm --prefix backend run check && npm run build && node tools/check-build.mjs",
     "check:links": "node tools/check-links.mjs",
     "check:links:strict": "node tools/check-links.mjs --strict",
-    "preview": "node tools/static-server.mjs --dist",
+    "preview": "npm run build:local && node tools/static-server.mjs --dist",
     "test:integration": "node tools/integration.mjs",
     "optimize:images": "node tools/optimize-images.mjs",
     "generate:nknk": "node tools/generate-nknk-gallery.mjs"

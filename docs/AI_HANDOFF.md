@@ -75,6 +75,8 @@ npm run build
 npm --prefix backend run check
 ```
 
+本地连本地后端预览产物用 `npm run preview`（内部 `npm run build:local`，CSP 保留 localhost:3001；该产物勿部署）。部署/CI 只用 `npm run build`，它会去掉 localhost，`check-build` 会强制校验。
+
 `npm run check` 会依次执行测试和前端认证脚本构建；`npm run check:links` 与 `npm run check:links:strict` 用于检查链接。
 
 ## 部署相关信息
