@@ -132,7 +132,6 @@ const corsOptions = { origin(origin, callback) {
 app.use(cors(corsOptions));
 app.use(express.json({ limit: "20kb", strict: true }));
 const authSensitiveLimiter = rateLimit({ windowMs: 15 * 60 * 1e3, limit: 20, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
-const emailExistsLimiter = rateLimit({ windowMs: 15 * 60 * 1e3, limit: 8, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 function normalizedRequestPath(value) {
   let pathname;
   try {
@@ -148,14 +147,11 @@ function normalizedRequestPath(value) {
   }
   return `/${parts.join("/")}`;
 }
+// emailExistsGET is removed from the SuperTokens APIs, so only POST auth routes need throttling.
 app.use((req, res, next) => {
-  if (req.method !== "POST" && req.method !== "GET") return next();
+  if (req.method !== "POST") return next();
   const pathname = normalizedRequestPath(req.originalUrl || req.url);
   if (pathname !== "/auth" && !pathname.startsWith("/auth/")) return next();
-  if (/\/(?:emailpassword\/email\/exists|signup\/email\/exists)$/u.test(pathname)) {
-    return emailExistsLimiter(req, res, next);
-  }
-  if (req.method !== "POST") return next();
   return authSensitiveLimiter(req, res, next);
 });
 app.use(middleware());
@@ -341,6 +337,9 @@ registerAdminCommentManagement(app, db, verifySession, async userId => {
 });
 app.use("/api", (req, res) => {
   res.status(404).json({ error: "API 路径不存在", code: "NOT_FOUND" });
+});
+app.use((req, res) => {
+  res.status(404).json({ error: "路径不存在", code: "NOT_FOUND" });
 });
 app.use(errorHandler());
 app.use((err, req, res, next) => {

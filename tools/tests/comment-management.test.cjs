@@ -4,7 +4,7 @@ const { DatabaseSync } = require('node:sqlite');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
-test('auth POST throttling covers tenant paths and URL normalization; email-exists is limited separately', async () => {
+test('auth POST throttling covers tenant paths and URL normalization; disabled email-exists API needs no limiter', async () => {
   const express = require('../../backend/node_modules/express');
   const { rateLimit } = require('../../backend/node_modules/express-rate-limit');
   const { IncomingMessage, ServerResponse } = require('node:http');
@@ -33,9 +33,9 @@ test('auth POST throttling covers tenant paths and URL normalization; email-exis
       socket.destroy();
     }
   };
-  for (let i = 0; i < 8; i++) assert.equal(await request('GET', '/auth/signup/email/exists'), 204);
-  assert.equal(await request('GET', '/auth/signup/email/exists'), 429);
-  assert.equal(await request('GET', '/auth/public/signup/email/exists'), 429);
+  assert.doesNotMatch(backend, /emailExistsLimiter/, 'dead email-exists limiter must stay removed');
+  assert.match(backend, /delete next\.emailExistsGET;/, 'email-exists API must remain disabled');
+  for (let i = 0; i < 12; i++) assert.equal(await request('GET', '/auth/signup/email/exists'), 204);
   for (let i = 0; i < 25; i++) assert.equal(await request('GET', '/auth/signin'), 204);
   const paths = [
     '/auth/signin', '/auth/public/signin', '/auth/public/signup',
@@ -472,4 +472,12 @@ test('helmet keeps an explicit API CSP instead of disabling it', () => {
   assert.match(source, /contentSecurityPolicy\s*:\s*\{/);
   assert.doesNotMatch(source, /contentSecurityPolicy\s*:\s*false/);
   assert.match(source, /defaultSrc:\s*\["'none'"\]/);
+});
+
+test('unknown non-API backend paths return a JSON 404 before the error handlers', () => {
+  const backend = fs.readFileSync('backend/server.mjs', 'utf8');
+  const apiNotFound = backend.indexOf('app.use("/api", (req, res) => {');
+  const catchAll = backend.indexOf('app.use((req, res) => {\n  res.status(404).json({ error: "路径不存在", code: "NOT_FOUND" });');
+  const errors = backend.indexOf('app.use(errorHandler());');
+  assert.ok(apiNotFound > 0 && catchAll > apiNotFound && errors > catchAll, 'catch-all JSON 404 must sit after /api 404 and before errorHandler');
 });
