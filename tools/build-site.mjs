@@ -48,8 +48,10 @@ let html = await readFile(path.join(root, "index.html"), "utf8");
 const archive = songs.map((song, index) => `<a href="${escape(song.youtube)}" target="_blank" rel="noopener noreferrer" data-album="${escape(song.album)}" data-song-title="${escape(song.title)}">${String(index + 1).padStart(2, "0")}　${escape(song.title)}</a>`).join("\n");
 html = html.replace('<div class="song-scroll song-list" id="song-list"></div>', `<div class="song-scroll song-list" id="song-list">${archive}</div>`);
 // The source CSP allows a local API for development; the published CSP must not.
-// Set KEEP_LOCAL_API_CSP=1 to preview dist against a backend on localhost:3001.
-if (process.env.KEEP_LOCAL_API_CSP !== "1") {
+// `npm run build:local` / `npm run preview` pass --keep-local-api-csp (KEEP_LOCAL_API_CSP=1
+// also works) so a local dist can talk to a backend on localhost:3001. Never use it for deploys.
+const keepLocalApiCsp = process.argv.includes("--keep-local-api-csp") || process.env.KEEP_LOCAL_API_CSP === "1";
+if (!keepLocalApiCsp) {
   html = html.replace(/(<meta http-equiv="Content-Security-Policy" content=")([^"]*)(")/, (match, start, policy, end) =>
     start + policy.replace(/\s+http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?(?=[\s;]|$)/g, "") + end);
 }
@@ -64,3 +66,4 @@ async function measure(folder) {
 }
 await measure(out);
 console.log(`Built dist: ${files} public files, ${(bytes / 1024 / 1024).toFixed(2)} MiB, ${songs.length} pre-rendered songs.`);
+if (keepLocalApiCsp) console.log("Local build: CSP keeps http://127.0.0.1:3001 and http://localhost:3001 — do not deploy this dist.");

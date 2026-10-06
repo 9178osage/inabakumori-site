@@ -93,7 +93,8 @@ npm run test:integration
 ```sh
 npm run frontend   # 源码预览，http://127.0.0.1:5500
 npm run build      # 生成 dist/，并重新生成 js/auth.js
-npm run preview    # 生产产物预览，同为 5500 端口；与 frontend 二选一
+npm run build:local # 同 build，但 CSP 保留 127.0.0.1:3001 / localhost:3001（仅本地，勿部署）
+npm run preview    # 先 build:local 再预览产物，同为 5500 端口；与 frontend 二选一
 npm run backend    # 需要 backend/.env 中的真实后端配置
 ```
 

@@ -29,7 +29,7 @@ for (const match of html.matchAll(/(?:src|href)="([^"]+)"/g)) {
 const csp = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)"/)?.[1];
 assert.ok(csp, "Production CSP meta missing");
 assert.match(csp, /connect-src 'self' https:\/\/inabakumori-site-production\.up\.railway\.app/, "Production CSP must allow the Railway API");
-if (process.env.KEEP_LOCAL_API_CSP !== "1") assert.doesNotMatch(csp, /localhost|127\.0\.0\.1/, "Production CSP must not allow local development APIs");
+if (process.env.KEEP_LOCAL_API_CSP !== "1") assert.doesNotMatch(csp, /localhost|127\.0\.0\.1/, "Production CSP must not allow local development APIs (dist came from build:local/preview? run npm run build)");
 const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
 assert.equal(ids.length, new Set(ids).size, "Duplicate HTML IDs");
 for (const match of html.matchAll(/href="#([^"]+)"/g)) assert.ok(ids.includes(match[1]), `Missing anchor ${match[1]}`);

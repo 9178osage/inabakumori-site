@@ -275,11 +275,16 @@ Build the public production directory:
 npm run build
 ```
 
-Preview the generated public directory:
+Preview the public build locally (rebuilds `dist/` with `build:local`, which keeps
+`http://127.0.0.1:3001` / `http://localhost:3001` in the CSP so it can reach a local backend):
 
 ```bash
 npm run preview
 ```
+
+`npm run build:local` does the same build without starting the server. Do not deploy a
+`build:local` dist: `npm run build` (used by `npm run check` and GitHub Pages) strips the
+localhost entries and `tools/check-build.mjs` fails if they are present.
 
 Other useful commands:
 
@@ -635,11 +640,15 @@ npm test
 npm run build
 ```
 
-预览构建后的公开目录：
+本地预览公开产物（会先用 `build:local` 重新构建 `dist/`，CSP 保留
+`http://127.0.0.1:3001` / `http://localhost:3001`，可连接本地后端）：
 
 ```bash
 npm run preview
 ```
+
+`npm run build:local` 只构建不启动服务。不要部署 `build:local` 的产物：`npm run build`
+（`npm run check` 和 GitHub Pages 使用）会去掉 localhost，`tools/check-build.mjs` 发现残留会报错。
 
 常用命令：
 
@@ -990,6 +999,16 @@ npm test
 ```bash
 npm run build
 ```
+
+公開ビルドをローカルでプレビュー（`build:local` で `dist/` を再生成し、CSP に
+`http://127.0.0.1:3001` / `http://localhost:3001` を残すのでローカルのバックエンドに接続できます）：
+
+```bash
+npm run preview
+```
+
+`build:local` の成果物はデプロイしないでください。`npm run build`（`npm run check` と GitHub Pages）は
+localhost を除去し、残っていれば `tools/check-build.mjs` が失敗します。
 
 サイト内リンクをチェック：
 
