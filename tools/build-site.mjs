@@ -47,6 +47,12 @@ let html = await readFile(path.join(root, "index.html"), "utf8");
 // Real links are present before JS starts and remain available without JavaScript.
 const archive = songs.map((song, index) => `<a href="${escape(song.youtube)}" target="_blank" rel="noopener noreferrer" data-album="${escape(song.album)}" data-song-title="${escape(song.title)}">${String(index + 1).padStart(2, "0")}　${escape(song.title)}</a>`).join("\n");
 html = html.replace('<div class="song-scroll song-list" id="song-list"></div>', `<div class="song-scroll song-list" id="song-list">${archive}</div>`);
+// The source CSP allows a local API for development; the published CSP must not.
+// Set KEEP_LOCAL_API_CSP=1 to preview dist against a backend on localhost:3001.
+if (process.env.KEEP_LOCAL_API_CSP !== "1") {
+  html = html.replace(/(<meta http-equiv="Content-Security-Policy" content=")([^"]*)(")/, (match, start, policy, end) =>
+    start + policy.replace(/\s+http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?(?=[\s;]|$)/g, "") + end);
+}
 html = html.replace(/(src|href)="([^"?]+)(?:\?[^"\s]*)?"/g, (match, attribute, file) => hashes.has(file) ? `${attribute}="${file}?v=${hashes.get(file)}"` : match);
 await writeFile(path.join(out, "index.html"), html);
 let bytes = 0, files = 0;

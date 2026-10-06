@@ -8,7 +8,9 @@ function commentErrorMessage(data, response) {
     PROMOTIONAL_CONTENT: ["留言内容不能包含链接、邮箱、电话号码或广告联系方式", "Messages cannot contain links, email addresses, phone numbers, or promotional contact details."],
     DUPLICATE_COMMENT: ["相同内容请稍后再留言", "Please wait before posting the same message again."],
     GUEST_RATE_LIMITED: ["游客每小时最多留言 3 条，请稍后再试", "Guests can post up to 3 messages per hour. Please try again later."],
-    RATE_LIMITED: ["留言发送过于频繁，请稍后再试", "Messages are being sent too quickly. Please try again later."]
+    RATE_LIMITED: ["留言发送过于频繁，请稍后再试", "Messages are being sent too quickly. Please try again later."],
+    MEMBER_RATE_LIMITED: ["登录用户每小时最多留言 20 条，请稍后再试", "Signed-in members can post up to 20 messages per hour. Please try again later."],
+    MEMBER_COMMENT_CAP: ["每个账号最多保留 100 条留言，请先删除旧留言", "Each account can keep up to 100 messages. Please delete some older ones first."]
   };
   const message = messages[data?.code];
   if (message) return pageText(message[0], message[1]);
@@ -301,7 +303,9 @@ async function addMessage() {
     const response = await (window.siteFetch || fetch)(COMMENTS_API, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ nickname, content }) });
     const data = await response.json();
     if (!response.ok) {
-      throw new Error(commentErrorMessage(data, response));
+      const failure = new Error("Comment rejected");
+      failure.userMessage = commentErrorMessage(data, response);
+      throw failure;
     }
     if (!data.comment || !Number.isSafeInteger(data.comment.id)) {
       throw new SyntaxError("Invalid comment response");
@@ -317,7 +321,9 @@ async function addMessage() {
     window.dispatchEvent(new Event("commentposted"));
   } catch (error) {
     console.error("留言发布失败：", error);
-    showMessageFeedback(error instanceof TypeError || error instanceof SyntaxError || error.name === "TimeoutError" || error.name === "AbortError" ? pageText("无法连接服务器或响应异常，请稍后重试。", "The server is unavailable or returned an invalid response. Please try again.") : error.message);
+    // Only show text we localized ourselves; never surface a raw Error message.
+    const networkFailure = error instanceof TypeError || error instanceof SyntaxError || error?.name === "TimeoutError" || error?.name === "AbortError";
+    showMessageFeedback(typeof error?.userMessage === "string" && error.userMessage ? error.userMessage : networkFailure ? pageText("无法连接服务器或响应异常，请稍后重试。", "The server is unavailable or returned an invalid response. Please try again.") : pageText("留言发布失败。", "Failed to post your message."));
   } finally {
     messageSubmitting = false;
     if (button) button.disabled = false;
@@ -931,12 +937,13 @@ document.addEventListener("DOMContentLoaded", () => {
       changeHeroSlide();
     });
   }
-  console.log("✅ Weather observation station loaded");
 });
 window.addEventListener?.("online", updateConnectivityStatus);
 window.addEventListener?.("offline", updateConnectivityStatus);
 const MEME_COUNT = 6;
 const MEME_FOLDER = "images/memes/";
+// Intrinsic sizes keep the dialog from jumping while a meme loads (index = number - 1).
+const MEME_SIZES = [[259, 224], [616, 532], [370, 320], [628, 542], [116, 139], [110, 59]];
 let easterEggOpen = false;
 let easterEggCanClose = false;
 let easterEggPreviousFocus = null;
@@ -947,6 +954,11 @@ function showEasterEgg() {
   if (!overlay || !image || easterEggOpen) return;
   const randomNumber = Math.floor(Math.random() * MEME_COUNT) + 1;
   const filename = String(randomNumber).padStart(3, "0") + ".png";
+  const [memeWidth, memeHeight] = MEME_SIZES[randomNumber - 1] || [];
+  if (memeWidth && memeHeight) {
+    image.width = memeWidth;
+    image.height = memeHeight;
+  }
   image.src = MEME_FOLDER + filename;
   image.alt = currentLanguage === "ja" ? `ランダム画像 ${randomNumber}` : currentLanguage === "zh" ? `随机表情包 ${randomNumber}` : `Random meme ${randomNumber}`;
   easterEggOpen = true;
