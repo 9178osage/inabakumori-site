@@ -439,3 +439,48 @@ test("inline message validation keeps focus on the empty field without a blockin
   assert.equal(focused, true);
   assert.equal(events.length, 0);
 });
+
+test("member rate-limit and comment-cap codes are localized in zh, en and ja", () => {
+  const { run, context } = setup();
+  const cases = {
+    MEMBER_RATE_LIMITED: { status: 429, zh: "登录用户每小时最多留言 20 条，请稍后再试", en: "Signed-in members can post up to 20 messages per hour. Please try again later.", ja: "ログインユーザーは1時間に20件まで投稿できます。しばらくしてからお試しください。" },
+    MEMBER_COMMENT_CAP: { status: 409, zh: "每个账号最多保留 100 条留言，请先删除旧留言", en: "Each account can keep up to 100 messages. Please delete some older ones first.", ja: "1アカウントにつき保存できるメッセージは100件までです。古いメッセージを削除してからお試しください。" }
+  };
+  for (const [code, expected] of Object.entries(cases)) {
+    context.result = { error: "server text", code };
+    context.response = { status: expected.status };
+    for (const language of ["zh", "en", "ja"]) {
+      run(`currentLanguage=${JSON.stringify(language)}`);
+      assert.equal(run("commentErrorMessage(result, response)"), expected[language], `${code} ${language}`);
+    }
+  }
+});
+
+test("unknown comment errors fall back to localized generic text", () => {
+  const { run, context } = setup();
+  context.result = { error: "某个未知的服务器错误", code: "SOMETHING_NEW" };
+  context.response = { status: 409 };
+  run('currentLanguage="en"');
+  assert.equal(run("commentErrorMessage(result, response)"), "Failed to post your message. Please try again.");
+  run('currentLanguage="ja"');
+  assert.equal(run("commentErrorMessage(result, response)"), "メッセージを投稿できませんでした。");
+});
+
+test("submission never surfaces a raw Error message", async () => {
+  const { elements, context, run, events } = setup();
+  elements["message-name"] = { value: "tester" };
+  elements["message-input"] = { value: "hello" };
+  elements[".message-box button"] = {};
+  run("createFloatingMessage=()=>{}");
+  context.fetch = async () => ({ ok: true, json: async () => { throw new RangeError("internal parser detail"); } });
+  run('currentLanguage="en"');
+  await run("addMessage()");
+  assert.equal(events.at(-1), "Failed to post your message.");
+  run('currentLanguage="ja"');
+  context.fetch = async () => ({ ok: false, status: 409, json: async () => ({ error: "每个账号最多保留 100 条留言，请先删除旧留言", code: "MEMBER_COMMENT_CAP" }) });
+  await run("addMessage()");
+  assert.equal(events.at(-1), "1アカウントにつき保存できるメッセージは100件までです。古いメッセージを削除してからお試しください。");
+  const source = fs.readFileSync("script.js", "utf8");
+  assert.doesNotMatch(source, /console\.log\(/, "no leftover console.log in script.js");
+  assert.doesNotMatch(source, /:\s*error\.message\)/, "raw error.message must not reach the UI");
+});
