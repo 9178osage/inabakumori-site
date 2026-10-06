@@ -2,6 +2,29 @@
   const SPEED_PX_PER_SEC = 30;
   const DRAG_THRESHOLD = 6;
   const ROW_COUNT = 1;
+  // Thumbs for the first EAGER_THUMBS illustrations load immediately; the rest load once they
+  // come within THUMB_LOOKAHEAD_PX of the marquee viewport (≈50 s ahead at 30 px/s).
+  const EAGER_THUMBS = 15;
+  const THUMB_LOOKAHEAD_PX = 1600;
+
+  // Enter/Space (and assistive-tech activation) dispatch a click with detail === 0. Pointer
+  // clicks have detail >= 1 and are handled on pointerup so drags can be told apart.
+  const isKeyboardActivation = (event) => event?.detail === 0;
+
+  // Returns the control Tab / Shift+Tab should wrap to, or null to let focus move normally.
+  const focusTrapTarget = (focusables, active, backwards) => {
+    if (!focusables.length) return null;
+    const index = focusables.indexOf(active);
+    const last = focusables.length - 1;
+    if (index === -1) return backwards ? focusables[last] : focusables[0];
+    if (backwards && index === 0) return focusables[last];
+    if (!backwards && index === last) return focusables[0];
+    return null;
+  };
+
+  if (typeof window !== "undefined") {
+    window.NKNKGalleryUI = Object.freeze({ isKeyboardActivation, focusTrapTarget, EAGER_THUMBS, THUMB_LOOKAHEAD_PX });
+  }
 
   const altFor = (id) => {
     const lang = typeof currentLanguage === "string" ? currentLanguage : "zh";
@@ -16,7 +39,8 @@
       gallery: { zh: "NKNK 插画库", en: "NKNK illustration gallery", ja: "NKNK イラストギャラリー" },
       close: { zh: "关闭", en: "Close", ja: "閉じる" },
       prev: { zh: "上一张", en: "Previous", ja: "前へ" },
-      next: { zh: "下一张", en: "Next", ja: "次へ" }
+      next: { zh: "下一张", en: "Next", ja: "次へ" },
+      error: { zh: "图片加载失败", en: "Image failed to load", ja: "画像を読み込めませんでした" }
     };
     return labels[kind][lang] || labels[kind].zh;
   };
@@ -46,6 +70,11 @@
     let reduced = prefersReducedMotion();
     const preloadCache = new Map();
     const rows = [];
+    let inertState = [];
+    let imageFallbackTried = false;
+    let thumbObserver = null;
+    // Deferred thumbs need known dimensions so their slots do not collapse before loading.
+    const canDeferThumbs = items.every(item => item.w > 0 && item.h > 0);
 
     const syncChromeLabels = () => {
       root.setAttribute("aria-label", chromeLabel("gallery"));
@@ -83,6 +112,13 @@
     const showLightbox = (nextIndex) => {
       lightboxIndex = (nextIndex + items.length) % items.length;
       const item = items[lightboxIndex];
+      imageFallbackTried = false;
+      lightbox.classList.remove("is-error");
+      if (item.w > 0 && item.h > 0) {
+        // Full images share the thumb's aspect ratio; this reserves the box before decode.
+        image.width = item.w;
+        image.height = item.h;
+      }
       image.src = item.full;
       image.alt = altFor(item.id);
       if (caption) caption.textContent = `${altFor(item.id)} · ${lightboxIndex + 1} / ${items.length}`;
@@ -99,6 +135,11 @@
       lightboxOpen = true;
       showLightbox(nextIndex);
       lightbox.hidden = false;
+      // Same pattern as the easter-egg dialog: make everything behind the dialog inert.
+      inertState = [...document.body.children]
+        .filter(node => node !== lightbox && node.tagName !== "SCRIPT")
+        .map(node => [node, node.inert]);
+      inertState.forEach(([node]) => { node.inert = true; });
       document.body.classList.add("nknk-lightbox-open");
       syncPauseState();
       closeBtn?.focus();
@@ -109,7 +150,10 @@
       lightboxOpen = false;
       lightbox.hidden = true;
       image.removeAttribute("src");
+      lightbox.classList.remove("is-error");
       document.body.classList.remove("nknk-lightbox-open");
+      inertState.forEach(([node, wasInert]) => { node.inert = wasInert; });
+      inertState = [];
       previousFocus?.focus?.({ preventScroll: true });
       previousFocus = null;
       syncPauseState();
@@ -128,11 +172,20 @@
         button.setAttribute("aria-label", altFor(item.id));
       }
       const img = document.createElement("img");
-      img.src = item.thumb;
       img.alt = clone ? "" : altFor(item.id);
       img.decoding = "async";
-      img.loading = "eager";
       img.draggable = false;
+      if (item.w > 0 && item.h > 0) {
+        img.width = item.w;
+        img.height = item.h;
+        img.style.aspectRatio = `${item.w} / ${item.h}`;
+      }
+      if (!canDeferThumbs || (!clone && absoluteIndex < EAGER_THUMBS)) {
+        img.loading = "eager";
+        img.src = item.thumb;
+      } else {
+        img.dataset.src = item.thumb;
+      }
       button.appendChild(img);
       return button;
     };
@@ -153,6 +206,24 @@
       const gap = Number.parseFloat(style.columnGap || style.gap) || 0;
       width += gap * Math.max(0, half - 1);
       return width || track.scrollWidth / 2;
+    };
+
+    // The viewport clips with overflow:hidden, so focusing an off-screen item makes the browser
+    // scroll it (scrollLeft), which fights the transform-based loop. Undo that scroll and move
+    // the loop offset instead so the focused item is centred and its focus ring visible.
+    const revealFocusedItem = (row, button) => {
+      if (reduced || !button) return;
+      const { viewport, track } = row;
+      if (viewport.scrollLeft) viewport.scrollLeft = 0;
+      const viewRect = viewport.getBoundingClientRect();
+      const rect = button.getBoundingClientRect();
+      if (rect.left >= viewRect.left && rect.right <= viewRect.right) return;
+      const position = rect.left - track.getBoundingClientRect().left;
+      const maxShift = Math.max(0, track.scrollWidth - viewport.clientWidth);
+      const shift = Math.min(maxShift, Math.max(0, position - (viewport.clientWidth - rect.width) / 2));
+      // applyTransform renders -offset for leftward rows and +offset for rightward rows.
+      row.offset = row.direction < 0 ? shift : -shift;
+      applyTransform(row);
     };
 
     const bindRowInteractions = (row) => {
@@ -188,13 +259,14 @@
         applyTransform(row);
       };
 
-      const onPointerUp = (event) => {
+      const onPointerUp = (event, cancelled = false) => {
         if (pointerId == null || event.pointerId !== pointerId) return;
         pointerId = null;
         row.dragging = false;
         viewport.classList.remove("is-dragging");
         try { viewport.releasePointerCapture(event.pointerId); } catch { /* ignore */ }
-        const shouldClick = !moved && activeButton;
+        // pointercancel (e.g. the page starts scrolling vertically) must never open the lightbox.
+        const shouldClick = !cancelled && !moved && activeButton;
         activeButton = null;
         if (shouldClick) {
           const absoluteIndex = Number(shouldClick.dataset.galleryIndex);
@@ -206,7 +278,7 @@
       viewport.addEventListener("pointerdown", onPointerDown);
       viewport.addEventListener("pointermove", onPointerMove);
       viewport.addEventListener("pointerup", onPointerUp);
-      viewport.addEventListener("pointercancel", onPointerUp);
+      viewport.addEventListener("pointercancel", event => onPointerUp(event, true));
       viewport.addEventListener("pointerleave", () => {
         if (pointerId != null) return;
         row.hover = false;
@@ -216,10 +288,17 @@
         row.hover = true;
         syncPauseState();
       });
-      viewport.addEventListener("focusin", () => {
+      viewport.addEventListener("focusin", (event) => {
         row.focus = true;
         syncPauseState();
+        revealFocusedItem(row, event.target.closest?.(".nknk-marquee-item"));
       });
+      viewport.addEventListener("scroll", () => {
+        if (reduced || !viewport.scrollLeft) return;
+        const active = viewport.contains(document.activeElement) ? document.activeElement.closest?.(".nknk-marquee-item") : null;
+        viewport.scrollLeft = 0;
+        revealFocusedItem(row, active);
+      }, { passive: true });
       viewport.addEventListener("focusout", () => {
         // Defer so focus moving within the row does not briefly resume.
         queueMicrotask(() => {
@@ -228,10 +307,10 @@
         });
       });
 
-      // Reduced-motion / fallback: native click opens lightbox.
+      // Reduced motion: every click opens. Marquee mode: pointer clicks were already handled on
+      // pointerup (to distinguish drags), so only keyboard activation opens here.
       track.addEventListener("click", (event) => {
-        if (!reduced) {
-          // Non-reduced clicks are handled on pointerup to distinguish drag.
+        if (!reduced && !isKeyboardActivation(event)) {
           event.preventDefault();
           return;
         }
@@ -290,6 +369,43 @@
       lastTs = 0;
     };
 
+    const remeasure = () => {
+      for (const row of rows) {
+        row.loopWidth = reduced ? 0 : measureLoopWidth(row.track);
+        wrapOffset(row);
+        if (!reduced) applyTransform(row);
+      }
+    };
+
+    const loadThumb = (img) => {
+      const src = img.dataset.src;
+      if (!src) return;
+      img.removeAttribute("data-src");
+      img.src = src;
+    };
+
+    const observeDeferredThumbs = () => {
+      thumbObserver?.disconnect();
+      thumbObserver = null;
+      const pending = rows.flatMap(row => [...row.track.querySelectorAll("img[data-src]")]);
+      if (!pending.length) return;
+      if (typeof IntersectionObserver === "undefined") {
+        pending.forEach(loadThumb);
+        return;
+      }
+      // root must be the clipping viewport itself: ancestor overflow clipping is applied before
+      // rootMargin, so a document-level observer would only fire once a thumb is already visible.
+      const observers = rows.map(row => new IntersectionObserver((entries, observer) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          observer.unobserve(entry.target);
+          loadThumb(entry.target);
+        }
+      }, { root: row.viewport, rootMargin: `0px ${THUMB_LOOKAHEAD_PX}px` }));
+      rows.forEach((row, index) => row.track.querySelectorAll("img[data-src]").forEach(img => observers[index].observe(img)));
+      thumbObserver = { disconnect: () => observers.forEach(observer => observer.disconnect()) };
+    };
+
     const mount = () => {
       if (mounted) return;
       mounted = true;
@@ -330,20 +446,14 @@
         bindRowInteractions(row);
       });
 
-      // Measure after layout; images may still be loading so remeasure on load.
-      const remasure = () => {
-        for (const row of rows) {
-          row.loopWidth = reduced ? 0 : measureLoopWidth(row.track);
-          wrapOffset(row);
-          if (!reduced) applyTransform(row);
-        }
-      };
-      remasure();
-      root.querySelectorAll("img").forEach((img) => {
+      // Slots are sized from the generated thumb dimensions; still remeasure once eager thumbs
+      // load in case the config lacks dimensions.
+      remeasure();
+      root.querySelectorAll("img[src]").forEach((img) => {
         if (img.complete) return;
-        img.addEventListener("load", remasure, { once: true });
+        img.addEventListener("load", remeasure, { once: true });
       });
-      window.addEventListener("resize", remasure);
+      observeDeferredThumbs();
 
       syncChromeLabels();
       syncPauseState();
@@ -357,8 +467,34 @@
       if (event.target === lightbox) closeLightbox();
     });
 
+    image.addEventListener("error", () => {
+      if (!lightboxOpen || !image.getAttribute("src")) return;
+      const item = items[lightboxIndex];
+      if (!item) return;
+      // Fall back to the (already cached) thumb once, then show a localized message.
+      if (!imageFallbackTried && item.thumb && image.getAttribute("src") !== item.thumb) {
+        imageFallbackTried = true;
+        image.src = item.thumb;
+        return;
+      }
+      lightbox.classList.add("is-error");
+      if (caption) caption.textContent = `${altFor(item.id)} · ${chromeLabel("error")}`;
+    });
+    image.addEventListener("load", () => lightbox.classList.remove("is-error"));
+
+    window.addEventListener("resize", remeasure);
+
     document.addEventListener("keydown", (event) => {
       if (!lightboxOpen) return;
+      if (event.key === "Tab") {
+        const focusables = [closeBtn, prevBtn, nextBtn].filter(control => control && !control.hidden && !control.disabled);
+        const target = focusTrapTarget(focusables, document.activeElement, event.shiftKey);
+        if (target) {
+          event.preventDefault();
+          target.focus();
+        }
+        return;
+      }
       if (event.key === "Escape") {
         event.preventDefault();
         closeLightbox();
