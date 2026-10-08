@@ -1846,6 +1846,7 @@ body.easter-egg-open { overflow: hidden; }
 .nknk-gallery.is-reduced .nknk-marquee {
   overflow-x: auto;
   overflow-y: hidden;
+  touch-action: auto;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
   cursor: default;

@@ -4,8 +4,9 @@
 #   YOUTUBE_API_KEY=... node tools/refresh-youtube-views.mjs
 #
 # GITHUB_TOKEN with contents:write can commit to the default branch. Commits made with
-# GITHUB_TOKEN do not re-trigger workflows (avoids a refresh loop). If your org blocks
-# token pushes to main, switch the final step to open a PR instead (see comments below).
+# GITHUB_TOKEN do not re-trigger push workflows; publish dispatches Pages explicitly.
+# If your org blocks token pushes to main, switch the commit step to open a PR instead
+# (see comments below).
 name: Refresh YouTube view counts
 on:
   schedule:
@@ -21,6 +22,8 @@ jobs:
   refresh:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v4
@@ -39,6 +42,9 @@ jobs:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: node tools/refresh-youtube-views.mjs
       - name: Commit updates when counts changed
+        id: commit
+        env:
+          REF_NAME: ${{ github.ref_name }}
         run: |
           if git diff --quiet -- js/songs.js; then
             echo "No view-count changes to commit."
@@ -48,9 +54,25 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add js/songs.js
           git commit -m "chore: refresh YouTube view counts"
-          git push origin HEAD:${{ github.ref_name }}
+          git push origin "HEAD:$REF_NAME"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
           # If push to main is blocked for GITHUB_TOKEN, replace the push with a PR flow:
           #   git checkout -b chore/youtube-views-$(date -u +%Y%m%d)
           #   git push -u origin HEAD
           #   gh pr create --title "chore: refresh YouTube view counts" --body "Automated weekly refresh via tools/refresh-youtube-views.mjs."
           # and add permissions: pull-requests: write
+  publish:
+    needs: refresh
+    if: github.ref == 'refs/heads/main' && needs.refresh.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Only this job may dispatch workflows; it runs no repository or dependency code.
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Publish updated view counts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: gh workflow run pages.yml --ref main
