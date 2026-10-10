@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="referrer" content="no-referrer"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<meta name="description" content="稲葉曇的气象观测站：歌曲、MV、创作链接与留言墙。"/>
+<meta name="theme-color" content="#c4c4c0"/>
+<meta name="color-scheme" content="light dark"/>
+<meta property="og:locale" content="zh_CN"/>
+<meta property="og:locale:alternate" content="en_US"/>
+<meta property="og:locale:alternate" content="ja_JP"/>
+<link rel="dns-prefetch" href="https://inabakumori-site-production.up.railway.app"/>
+<link rel="dns-prefetch" href="https://i.ytimg.com"/>
+<link rel="preconnect" href="https://inabakumori-site-production.up.railway.app" crossorigin/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; img-src 'self' data: https://i.ytimg.com https://img.youtube.com; font-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self' https://inabakumori-site-production.up.railway.app"/>
+<link rel="canonical" href="https://9178osage.github.io/inabakumori-site/"/>
+<meta property="og:url" content="https://9178osage.github.io/inabakumori-site/"/>
+<meta property="og:site_name" content="气象观测站 · 稲葉曇"/>
+<meta property="og:image" content="https://9178osage.github.io/inabakumori-site/images/optimized/hero/001.webp"/>
+<meta property="og:image:width" content="1920"/>
+<meta property="og:image:height" content="1080"/>
+<meta property="og:image:alt" content="稲葉曇 / Inabakumori — Weather Observation Station"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<script src="js/preferences.js?v=13057fb05ebc"></script>
+<link rel="preload" as="image" href="images/optimized/hero/001.webp" media="(min-width: 701px) and (pointer: fine), (min-width: 1001px)" fetchpriority="high"/>
+<link rel="preload" as="image" href="images/optimized/hero-mobile/001.webp" media="(max-width: 700px), (pointer: coarse) and (max-width: 1000px)" fetchpriority="high"/>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"气象观测站 · 稲葉曇","alternateName":"Weather Observation Station · Inabakumori","url":"https://9178osage.github.io/inabakumori-site/","inLanguage":["zh-CN","en","ja"],"description":"稲葉曇 / Inabakumori 非官方粉丝站，收录歌曲、MV、创作者链接与留言墙。","isAccessibleForFree":true}</script>
+<meta property="og:type" content="website"/>
+<meta property="og:title" content="气象观测站 · 稲葉曇"/>
+<meta property="og:description" content="歌曲、MV、创作链接与留言墙。"/>
+<title>气象观测站 · 稲葉曇</title>
+<link href="fonts/fonts.css?v=eee36f496fd1" rel="stylesheet"/>
+<link href="style.css?v=5889a1a71e52" rel="stylesheet"/>
+<link href="site.webmanifest?v=2" rel="manifest"/>
+<link href="favicon.ico?v=2" rel="icon" type="image/x-icon" sizes="16x16 32x32 48x48"/>
+<link href="images/icons/favicon-16.png?v=2" rel="icon" type="image/png" sizes="16x16"/>
+<link href="images/icons/favicon-32.png?v=2" rel="icon" type="image/png" sizes="32x32"/>
+<link href="images/icons/favicon-48.png?v=2" rel="icon" type="image/png" sizes="48x48"/>
+<link href="images/icons/apple-touch-icon.png?v=2" rel="apple-touch-icon" sizes="180x180"/>
+<link href="images/icons/icon-512.png?v=2" rel="apple-touch-icon" sizes="512x512"/>
+</head>
+<body>
+<a class="skip-link" href="#main-content">跳到主要内容 / Skip to content</a>
+<div class="site-controls" role="group" aria-label="页面设置 / Page controls">
+
+<button id="lang-btn" type="button" aria-label="切换语言 / Switch language">
+        English
+    </button>
+
+<button id="theme-btn" type="button" aria-label="切换深色主题" aria-pressed="false">
+        ☾
+    </button>
+
+<button id="auth-btn" type="button">
+    登录 / 注册
+</button>
+
+</div>
+
+<div class="auth-modal" id="auth-modal">
+<div class="auth-window" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+<button type="button" id="auth-close" aria-label="关闭" class="auth-close">
+            ×
+        </button>
+<h2 id="auth-title">登录</h2>
+<input id="auth-email" aria-label="邮箱" autocomplete="username" placeholder="邮箱" type="email"/>
+<input id="auth-password" aria-label="密码" autocomplete="current-password" placeholder="密码" type="password"/>
+<input id="auth-password-confirm" aria-label="确认新密码" autocomplete="new-password" placeholder="再次输入新密码" type="password" hidden/>
+<p id="auth-status" role="status" aria-live="polite"></p>
+<p id="auth-error" role="alert"></p>
+<button id="auth-submit" type="button">
+            登录
+        </button>
+<button id="auth-switch" class="auth-switch" type="button">
+            没有账号？注册
+        </button>
+<button id="auth-forgot" class="auth-switch" type="button">忘记密码？</button>
+</div>
+</div>
+
+<header class="hero" id="top">
+<a class="station-mark" href="#top" aria-label="气象观测站 / Weather Observation Station"><span aria-hidden="true">☂</span> INABAKUMORI<span class="station-mark-small">UNOFFICIAL ARCHIVE</span></a>
+
+<div class="hero-bg" id="hero-bg">
+    <picture>
+    <source id="hero-mobile-source" media="(max-width: 700px), (pointer: coarse) and (max-width: 1000px)" srcset="images/optimized/hero-mobile/001.webp">
+    <img
+    src="images/optimized/hero/001.webp"
+    width="1920" height="1080" decoding="async"
+    id="hero-slide"
+    class="hero-slide active"
+    alt=""
+    fetchpriority="high"
+    draggable="false"
+>
+    </picture>
+</div>
+
+<div class="hero-overlay"></div>
+<div class="hero-rain" aria-hidden="true">
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+</div>
+
+<div class="hero-content">
+<p class="hero-eyebrow">稲葉曇 · INABAKUMORI</p>
+<h1><button type="button" id="easter-egg-trigger" class="glitch" data-en="WEATHER OBSERVATION STATION" data-text="气象观测站" data-zh="气象观测站" data-ja="気象観測所">
+                气象观测站
+            </button></h1>
+
+<p class="hero-description" data-zh="在声音与雨之间，停留一会儿。" data-en="Stay a while, between sound and rain." data-ja="音と雨のあいだで、ひと休み。">在声音与雨之间，停留一会儿。</p>
+<a class="hero-cta" href="#songs"><span data-zh="探索歌曲" data-en="Explore the music" data-ja="楽曲を探す">探索歌曲</span><span aria-hidden="true">↗</span></a>
+<nav aria-label="主导航 / Main navigation">
+<a data-en="Intro" data-zh="简介" data-ja="紹介" href="#intro">
+                    简介
+                </a>
+<a data-en="About" data-zh="关于" data-ja="このサイトについて" href="#about">
+                    关于
+                </a>
+<a href="#artwork" data-zh="NKNK" data-en="Nukunuku Nigirimeshi" data-ja="ぬくぬくにぎりめし">NKNK</a>
+<a data-en="Songs" data-zh="歌曲" data-ja="楽曲" href="#songs">
+                    歌曲
+                </a>
+<a data-en="Message Wall" data-zh="留言墙" data-ja="メッセージウォール" href="#messages">
+    留言墙
+</a>
+</nav>
+</div>
+<div class="hero-bottom"><a href="#intro" aria-label="向下浏览 / Scroll down">↓</a></div>
+</header>
+<nav class="section-nav" aria-label="章节导航 / Section navigation">
+<a href="#intro" data-zh="简介" data-en="Intro" data-ja="紹介">简介</a>
+<a href="#artwork" data-zh="插画" data-en="Artwork" data-ja="イラスト">插画</a>
+<a href="#songs" data-zh="歌曲" data-en="Songs" data-ja="楽曲">歌曲</a>
+<a href="#messages" data-zh="留言" data-en="Messages" data-ja="メッセージ">留言</a>
+<a href="#top" class="back-top" aria-label="返回顶部 / Back to top">↑</a>
+</nav>
+
+<main id="main-content" tabindex="-1">
+<p id="site-status" class="site-status" role="status" aria-live="polite" hidden></p>
+
+<section id="about" aria-labelledby="about-title">
+<div class="artist-profile" id="intro">
+<p class="section-kicker">01 / THE ARTIST</p>
+<h2 id="intro-title" data-zh="简介" data-en="INTRO" data-ja="紹介">简介</h2>
+<p class="artist-intro" data-zh="稲葉曇（いなばくもり / Inabakumori）是日本 VOCALOID 制作人、作词作曲者，2016 年以《秘密音楽》出道，代表作包括《ロストアンブレラ》《ラグトレイン》等。曲风偏摇滚，常与歌爱雪等歌声合成软件合作；许多 MV 插画由ぬくぬくにぎりめし绘制。" data-en="Inabakumori (稲葉曇) is a Japanese VOCALOID producer and songwriter who debuted in 2016 with “Himitsu Ongaku” (Secret Music). Best known for songs such as “Lost Umbrella” and “Lagtrain,” the work often leans rock and frequently features Kaai Yuki. Many music videos use illustrations by Nukunuku Nigirimeshi." data-ja="稲葉曇（いなばくもり）は、2016年に「秘密音楽」でデビューした日本のボカロP・ソングライターです。代表曲に「ロストアンブレラ」「ラグトレイン」などがあり、ロック寄りの作風で、歌愛ユキなどの音声合成ソフトを多く用います。MVイラストはぬくぬくにぎりめしさんによるものが多いです。">
+                稲葉曇（いなばくもり / Inabakumori）是日本 VOCALOID 制作人、作词作曲者，2016 年以《秘密音楽》出道，代表作包括《ロストアンブレラ》《ラグトレイン》等。曲风偏摇滚，常与歌爱雪等歌声合成软件合作；许多 MV 插画由ぬくぬくにぎりめし绘制。
+            </p>
+<p class="unofficial-note" data-zh="本站为非官方粉丝站「气象观测站」，与稲葉曇本人、ぬくぬくにぎりめし及任何官方厂牌／平台无关；简介仅供参考，详情请以公开资料与创作者本人发布为准。" data-en="This is an unofficial fan site (“Weather Observation Station”) and is not affiliated with Inabakumori, Nukunuku Nigirimeshi, or any official label or platform. This short intro is for reference only—please rely on public sources and the creators’ own posts for authoritative details." data-ja="本サイトは非公式ファンサイト「気象観測所」であり、稲葉曇さん、ぬくぬくにぎりめしさん、および公式レーベル／プラットフォームとは関係ありません。この紹介は参考情報です。正確な情報は公開資料やご本人の発信をご確認ください。">
+                本站为非官方粉丝站「气象观测站」，与稲葉曇本人、ぬくぬくにぎりめし及任何官方厂牌／平台无关；简介仅供参考，详情请以公开资料与创作者本人发布为准。
+            </p>
+</div>
+
+<h2 id="about-title" data-zh="关于" data-ja="このサイトについて" data-en="ABOUT">关于</h2>
+<p data-en="A website made because I really love Inabakumori. Here you will find some playlists, album information, and materials I’ve gathered. The content may not be professional, but it has all been carefully compiled." data-zh="一个因为太喜欢稲葉曇所以做出来的网站。这里包含一些歌单、专辑信息和我找到的资料。内容不一定专业，但都是我认真整理的。" data-ja="稲葉曇さんが大好きで作ったファンサイトです。楽曲やアルバムの情報、集めた資料を紹介しています。専門的な内容ではありませんが、一つひとつ丁寧にまとめました。">
+                一个因为太喜欢稲葉曇所以做出来的网站。
+                这里包含一些歌单、专辑信息和我找到的资料。
+                内容不一定专业，但都是我认真整理的。
+            </p>
+
+<h2 id="related-links-title" data-en="RELATED LINKS" data-zh="相关链接" data-ja="関連リンク">
+                相关链接
+            </h2>
+<p class="links-intro" data-zh="以下链接均来自本站已收录或公开可查的稲葉曇相关入口，已去重并按类别整理；MV 单曲请见下方歌曲列表。" data-en="The links below are deduplicated Inabakumori-related destinations already used on this site or otherwise publicly known, grouped by category. Individual MVs are listed in the Songs section." data-ja="以下は、本サイトで既に掲載しているか、一般に公開されている稲葉曇さんの関連リンクを重複なく分類したものです。個別のMVは下の楽曲一覧をご覧ください。">
+                以下链接均来自本站已收录或公开可查的稲葉曇相关入口，已去重并按类别整理；MV 单曲请见下方歌曲列表。
+            </p>
+<div class="artist-links">
+<div class="link-subheading link-subheading-first" data-zh="音乐" data-ja="音楽" data-en="MUSIC">音乐</div>
+<a href="https://www.youtube.com/@inabakumori" rel="noopener noreferrer" target="_blank">
+<img alt="" loading="lazy" decoding="async" width="40" height="40" src="images/youtube.png"/><span>YouTube</span></a>
+<a href="https://www.nicovideo.jp/user/42833430" rel="noopener noreferrer" target="_blank">
+<img alt="" loading="lazy" decoding="async" width="40" height="40" src="images/niconico.png"/><span>Niconico</span></a>
+<a href="https://space.bilibili.com/26040194" rel="noopener noreferrer" target="_blank">
+<img alt="" loading="lazy" decoding="async" width="40" height="40" src="images/bilibili.png"/><span>Bilibili</span></a>
+<div class="link-subheading" data-zh="社交" data-ja="SNS" data-en="SOCIAL">社交</div>
+<a href="https://twitter.com/inabakumori" rel="noopener noreferrer" target="_blank">
+<img alt="" loading="lazy" decoding="async" width="40" height="40" src="images/X.png"/><span>X / Twitter</span></a>
+<a href="https://www.instagram.com/inabakumori/" rel="noopener noreferrer" target="_blank">
+<img alt="" loading="lazy" decoding="async" width="40" height="40" src="images/instagram.png"/><span>Instagram</span></a>
+<a href="https://www.tiktok.com/@inabakumori" rel="noopener noreferrer" target="_blank">
+<img alt="" loading="lazy" decoding="async" width="40" height="40" src="images/tiktok.png"/><span>TikTok</span></a>
+<a href="https://www.pixiv.net/users/16662832" rel="noopener noreferrer" target="_blank">
+<img alt="" loading="lazy" decoding="async" width="40" height="40" src="images/pixiv.png"/><span>Pixiv</span></a>
+<div class="link-subheading" data-zh="资料" data-ja="資料" data-en="REFERENCES">资料</div>
+<a
+    class="knowledge-link"
+    href="https://zh.wikipedia.org/wiki/稻叶昙"
+    data-href-zh="https://zh.wikipedia.org/wiki/稻叶昙"
+    data-href-en="https://en.wikipedia.org/wiki/Inabakumori"
+    data-href-ja="https://ja.wikipedia.org/wiki/%E7%A8%B2%E8%91%89%E6%9B%87"
+    target="_blank"
+    rel="noopener noreferrer"
+>
+    <img loading="lazy" decoding="async" src="images/wikipedia.png" alt="" width="200" height="200"><span>Wikipedia</span></a>
+<a class="knowledge-link" href="https://inabakumori.fandom.com/wiki/Inabakumori_Wiki" rel="noopener noreferrer" target="_blank">
+    <img loading="lazy" decoding="async" src="images/fandom.png" alt="" width="48" height="48"><span>Inabakumori Wiki</span></a>
+<a class="knowledge-link" href="https://vocaloid.fandom.com/wiki/Inabakumori" rel="noopener noreferrer" target="_blank">
+    <img loading="lazy" decoding="async" src="images/fandom.png" alt="" width="48" height="48"><span>VOCALOID Wiki</span></a>
+</div>
+</section>
+<section id="artwork" aria-labelledby="artwork-title">
+<p class="section-kicker">02 / THE ARTWORK</p>
+<h2 id="artwork-title" data-zh="NKNK" data-en="Nukunuku Nigirimeshi" data-ja="ぬくぬくにぎりめし">NKNK</h2>
+<p class="artwork-intro" data-zh="别忘了还有ぬくぬくにぎりめし" data-en="Don’t forget ぬくぬくにぎりめし, too." data-ja="ぬくぬくにぎりめしさんもお忘れなく。">别忘了还有ぬくぬくにぎりめし</p>
+<div id="nknk-gallery" class="nknk-gallery" aria-label="NKNK 插画库"></div>
+<div class="artwork-links">
+<a class="artwork-link" href="https://twitter.com/NKNK_NGRMS" target="_blank" rel="noopener noreferrer"><img loading="lazy" decoding="async" src="images/X.png" alt="" width="36" height="36"><span><strong>X / Twitter</strong><span  data-zh="插画与最新动态" data-en="Artwork and latest updates" data-ja="イラスト・最新情報">插画与最新动态</span>
+ </span><span aria-hidden="true">↗</span></a>
+<a class="artwork-link" href="https://www.pixiv.net/users/27327959" target="_blank" rel="noopener noreferrer"><img loading="lazy" decoding="async" src="images/pixiv.png" alt="" width="36" height="36"><span><strong>pixiv</strong><span  data-zh="浏览作者作品" data-en="Explore the artist’s work" data-ja="作品を見る">浏览作者作品</span>
+ </span><span aria-hidden="true">↗</span></a>
+</div>
+</section>
+<section id="songs" aria-labelledby="songs-title">
+<p class="section-kicker">03 / THE DISCOGRAPHY</p>
+<div class="songs-heading">
+    <h2 id="songs-title" data-zh="歌曲" data-ja="楽曲" data-en="SONGS">歌曲</h2>
+    <button id="random-song-button" type="button"
+        data-zh="随机一首" data-ja="ランダム再生" data-en="Random Song">随机一首</button>
+</div>
+
+<div class="tag-filter-panel" id="tag-filter-panel">
+
+
+    <div class="tag-filter-row">
+
+        <label
+            class="tag-filter-label"
+            data-en="SEARCH"
+            data-zh="歌曲搜索" data-ja="楽曲検索"
+            for="tag-filter-input"
+        >
+            歌曲搜索
+        </label>
+
+        <input
+            id="tag-filter-input"
+            type="search"
+            maxlength="200"
+            aria-describedby="search-help"
+            aria-controls="song-list"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="搜索歌名或 TAG，例如：ラグ / 歌爱 / yuki"
+        >
+
+        <button
+            class="tag-clear-button"
+            id="tag-filter-clear"
+            type="button"
+            data-en="Clear"
+            data-zh="清空" data-ja="クリア"
+        >
+            清空
+        </button>
+
+    </div>
+
+    <p id="search-help" class="tag-filter-help"
+        data-zh="支持歌名和 TAG 模糊搜索。多个关键词用逗号分隔，匹配任意一个即可；加 + 表示必须包含。例如：ラグ, +歌爱。" data-ja="曲名やタグの一部で検索できます。複数のキーワードはカンマで区切り、必須条件には + を付けてください。例：ラグ, +歌愛ユキ。"
+        data-en="Search song titles or tags. Separate keywords with commas to match any; prefix a keyword with + to require it. Example: ラグ, +yuki.">
+        支持歌名和 TAG 模糊搜索。多个关键词用逗号分隔，匹配任意一个即可；加 + 表示必须包含。例如：ラグ, +歌爱。
+    </p>
+
+    
+    <div
+        id="tag-suggestions"
+        class="tag-suggestions"
+        aria-label="Available tags"
+    ></div>
+
+    <div class="library-toolbar">
+      <div class="sort-control"><label for="song-sort" data-zh="排序" data-en="Sort" data-ja="並び順">排序</label>
+      <select id="song-sort">
+        <option value="original" data-zh="收录顺序" data-en="Archive order" data-ja="収録順">收录顺序</option>
+        <option value="popular" data-zh="播放量优先" data-en="Most viewed" data-ja="再生回数順">播放量优先</option>
+        <option value="title" data-zh="歌曲名称" data-en="Song title" data-ja="曲名順">歌曲名称</option>
+      </select></div>
+      <button id="favorites-filter" class="tag-clear-button" type="button" aria-pressed="false" data-zh="只看收藏" data-en="Favorites" data-ja="お気に入り">只看收藏</button>
+      <button id="share-search" class="tag-clear-button" type="button" data-zh="复制筛选链接" data-en="Copy filter link" data-ja="絞り込みリンクをコピー">复制筛选链接</button>
+    </div>
+    <div class="tag-filter-status">
+        <span id="tag-result-count" role="status" aria-live="polite"></span><span id="library-status" role="status" aria-live="polite"></span>
+    </div>
+
+</div>
+
+<div
+    class="tag-empty-state"
+    id="tag-empty-state"
+    hidden
+    data-zh="没有找到符合歌名和标签条件的歌曲。" data-ja="条件に一致する楽曲が見つかりませんでした。"
+    data-en="No songs match the title and tag filters."
+>
+    没有找到符合歌名和标签条件的歌曲。
+</div>
+<div class="song-library">
+  <div class="song-scroll song-list" id="song-list"><a href="https://youtu.be/2_93SNGYgYs?si=9pIHFnP-MxJwdrdO" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="アンチサイクロン">01　アンチサイクロン</a>
+<a href="https://youtu.be/DeKLpgzh-qQ?si=aepnibrMsceBIhqL" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="ロストアンブレラ">02　ロストアンブレラ</a>
+<a href="https://youtu.be/M8ZGGCqJduU?si=vQvDRUzwA4WlngqF" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="パスカルビーツ">03　パスカルビーツ</a>
+<a href="https://youtu.be/r8Lrrx6TMMY?si=I1p_dSCRm06Hl4pX" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="クーラーガール">04　クーラーガール</a>
+<a href="https://youtu.be/ffGcA4Kj-rk?si=lVC7JUSezFt_QhO-" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="ループスピナ">05　ループスピナ</a>
+<a href="https://youtu.be/vyfNM-tIfiw?si=Eb05g-n--2IaxjMj" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="ナミダ電波">06　ナミダ電波</a>
+<a href="https://youtu.be/3NWuC2UF0u0?si=5kZB--HYnJ6H83Dz" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="ツクリカケノ心象">07　ツクリカケノ心象</a>
+<a href="https://youtu.be/Jhw7Hum-eLw?si=JlKyIXrEWzGczMug" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="浮遊月光街">08　浮遊月光街</a>
+<a href="https://youtu.be/lYtZ5oMs3_8?si=PbKYI1we-Gv3tMxp" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="絶体暗星">09　絶体暗星</a>
+<a href="https://youtu.be/e5d-DvD55OI?si=vtN_bLdYSFVLnvSF" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="渦巻ハナビ">10　渦巻ハナビ</a>
+<a href="https://youtu.be/MZvTr20tkro?si=olbaxea8EUrRsrxw" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="うつしあそび">11　うつしあそび</a>
+<a href="https://youtu.be/n8O_gZ0Ebbs?si=a014yXRT4wxRqhsf" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="さかさま少女感">12　さかさま少女感</a>
+<a href="https://youtu.be/-5T-L0b43no?si=YuL-s9d2wyrJfcYX" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="ノンユース">13　ノンユース</a>
+<a href="https://youtu.be/sXc204xHj8g?si=yFlpUvHNjbTf6sIG" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="秘密音楽">14　秘密音楽</a>
+<a href="https://youtu.be/wdUCRDvFv3Q?si=olhsP7JTNdxLevhY" target="_blank" rel="noopener noreferrer" data-album="WEATHER STATION" data-song-title="ひみつの小学生">15　ひみつの小学生</a>
+<a href="https://youtu.be/g6sYNwl1EWg?si=NOZc4UM0o2RbDkQG" target="_blank" rel="noopener noreferrer" data-album="WEATHER STATION" data-song-title="ハローマリーナ">16　ハローマリーナ</a>
+<a href="https://youtu.be/G5hScSFkib4?si=XQjiN81YuToRksUW" target="_blank" rel="noopener noreferrer" data-album="WEATHER STATION" data-song-title="レイニーブーツ">17　レイニーブーツ</a>
+<a href="https://youtu.be/UnIhRpIT7nc?si=fxQo0MD_tQPmuefq" target="_blank" rel="noopener noreferrer" data-album="WEATHER STATION" data-song-title="ラグトレイン">18　ラグトレイン</a>
+<a href="https://youtu.be/mFih47l1pVI?si=lDqI3PehNyUhYnD4" target="_blank" rel="noopener noreferrer" data-album="WEATHER STATION" data-song-title="ハルノ寂寞">19　ハルノ寂寞</a>
+<a href="https://youtu.be/FRFgNWBAa8k?si=xeoYHjDaQQ_RZjkC" target="_blank" rel="noopener noreferrer" data-album="WEATHER STATION" data-song-title="カゼマチグサ (album ver.)">20　カゼマチグサ (album ver.)</a>
+<a href="https://youtu.be/xyrUvwVpDRI?si=QKFmCp4DgXDmRS2M" target="_blank" rel="noopener noreferrer" data-album="WEATHER STATION" data-song-title="レーダー">21　レーダー</a>
+<a href="https://youtu.be/n9xlE973OMs?si=anQx8reFpjRysffn" target="_blank" rel="noopener noreferrer" data-album="WEATHER STATION" data-song-title="かたむすび">22　かたむすび</a>
+<a href="https://youtu.be/1_8pQVYJtwQ?si=yby8vMuW-oh7OduK" target="_blank" rel="noopener noreferrer" data-album="WEATHER STATION" data-song-title="天泣">23　天泣</a>
+<a href="https://youtu.be/kYwB-kZyNU4?si=VfdQHlEa1XhtF-Hm" target="_blank" rel="noopener noreferrer" data-album="WEATHER STATION" data-song-title="ポストシェルター">24　ポストシェルター</a>
+<a href="https://youtu.be/3NLsyjOH92k?si=hTveZaXrCq6boH_w" target="_blank" rel="noopener noreferrer" data-album="WEATHER STATION" data-song-title="きみに回帰線">25　きみに回帰線</a>
+<a href="https://youtu.be/8Rq6dVpEUS4?si=pbBxuiI_eji2Eu1q" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="とこしずめ">26　とこしずめ</a>
+<a href="https://youtu.be/xn4qndSd3vs?si=U7wpBSCBf2nOdJHd" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="シンクタンク">27　シンクタンク</a>
+<a href="https://youtu.be/NRQRC_0ZQ00?si=9rbwVoDaByWgRFhx" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="フロートプレイ">28　フロートプレイ</a>
+<a href="https://youtu.be/o14pj9CsNVY?si=b4tawqK8dQHgJQp1" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="期待通り">29　期待通り</a>
+<a href="https://youtu.be/b56xjtP6Qac?si=QmNHaPCmLrlD1jvn" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="リレイアウター">30　リレイアウター</a>
+<a href="https://youtu.be/Imcr7rsBxsc?si=cJ97bszBuqR_qLxW" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="電気予報">31　電気予報</a>
+<a href="https://youtu.be/uZdnPgDaOpk?si=Mx2IDt6YOegEcMN_" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="余裕欲">32　余裕欲</a>
+<a href="https://youtu.be/EEk4JGzqoFg?si=9UqVXVliapQAk6n_" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="私は雨">33　私は雨</a>
+<a href="https://youtu.be/9x7t1s4xMw4?si=OTmti9qQ0jk5Maaz" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="アイペース">34　アイペース</a>
+<a href="https://youtu.be/IJN0piNZhBE?si=BIB5L144Ap3sRAlj" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="超深淵帯">35　超深淵帯</a>
+<a href="https://youtu.be/1nZwWpHF0mQ?si=ll9vS1S2vwlYTMH6" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="春難色">36　春難色</a>
+<a href="https://youtu.be/STBoCK69vVQ?si=b8cR_91DZpBhAG3n" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="スポットレイト">37　スポットレイト</a>
+<a href="https://youtu.be/L38M7qK1Yv4" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="たびのまえ、たびのあと (tabitabi Remix)">38　たびのまえ、たびのあと (tabitabi Remix)</a>
+<a href="https://youtu.be/io5HEdBNqWk" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="あいたい星人 (大気圏外 Remix)">39　あいたい星人 (大気圏外 Remix)</a>
+<a href="https://youtu.be/v03uVgQZOOM" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="僕のサイノウ (稲葉曇 Arrange)">40　僕のサイノウ (稲葉曇 Arrange)</a>
+<a href="https://youtu.be/KK9nXYdmkiM" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="かにだいすき">41　かにだいすき</a>
+<a href="https://youtu.be/QpKaP3oGBXE" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="もち">42　もち</a>
+<a href="https://youtu.be/Vb-z6AR-2F0" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="ダンスロボットダンス (MVアレンジメドレー)">43　ダンスロボットダンス (MVアレンジメドレー)</a>
+<a href="https://youtu.be/17xSzYLQVKQ" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="おはようオーパーツ (稲葉曇 Cover)">44　おはようオーパーツ (稲葉曇 Cover)</a>
+<a href="https://youtu.be/42P4ritVHjE" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="失敗作少女 (稲葉曇 Remix)">45　失敗作少女 (稲葉曇 Remix)</a>
+<a href="https://youtu.be/dmG60q44PJQ" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="篝火 (稲葉曇 Remix)">46　篝火 (稲葉曇 Remix)</a>
+<a href="https://youtu.be/LqlD2Btv0KI" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="ラストリヴ">47　ラストリヴ</a>
+<a href="https://youtu.be/KLxigReVbk8" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="忘れん坊の猫かぶり">48　忘れん坊の猫かぶり</a>
+<a href="https://youtu.be/vnJE7k9Wiag" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="ロールレスウエポン (稲葉曇×Neru)">49　ロールレスウエポン (稲葉曇×Neru)</a>
+<a href="https://youtu.be/PJo89L-_l3s" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="ノンユース (Original Version)">50　ノンユース (Original Version)</a>
+<a href="https://youtu.be/DXngar-Nl6g" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="紗痲 (稲葉曇 Cover)">51　紗痲 (稲葉曇 Cover)</a></div>
+</div>
+<noscript><p>启用 JavaScript 可使用搜索、收藏和账号功能。 / Enable JavaScript for search, favorites and accounts.</p></noscript>
+</section>
+
+
+<section id="messages" aria-labelledby="messages-title">
+<p class="section-kicker">04 / LETTERS IN THE RAIN</p>
+<h2 id="messages-title" data-en="MESSAGE WALL" data-zh="留言墙" data-ja="メッセージウォール">
+        留言墙
+    </h2>
+<p class="message-intro" data-en="Leave a message for Inabakumori." data-zh="写下你想对稲葉曇说的话。" data-ja="稲葉曇さんへのメッセージを書いてみましょう。">
+        写下你想对稲葉曇说的话。
+    </p>
+
+<div class="message-load-feedback">
+    <p id="message-load-status" role="status" aria-live="polite"></p>
+    <button id="message-retry" class="tag-clear-button" type="button" hidden
+        data-zh="重新加载" data-ja="再読み込み" data-en="Retry">重新加载</button>
+</div>
+<div class="wall-toolbar"><button type="button" id="wall-mode" class="tag-clear-button" aria-pressed="false" aria-controls="floating-wall" data-zh="静态阅读" data-en="Read as a list" data-ja="一覧で読む">静态阅读</button><span class="wall-note" data-zh="来自喜欢同一片雨的人。" data-en="From people who love the same rain." data-ja="同じ雨が好きな人たちから。">来自喜欢同一片雨的人。</span></div>
+<div id="floating-wall" role="region" aria-label="留言 / Messages" aria-busy="false" tabindex="0"></div>
+
+<div class="message-box">
+<label for="message-name" data-zh="昵称" data-en="Nickname" data-ja="ニックネーム">昵称</label>
+<input id="message-name" name="nickname" maxlength="60" placeholder="你的名字 / Name" type="text" autocomplete="nickname" data-max-code-points="30"/>
+<label for="message-input" data-zh="留言" data-en="Message" data-ja="メッセージ">留言</label>
+<textarea aria-describedby="message-policy message-counter" id="message-input" name="message" maxlength="1000" placeholder="想对稲葉曇说些什么？ / Say something to Inabakumori..." data-max-code-points="500"></textarea>
+<div class="message-meta"><p id="message-policy" data-zh="游客留言保留半年，每小时最多 3 条。请勿发布联系方式或广告。" data-en="Guest messages stay for 6 months, up to 3 per hour. No contact details or ads." data-ja="ゲストの投稿は6か月間保存、1時間に3件まで。連絡先や広告は投稿しないでください。">游客留言保留半年，每小时最多 3 条。请勿发布联系方式或广告。</p><span id="message-counter">0 / 500</span></div>
+<p id="message-submit-status" role="status" aria-live="polite"></p>
+<button type="button" id="message-submit" data-en="Post Message" data-zh="贴到墙上" data-ja="投稿する">
+            贴到墙上
+        </button>
+</div>
+</section>
+<section id="my-comments" aria-labelledby="my-comments-title">
+  <h2 id="my-comments-title" data-zh="我的留言" data-ja="自分のメッセージ" data-en="My Messages">我的留言</h2>
+  <p id="my-comments-status" role="status" aria-live="polite"></p>
+  <button id="my-comments-retry" class="tag-clear-button" type="button" hidden data-zh="重试" data-ja="再試行" data-en="Retry">重试</button>
+  <div id="my-comments-controls" hidden>
+    <ul id="my-comments-list"></ul>
+    <button id="my-comments-more" class="tag-clear-button" type="button" hidden data-zh="加载更多" data-ja="もっと見る" data-en="Load more">加载更多</button>
+  </div>
+</section>
+<section id="admin-comments" aria-labelledby="admin-comments-title" hidden>
+  <h2 id="admin-comments-title" data-zh="留言管理" data-ja="メッセージ管理" data-en="Message moderation">留言管理</h2>
+  <p id="admin-comments-status" role="status" aria-live="polite"></p>
+  <button id="admin-comments-retry" class="tag-clear-button" type="button" hidden data-zh="重试" data-ja="再試行" data-en="Retry">重试</button>
+  <ul id="admin-comments-list"></ul>
+  <button id="admin-comments-more" class="tag-clear-button" type="button" hidden data-zh="加载更多" data-en="Load more" data-ja="もっと見る">加载更多</button>
+</section>
+
+</main>
+
+
+<footer>
+<p class="footer-brand">稲葉曇 / WEATHER OBSERVATION STATION</p>
+<p data-zh="非官方 · 非商业 · 因为喜欢" data-en="Unofficial · Non-commercial · Made out of love" data-ja="非公式 · 非営利 · 好きだから">非官方 · 非商业 · 因为喜欢</p>
+<p data-zh="如果你对这个网站有任何建议、想法、内容补充，或者发现了需要修改的地方，也欢迎联系我。我很乐意听听你的意见，并继续把这个网站做得更好。" data-en="Have any suggestions, ideas, corrections, or something you think could make this website better? I’d be happy to hear from you." data-ja="このサイトへのご意見、ご提案、情報の追加や訂正などがありましたら、お気軽にご連絡ください。皆さまの声を参考に、より良いサイトにしていきたいと思っています。">如果你对这个网站有任何建议、想法、内容补充，或者发现了需要修改的地方，也欢迎联系我。我很乐意听听你的意见，并继续把这个网站做得更好。</p>
+<p data-zh="如果您是相关版权方或权利人，并认为本站中的任何内容需要修改、补充署名或删除，也请联系我，我会尽快进行处理。" data-en="If you are a copyright or rights holder and believe that any material on this website should be corrected, credited differently, or removed, please contact me." data-ja="著作権者・権利者の方で、掲載内容の修正、クレジットの追加・変更、削除をご希望の場合はご連絡ください。できるだけ早く対応いたします。">如果您是相关版权方或权利人，并认为本站中的任何内容需要修改、补充署名或删除，也请联系我，我会尽快进行处理。</p>
+<p>
+    <span data-zh="联系：" data-en="Contact: " data-ja="お問い合わせ：">联系：</span>
+
+    <a
+        class="contact-email"
+        href="mailto:throne-uplift.3b@icloud.com?subject=Inabakumori%20Fan%20Site%20-%20Feedback%20or%20Content%20Inquiry"
+    >
+        <span data-zh="点这里" data-en="here" data-ja="こちら">点这里</span>
+    </a>
+</p>
+</footer>
+
+
+<div id="nknk-lightbox" class="nknk-lightbox" hidden role="dialog" aria-modal="true" aria-label="NKNK illustration">
+<button type="button" id="nknk-lightbox-close" class="nknk-lightbox-close" aria-label="关闭">×</button>
+<button type="button" id="nknk-lightbox-prev" class="nknk-lightbox-nav nknk-lightbox-prev" aria-label="上一张">‹</button>
+<figure class="nknk-lightbox-figure">
+<img id="nknk-lightbox-image" class="nknk-lightbox-image" alt="" width="300" height="300" decoding="async" draggable="false"/>
+<figcaption id="nknk-lightbox-caption" class="nknk-lightbox-caption"></figcaption>
+</figure>
+<button type="button" id="nknk-lightbox-next" class="nknk-lightbox-nav nknk-lightbox-next" aria-label="下一张">›</button>
+</div>
+<div id="easter-egg-overlay" class="easter-egg-overlay" aria-hidden="true">
+    <div class="easter-egg-box" role="dialog" aria-modal="true" aria-labelledby="easter-egg-title" aria-describedby="easter-egg-description">
+        <p class="easter-egg-kicker">SPECIAL WEATHER REPORT · 05</p>
+        <h2 id="easter-egg-title" data-zh="你发现了彩蛋！" data-en="A secret forecast, just for you." data-ja="ひみつの天気を発見！">你发现了彩蛋！</h2>
+        <p class="easter-egg-stars" aria-hidden="true">★ ★ ★ ★ ★</p>
+        <p id="easter-egg-description" data-zh="今日预报：有云，有歌，还有一点小惊喜。" data-en="Today's forecast: clouds, songs, and a little surprise." data-ja="今日の予報：雲と音楽、ときどき小さなサプライズ。">今日预报：有云，有歌，还有一点小惊喜。</p>
+        <img id="easter-egg-image" alt="随机表情包" width="259" height="224" draggable="false">
+        <button type="button" id="easter-egg-close" data-zh="收下这份惊喜" data-en="Back to the station" data-ja="観測所に戻る">收下这份惊喜</button>
+    </div>
+    <div id="confetti-layer" aria-hidden="true"></div>
+</div>
+
+
+<script src="js/config.js?v=13082a30eb65" defer></script>
+<script src="js/network.js?v=8c4c19f8c175" defer></script>
+<script src="js/i18n.js?v=85cfc5ef670f" defer></script>
+<script src="js/auth.js?v=3ace03121d95" defer></script>
+<script src="js/songs.js?v=e9d7ac1acbf7" defer></script>
+<script src="js/nknk-gallery.js?v=c6b4e3c7b80e" defer></script>
+<script src="script.js?v=e98520207393" defer></script>
+<script src="js/nknk-gallery-ui.js?v=4c86099b8084" defer></script>
+<script src="js/experience.js?v=af484605523e" defer></script>
+<script src="js/comments.js?v=add9fa126426" defer></script>
+</body>
+</html>
