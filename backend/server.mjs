@@ -130,6 +130,12 @@ const corsOptions = { origin(origin, callback) {
   return callback(new Error("Origin not allowed by CORS"));
 }, exposedHeaders: ["X-Request-Id", "Retry-After"], allowedHeaders: ["content-type", ...supertokens.getAllCORSHeaders()], methods: ["GET", "POST", "DELETE", "OPTIONS"], credentials: true, maxAge: 600 };
 app.use(cors(corsOptions));
+// Bound malformed/unknown requests before parsing JSON or contacting the auth service.
+// This is an application-level limit for one backend instance, not DDoS protection.
+const requestLimiter = rateLimit({ windowMs: 60_000, limit: 180,
+  standardHeaders: "draft-7", legacyHeaders: false,
+  message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
+app.use(requestLimiter);
 app.use(express.json({ limit: "20kb", strict: true }));
 const authSensitiveLimiter = rateLimit({ windowMs: 15 * 60 * 1e3, limit: 20, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 function normalizedRequestPath(value) {
@@ -294,7 +300,7 @@ app.use((req, res, next) => {
   } catch {
     return next();
   }
-  return /^\/api\/(?:admin\/)?comments(?:\/|$)/u.test(pathname) ? commentDeleteLimiter(req, res, next) : next();
+  return /^\/api\/(?:admin\/)?comments(?:\/|$)/iu.test(pathname) ? commentDeleteLimiter(req, res, next) : next();
 });
 app.get("/api/comments", (req, res) => {
   res.setHeader("Cache-Control", "no-store");

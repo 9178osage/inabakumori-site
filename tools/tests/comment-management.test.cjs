@@ -273,12 +273,13 @@ test('admin deletion failures preserve content and translated error; duplicate c
   assert.equal(elements['admin-comments-status'].textContent, '削除に失敗しました。再試行してください。');
 });
 
-test('admin email grants require a matching login-method email', async () => {
+test('admin email grants require ownership verification on the matching login method', async () => {
   const { hasVerifiedAdminEmail, detectCommentSafetyIssue } = await import('../../backend/services.mjs');
   const emails = new Set(['admin@example.com']);
-  // EmailPassword leaves verified=false without EmailVerification; allowlist still grants admin.
-  assert.equal(hasVerifiedAdminEmail({ emails: ['admin@example.com'], loginMethods: [{ email: 'admin@example.com', verified: false }] }, emails), true);
-  assert.equal(hasVerifiedAdminEmail({ loginMethods: [{ email: 'other@example.com', verified: true }, { email: 'admin@example.com', verified: false }] }, emails), true);
+  assert.equal(hasVerifiedAdminEmail({ emails: ['admin@example.com'], loginMethods: [{ email: 'admin@example.com', verified: false }] }, emails), false);
+  assert.equal(hasVerifiedAdminEmail({ loginMethods: [{ email: 'other@example.com', verified: true }, { email: 'admin@example.com', verified: false }] }, emails), false);
+  assert.equal(hasVerifiedAdminEmail({ loginMethods: [{ email: 'admin@example.com' }] }, emails), false);
+  assert.equal(hasVerifiedAdminEmail({ loginMethods: [{ email: 'admin@example.com', verified: 'true' }] }, emails), false);
   assert.equal(hasVerifiedAdminEmail({ loginMethods: [{ email: 'ADMIN@example.com', verified: true }] }, emails), true);
   assert.equal(hasVerifiedAdminEmail({ loginMethods: [{ email: 'someone@else.com', verified: true }] }, emails), false);
   assert.equal(hasVerifiedAdminEmail({ emails: ['admin@example.com'], loginMethods: [] }, emails), false);

@@ -63,18 +63,44 @@ try {
   assert.equal(expiresAt - createdAt, 182 * 24 * 60 * 60 * 1e3);
   assert.equal((await post({ nickname: "另一个昵称", content: comment.content })).status, 409);
   assert.equal((await request(`${api}/api/comments/mine`)).status, 401);
+  assert.equal((await request(`${api}/api/admin/comments`)).status, 401);
+  // Omitting or spoofing Origin must never grant protected access.
+  assert.equal((await request(`${api}/api/admin/comments`, { headers: { Origin: previewUrl } })).status, 401);
   assert.equal((await request(`${api}/api/comments/${comment.id}`, { method: "DELETE" })).status, 401);
   assert.equal((await request(`${api}/api/comments`, { method: "POST", headers: { "Content-Type": "text/plain" }, body: "hello" })).status, 415);
   assert.equal((await request(`${api}/api/comments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{" })).status, 400);
   assert.equal((await request(`${api}/api/comments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: "x".repeat(22000) }) })).status, 413);
   assert.equal((await request(`${api}/api/missing`)).status, 404);
   assert.equal((await (await request(`${api}/api/comments`)).json()).comments.length, 1);
+  let deleteLimited = false;
+  for (let i = 0; i < 31; i++) {
+    const result = await request(`${api}/API/ADMIN/COMMENTS/1`, { method: "DELETE" });
+    await result.arrayBuffer();
+    if (result.status === 429) { deleteLimited = true; break; }
+    assert.equal(result.status, 401);
+  }
+  assert.ok(deleteLimited, "Case variants must not bypass deletion throttling");
   for (let i = 0; i < 130; i++) {
     const result = await request(`${api}/api/comments`);
     await result.arrayBuffer();
     if (result.status === 429) { assert.ok(result.headers.get("retry-after")); break; }
     assert.ok(i < 129, "Read throttling should eventually return 429");
   }
+  // Invalid JSON used to escape all route-level limits because parsing ran first.
+  let malformedLimited = false;
+  for (let i = 0; i < 181; i++) {
+    const result = await request(`${api}/missing`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{" });
+    const body = await result.json();
+    if (result.status === 429) {
+      assert.equal(body.code, "RATE_LIMITED");
+      assert.ok(result.headers.get("retry-after"));
+      malformedLimited = true;
+      break;
+    }
+    assert.equal(result.status, 400);
+    assert.equal(body.code, "INVALID_JSON");
+  }
+  assert.ok(malformedLimited, "Malformed requests must be limited before JSON parsing");
   child.kill("SIGTERM");
   const [code] = await once(child, "exit");
   assert.equal(code, 0, output);

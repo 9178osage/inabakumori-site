@@ -4,6 +4,8 @@
 
 ## 用户意图与当前状态
 
+2026-10-10 安全更新：管理员邮箱授权现在强制要求邮箱已验证；不要恢复此前“未验证邮箱也授权”的实现。当前没有启用邮件验证，管理账号应通过可信 SuperTokens 后台核对 ID 后配置 `ADMIN_USER_IDS`。详见 [SECURITY.md](SECURITY.md)。新域名为 `https://osagechan.top`，Railway `WEBSITE_URL` 已更新。新增解析前总请求限流，并修复 DELETE 大小写路径限流绕过。
+
 用户曾授权对站点做一轮综合优化并可推送 `origin/main`。接手后仍应先确认下一项任务，不要把本文当成新增功能需求。
 
 - 项目目录：`/Users/zihaoma/Desktop/inabakumori-site`
