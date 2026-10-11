@@ -6,14 +6,14 @@ const vm = require('node:vm');
 
 test('auth POST throttling covers tenant paths and URL normalization; disabled email-exists API needs no limiter', async () => {
   const express = require('../../backend/node_modules/express');
-  const { rateLimit } = require('../../backend/node_modules/express-rate-limit');
+  const { rateLimit, ipKeyGenerator } = require('../../backend/node_modules/express-rate-limit');
   const { IncomingMessage, ServerResponse } = require('node:http');
   const { Duplex } = require('node:stream');
   const app = express();
   const backend = fs.readFileSync('backend/server.mjs', 'utf8');
   const setup = backend.match(/const authSensitiveLimiter =[\s\S]*?(?=app\.use\(middleware\(\)\);)/);
   assert.ok(setup, 'auth limiter must run before the SuperTokens middleware');
-  vm.runInNewContext(setup[0], { app, rateLimit, URL, clientIpKey: req => req.ip });
+  vm.runInNewContext(setup[0], { app, rateLimit, URL, clientIpKey: req => ipKeyGenerator(req.ip) });
   app.use((req, res) => res.status(204).end());
   const request = async (method, pathname) => {
     const socket = new Duplex({ read() {}, write(chunk, encoding, callback) { callback(); } });
