@@ -25,7 +25,7 @@ const child = spawn(process.execPath, [path.join(root, "backend/server.mjs")], {
   cwd: directory,
   env: { PATH: process.env.PATH, NODE_ENV: "development", HOST: "127.0.0.1", PORT: String(port),
     API_DOMAIN: api, WEBSITE_URL: previewUrl, ADDITIONAL_WEBSITE_ORIGINS: "https://old-site.example", COMMENTS_DB_PATH: path.join(directory, "comments.db"),
-    SUPERTOKENS_CONNECTION_URI: "http://127.0.0.1:39999", SUPERTOKENS_API_KEY: "local-integration-test-only" },
+    SUPERTOKENS_CONNECTION_URI: "http://127.0.0.1:39999", SUPERTOKENS_API_KEY: "local-integration-test-only", BACKUP_TOKEN: "integration-backup-token-0123456789abcdef" },
   stdio: ["ignore", "pipe", "pipe"]
 });
 let output = "";
@@ -46,6 +46,16 @@ try {
   for (const file of ["/backend/.env", "/backend/server.mjs", "/AI_HANDOFF.md", "/docs/AI_HANDOFF.md", "/docs/OPTIMIZATION.md", "/.git/config"]) assert.equal((await request(previewUrl + file)).status, 404);
   assert.deepEqual(await (await request(`${api}/healthz`)).json(), { ok: true, version: "dev" });
   assert.deepEqual(await (await request(`${api}/`)).json(), { ok: true });
+  const backupUrl = `${api}/api/admin/backup`;
+  assert.equal((await request(backupUrl)).status, 401);
+  assert.equal((await request(backupUrl, { headers: { Authorization: "Bearer wrong-token-wrong-token-wrong-token" } })).status, 401);
+  const snapshot = await request(backupUrl, { headers: { Authorization: "Bearer integration-backup-token-0123456789abcdef", Origin: previewUrl } });
+  assert.equal(snapshot.status, 200);
+  assert.equal(snapshot.headers.get("access-control-allow-origin"), null, "backup must not be readable cross-origin");
+  assert.equal(snapshot.headers.get("cache-control"), "no-store");
+  assert.match(snapshot.headers.get("content-disposition"), /^attachment; filename="comments-\d{8}\.db"$/);
+  assert.equal(Buffer.from(await snapshot.arrayBuffer()).subarray(0, 16).toString("latin1"), "SQLite format 3\0");
+  assert.doesNotMatch(output, /integration-backup-token/, "token must never be logged");
   const get = await request(`${api}/api/comments`, { headers: { Origin: previewUrl } });
   assert.equal(get.status, 200);
   assert.equal(get.headers.get("access-control-allow-origin"), previewUrl);

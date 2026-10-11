@@ -5,7 +5,7 @@
   "main": "server.mjs",
   "scripts": {
     "start": "node server.mjs",
-    "check": "node --check server.mjs && node --check services.mjs && node --check backup.mjs",
+    "check": "node --check server.mjs && node --check services.mjs && node --check backup.mjs && node --check backup-endpoint.mjs",
     "backup": "node backup.mjs"
   },
   "keywords": [],

@@ -5,6 +5,7 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
+import { registerBackupEndpoint, backupTokenFrom, isBackupPath } from "./backup-endpoint.mjs";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -144,7 +145,9 @@ const corsOptions = { origin(origin, callback) {
   }
   return callback(new Error("Origin not allowed by CORS"));
 }, exposedHeaders: ["X-Request-Id", "Retry-After"], allowedHeaders: ["content-type", ...supertokens.getAllCORSHeaders()], methods: ["GET", "POST", "DELETE", "OPTIONS"], credentials: true, maxAge: 600 };
-app.use(cors(corsOptions));
+const corsMiddleware = cors(corsOptions);
+// The backup download is server-to-server only: no CORS headers, so browsers cannot read it.
+app.use((req, res, next) => isBackupPath(req.originalUrl || req.url) ? next() : corsMiddleware(req, res, next));
 // Bound malformed/unknown requests before parsing JSON or contacting the auth service.
 // This is an application-level limit for one backend instance, not DDoS protection.
 const requestLimiter = rateLimit({ windowMs: 60_000, limit: 180,
@@ -347,6 +350,11 @@ app.post("/api/comments", commentLimiter, requireJsonContentType, verifySession(
 });
 registerCommentManagement(app, db, verifySession);
 registerAdminCommentManagement(app, db, verifySession, createAdminCheck(ADMIN_USER_IDS));
+const BACKUP_TOKEN = backupTokenFrom(process.env);
+if (process.env.BACKUP_TOKEN?.trim() && !BACKUP_TOKEN) console.warn("⚠️ BACKUP_TOKEN is shorter than 32 characters; backup endpoint disabled");
+const backupLimiter = rateLimit({ windowMs: 60 * 60 * 1e3, limit: 5, standardHeaders: "draft-7", legacyHeaders: false,
+  message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
+registerBackupEndpoint(app, { databasePath, token: BACKUP_TOKEN, limiter: backupLimiter });
 app.use("/api", (req, res) => {
   res.status(404).json({ error: "API 路径不存在", code: "NOT_FOUND" });
 });
