@@ -33,7 +33,7 @@
 ## 备份与例行检查
 
 - 远程快照：`GET /api/admin/backup`，`Authorization: Bearer <BACKUP_TOKEN>`；每 IP 每小时 5 次、无 CORS、`no-store`，日志不记录令牌。返回 `comments-YYYYMMDD.db`。
-- 备份脚本（box）：`/home/box/bin/inabakumori-backup.sh`，令牌文件 `/home/box/.secrets/inabakumori-backup-token`（权限 600），输出到 `/workspace/backups/inabakumori/comments-YYYYMMDD-HHMM.db`，校验 SQLite 头与大小，失败非零退出。
+- 备份脚本：运行在维护者自己的机器上，令牌保存在该机器的私有存储中（仅所有者可读），每次下载后校验 SQLite 文件头与大小，失败时非零退出。具体路径与运行方式记录在私有运维手册，不放入公开仓库。
 - 本机/卷内快照：`npm --prefix backend run backup`（见 [OPTIMIZATION.md](OPTIMIZATION.md#数据库备份)）。
 - 快照含全部留言与会员 user ID（无邮箱、密码、令牌、IP），按私密数据保管。令牌泄露时在 Railway 换新值并重新部署。
 - 例行：每次推送后看 `Verify website` / `Publish public site` 是否成功、`/healthz` 的 `version`；定期 `npm audit`（根目录与 `backend`）并处理 Dependabot PR；定期恢复演练一次备份。
@@ -57,8 +57,8 @@
 - 限流计数在单进程内存中，SQLite 单写入：Railway 必须保持 **1 个副本**；不防分布式 DDoS。扩容前需共享限流存储与数据库方案。
 - 应用只经 Railway 公网 HTTP 入口访问；增加 TCP Proxy、自建代理或私网调用者时需重新核实 `X-Real-IP` 的信任边界。
 - SuperTokens 默认允许已撤销的 access token 有效至到期。
-- GitHub、Railway、SuperTokens、DNSPod 账号都应开启两步验证；能推 `main`、改 Railway 变量或改 DNS 的人等同网站管理员。
-- 站长联系邮箱与管理员登录邮箱相同（内容决定，未改）。
+- GitHub、Railway、SuperTokens 与 DNS 服务商账号都应开启两步验证；能推 `main`、改 Railway 变量或改 DNS 的人等同网站管理员。
+- 管理员账号应使用长随机密码，并建议与公开联系方式分开。
 
 ## 验证
 

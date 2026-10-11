@@ -1,6 +1,6 @@
 # Security notes / 安全审查记录（2026-10-11）
 
-> 归档：本文原为根目录 `SECURITY_NOTES.md`，2026-10-11 整理文档时原文移入 `docs/history/`，内容未改，仅更新链接。当前状态与运维清单以 [docs/SECURITY.md](../SECURITY.md) 为准。
+> 归档：本文原为根目录 `SECURITY_NOTES.md`，2026-10-11 整理文档时移入 `docs/history/`；仅更新链接，并移除内部主机路径、服务商账号等运维细节。当前状态与运维清单以 [docs/SECURITY.md](../SECURITY.md) 为准。
 
 ## 第三轮审查：基线 `3386803`，本轮补丁待发布
 
@@ -46,7 +46,7 @@
 - 错误：生产环境只返回 `code` 与 `requestId`，不返回堆栈；`x-powered-by` 已关闭。
 - 线上探测：`/.env`、`/package.json`、`/comments.db`、`..%2f` 路径穿越、`TRACE`/`PUT`、SuperTokens dashboard 路径均返回 JSON 404；伪造/无签名 JWT（`alg: none`）访问管理接口返回 401。`/auth/jwt/jwks.json` 只暴露公钥，属正常。
 - 依赖：根目录与 `backend` 的 `npm audit` 均为 0 漏洞（此前已修复 `proxy-addr` 严重漏洞）。CI 中第三方 Action 已固定到 commit SHA，工作流默认只读权限。
-- 主机层面：服务运行在 Railway 容器内，没有 SSH/调试端口由本代码暴露。真正的主机风险在于**账号**：GitHub、Railway、SuperTokens、DNSPod 账号请开启两步验证；任何能推送 `main` 或修改 Railway 环境变量的人都等同于拥有服务器。
+- 主机层面：服务运行在 Railway 容器内，没有 SSH/调试端口由本代码暴露。真正的主机风险在于**账号**：GitHub、Railway、SuperTokens 与 DNS 服务商账号请开启两步验证；任何能推送 `main` 或修改 Railway 环境变量的人都等同于拥有服务器。
 
 ## ② 冒充 / 中间人
 
@@ -62,18 +62,18 @@
 - `GET /api/admin/backup`：返回一致性 SQLite 快照（`node:sqlite` `backup()` → 临时目录 → `quick_check` → 流式返回 → 删除临时文件），`application/octet-stream`，文件名 `comments-YYYYMMDD.db`。
 - 认证：`Authorization: Bearer <BACKUP_TOKEN>`，SHA-256 后用 `crypto.timingSafeEqual` 比较。`BACKUP_TOKEN` 未设置或少于 32 字符时接口返回 404（与不存在的路径相同）。
 - 每 IP 每小时 5 次；不发送任何 CORS 头（浏览器页面无法读取，只供服务器/脚本使用）；`Cache-Control: no-store`；日志只记录 requestId、IP、大小，从不记录令牌。
-- 令牌只放在 Railway 变量和备份机器的权限 600 文件里，切勿提交到仓库或贴进聊天。泄露时在 Railway 换一个新值并重新部署即可作废旧令牌。
+- 令牌只放在 Railway 变量和维护者备份机器的私有存储里，切勿提交到仓库或贴进聊天。泄露时在 Railway 换一个新值并重新部署即可作废旧令牌。
 - 快照包含全部留言（含会员 `user_id`），备份文件需按私密数据保管。
 
 ## 第二轮全面审查（2026-10-11 凌晨）
 
 | 严重度 | 发现 | 证据 | 处理 |
 |---|---|---|---|
-| 中 | 限流按 Railway 边缘节点 IP 计数而不是访客 IP：`TRUST_PROXY=1` 时 `req.ip` 是共享的边缘/CDN 跳点，所有访客挤在少数几个桶里，一个人就能把全站游客发帖（3 条/小时）和登录（20 次/15 分钟）额度用光 | 从两个不同公网 IP（Mac 与 box）请求，`RateLimit` 计数连续递减且共用 reset 时间 | 已修：所有 IP 限流改用 Railway 边缘覆写、客户端无法伪造的 `X-Real-IP`（在 Railway 上默认启用，`CLIENT_IP_HEADER` 可覆盖，非法值回退）；集成测试验证不同访客独立计数 |
+| 中 | 限流按 Railway 边缘节点 IP 计数而不是访客 IP：`TRUST_PROXY=1` 时 `req.ip` 是共享的边缘/CDN 跳点，所有访客挤在少数几个桶里，一个人就能把全站游客发帖（3 条/小时）和登录（20 次/15 分钟）额度用光 | 从两个不同公网 IP 的机器请求，`RateLimit` 计数连续递减且共用 reset 时间 | 已修：所有 IP 限流改用 Railway 边缘覆写、客户端无法伪造的 `X-Real-IP`（在 Railway 上默认启用，`CLIENT_IP_HEADER` 可覆盖，非法值回退）；集成测试验证不同访客独立计数 |
 | 轻微 | 备份下载若客户端在快照生成期间断开，临时文件可能残留 | 代码审查 | 已修：改用 `stream.pipeline`，无论成功/断开都删除临时目录 |
 | 轻微 | CSP 未启用 Trusted Types；`404.html` 没有 CSP | 代码审查 | 已修：主站加 `require-trusted-types-for 'script'; trusted-types 'none'`、`frame-src/worker-src 'none'`（无头浏览器验证无违规）；404 页加 `default-src 'none'` + 样式哈希 |
 | 轻微 | GitHub 官方 Actions 用可变标签（`@v4` 等）；无 Dependabot | 工作流审查 | 已修：全部固定到 commit SHA；新增 `.github/dependabot.yml`（npm 根目录、`backend`、github-actions，每周） |
-| 轻微 | 站长联系邮箱即管理员登录邮箱（公开在页面 `mailto:`） | 页面源码 | 未改（属内容决定）：建议换一个专用联系邮箱，管理员账号使用长随机密码 |
+| 轻微 | 管理员账号标识与公开联系方式有关联 | 页面源码 | 属内容决定：建议使用专用联系邮箱，管理员账号使用长随机密码 |
 | 信息 | ReDoS：链接/电话/推广正则在 2 万字符时呈二次方增长（~0.7 s），但服务器先做 500/30 字长度校验，500 字最坏 < 3 ms | 本地基准 | 加回归测试守护“先校验长度” |
 
 第二轮当时的验证记录：gitleaks 扫描 118 个提交无密钥；未提交 `.env`/数据库；当时 npm audit 均 0；Pages 不暴露 `.git`、后端源码、source map、文档；`PUT/PATCH/TRACE` 返回 404，`HEAD` 备份接口返回 405；CORS 拒绝 `null`、相似域名、`http://` 来源；当时 TLS 协议检查为 1.2/1.3；评论删除带 `user_id` 条件；分页每页固定 20/50 条；请求头 15 s、请求 30 s 超时。第三轮纠正：header 会话模式仍有前端存储 Cookie；原 20 KB 上限未覆盖 SDK 非 JSON 备用解析器。本轮没有重跑完整历史 gitleaks，也没有从公网证明 Railway 全部内部端口配置。
@@ -84,13 +84,13 @@
 
 1. **HSTS（osagechan.top）**：GitHub Pages 不能为自定义域名发送 HSTS 头，也就无法加入 HSTS 预加载。首次手动输入 `http://` 且网络被控制时理论上可被降级。彻底解决需在前面加 Cloudflare（见清单 E）。
 2. **单实例限制（有意为之）**：限流计数保存在单个 Node 进程内存中，重启即清零，多副本之间不共享；SQLite 只允许一个写入实例。因此 Railway 服务必须保持 **1 个副本**，不要开启水平扩容。这些限流防的是普通刷帖/撞库，不防分布式 DDoS（由 Railway 边缘兜底）。如需扩容，必须先换成共享限流存储（如 Redis）和多实例数据库。
-3. **账号安全**：GitHub、Railway、SuperTokens、DNSPod 账号务必开启两步验证——能推送 `main` 或改 Railway 变量的人等同于拥有服务器。
+3. **账号安全**：GitHub、Railway、SuperTokens 与 DNS 服务商账号务必开启两步验证——能推送 `main` 或改 Railway 变量的人等同于拥有服务器。
 
 ## 待办清单：DNS / GitHub（需账号持有人操作）
 
 第三轮线上状态（2026-10-11 检查）：A 为 `185.199.108.153`、`185.199.109.153`；AAAA 为 `2606:50c0:8000::153`、`2606:50c0:8001::153`；CAA 与 GitHub challenge TXT 已存在；`www` 为 NXDOMAIN；`http://` 已 301 到 `https://`；无 HSTS 头。下表中的已有/新增标签来自此前清单，实际状态以本轮部署报告为准。
 
-**A. DNSPod → osagechan.top 记录**（主机记录 `@`，TTL 600）
+**A. DNS 服务商 → osagechan.top 记录**（主机记录 `@`，TTL 600）
 
 | 类型 | 主机记录 | 记录值 |
 |---|---|---|
@@ -107,7 +107,7 @@
 
 **B. www（可选）**：`CNAME`，主机记录 `www`，记录值 `9178osage.github.io`。GitHub 会把 `www.osagechan.top` 自动跳到 `osagechan.top`。
 
-**C. GitHub 域名验证（防止域名被他人 Pages 接管）**：GitHub 头像 → Settings → Pages → Add a domain → 输入 `osagechan.top` → GitHub 显示一条 TXT。在 DNSPod 添加：类型 `TXT`，主机记录 `_github-pages-challenge-9178osage`，记录值为 GitHub 给出的字符串 → 回到 GitHub 点 Verify。**状态：2026-10-11 已 Verified。**
+**C. GitHub 域名验证（防止域名被他人 Pages 接管）**：GitHub 头像 → Settings → Pages → Add a domain → 输入 `osagechan.top` → GitHub 显示一条 TXT。在 DNS 服务商添加：类型 `TXT`，主机记录 `_github-pages-challenge-9178osage`，记录值为 GitHub 给出的字符串 → 回到 GitHub 点 Verify。**状态：2026-10-11 已 Verified。**
 
 **D. Enforce HTTPS / 发布源**：仓库 Settings → Pages → Custom domain 为 `osagechan.top`，勾选 **Enforce HTTPS**（已确认生效）；Build and deployment → Source 为 **GitHub Actions**（2026-10-11 已设置）。改动 DNS 后若证书重新签发，确认该勾选仍在。
 
