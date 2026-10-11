@@ -116,4 +116,4 @@ npm --prefix backend run backup
 npm --prefix backend run backup -- /data/.backups/manual-snapshot.db
 ```
 
-使用 [Node.js SQLite online backup](https://nodejs.org/api/sqlite.html#sqlitebackupsource-db-path-options) 读取包含 WAL 的一致快照，随后 quick_check 校验；备份文件权限 0600，拒绝覆盖源数据库或已有备份。默认保存在数据库目录下的 `.backups/`；应自行保留异地副本（远程备份接口与 box 脚本见 [SECURITY.md](SECURITY.md#备份与例行检查)）。恢复前停止后端、保留现有数据库及 WAL 文件，再使用已验证的快照替换，重启后检查健康接口。该命令已用临时数据库验证，本轮没有复制或读取真实留言数据库。
+使用 [Node.js SQLite online backup](https://nodejs.org/api/sqlite.html#sqlitebackupsource-db-path-options) 读取包含 WAL 的一致快照，随后 quick_check 校验；备份文件权限 0600，拒绝覆盖源数据库或已有备份。默认保存在数据库目录下的 `.backups/`；应自行保留异地副本（远程备份接口与定期备份说明见 [SECURITY.md](SECURITY.md#备份与例行检查)）。恢复前停止后端、保留现有数据库及 WAL 文件，再使用已验证的快照替换，重启后检查健康接口。该命令已用临时数据库验证，本轮没有复制或读取真实留言数据库。
