@@ -1,30 +1,65 @@
-# 后端安全与运维
+# 安全与运维现状（唯一当前参考）
 
-## 2026-10-11 第三轮补丁
+更新：2026-10-11。本文只记录**当前**状态和操作清单；审查过程、证据和历史结论见 [history/2026-10-11-security-audits.md](history/2026-10-11-security-audits.md) 与 [history/2026-10-11-deployment-review.md](history/2026-10-11-deployment-review.md)。如何报告漏洞见根目录 [SECURITY.md](../SECURITY.md)。
 
-- 认证 SDK 的非 JSON 备用解析器能绕过 Express 的 20 KB 请求体限制。本轮在所有解析器之前要求带 body 的请求使用 `application/json`；非 JSON/缺类型返回 415，JSON（含 gzip 与 chunked）仍受解压后 20 KB 上限。无 body 的会话操作继续有效。
-- Header auth 的前端令牌实际存于 JavaScript Cookie。本轮采用独立 `__Host-station-` 名称，强制 `Secure`、`Path=/`、无 Domain；清理并忽略旧 Cookie，不复制旧令牌。新 bundle 发布后需关闭旧标签页，重新打开 HTTPS 页面并登录一次。
-- 完整测试、构建与隔离 HTTP 集成验证通过；联网依赖审计均为 0 个已知漏洞。复现与写操作只在本机隔离环境执行。
-- 代码补丁尚未发布。细节与限制见根目录 `SECURITY_NOTES.md`，现网版本/DNS/CI/分支保护证据见 `docs/SECURITY_DEPLOYMENT_REVIEW_2026-10-11.md`。
+## 当前状态
 
-## 2026-10-10 加固
+- 前端：`https://osagechan.top/`（GitHub Pages，只发布 `dist/` 白名单产物）；旧地址 `9178osage.github.io/inabakumori-site/` 301 到新域名。
+- 后端：`https://inabakumori-site-production.up.railway.app`（Railway，根目录 `/backend`，单实例，SQLite 在持久化卷 `/data/comments.db`）。
+- `/healthz` 只公开 `{ ok, version }`；`version` = 部署提交前 7 位（`RAILWAY_GIT_COMMIT_SHA`），用于确认重新部署。
+- 三轮审查（2026-10-11）发现的问题均已修复上线：限流按真实访客 IP（`X-Real-IP`）计数；认证请求必须为 `application/json`（非 JSON 415，JSON 解压后 ≤20 KB）；生产会话 Cookie 使用 `__Host-station-` 前缀并强制 `Secure`、`Path=/`；CSP 含 Trusted Types、`frame-src/worker-src 'none'`；404 页独立 CSP；防嵌入脚本；GitHub Actions 固定 SHA，Dependabot 每周检查。
+- 已有防护：SuperTokens 会话（header 传输）；会员只能删除自己的留言，管理接口另查权限；SQLite 参数化；服务端校验留言；前端只用 `textContent` 渲染；生产错误不返回堆栈；密码重置令牌放在 URL fragment 并立即清除。CORS 不是认证，保护操作始终依赖会话与权限。
 
-- 2026-10-11 起管理员只通过 Railway `ADMIN_USER_IDS`（SuperTokens 稳定 user ID，多个值用逗号分隔）授权；`ADMIN_EMAILS` 已移除，设置了也只会在启动日志里提示“已不再使用”。`ADMIN_USER_IDS` 为空时启动日志会警告。不要根据陌生人提供的邮箱或 ID 直接授予权限。
-- `/healthz` 只公开 `{ ok, version }`。
-- 可选备份接口 `GET /api/admin/backup`：需 Railway `BACKUP_TOKEN`（≥32 字符），以 `Authorization: Bearer` 调用；未设置时返回 404。详见 `SECURITY_NOTES.md`。完整审查与 DNS/GitHub 清单见根目录 `SECURITY_NOTES.md`。
-- 新增每 IP 每分钟 180 次总请求限制，在 JSON 解析前执行，覆盖无效 JSON 和未知路径。登录、留言及删除操作仍有更严格的独立限制。
-- DELETE 限流匹配忽略路径大小写，与 Express 路由行为一致。
+## Railway 变量（只写名称，值不要进仓库或聊天）
 
-## 已有防护
+| 变量 | 说明 |
+| --- | --- |
+| `NODE_ENV` | `production` |
+| `WEBSITE_URL` | `https://osagechan.top`（CORS、SuperTokens websiteDomain、重置链接都由它决定） |
+| `API_DOMAIN` | Railway 公网 API 地址 |
+| `ADDITIONAL_WEBSITE_ORIGINS` | 可选，逗号分隔的裸 https origin（迁移过渡期用），不接受路径/通配符 |
+| `TRUST_PROXY` | `1`（Railway 一层代理）；错误值会破坏限流 |
+| `CLIENT_IP_HEADER` | 可选，默认在 Railway 上使用 `X-Real-IP` |
+| `COMMENTS_DB_PATH` | 可选，绝对路径且须位于 Railway 卷内；默认为卷挂载目录下的 `comments.db`（当前 `/data/comments.db`） |
+| `SUPERTOKENS_CONNECTION_URI` / `SUPERTOKENS_API_KEY` | SuperTokens Core |
+| `ADMIN_USER_IDS` | **唯一**管理员来源：逗号分隔的 SuperTokens user ID。为空时启动日志警告；`ADMIN_EMAILS` 已移除且会被忽略 |
+| `BACKUP_TOKEN` | ≥32 字符（如 `openssl rand -hex 32`）；未设置或过短时备份接口返回 404 |
 
-- SuperTokens 验证登录会话；用户只能删除自己的会员留言，管理员接口另外检查权限。
-- SQLite 使用参数化语句；留言类型、长度、控制字符与内容在服务器校验；前端以文本显示留言。
-- JSON 请求体上限 20 KB，配置请求超时，生产错误不返回内部堆栈。
-- 新域名 `https://osagechan.top` 已配置为 Railway 的 `WEBSITE_URL`。CORS 不是身份验证，客户端能伪造 Origin；保护操作仍必须通过会话及权限检查。
-- 密码重置链接将令牌放在 URL fragment，前端读取后清除地址中的令牌。
+## 管理员
 
-## 验证与边界
+- 只通过 `ADMIN_USER_IDS` 授权。不要恢复按邮箱授权，也不要根据他人提供的邮箱/ID 直接授予。
+- 更换管理员：用可信方式查到 user ID → 修改 Railway 变量 → 重新部署 → 用 `/healthz` 确认版本。
 
-运行 `npm run check` 和 `npm run test:integration`。集成检查使用临时数据库和本机服务，不在生产留言墙发布测试内容。依赖可通过 `npm --prefix backend audit --omit=dev` 检查。
+## 备份与例行检查
 
-限流状态保存在单个进程内，重启会重置，不抵御分布式 DDoS。SQLite 与当前限流实现按单实例部署；扩容需要共享限流存储及数据库方案。持续监控 Railway 的错误、请求量、资源使用和费用，并保持数据库备份。管理员真实登录及邮件投递需要账号持有人参与验证。
+- 远程快照：`GET /api/admin/backup`，`Authorization: Bearer <BACKUP_TOKEN>`；每 IP 每小时 5 次、无 CORS、`no-store`，日志不记录令牌。返回 `comments-YYYYMMDD.db`。
+- 备份脚本（box）：`/home/box/bin/inabakumori-backup.sh`，令牌文件 `/home/box/.secrets/inabakumori-backup-token`（权限 600），输出到 `/workspace/backups/inabakumori/comments-YYYYMMDD-HHMM.db`，校验 SQLite 头与大小，失败非零退出。
+- 本机/卷内快照：`npm --prefix backend run backup`（见 [OPTIMIZATION.md](OPTIMIZATION.md#数据库备份)）。
+- 快照含全部留言与会员 user ID（无邮箱、密码、令牌、IP），按私密数据保管。令牌泄露时在 Railway 换新值并重新部署。
+- 例行：每次推送后看 `Verify website` / `Publish public site` 是否成功、`/healthz` 的 `version`；定期 `npm audit`（根目录与 `backend`）并处理 Dependabot PR；定期恢复演练一次备份。
+
+## DNS / GitHub 状态
+
+| 项目 | 状态 |
+| --- | --- |
+| A `@` | `185.199.108.153`、`185.199.109.153`（已配置；GitHub 另有 `.110`、`.111` 可选补全） |
+| AAAA `@` | `2606:50c0:8000::153`、`2606:50c0:8001::153`（已配置；`8002`、`8003` 可选） |
+| CAA `@` | `0 issue "letsencrypt.org"`（已配置） |
+| TXT `_github-pages-challenge-9178osage` | 已配置；GitHub 账户 Settings → Pages 显示 **Verified** |
+| `www` | 未配置（可选：CNAME → `9178osage.github.io`） |
+| Pages 发布源 | **GitHub Actions**（不再同时从 `main` 分支发布） |
+| Enforce HTTPS | 已开启（`http://` → 301 `https://`） |
+| `main` 保护 | ruleset `protect-main`（active）：禁止删除、禁止 force push；仍允许直接推送 |
+| HSTS（osagechan.top） | **待定**：GitHub Pages 不能为自定义域名发 HSTS。如需，前置 Cloudflare（Full (strict)，确认原站证书续期，盘点子域后再决定 `includeSubDomains`/preload） |
+
+## 边界与残余风险
+
+- 限流计数在单进程内存中，SQLite 单写入：Railway 必须保持 **1 个副本**；不防分布式 DDoS。扩容前需共享限流存储与数据库方案。
+- 应用只经 Railway 公网 HTTP 入口访问；增加 TCP Proxy、自建代理或私网调用者时需重新核实 `X-Real-IP` 的信任边界。
+- SuperTokens 默认允许已撤销的 access token 有效至到期。
+- GitHub、Railway、SuperTokens、DNSPod 账号都应开启两步验证；能推 `main`、改 Railway 变量或改 DNS 的人等同网站管理员。
+- 站长联系邮箱与管理员登录邮箱相同（内容决定，未改）。
+
+## 验证
+
+`npm run check`（测试、后端语法、生产构建、公开产物检查）与 `npm run test:integration`（临时数据库与本机服务，不触碰生产）。回归测试见 `tools/tests/security.test.cjs` 等。

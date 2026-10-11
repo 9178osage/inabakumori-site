@@ -1,5 +1,7 @@
 # 部署与公网安全复核 — 2026-10-11
 
+> 归档：本文原为 `docs/SECURITY_DEPLOYMENT_REVIEW_2026-10-11.md`，2026-10-11 移入 `docs/history/`，内容未改。配套审计记录见 [2026-10-11-security-audits.md](2026-10-11-security-audits.md)；当前状态见 [docs/SECURITY.md](../SECURITY.md)。
+
 本报告记录 2026-10-11（America/Los_Angeles）对现网基线 `3386803` 的只读检查。范围为 GitHub Actions、发布流程、DNS、TLS、HTTP 安全头、CORS 和未授权读取边界；应用代码修复及本地回归测试见本轮主审计记录。本报告中的现网结果不代表本轮尚未发布的补丁已经生效。
 
 检查使用公开 DNS 查询、低频 GET / OPTIONS、正常证书校验和 GitHub 只读接口。未注册、登录、发表或删除留言，未传入生产凭据、下载数据库或进行压力测试。三次伪造 IP 头测试只访问 `/healthz`。

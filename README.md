@@ -150,6 +150,7 @@ inabakumori-site/
 ├── robots.txt / sitemap.xml / 404.html
 ├── package.json
 ├── README.md
+├── SECURITY.md             # How to report vulnerabilities
 │
 ├── js/                     # Frontend modules
 ├── images/
@@ -158,11 +159,14 @@ inabakumori-site/
 │   ├── optimized/          # WebP used by production build / Pages
 │   ├── icons/
 │   └── memes/
+├── NKNK/                   # NKNK gallery originals (source, not published)
 ├── fonts/
 │
 ├── docs/                   # Project docs (not published to Pages)
+│   ├── SECURITY.md         # Current security & ops reference
 │   ├── OPTIMIZATION.md
-│   └── AI_HANDOFF.md
+│   ├── AI_HANDOFF.md
+│   └── history/            # Archived audit / review reports
 │
 ├── backend/                # Railway service root
 ├── tools/                  # Build, preview, tests, image optimize
@@ -515,6 +519,7 @@ inabakumori-site/
 ├── robots.txt / sitemap.xml / 404.html
 ├── package.json
 ├── README.md
+├── SECURITY.md             # How to report vulnerabilities
 │
 ├── js/                     # Frontend modules
 ├── images/
@@ -523,11 +528,14 @@ inabakumori-site/
 │   ├── optimized/          # WebP used by production build / Pages
 │   ├── icons/
 │   └── memes/
+├── NKNK/                   # NKNK gallery originals (source, not published)
 ├── fonts/
 │
 ├── docs/                   # Project docs (not published to Pages)
+│   ├── SECURITY.md         # Current security & ops reference
 │   ├── OPTIMIZATION.md
-│   └── AI_HANDOFF.md
+│   ├── AI_HANDOFF.md
+│   └── history/            # Archived audit / review reports
 │
 ├── backend/                # Railway service root
 ├── tools/                  # Build, preview, tests, image optimize
@@ -877,6 +885,7 @@ inabakumori-site/
 ├── robots.txt / sitemap.xml / 404.html
 ├── package.json
 ├── README.md
+├── SECURITY.md             # How to report vulnerabilities
 │
 ├── js/                     # Frontend modules
 ├── images/
@@ -885,11 +894,14 @@ inabakumori-site/
 │   ├── optimized/          # WebP used by production build / Pages
 │   ├── icons/
 │   └── memes/
+├── NKNK/                   # NKNK gallery originals (source, not published)
 ├── fonts/
 │
 ├── docs/                   # Project docs (not published to Pages)
+│   ├── SECURITY.md         # Current security & ops reference
 │   ├── OPTIMIZATION.md
-│   └── AI_HANDOFF.md
+│   ├── AI_HANDOFF.md
+│   └── history/            # Archived audit / review reports
 │
 ├── backend/                # Railway service root
 ├── tools/                  # Build, preview, tests, image optimize

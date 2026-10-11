@@ -1,10 +1,10 @@
 # 给接手 AI 的项目交接说明
 
-整理日期：2026-10-01（在 2026-09-29 交接基础上续写）。本文基于本地文件、Git 状态和本次线上检查结果；不包含任何密钥、密码或数据库内容。
+整理日期：2026-10-01（在 2026-09-29 交接基础上续写；2026-10-11 更新文档结构）。本文基于本地文件、Git 状态和本次线上检查结果；不包含任何密钥、密码或数据库内容。
 
 ## 用户意图与当前状态
 
-2026-10-11 安全更新：管理员**只**通过 Railway `ADMIN_USER_IDS`（SuperTokens user ID，逗号分隔）授权，`ADMIN_EMAILS` 已彻底移除；不要恢复按邮箱授权。`/healthz` 只公开 `{ ok, version }`（`version` 为 `RAILWAY_GIT_COMMIT_SHA` 前 7 位）。完整审查见根目录 [SECURITY_NOTES.md](../SECURITY_NOTES.md)。详见 [SECURITY.md](SECURITY.md)。新域名为 `https://osagechan.top`，Railway `WEBSITE_URL` 已更新。新增解析前总请求限流，并修复 DELETE 大小写路径限流绕过。
+2026-10-11 安全更新：管理员**只**通过 Railway `ADMIN_USER_IDS`（SuperTokens user ID，逗号分隔）授权，`ADMIN_EMAILS` 已彻底移除；不要恢复按邮箱授权。`/healthz` 只公开 `{ ok, version }`（`version` 为 `RAILWAY_GIT_COMMIT_SHA` 前 7 位）。当前安全状态、Railway 变量、备份与 DNS 清单见 [SECURITY.md](SECURITY.md)；审查过程归档在 [history/](history/)。新域名为 `https://osagechan.top`，Railway `WEBSITE_URL` 已更新。新增解析前总请求限流，并修复 DELETE 大小写路径限流绕过。
 
 用户曾授权对站点做一轮综合优化并可推送 `origin/main`。接手后仍应先确认下一项任务，不要把本文当成新增功能需求。
 
@@ -41,6 +41,10 @@
 | `tools/tests/*.test.cjs` | 现有自动化测试 |
 | `tools/check-links.mjs` | 链接检查工具 |
 | `images/`、`fonts/` | 本地图片与字体；线上背景用 `images/optimized/`，原始稿在 `images/hero/` 与 `images/hero-mobile/` |
+| `docs/SECURITY.md` | 当前安全状态与运维清单（唯一当前参考） |
+| `docs/history/` | 2026-10-11 安全审查与部署复核归档 |
+| `SECURITY.md` | 漏洞报告方式 |
+| `NKNK/` | NKNK 画廊原图（`npm run generate:nknk` 生成 `images/optimized/nknk/`，不发布） |
 | `docs/OPTIMIZATION.md` | 优化与运维说明 |
 | `docs/AI_HANDOFF.md` | 本文（AI 交接说明） |
 
@@ -55,7 +59,7 @@ npm install
 npm --prefix backend install
 ```
 
-参考 `backend/.env.example` 配置后端；若已有 `backend/.env`，保留现有内容，不要直接覆盖。不要读取、打印或提交其中的 SuperTokens 密钥、管理员邮箱或其他私密值。本次交接未读取私密环境变量或数据库。
+参考 `backend/.env.example` 配置后端；若已有 `backend/.env`，保留现有内容，不要直接覆盖。不要读取、打印或提交其中的 SuperTokens 密钥、管理员 user ID、备份令牌或其他私密值。本次交接未读取私密环境变量或数据库。
 
 分别在两个终端中运行：
 
@@ -87,12 +91,12 @@ npm --prefix backend run check
 - `js/config.js` 在 localhost / 127.0.0.1 下连接当前主机的 3001 端口，其他域名下连接 `https://inabakumori-site-production.up.railway.app`。
 - 后端公网地址：`https://inabakumori-site-production.up.railway.app`
 - Railway 服务使用 `/backend` 作为根目录，启动命令为 `npm start`，健康检查路径为 `/healthz`，SQLite 数据位于 Railway 持久化卷的 `/data/comments.db`。
-- 本次线上检查：`/healthz` 返回 HTTP 200，留言接口返回 HTTP 200 并读取到 4 条留言。
-- GitHub 提交已触发 Railway 自动部署。构建日志显示 `npm install` 成功并报告 `found 0 vulnerabilities`；用户已确认 Railway 中 `Upgrade Nodemailer to 10.0.2` 部署状态为 `Active`。
+- Pages 发布源为 GitHub Actions（`Publish public site` 工作流）；`main` 有 ruleset `protect-main`（禁止删除与 force push）。
+- 推送 `main` 会触发 Railway 自动部署；用 `/healthz` 的 `version` 确认。
 
 ## 最近检查结果
 
-- `npm test`：以当前 `tools/tests` 为准（2026-10-01 增补静态安全头等用例）。
+- `npm test`：以当前 `tools/tests` 为准（2026-10-11 为 113 项）。
 - `npm --prefix backend run check`：通过。
 - 后端 Nodemailer 已升级到 10.x；2026-10-01 另修复传递依赖 axios 高危审计项。
 - 本地 `npm audit` 在升级后报告 0 个已知漏洞；如果当前网络无法访问 npm 漏洞接口，审计命令可能因 DNS 或网络失败，不能把网络错误当成漏洞结果。
