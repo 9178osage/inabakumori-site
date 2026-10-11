@@ -1,5 +1,12 @@
 # 后端安全与运维
 
+## 2026-10-11 第三轮补丁
+
+- 认证 SDK 的非 JSON 备用解析器能绕过 Express 的 20 KB 请求体限制。本轮在所有解析器之前要求带 body 的请求使用 `application/json`；非 JSON/缺类型返回 415，JSON（含 gzip 与 chunked）仍受解压后 20 KB 上限。无 body 的会话操作继续有效。
+- Header auth 的前端令牌实际存于 JavaScript Cookie。本轮采用独立 `__Host-station-` 名称，强制 `Secure`、`Path=/`、无 Domain；清理并忽略旧 Cookie，不复制旧令牌。新 bundle 发布后需关闭旧标签页，重新打开 HTTPS 页面并登录一次。
+- 完整测试、构建与隔离 HTTP 集成验证通过；联网依赖审计均为 0 个已知漏洞。复现与写操作只在本机隔离环境执行。
+- 代码补丁尚未发布。细节与限制见根目录 `SECURITY_NOTES.md`，现网版本/DNS/CI/分支保护证据见 `docs/SECURITY_DEPLOYMENT_REVIEW_2026-10-11.md`。
+
 ## 2026-10-10 加固
 
 - 2026-10-11 起管理员只通过 Railway `ADMIN_USER_IDS`（SuperTokens 稳定 user ID，多个值用逗号分隔）授权；`ADMIN_EMAILS` 已移除，设置了也只会在启动日志里提示“已不再使用”。`ADMIN_USER_IDS` 为空时启动日志会警告。不要根据陌生人提供的邮箱或 ID 直接授予权限。
