@@ -40,6 +40,29 @@ export function websiteLocation(value) {
   return { origin: url.origin, url: url.href };
 }
 
+// Extra browser origins allowed by CORS, e.g. the old GitHub Pages origin during a domain move.
+// Only bare origins are accepted (no paths, wildcards or credentials); production requires HTTPS.
+export function parseAdditionalOrigins(value, { production = false } = {}) {
+  const origins = [];
+  for (const entry of String(value ?? "").split(",").map(item => item.trim()).filter(Boolean)) {
+    let url;
+    try {
+      url = new URL(entry);
+    } catch {
+      throw new Error(`ADDITIONAL_WEBSITE_ORIGINS entry is not a URL: ${entry}`);
+    }
+    if (!["https:", "http:"].includes(url.protocol) || url.username || url.password ||
+        url.pathname !== "/" || url.search || url.hash || entry.includes("*")) {
+      throw new Error(`ADDITIONAL_WEBSITE_ORIGINS entries must be bare origins: ${entry}`);
+    }
+    if (production && url.protocol !== "https:") {
+      throw new Error(`ADDITIONAL_WEBSITE_ORIGINS must use HTTPS in production: ${entry}`);
+    }
+    origins.push(url.origin);
+  }
+  return origins;
+}
+
 export function resolveDatabasePath(env, directory) {
   const configured = env.COMMENTS_DB_PATH?.trim();
   const mount = env.RAILWAY_VOLUME_MOUNT_PATH?.trim();

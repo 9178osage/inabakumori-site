@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { validateCommentInput, websiteLocation, resolveDatabasePath, hasVerifiedAdminEmail, createRecentDuplicateChecker, insertFreshComment, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery } from "./services.mjs";
+import { validateCommentInput, websiteLocation, resolveDatabasePath, parseAdditionalOrigins, hasVerifiedAdminEmail, createRecentDuplicateChecker, insertFreshComment, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery } from "./services.mjs";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -44,6 +44,13 @@ if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
 const API_DOMAIN = normalizeOrigin((process.env.API_DOMAIN || "http://127.0.0.1:3001").trim(), "API_DOMAIN");
 const website = websiteLocation((process.env.WEBSITE_URL || process.env.WEBSITE_DOMAIN || "http://127.0.0.1:5500").trim());
 const WEBSITE_DOMAIN = website.origin;
+let ADDITIONAL_WEBSITE_ORIGINS;
+try {
+  ADDITIONAL_WEBSITE_ORIGINS = parseAdditionalOrigins(process.env.ADDITIONAL_WEBSITE_ORIGINS, { production: IS_PRODUCTION });
+} catch (error) {
+  console.error(`❌ ${error.message}`);
+  process.exit(1);
+}
 const HOST = (process.env.HOST || (IS_PRODUCTION ? "0.0.0.0" : "127.0.0.1")).trim();
 if (!HOST) {
   console.error("❌ HOST cannot be empty");
@@ -119,7 +126,9 @@ supertokens.init({
     Session.init({ getTokenTransferMethod: () => "header" })
   ]
 });
-const ALLOWED_ORIGINS = new Set([WEBSITE_DOMAIN, ...IS_PRODUCTION ? [] : ["http://127.0.0.1:5500", "http://localhost:5500"]]);
+// CORS only limits which browser pages may read responses; every protected route still
+// verifies the SuperTokens session (and admin rights) on the server.
+const ALLOWED_ORIGINS = new Set([WEBSITE_DOMAIN, ...ADDITIONAL_WEBSITE_ORIGINS, ...IS_PRODUCTION ? [] : ["http://127.0.0.1:5500", "http://localhost:5500"]]);
 const corsOptions = { origin(origin, callback) {
   if (!origin) {
     return callback(null, true);

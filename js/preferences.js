@@ -1,3 +1,9 @@
+// GitHub Pages cannot send a frame-ancestors header, so refuse to render inside another
+// site's frame (clickjacking of login, comment and admin buttons).
+if (window.top !== window.self) {
+  document.documentElement.hidden = true;
+  try { window.top.location.replace(window.location.href); } catch { /* Sandboxed frame: stay hidden. */ }
+}
 // Preferences must never prevent the site from opening in private/restricted browsers.
 (() => {
   const memory = new Map();
