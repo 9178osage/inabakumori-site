@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { once } from "node:events";
+import { gzipSync } from "node:zlib";
 import { setTimeout as delay } from "node:timers/promises";
 import { createStaticServer } from "./static-server.mjs";
 
@@ -88,6 +89,33 @@ try {
   assert.equal((await request(`${api}/api/comments`, { method: "POST", headers: { "Content-Type": "text/plain" }, body: "hello" })).status, 415);
   assert.equal((await request(`${api}/api/comments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{" })).status, 400);
   assert.equal((await request(`${api}/api/comments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: "x".repeat(22000) }) })).status, 413);
+  // Exercise the actual middleware order: no body may reach the SDK's unlimited
+  // fallback parser after bypassing Express's JSON parser by its content type.
+  const oversizedAuth = Buffer.from(JSON.stringify({ formFields: [], padding: "x".repeat(65536) }));
+  for (const endpoint of ["/auth/signin", "/auth/public/signup", "/auth/public/user/password/reset/token"]) {
+    for (const contentType of [undefined, "text/plain", "application/x-www-form-urlencoded"]) {
+      const headers = contentType ? { "Content-Type": contentType } : {};
+      const result = await request(api + endpoint, { method: "POST", headers, body: oversizedAuth });
+      assert.equal(result.status, 415, `${endpoint}: ${contentType}`);
+      assert.equal((await result.json()).code, "UNSUPPORTED_MEDIA_TYPE");
+    }
+  }
+  const compressedAuth = gzipSync(oversizedAuth);
+  for (const contentType of ["text/plain", "application/json"]) {
+    const result = await request(`${api}/auth/signin`, { method: "POST", headers: {
+      "Content-Type": contentType, "Content-Encoding": "gzip"
+    }, body: compressedAuth });
+    assert.equal(result.status, contentType === "application/json" ? 413 : 415);
+    await result.arrayBuffer();
+  }
+  const invalidCharset = await request(`${api}/auth/signin`, { method: "POST", headers: {
+    "Content-Type": "application/json; charset=iso-8859-1"
+  }, body: "{}" });
+  assert.equal(invalidCharset.status, 415);
+  assert.equal((await invalidCharset.json()).code, "UNSUPPORTED_MEDIA_TYPE");
+  const bodylessRefresh = await request(`${api}/auth/session/refresh`, { method: "POST" });
+  assert.equal(bodylessRefresh.status, 401, "bodyless refresh reaches session verification");
+  await bodylessRefresh.arrayBuffer();
   assert.equal((await request(`${api}/api/missing`)).status, 404);
   assert.equal((await (await request(`${api}/api/comments`)).json()).comments.length, 1);
   let deleteLimited = false;
@@ -126,7 +154,7 @@ try {
   child.kill("SIGTERM");
   const [code] = await once(child, "exit");
   assert.equal(code, 0, output);
-  console.log("HTTP integration passed: isolated guest posting, deduplication, auth boundaries, CORS, headers, JSON limits, read throttling, public-only preview and graceful shutdown.");
+  console.log("HTTP integration passed: isolated guest posting, deduplication, auth boundaries, CORS, headers, auth parser/body limits, read throttling, public-only preview and graceful shutdown.");
 } finally {
   if (child.exitCode === null) child.kill("SIGKILL");
   preview.closeAllConnections();

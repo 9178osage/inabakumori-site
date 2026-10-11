@@ -1,9 +1,20 @@
 import path from "node:path";
 import { isIP } from "node:net";
 
-// Client IP for rate limiting and logs. Railway's public edge overwrites X-Real-IP with the
-// connecting client's address; with TRUST_PROXY=1, Express req.ip is an edge/CDN hop that many
-// visitors share. Defaults to x-real-ip on Railway; CLIENT_IP_HEADER overrides ("none" disables).
+// SuperTokens can parse an unparsed request itself, without Express's body limit.
+// Require JSON before either parser sees a body, including chunked requests and
+// requests without Content-Type. Bodyless session refresh/sign-out remains valid.
+export function requireJsonRequestBody(req, res, next) {
+  const hasBody = req.headers["transfer-encoding"] !== undefined ||
+    (req.headers["content-length"] !== undefined && req.headers["content-length"] !== "0");
+  if (!hasBody || req.is("application/json")) return next();
+  return res.status(415).json({ error: "请求必须使用 application/json", code: "UNSUPPORTED_MEDIA_TYPE" });
+}
+
+// Client IP for rate limiting and logs. This trusts Railway's public HTTP ingress
+// to set X-Real-IP; direct/private ingress must not accept caller-controlled values.
+// With TRUST_PROXY=1, Express req.ip can be a shared edge/CDN hop. A configured
+// CLIENT_IP_HEADER requires the same trusted-proxy guarantee ("none" disables it).
 export function clientIpResolver(env) {
   const configured = String(env.CLIENT_IP_HEADER ?? "").trim().toLowerCase();
   const header = configured === "none" ? "" : configured || (env.RAILWAY_SERVICE_ID ? "x-real-ip" : "");

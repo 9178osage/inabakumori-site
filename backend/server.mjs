@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { validateCommentInput, websiteLocation, resolveDatabasePath, parseAdditionalOrigins, clientIpResolver, parseAdminUserIds, createAdminCheck, buildVersion, createRecentDuplicateChecker, insertFreshComment, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery } from "./services.mjs";
+import { validateCommentInput, websiteLocation, resolveDatabasePath, parseAdditionalOrigins, clientIpResolver, parseAdminUserIds, createAdminCheck, buildVersion, createRecentDuplicateChecker, insertFreshComment, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery, requireJsonRequestBody } from "./services.mjs";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -162,6 +162,7 @@ const requestLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 60_000, 
   standardHeaders: "draft-7", legacyHeaders: false,
   message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 app.use(requestLimiter);
+app.use(requireJsonRequestBody);
 app.use(express.json({ limit: "20kb", strict: true }));
 const authSensitiveLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 15 * 60 * 1e3, limit: 20, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 function normalizedRequestPath(value) {
@@ -376,6 +377,9 @@ app.use((err, req, res, next) => {
   }
   if (err?.type === "entity.too.large") {
     return res.status(413).json({ error: "请求内容过大", code: "PAYLOAD_TOO_LARGE" });
+  }
+  if (err?.type === "charset.unsupported" || err?.type === "encoding.unsupported") {
+    return res.status(415).json({ error: "请求的字符集或压缩格式不受支持", code: "UNSUPPORTED_MEDIA_TYPE" });
   }
   if (err instanceof SyntaxError && Object.prototype.hasOwnProperty.call(err, "body")) {
     return res.status(400).json({ error: "JSON 格式不正确", code: "INVALID_JSON" });
