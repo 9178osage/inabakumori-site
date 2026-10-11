@@ -1,5 +1,26 @@
 # Security notes / 安全审查记录（2026-10-11）
 
+## 第三轮审查：基线 `3386803`，本轮补丁待发布
+
+本轮通读核心后端、备份、前端及构建/工作流，使用安装的 Express 和 SuperTokens SDK 在本机复现边界问题，并对线上做低频只读检查。没有读取生产 `.env`、登录真实账号、向线上发送超大/压缩请求、发表或删除留言。以下结果取代历史记录中“header 模式无 Cookie”“所有请求均受 20 KB 限制”的判断。
+
+| 优先级 | 已复现的问题 | 本轮修复 |
+| --- | --- | --- |
+| P1（有条件的凭据泄漏） | SuperTokens header auth 实际将 access/refresh token 存入 JavaScript Cookie；默认非 iframe 写入缺少 `Secure`。Pages 未发送 HSTS，浏览器没有有效 HSTS 升级时，HTTP 首跳会在 301 之前发送这些 Cookie | 通过公开 `cookieHandler` 扩展，把生产会话 Cookie 放入独立的 `__Host-station-` 名称空间，强制 `Secure`、`Path=/` 且无 Domain；清理并忽略旧名称，用户重新登录一次；生成新的 `js/auth.js` |
+| P1（未认证拒绝服务） | `express.json` 只处理 JSON Content-Type。认证 POST 使用 `text/plain` 或缺少 Content-Type 时，SDK 自行读取请求体，没有应用字节上限。合成的 2 MB JSON 和仅 2,103 字节 gzip 均被原 SDK 解析出 2 MB 字段 | 在所有请求体解析器之前要求带 body 的请求使用 `application/json`；非 JSON/缺类型返回 415，合法 JSON 解压后仍受 20 KB 上限；覆盖 chunked。无 body 的 refresh/signout 继续兼容 |
+
+不支持的字符集/压缩格式统一返回 415。IP 信任注释也已更正：限流头依赖 Railway 可信公共 HTTP ingress，私网/TCP/新增代理路径必须重新核实；IP 头从来不参与用户身份或管理员授权。
+
+**验证**：根目录和 `backend` 的联网 `npm audit --json` 均返回 0 个已知漏洞。新增测试直接使用当前 SDK 的令牌 Cookie writer/reader，以及 Express + SDK parser，覆盖凭据写入/删除、旧 Cookie 隔离、非 JSON、缺类型、chunked、gzip 解压上限。集成测试还验证实际中间件次序、415/413、无 body 刷新 401、留言/备份/CORS/限流和安全构建白名单。漏洞复现仅使用合成数据。`npm audit` 不覆盖 Node 运行时或平台配置；本机检查使用 Node `24.19.0`，Railway 实际运行时补丁版本未读取，仍需保持受支持 24.x 分支的更新。
+
+最终验证结果：`npm run check` **113/113 测试通过**，后端语法检查、生产构建和公开资源检查通过；`npm run test:integration` 通过；`git diff --check` 通过。前端测试还通过真实 `SuperTokens.init`/`Session.init` 和 fetch 拦截器验证响应头令牌保存、会话元数据、识别登录及退出清理（全部使用 mock 网络响应）。两个共享 Cookie jar 的 handler 与旧 bundle 写入/删除测试确认新名称不会被旧快照覆盖或复活。独立代码复核通过。
+
+**审计结论的边界**：在本次检查的应用路径中没有发现可复现的命令执行、SQL 注入、SSRF 或会员/管理员越权；这不等于已经证明服务器、平台或账号不存在任何漏洞。公开 API 可以被任意客户端调用，TLS 保障链路，服务端会话和权限才决定调用者能做什么。无须增加可从公开前端复制的“加密密钥”作为认证。
+
+**上线与运维**：本轮补丁已在 `3386803` 之后提交上线（见 git log：后端请求体边界、前端 Secure 会话 Cookie）。前后端都要发布；发布后关闭旧标签页、重新打开 HTTPS 网站并登录一次。新名称不会读取或复制旧 token，避免旧标签的写入、删除与新会话冲突；本机 HTTP 开发继续使用原 SDK 存储。清理 Cookie 不能撤销此前可能泄漏的令牌；若怀疑已经泄漏，应在认证服务撤销相关会话。GitHub `main` 当前没有分支保护或 rulesets，应配置 PR/必过检查并调整现有自动更新的直推流程。Pages 无 HSTS 仍是托管边界。**2026-10-11 已完成**：GitHub 账户 Settings → Pages 中 `osagechan.top` 显示 **Verified**；仓库 Pages 发布源已改为 **GitHub Actions**（不再同时从 `main` 分支直接发布原始仓库，消除两个部署器竞争）。详细现网证据和 CI/DNS 状态见 [部署与公网复核](docs/SECURITY_DEPLOYMENT_REVIEW_2026-10-11.md)。默认 SuperTokens 撤销行为允许旧 access token 有效至到期；如需要敏感操作立即检查撤销状态，可单独设计并验证 `checkDatabase`，本轮未更改该行为。
+
+参考：[SuperTokens header auth 存储说明](https://supertokens.com/docs/post-authentication/session-management/switch-between-cookies-and-header-authentication)、[MDN Cookie 安全](https://developer.mozilla.org/en-US/docs/Web/Security/Practical_implementation_guides/Cookies)、[SuperTokens access token 撤销说明](https://supertokens.com/docs/post-authentication/session-management/advanced-workflows/access-token-blacklisting)。以下保留前两轮历史记录，涉及现网状态应以上述本轮记录及部署报告为准。
+
 审查范围：Brakeintime 提出的两类问题。① 后端能否被远程执行代码、读写服务器文件或拿到主机权限（RCE / host access）；② 前后端之间能否被冒充或中间人攻击（spoofing / MITM）。
 方法：通读 `backend/*.mjs`、前端 JS/CSP、CI；对线上 Railway API 做只读探测（未登录、未发帖、未删除任何内容）；`npm audit`。
 
@@ -17,7 +38,7 @@
 
 ## ① RCE / 主机访问
 
-- 后端代码中**没有** `child_process`、`eval`、`new Function`、动态 `import()`、SQLite 扩展加载、静态文件服务、请求可达的文件读写或对外 HTTP 请求（SSRF）。唯一的文件系统操作是启动时 `mkdirSync` 数据库目录，路径来自环境变量且生产环境强制位于 Railway Volume 内。
+- 后端业务代码中**没有** `child_process`、`eval`、`new Function`、动态 `import()`、SQLite 扩展加载或静态文件服务。数据库路径来自环境变量；备份接口认证后会生成、读取并删除固定临时目录里的 SQLite 快照。没有发现用户输入可控制该文件路径或出站请求地址的路径；认证 SDK 本身会访问配置的 Core/邮件服务。
 - SQL 全部为预编译参数化语句；`node:sqlite` 默认禁用扩展加载。
 - 输入：`express.json` 20 KB 上限、`strict`；`query parser` 为 `simple`（无嵌套对象 → 无 `qs` 原型污染）；留言字段类型/长度/控制字符/双向文本字符均在服务端校验；ID 用严格正则解析。
 - 错误：生产环境只返回 `code` 与 `requestId`，不返回堆栈；`x-powered-by` 已关闭。
@@ -29,7 +50,7 @@
 
 - **传输**：API 位于 `*.up.railway.app`，`.app` 整个顶级域在浏览器 HSTS 预加载列表中 → 浏览器只会用 HTTPS 连接 API；后端也发送 HSTS。前端 `osagechan.top` 使用 Let's Encrypt 证书，GitHub Pages 已开启 Enforce HTTPS（`http://` → 301 `https://`）。旧地址 `9178osage.github.io/inabakumori-site/` 301 跳到新域名。
 - **API 地址不可被篡改**：`js/config.js` 写死 HTTPS 的 Railway 地址，不读取 URL 参数；CSP `connect-src` 只允许自身与该 API，生产构建会去掉 localhost（`check-build` 强制）。
-- **CSRF / 冒充用户**：会话令牌通过 `Authorization` 请求头传输（SuperTokens header 模式），不依赖 Cookie 自动携带，第三方网站伪造的表单/请求无法带上用户身份。所有删除与管理接口都在服务端校验会话；会员只能删除自己的留言（SQL 条件含 `user_id`）；管理接口额外检查管理员身份。CORS 只是浏览器读响应的限制，不是认证——伪造 `Origin` 仍然拿不到受保护数据（集成测试覆盖）。
+- **CSRF / 冒充用户**：会话令牌通过 `Authorization` 请求头传输（SuperTokens header 模式），API 不使用自动携带的 Cookie 授权。前端 SDK 仍使用 JavaScript Cookie 存储令牌，其传输安全见第三轮修复。所有删除与管理接口都在服务端校验会话；会员只能删除自己的留言（SQL 条件含 `user_id`）；管理接口额外检查管理员身份。CORS 只是浏览器读响应的限制，不是认证——伪造 `Origin` 仍然拿不到受保护数据（集成测试覆盖）。
 - **游客**：游客只能发帖（每 IP 每小时 3 条、内容过滤、去重），不能删除；不存在可被猜测的“游客删除令牌”。
 - **XSS（令牌被盗的主要途径）**：所有服务端数据以 `textContent` 渲染，前端无 `innerHTML`/`eval`；CSP 禁止内联脚本与 `unsafe-eval`。header 模式下令牌存于前端可读存储，因此保持“无 HTML 注入 + 严格 CSP”是关键不变量（`tools/tests/security.test.cjs` 守护）。
 - **点击劫持**：已加防嵌入脚本（被第三方 frame 时隐藏页面并尝试跳出）。
@@ -53,7 +74,7 @@
 | 轻微 | 站长联系邮箱即管理员登录邮箱（公开在页面 `mailto:`） | 页面源码 | 未改（属内容决定）：建议换一个专用联系邮箱，管理员账号使用长随机密码 |
 | 信息 | ReDoS：链接/电话/推广正则在 2 万字符时呈二次方增长（~0.7 s），但服务器先做 500/30 字长度校验，500 字最坏 < 3 ms | 本地基准 | 加回归测试守护“先校验长度” |
 
-未发现问题（已验证）：gitleaks 扫描完整 git 历史（118 个提交）无密钥；从未提交 `.env`/数据库；npm audit 根目录与 backend 均 0；Pages 不暴露 `.git`、源码、source map、文档；Railway 只开放 443，`PUT/PATCH/TRACE` 返回 404，`HEAD` 备份接口返回 405；CORS 拒绝 `null`、相似域名、`http://` 来源；TLS 只协商 1.2/1.3；会话令牌走请求头（无 Cookie，无 CSRF 面）；评论删除带 `user_id` 条件（无 IDOR）；分页每页固定 20/50 条；请求体 20 KB、请求头 15 s、请求 30 s 超时。
+第二轮当时的验证记录：gitleaks 扫描 118 个提交无密钥；未提交 `.env`/数据库；当时 npm audit 均 0；Pages 不暴露 `.git`、后端源码、source map、文档；`PUT/PATCH/TRACE` 返回 404，`HEAD` 备份接口返回 405；CORS 拒绝 `null`、相似域名、`http://` 来源；当时 TLS 协议检查为 1.2/1.3；评论删除带 `user_id` 条件；分页每页固定 20/50 条；请求头 15 s、请求 30 s 超时。第三轮纠正：header 会话模式仍有前端存储 Cookie；原 20 KB 上限未覆盖 SDK 非 JSON 备用解析器。本轮没有重跑完整历史 gitleaks，也没有从公网证明 Railway 全部内部端口配置。
 
 隐私：本站数据库只保存昵称、留言、时间、会员的 SuperTokens user ID；**不保存 IP 或邮箱**。邮箱与密码哈希在 SuperTokens。游客留言 182 天后自动删除。Railway 日志会记录请求 IP（平台行为）；备份接口日志记录 IP 但不记录令牌。备份文件含 user ID、无密码/令牌/邮箱。
 
@@ -65,7 +86,7 @@
 
 ## 待办清单：DNS / GitHub（需账号持有人操作）
 
-当前线上状态（2026-10-11 检查）：A 只有 `185.199.108.153`、`185.199.109.153`；无 AAAA、无 CAA、无 TXT、无 `www`；`http://` 已 301 到 `https://`（Enforce HTTPS 已开启）；无 HSTS 头。
+第三轮线上状态（2026-10-11 检查）：A 为 `185.199.108.153`、`185.199.109.153`；AAAA 为 `2606:50c0:8000::153`、`2606:50c0:8001::153`；CAA 与 GitHub challenge TXT 已存在；`www` 为 NXDOMAIN；`http://` 已 301 到 `https://`；无 HSTS 头。下表中的已有/新增标签来自此前清单，实际状态以本轮部署报告为准。
 
 **A. DNSPod → osagechan.top 记录**（主机记录 `@`，TTL 600）
 
@@ -84,11 +105,11 @@
 
 **B. www（可选）**：`CNAME`，主机记录 `www`，记录值 `9178osage.github.io`。GitHub 会把 `www.osagechan.top` 自动跳到 `osagechan.top`。
 
-**C. GitHub 域名验证（防止域名被他人 Pages 接管）**：GitHub 头像 → Settings → Pages → Add a domain → 输入 `osagechan.top` → GitHub 显示一条 TXT。在 DNSPod 添加：类型 `TXT`，主机记录 `_github-pages-challenge-9178osage`，记录值为 GitHub 给出的字符串 → 回到 GitHub 点 Verify。
+**C. GitHub 域名验证（防止域名被他人 Pages 接管）**：GitHub 头像 → Settings → Pages → Add a domain → 输入 `osagechan.top` → GitHub 显示一条 TXT。在 DNSPod 添加：类型 `TXT`，主机记录 `_github-pages-challenge-9178osage`，记录值为 GitHub 给出的字符串 → 回到 GitHub 点 Verify。**状态：2026-10-11 已 Verified。**
 
-**D. Enforce HTTPS**：仓库 Settings → Pages → Custom domain 为 `osagechan.top`，勾选 **Enforce HTTPS**（已确认生效）。改动 DNS 后若证书重新签发，确认该勾选仍在。
+**D. Enforce HTTPS / 发布源**：仓库 Settings → Pages → Custom domain 为 `osagechan.top`，勾选 **Enforce HTTPS**（已确认生效）；Build and deployment → Source 为 **GitHub Actions**（2026-10-11 已设置）。改动 DNS 后若证书重新签发，确认该勾选仍在。
 
-**E. HSTS（可选，Cloudflare）**：把域名 NS 从 DNSPod 改到 Cloudflare（免费版），迁移上述记录并开启橙色云代理；SSL/TLS 模式选 **Full (strict)**；Edge Certificates → 开启 Always Use HTTPS，HSTS 设为 `max-age=31536000; includeSubDomains`，稳定数周后再勾 preload 并提交 hstspreload.org。注意：橙色云代理会挡住 GitHub 的 Let's Encrypt 续期（HTTP 验证）；若 Pages 提示证书问题，临时切回灰云让其续期，或改用 Full 模式。这是架构变化，非必需。
+**E. HSTS（可选架构调整）**：采用能配置 HTTPS 响应头的托管/CDN 后再开启 HSTS。若使用 Cloudflare，应保持 **Full (strict)**、验证 Pages 原站证书和续期方案，并盘点全部子域名后再决定 `includeSubDomains`/preload。不要通过放宽证书验证回避续期错误；本轮未实施 DNS/CDN 迁移。
 
 ## 回归保护
 
