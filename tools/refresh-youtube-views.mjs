@@ -67,10 +67,10 @@ function formatSongsFile(songs) {
 async function fetchStatistics(ids) {
   const params = new URLSearchParams({
     part: "statistics",
-    id: ids.join(","),
-    key: apiKey
+    id: ids.join(",")
   });
-  const res = await fetch(`${API_BASE}?${params}`);
+  // Send the key as a header so it never appears in request URLs or access logs.
+  const res = await fetch(`${API_BASE}?${params}`, { headers: { "X-Goog-Api-Key": apiKey } });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new Error(`YouTube API HTTP ${res.status}: ${body.slice(0, 200)}`);

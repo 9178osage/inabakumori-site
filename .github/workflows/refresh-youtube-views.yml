@@ -14,7 +14,7 @@ on:
     - cron: "0 15 * * 1"
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 concurrency:
   group: refresh-youtube-views
   cancel-in-progress: false
@@ -22,6 +22,9 @@ jobs:
   refresh:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Only this job can push; it runs repository code but installs no dependencies.
+    permissions:
+      contents: write
     outputs:
       changed: ${{ steps.commit.outputs.changed }}
     steps:
@@ -52,9 +55,14 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          case "$REF_NAME" in
+            ""|-*|*..*|*[!A-Za-z0-9._/-]*)
+              echo "::error::Refusing to push to unexpected ref name"
+              exit 1 ;;
+          esac
           git add js/songs.js
           git commit -m "chore: refresh YouTube view counts"
-          git push origin "HEAD:$REF_NAME"
+          git push origin "HEAD:refs/heads/$REF_NAME"
           echo "changed=true" >> "$GITHUB_OUTPUT"
           # If push to main is blocked for GITHUB_TOKEN, replace the push with a PR flow:
           #   git checkout -b chore/youtube-views-$(date -u +%Y%m%d)
