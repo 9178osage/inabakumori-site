@@ -3,7 +3,8 @@
 ## 2026-10-10 加固
 
 - 2026-10-11 起管理员只通过 Railway `ADMIN_USER_IDS`（SuperTokens 稳定 user ID，多个值用逗号分隔）授权；`ADMIN_EMAILS` 已移除，设置了也只会在启动日志里提示“已不再使用”。`ADMIN_USER_IDS` 为空时启动日志会警告。不要根据陌生人提供的邮箱或 ID 直接授予权限。
-- `/healthz` 只公开 `{ ok, version }`。完整审查与 DNS/GitHub 清单见根目录 `SECURITY_NOTES.md`。
+- `/healthz` 只公开 `{ ok, version }`。
+- 可选备份接口 `GET /api/admin/backup`：需 Railway `BACKUP_TOKEN`（≥32 字符），以 `Authorization: Bearer` 调用；未设置时返回 404。详见 `SECURITY_NOTES.md`。完整审查与 DNS/GitHub 清单见根目录 `SECURITY_NOTES.md`。
 - 新增每 IP 每分钟 180 次总请求限制，在 JSON 解析前执行，覆盖无效 JSON 和未知路径。登录、留言及删除操作仍有更严格的独立限制。
 - DELETE 限流匹配忽略路径大小写，与 Express 路由行为一致。
 

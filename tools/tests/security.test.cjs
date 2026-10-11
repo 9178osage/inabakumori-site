@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
 
-const backendFiles = ["backend/server.mjs", "backend/services.mjs", "backend/backup.mjs"];
+const backendFiles = ["backend/server.mjs", "backend/services.mjs", "backend/backup.mjs", "backend/backup-endpoint.mjs"];
 const read = file => fs.readFileSync(file, "utf8");
 
 test("backend has no shell, eval, dynamic code or SQLite extension loading primitives", () => {

@@ -34,6 +34,14 @@
 - **XSS（令牌被盗的主要途径）**：所有服务端数据以 `textContent` 渲染，前端无 `innerHTML`/`eval`；CSP 禁止内联脚本与 `unsafe-eval`。header 模式下令牌存于前端可读存储，因此保持“无 HTML 注入 + 严格 CSP”是关键不变量（`tools/tests/security.test.cjs` 守护）。
 - **点击劫持**：已加防嵌入脚本（被第三方 frame 时隐藏页面并尝试跳出）。
 
+## 备份下载接口（2026-10-11）
+
+- `GET /api/admin/backup`：返回一致性 SQLite 快照（`node:sqlite` `backup()` → 临时目录 → `quick_check` → 流式返回 → 删除临时文件），`application/octet-stream`，文件名 `comments-YYYYMMDD.db`。
+- 认证：`Authorization: Bearer <BACKUP_TOKEN>`，SHA-256 后用 `crypto.timingSafeEqual` 比较。`BACKUP_TOKEN` 未设置或少于 32 字符时接口返回 404（与不存在的路径相同）。
+- 每 IP 每小时 5 次；不发送任何 CORS 头（浏览器页面无法读取，只供服务器/脚本使用）；`Cache-Control: no-store`；日志只记录 requestId、IP、大小，从不记录令牌。
+- 令牌只放在 Railway 变量和备份机器的权限 600 文件里，切勿提交到仓库或贴进聊天。泄露时在 Railway 换一个新值并重新部署即可作废旧令牌。
+- 快照包含全部留言（含会员 `user_id`），备份文件需按私密数据保管。
+
 ## 残余风险
 
 1. **HSTS（osagechan.top）**：GitHub Pages 不能为自定义域名发送 HSTS 头，也就无法加入 HSTS 预加载。首次手动输入 `http://` 且网络被控制时理论上可被降级。彻底解决需在前面加 Cloudflare（见清单 E）。
