@@ -74,6 +74,18 @@ test("frontend talks only to the hardcoded HTTPS API and never renders server da
   assert.match(csp, /base-uri 'self'/);
   assert.match(csp, /connect-src 'self' https:\/\/inabakumori-site-production\.up\.railway\.app/);
   assert.doesNotMatch(csp, /unsafe-inline|unsafe-eval|\*/);
+  // Trusted Types: any accidental HTML/script sink (innerHTML etc.) throws instead of injecting.
+  assert.match(csp, /require-trusted-types-for 'script'/);
+  assert.match(csp, /trusted-types 'none'/);
+  assert.match(csp, /frame-src 'none'/);
+  assert.match(csp, /worker-src 'none'/);
+  const page404 = read("404.html");
+  const csp404 = page404.match(/Content-Security-Policy" content="([^"]+)"/)?.[1];
+  assert.ok(csp404, "404 page has its own CSP");
+  assert.match(csp404, /default-src 'none'/);
+  const style = page404.match(/<style>([\s\S]*?)<\/style>/)[1];
+  const hash = require("node:crypto").createHash("sha256").update(style).digest("base64");
+  assert.ok(csp404.includes(`'sha256-${hash}'`), "404 style hash must match its inline style");
 });
 
 test("the site refuses to render inside another site's frame", () => {
@@ -122,4 +134,16 @@ test("comment validation stays fast on adversarial 500-character inputs (no ReDo
   const started = performance.now();
   assert.equal(validateCommentInput({ nickname: "n", content: "a-".repeat(9000) }).ok, false);
   assert.ok(performance.now() - started < 100);
+});
+
+test("every GitHub Action is pinned to a commit SHA, workflows avoid pull_request_target, Dependabot watches all ecosystems", () => {
+  for (const file of fs.readdirSync(".github/workflows")) {
+    const source = read(`.github/workflows/${file}`);
+    for (const [, ref] of source.matchAll(/uses:\s*([^\s#]+)/g)) assert.match(ref, /@[0-9a-f]{40}$/, `${file}: ${ref} must be SHA-pinned`);
+    assert.doesNotMatch(source, /pull_request_target/, file);
+    assert.doesNotMatch(source, /\$\{\{\s*github\.(event\.(issue|pull_request|comment|head_commit)|head_ref)/, `${file}: untrusted context in expressions`);
+    assert.match(source, /^permissions:/m, `${file}: top-level permissions`);
+  }
+  const dependabot = read(".github/dependabot.yml");
+  for (const part of [/package-ecosystem: npm\n\s+directory: \/\n/, /package-ecosystem: npm\n\s+directory: \/backend/, /package-ecosystem: github-actions/]) assert.match(dependabot, part);
 });

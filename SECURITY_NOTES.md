@@ -42,6 +42,21 @@
 - 令牌只放在 Railway 变量和备份机器的权限 600 文件里，切勿提交到仓库或贴进聊天。泄露时在 Railway 换一个新值并重新部署即可作废旧令牌。
 - 快照包含全部留言（含会员 `user_id`），备份文件需按私密数据保管。
 
+## 第二轮全面审查（2026-10-11 凌晨）
+
+| 严重度 | 发现 | 证据 | 处理 |
+|---|---|---|---|
+| 中 | 限流按 Railway 边缘节点 IP 计数而不是访客 IP：`TRUST_PROXY=1` 时 `req.ip` 是共享的边缘/CDN 跳点，所有访客挤在少数几个桶里，一个人就能把全站游客发帖（3 条/小时）和登录（20 次/15 分钟）额度用光 | 从两个不同公网 IP（Mac 与 box）请求，`RateLimit` 计数连续递减且共用 reset 时间 | 已修：所有 IP 限流改用 Railway 边缘覆写、客户端无法伪造的 `X-Real-IP`（在 Railway 上默认启用，`CLIENT_IP_HEADER` 可覆盖，非法值回退）；集成测试验证不同访客独立计数 |
+| 轻微 | 备份下载若客户端在快照生成期间断开，临时文件可能残留 | 代码审查 | 已修：改用 `stream.pipeline`，无论成功/断开都删除临时目录 |
+| 轻微 | CSP 未启用 Trusted Types；`404.html` 没有 CSP | 代码审查 | 已修：主站加 `require-trusted-types-for 'script'; trusted-types 'none'`、`frame-src/worker-src 'none'`（无头浏览器验证无违规）；404 页加 `default-src 'none'` + 样式哈希 |
+| 轻微 | GitHub 官方 Actions 用可变标签（`@v4` 等）；无 Dependabot | 工作流审查 | 已修：全部固定到 commit SHA；新增 `.github/dependabot.yml`（npm 根目录、`backend`、github-actions，每周） |
+| 轻微 | 站长联系邮箱即管理员登录邮箱（公开在页面 `mailto:`） | 页面源码 | 未改（属内容决定）：建议换一个专用联系邮箱，管理员账号使用长随机密码 |
+| 信息 | ReDoS：链接/电话/推广正则在 2 万字符时呈二次方增长（~0.7 s），但服务器先做 500/30 字长度校验，500 字最坏 < 3 ms | 本地基准 | 加回归测试守护“先校验长度” |
+
+未发现问题（已验证）：gitleaks 扫描完整 git 历史（118 个提交）无密钥；从未提交 `.env`/数据库；npm audit 根目录与 backend 均 0；Pages 不暴露 `.git`、源码、source map、文档；Railway 只开放 443，`PUT/PATCH/TRACE` 返回 404，`HEAD` 备份接口返回 405；CORS 拒绝 `null`、相似域名、`http://` 来源；TLS 只协商 1.2/1.3；会话令牌走请求头（无 Cookie，无 CSRF 面）；评论删除带 `user_id` 条件（无 IDOR）；分页每页固定 20/50 条；请求体 20 KB、请求头 15 s、请求 30 s 超时。
+
+隐私：本站数据库只保存昵称、留言、时间、会员的 SuperTokens user ID；**不保存 IP 或邮箱**。邮箱与密码哈希在 SuperTokens。游客留言 182 天后自动删除。Railway 日志会记录请求 IP（平台行为）；备份接口日志记录 IP 但不记录令牌。备份文件含 user ID、无密码/令牌/邮箱。
+
 ## 残余风险
 
 1. **HSTS（osagechan.top）**：GitHub Pages 不能为自定义域名发送 HSTS 头，也就无法加入 HSTS 预加载。首次手动输入 `http://` 且网络被控制时理论上可被降级。彻底解决需在前面加 Cloudflare（见清单 E）。
