@@ -12,7 +12,8 @@
 | 中（运维） | 自定义域名 `osagechan.top` 无 HSTS（GitHub Pages 对自定义域名不发 HSTS，`.top` 不在预加载列表），首次以 `http://` 访问理论上可被 SSL-strip | 残余风险，见下 |
 | 低 | 迁移域名后 CORS 只允许单一来源，无法在过渡期临时放行旧来源 | 已修：可选 `ADDITIONAL_WEBSITE_ORIGINS`（只接受裸 https origin） |
 | 低 | `404.html` 的返回链接在根域名下用相对路径 `./`，深层 404 会跳错 | 已修为 `/` |
-| 信息 | 管理员授权：`ADMIN_EMAILS` 现要求“已验证邮箱”，本站未开邮件验证 → 仅邮箱配置的管理员失效 | 设计如此，需配置 `ADMIN_USER_IDS` |
+| 低 | 管理员可按 `ADMIN_EMAILS` 授权（注册时填写邮箱不能证明拥有该邮箱） | 已修：彻底移除邮箱授权，只认 `ADMIN_USER_IDS`；为空时启动日志警告 |
+| 低 | `/healthz` 公开运行环境、服务名与运行时长 | 已修：只返回 `{ ok, version }`（`version` = 部署提交前 7 位，非敏感，用于确认重新部署） |
 
 ## ① RCE / 主机访问
 
@@ -33,13 +34,39 @@
 - **XSS（令牌被盗的主要途径）**：所有服务端数据以 `textContent` 渲染，前端无 `innerHTML`/`eval`；CSP 禁止内联脚本与 `unsafe-eval`。header 模式下令牌存于前端可读存储，因此保持“无 HTML 注入 + 严格 CSP”是关键不变量（`tools/tests/security.test.cjs` 守护）。
 - **点击劫持**：已加防嵌入脚本（被第三方 frame 时隐藏页面并尝试跳出）。
 
-## 残余风险与建议（需要账号持有人操作）
+## 残余风险
 
-1. **HSTS（osagechan.top）**：GitHub Pages 无法为自定义域名添加 HSTS 头，因此无法申请 HSTS 预加载。影响：用户第一次手动输入 `http://osagechan.top` 且网络被控制时可能被降级。若要彻底解决，需要在前面加一层能加响应头的 CDN（如 Cloudflare 代理 + HSTS），这是架构变化，暂不做。
-2. **DNS（DNSPod）**：当前只有 2 条 A 记录（185.199.108/109.153）。建议补齐 GitHub Pages 全部 4 条 A（另加 185.199.110.153、185.199.111.153）及 AAAA（2606:50c0:8000::153 … 8003::153）；添加 `CAA 0 issue "letsencrypt.org"`；如需 `www` 再加 CNAME 到 `9178osage.github.io`。在 GitHub 仓库 Settings → Pages 中验证域名（Verified domains）以防域名被他人接管。
-3. **管理员授权**：推荐只用 `ADMIN_USER_IDS`。
-4. 限流在单进程内存中，重启清零，不防分布式 DDoS（Railway 层面兜底）。
+1. **HSTS（osagechan.top）**：GitHub Pages 不能为自定义域名发送 HSTS 头，也就无法加入 HSTS 预加载。首次手动输入 `http://` 且网络被控制时理论上可被降级。彻底解决需在前面加 Cloudflare（见清单 E）。
+2. **单实例限制（有意为之）**：限流计数保存在单个 Node 进程内存中，重启即清零，多副本之间不共享；SQLite 只允许一个写入实例。因此 Railway 服务必须保持 **1 个副本**，不要开启水平扩容。这些限流防的是普通刷帖/撞库，不防分布式 DDoS（由 Railway 边缘兜底）。如需扩容，必须先换成共享限流存储（如 Redis）和多实例数据库。
+3. **账号安全**：GitHub、Railway、SuperTokens、DNSPod 账号务必开启两步验证——能推送 `main` 或改 Railway 变量的人等同于拥有服务器。
+
+## 待办清单：DNS / GitHub（需账号持有人操作）
+
+当前线上状态（2026-10-11 检查）：A 只有 `185.199.108.153`、`185.199.109.153`；无 AAAA、无 CAA、无 TXT、无 `www`；`http://` 已 301 到 `https://`（Enforce HTTPS 已开启）；无 HSTS 头。
+
+**A. DNSPod → osagechan.top 记录**（主机记录 `@`，TTL 600）
+
+| 类型 | 主机记录 | 记录值 |
+|---|---|---|
+| A | @ | 185.199.108.153（已有） |
+| A | @ | 185.199.109.153（已有） |
+| A | @ | 185.199.110.153（新增） |
+| A | @ | 185.199.111.153（新增） |
+| AAAA | @ | 2606:50c0:8000::153 |
+| AAAA | @ | 2606:50c0:8001::153 |
+| AAAA | @ | 2606:50c0:8002::153 |
+| AAAA | @ | 2606:50c0:8003::153 |
+| CAA | @ | `0 issue "letsencrypt.org"` |
+| CAA | @ | `0 iodef "mailto:<你的邮箱>"`（可选，证书违规签发时通知） |
+
+**B. www（可选）**：`CNAME`，主机记录 `www`，记录值 `9178osage.github.io`。GitHub 会把 `www.osagechan.top` 自动跳到 `osagechan.top`。
+
+**C. GitHub 域名验证（防止域名被他人 Pages 接管）**：GitHub 头像 → Settings → Pages → Add a domain → 输入 `osagechan.top` → GitHub 显示一条 TXT。在 DNSPod 添加：类型 `TXT`，主机记录 `_github-pages-challenge-9178osage`，记录值为 GitHub 给出的字符串 → 回到 GitHub 点 Verify。
+
+**D. Enforce HTTPS**：仓库 Settings → Pages → Custom domain 为 `osagechan.top`，勾选 **Enforce HTTPS**（已确认生效）。改动 DNS 后若证书重新签发，确认该勾选仍在。
+
+**E. HSTS（可选，Cloudflare）**：把域名 NS 从 DNSPod 改到 Cloudflare（免费版），迁移上述记录并开启橙色云代理；SSL/TLS 模式选 **Full (strict)**；Edge Certificates → 开启 Always Use HTTPS，HSTS 设为 `max-age=31536000; includeSubDomains`，稳定数周后再勾 preload 并提交 hstspreload.org。注意：橙色云代理会挡住 GitHub 的 Let's Encrypt 续期（HTTP 验证）；若 Pages 提示证书问题，临时切回灰云让其续期，或改用 Full 模式。这是架构变化，非必需。
 
 ## 回归保护
 
-`tools/tests/security.test.cjs`：禁止后端出现命令执行/动态代码/扩展加载/文件读写/SSRF 原语；所有写操作路由必须要求会话、管理路由必须 `requireAdmin`；header 令牌模式；`ADDITIONAL_WEBSITE_ORIGINS` 校验；前端固定 API、无 HTML 注入、CSP 无 `unsafe-*`；防嵌入保护。`tools/integration.mjs` 额外验证放行的旧来源仍需会话。
+`tools/tests/security.test.cjs`：禁止后端出现命令执行/动态代码/扩展加载/文件读写/SSRF 原语；所有写操作路由必须要求会话、管理路由必须 `requireAdmin`；header 令牌模式；`ADDITIONAL_WEBSITE_ORIGINS` 校验；前端固定 API、无 HTML 注入、CSP 无 `unsafe-*`；防嵌入保护；管理员只认 `ADMIN_USER_IDS`；`/healthz` 只返回 `ok`/`version`。`tools/integration.mjs` 额外验证放行的旧来源仍需会话、健康检查返回内容最小化。

@@ -44,6 +44,8 @@ try {
   assert.equal(page.status, 200);
   assert.match(await page.text(), /data-song-title=/);
   for (const file of ["/backend/.env", "/backend/server.mjs", "/AI_HANDOFF.md", "/docs/AI_HANDOFF.md", "/docs/OPTIMIZATION.md", "/.git/config"]) assert.equal((await request(previewUrl + file)).status, 404);
+  assert.deepEqual(await (await request(`${api}/healthz`)).json(), { ok: true, version: "dev" });
+  assert.deepEqual(await (await request(`${api}/`)).json(), { ok: true });
   const get = await request(`${api}/api/comments`, { headers: { Origin: previewUrl } });
   assert.equal(get.status, 200);
   assert.equal(get.headers.get("access-control-allow-origin"), previewUrl);

@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { validateCommentInput, websiteLocation, resolveDatabasePath, parseAdditionalOrigins, hasVerifiedAdminEmail, createRecentDuplicateChecker, insertFreshComment, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery } from "./services.mjs";
+import { validateCommentInput, websiteLocation, resolveDatabasePath, parseAdditionalOrigins, parseAdminUserIds, createAdminCheck, buildVersion, createRecentDuplicateChecker, insertFreshComment, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery } from "./services.mjs";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -34,8 +34,14 @@ function normalizeOrigin(value, name) {
 }
 const SUPERTOKENS_CONNECTION_URI = requiredEnv("SUPERTOKENS_CONNECTION_URI");
 const SUPERTOKENS_API_KEY = requiredEnv("SUPERTOKENS_API_KEY");
-const ADMIN_USER_IDS = new Set((process.env.ADMIN_USER_IDS || "").split(",").map(value => value.trim()).filter(Boolean));
-const ADMIN_EMAILS = new Set((process.env.ADMIN_EMAILS || "").split(",").map(value => value.trim().toLowerCase()).filter(Boolean));
+const ADMIN_USER_IDS = parseAdminUserIds(process.env.ADMIN_USER_IDS);
+if (!ADMIN_USER_IDS.size) {
+  console.warn("⚠️ ADMIN_USER_IDS is empty: nobody can use the admin panel");
+}
+if (process.env.ADMIN_EMAILS?.trim()) {
+  console.warn("⚠️ ADMIN_EMAILS is no longer used; configure ADMIN_USER_IDS instead");
+}
+const BUILD_VERSION = buildVersion(process.env);
 const PORT = Number(process.env.PORT || 3001);
 if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
   console.error("❌ PORT must be an integer between 1 and 65535");
@@ -280,18 +286,14 @@ const guestCleanupTimer = setInterval(() => {
 guestCleanupTimer.unref();
 app.get("/", (req, res) => {
   res.setHeader("Cache-Control", "no-store");
-  res.json({ ok: true, service: "Inabakumori Fanswall Backend" });
+  res.json({ ok: true });
 });
 app.get("/healthz", (req, res) => {
   try {
     db.prepare("SELECT 1").get();
     res.setHeader("Cache-Control", "no-store");
-    return res.json({
-      ok: true,
-      service: "Inabakumori Fanswall Backend",
-      environment: NODE_ENV,
-      uptimeSec: Math.floor(process.uptime())
-    });
+    // Public: only liveness and the deployed commit prefix (to confirm redeploys).
+    return res.json({ ok: true, version: BUILD_VERSION });
   } catch {
     return res.status(503).json({ ok: false, code: "DATABASE_UNAVAILABLE" });
   }
@@ -344,12 +346,7 @@ app.post("/api/comments", commentLimiter, requireJsonContentType, verifySession(
   return res.status(201).json({ success: true, comment: { id: inserted.id, nickname, content, isGuest, createdAt: new Date(createdAt).toISOString(), expiresAt: expiresAt === null ? null : new Date(expiresAt).toISOString() } });
 });
 registerCommentManagement(app, db, verifySession);
-registerAdminCommentManagement(app, db, verifySession, async userId => {
-  if (ADMIN_USER_IDS.has(userId)) return true;
-  if (!ADMIN_EMAILS.size) return false;
-  const user = await supertokens.getUser(userId);
-  return hasVerifiedAdminEmail(user, ADMIN_EMAILS);
-});
+registerAdminCommentManagement(app, db, verifySession, createAdminCheck(ADMIN_USER_IDS));
 app.use("/api", (req, res) => {
   res.status(404).json({ error: "API 路径不存在", code: "NOT_FOUND" });
 });
@@ -382,7 +379,7 @@ app.use((err, req, res, next) => {
   return res.status(500).json({ error: "服务器发生错误", code: "INTERNAL_SERVER_ERROR", requestId: req.requestId });
 });
 const server = app.listen(PORT, HOST, () => {
-  console.log(`✅ Backend running at http://${HOST}:${PORT}`);
+  console.log(`✅ Backend running at http://${HOST}:${PORT} (version ${BUILD_VERSION})`);
   console.log(`🔐 Environment: ${NODE_ENV}`);
   console.log(`💬 Guest comments expire after 6 months (${GUEST_COMMENT_RETENTION_DAYS} days)`);
   console.log("👤 Logged-in comments do not automatically expire");

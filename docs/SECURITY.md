@@ -2,9 +2,8 @@
 
 ## 2026-10-10 加固
 
-- 管理员邮箱必须在匹配的 SuperTokens 登录方式上标记为已验证，注册时填入某个邮箱不代表拥有它。
-- 本站当前没有启用邮件验证流程。管理员请通过可信的 SuperTokens 管理后台核对账号，然后把该账号的稳定 user ID 配置到 Railway `ADMIN_USER_IDS`（多个值用逗号分隔）。不要根据陌生人提供的邮箱或 ID 直接授予权限。
-- 如果此前仅配置 `ADMIN_EMAILS` 且邮箱未验证，管理面板会停止授权，直到明确配置管理员 ID；普通账号和留言不受影响。
+- 2026-10-11 起管理员只通过 Railway `ADMIN_USER_IDS`（SuperTokens 稳定 user ID，多个值用逗号分隔）授权；`ADMIN_EMAILS` 已移除，设置了也只会在启动日志里提示“已不再使用”。`ADMIN_USER_IDS` 为空时启动日志会警告。不要根据陌生人提供的邮箱或 ID 直接授予权限。
+- `/healthz` 只公开 `{ ok, version }`。完整审查与 DNS/GitHub 清单见根目录 `SECURITY_NOTES.md`。
 - 新增每 IP 每分钟 180 次总请求限制，在 JSON 解析前执行，覆盖无效 JSON 和未知路径。登录、留言及删除操作仍有更严格的独立限制。
 - DELETE 限流匹配忽略路径大小写，与 Express 路由行为一致。
 

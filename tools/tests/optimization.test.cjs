@@ -159,7 +159,8 @@ test("comment DELETE paths are rate-limited separately from reads", async () => 
   assert.match(backend, /commentDeleteLimiter/);
   assert.match(backend, /admin\\\/\)\?comments/);
   assert.match(backend, /Permissions-Policy/);
-  assert.match(backend, /uptimeSec/);
+  assert.match(backend, /res\.json\(\{ ok: true, version: BUILD_VERSION \}\)/);
+  assert.doesNotMatch(backend, /uptimeSec|environment: NODE_ENV/);
   assert.match(backend, /cross-origin/);
 });
 
