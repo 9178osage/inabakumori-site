@@ -1,6 +1,45 @@
 import SuperTokens from "supertokens-web-js";
 import EmailPassword, { signIn, signUp, sendPasswordResetEmail, submitNewPassword } from "supertokens-web-js/recipe/emailpassword";
 import Session, { doesSessionExist, signOut } from "supertokens-web-js/recipe/session";
+
+// Header sessions are stored by the SDK in JavaScript cookies. Its default writer
+// omits Secure outside iframe mode, even when this page and the API use HTTPS.
+// Use a separate, host-only Secure namespace. Discard legacy credentials rather
+// than copying a stale cookie snapshot over another tab's rotation or sign-out.
+// Existing HTTPS users sign in once again after updating all open tabs.
+function secureSessionCookieHandler(original) {
+  const localHttp = window.location.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
+  if (localHttp) return original;
+  const prefix = "__Host-station-";
+  const sessionCookies = new Set(["st-access-token", "st-refresh-token", "sFrontToken", "sAntiCsrf", "st-last-access-token-update", "sIRTFrontend"]);
+  async function clearLegacyCookies() {
+    const cookies = await original.getCookie();
+    for (const part of cookies.split(";")) {
+      const pair = part.trim();
+      const name = pair.slice(0, pair.indexOf("="));
+      if (!sessionCookies.has(name)) continue;
+      await original.setCookie(`${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;samesite=lax;secure`);
+    }
+  }
+  return {
+    ...original,
+    async getCookie() {
+      await clearLegacyCookies();
+      // Re-read after cleanup. Old tabs cannot make unprefixed credentials
+      // visible to this SDK, even if they write them again during cleanup.
+      return (await original.getCookie()).split(";").map(part => part.trim()).filter(pair =>
+        !sessionCookies.has(pair.slice(0, pair.indexOf("=")))
+      ).map(pair => pair.startsWith(prefix) ? pair.slice(prefix.length) : pair).join("; ");
+    },
+    async setCookie(cookie) {
+      await clearLegacyCookies();
+      const [pair, ...attributes] = cookie.split(";");
+      // __Host- requires Secure, Path=/, and no Domain attribute.
+      const retained = attributes.filter(attribute => !/^\s*(?:domain|path)\s*=/i.test(attribute) && !/^\s*secure\s*$/i.test(attribute));
+      return original.setCookie([prefix + pair, ...retained, "path=/", "secure"].join(";"));
+    }
+  };
+}
 let resetToken = "";
 let resetTenantId = "public";
 let resetLinkRequested = false;
@@ -27,6 +66,7 @@ let resetLinkRequested = false;
 }
 SuperTokens.init({
   appInfo: { appName: "Inabakumori Fanswall", apiDomain: window.APP_CONFIG.apiDomain, websiteDomain: window.location.origin, apiBasePath: "/auth", websiteBasePath: "/auth" },
+  cookieHandler: secureSessionCookieHandler,
   recipeList: [EmailPassword.init({ override: { functions: (original) => ({
     ...original,
     getResetPasswordTokenFromURL: (input) => resetLinkRequested ? resetToken : original.getResetPasswordTokenFromURL(input),
