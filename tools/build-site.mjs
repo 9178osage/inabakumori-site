@@ -36,7 +36,7 @@ await copyPublicFolder("fonts", /\.(woff2|txt)$/i);
 for (const entry of await readdir(path.join(root, "images"), { withFileTypes: true })) {
   if (entry.isFile() && /\.(png|jpe?g|webp)$/i.test(entry.name)) await copyFile(path.join(root, "images", entry.name), path.join(out, "images", entry.name));
 }
-for (const file of ["favicon.ico", "site.webmanifest", "robots.txt", "sitemap.xml", "404.html"]) await copyFile(path.join(root, file), path.join(out, file));
+for (const file of ["favicon.ico", "site.webmanifest", "robots.txt", "sitemap.xml", "404.html", "CNAME"]) await copyFile(path.join(root, file), path.join(out, file));
 await writeFile(path.join(out, ".nojekyll"), "");
 
 const context = vm.createContext({});

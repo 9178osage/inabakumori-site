@@ -83,7 +83,7 @@ npm --prefix backend run check
 
 ## 部署相关信息
 
-- 前端地址：`https://9178osage.github.io/inabakumori-site/`
+- 前端地址：`https://osagechan.top/`（自定义域名，仓库根目录 `CNAME`；旧地址 `https://9178osage.github.io/inabakumori-site/` 由 GitHub 301 跳转到新域名）
 - `js/config.js` 在 localhost / 127.0.0.1 下连接当前主机的 3001 端口，其他域名下连接 `https://inabakumori-site-production.up.railway.app`。
 - 后端公网地址：`https://inabakumori-site-production.up.railway.app`
 - Railway 服务使用 `/backend` 作为根目录，启动命令为 `npm start`，健康检查路径为 `/healthz`，SQLite 数据位于 Railway 持久化卷的 `/data/comments.db`。

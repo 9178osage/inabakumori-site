@@ -13,7 +13,7 @@
 > An unofficial fan site made out of a love for **稲葉曇 / Inabakumori**.  
 > It brings together songs, MVs, related creator links, plus a message wall and account features.
 
-🌐 **Live site:** [9178osage.github.io/inabakumori-site](https://9178osage.github.io/inabakumori-site/)
+🌐 **Live site:** [osagechan.top](https://osagechan.top/)
 
 ![Build](https://github.com/9178osage/inabakumori-site/actions/workflows/check.yml/badge.svg)
 ![Pages](https://github.com/9178osage/inabakumori-site/actions/workflows/pages.yml/badge.svg)
@@ -391,7 +391,7 @@ I like Inabakumori, so I made a “Weather Observation Station” — a nod to t
 > 一个因为喜欢 **稲葉曇 / Inabakumori** 而做出来的非官方粉丝网站。  
 > 整理歌曲、MV、相关创作者链接，也提供留言墙与账号功能。
 
-🌐 **在线访问：** [9178osage.github.io/inabakumori-site](https://9178osage.github.io/inabakumori-site/)
+🌐 **在线访问：** [osagechan.top](https://osagechan.top/)
 
 ---
 
@@ -753,7 +753,7 @@ npm run check:links:strict
 > **稲葉曇 / Inabakumori** が好きで作った、非公式のファンサイトです。  
 > 楽曲やMV、関連クリエイターへのリンクをまとめ、メッセージウォールやアカウント機能も用意しています。
 
-🌐 **サイトを見る：** [9178osage.github.io/inabakumori-site](https://9178osage.github.io/inabakumori-site/)
+🌐 **サイトを見る：** [osagechan.top](https://osagechan.top/)
 
 ---
 
