@@ -30,6 +30,9 @@ const csp = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"
 assert.ok(csp, "Production CSP meta missing");
 assert.match(csp, /connect-src 'self' https:\/\/inabakumori-site-production\.up\.railway\.app/, "Production CSP must allow the Railway API");
 if (process.env.KEEP_LOCAL_API_CSP !== "1") assert.doesNotMatch(csp, /localhost|127\.0\.0\.1/, "Production CSP must not allow local development APIs (dist came from build:local/preview? run npm run build)");
+assert.match(html, /<link rel="canonical" href="https:\/\/osagechan\.top\/"\/>/, "canonical must point at the custom domain");
+assert.ok(!html.includes("9178osage.github.io"), "old GitHub Pages URL must not remain in index.html");
+assert.equal((await readFile(path.join(root, "CNAME"), "utf8")).trim(), "osagechan.top", "dist/CNAME must name the custom domain");
 const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
 assert.equal(ids.length, new Set(ids).size, "Duplicate HTML IDs");
 for (const match of html.matchAll(/href="#([^"]+)"/g)) assert.ok(ids.includes(match[1]), `Missing anchor ${match[1]}`);
