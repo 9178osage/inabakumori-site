@@ -39,7 +39,7 @@
 - 依赖：传递依赖 axios 升级，后端 `npm audit` 为 0。
 
 ### 文档与检查
-- 更新本文与 `AI_HANDOFF.md`；新增静态头/CSP/DELETE 限流相关测试。
+- 更新本文与 `AI_HANDOFF.md`；新增静态头/CSP/DELETE 限流相关测试。安全现状统一见 [SECURITY.md](SECURITY.md)。
 
 ---
 
@@ -88,7 +88,7 @@ npm run check
 npm run test:integration
 ```
 
-本轮 `npm run check` 的 **74 项测试**、后端语法检查、构建和公开产物校验均通过，HTTP 集成检查通过。桌面 1440px 与手机 390px 浏览器实测完成，检查了三语切换、收藏与排序、筛选恢复、留言验证、会话草稿、深色主题及登录弹窗。HTTP 集成测试使用临时目录、临时端口和独立数据库，结束后清理，不读取真实后端配置。认证相关单元测试使用受控替身，邮件测试仅在内存生成邮件；真实账号登录及真实邮件投递仍需具备有效 SuperTokens 配置后验证。
+2026-10-01 时 `npm run check` 的 **74 项测试**（2026-10-11 为 113 项）、后端语法检查、构建和公开产物校验均通过，HTTP 集成检查通过。桌面 1440px 与手机 390px 浏览器实测完成，检查了三语切换、收藏与排序、筛选恢复、留言验证、会话草稿、深色主题及登录弹窗。HTTP 集成测试使用临时目录、临时端口和独立数据库，结束后清理，不读取真实后端配置。认证相关单元测试使用受控替身，邮件测试仅在内存生成邮件；真实账号登录及真实邮件投递仍需具备有效 SuperTokens 配置后验证。
 
 ```sh
 npm run frontend   # 源码预览，http://127.0.0.1:5500
@@ -104,7 +104,7 @@ npm run backend    # 需要 backend/.env 中的真实后端配置
 
 应发布 **dist/**，不要公开仓库根目录。构建产物不包含后端、测试、交接说明、环境文件或数据库。
 
-提交代码后，`Verify website` 工作流自动验证并保留 `public-site` 产物。手动发布使用 `Publish public site`：仓库 Settings → Pages 的 Source 设为 GitHub Actions，然后在 main 分支运行该工作流；构建及集成检查通过后才部署。此工作流本轮没有被触发，也没有修改远端设置。参见 [GitHub Pages 官方工作流说明](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)。
+提交代码后，`Verify website` 工作流自动验证并保留 `public-site` 产物。推送 `main` 后由 `Publish public site` 构建并部署（仓库 Settings → Pages 的 Source 已于 2026-10-11 设为 GitHub Actions），构建及集成检查通过后才部署；也可手动运行该工作流。参见 [GitHub Pages 官方工作流说明](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)。
 
 后端继续采用 Railway 的 `/backend`、Node.js 24、原环境变量和持久化卷；部署后检查 `/healthz`。`TRUST_PROXY` 必须与实际可信代理层数匹配。应用内限流为单进程内存存储，目前适用于现有单实例部署；增加实例前需统一限流存储及数据库方案。
 
@@ -116,4 +116,4 @@ npm --prefix backend run backup
 npm --prefix backend run backup -- /data/.backups/manual-snapshot.db
 ```
 
-使用 [Node.js SQLite online backup](https://nodejs.org/api/sqlite.html#sqlitebackupsource-db-path-options) 读取包含 WAL 的一致快照，随后 quick_check 校验；备份文件权限 0600，拒绝覆盖源数据库或已有备份。默认保存在数据库目录下的 `.backups/`；应自行保留异地副本。恢复前停止后端、保留现有数据库及 WAL 文件，再使用已验证的快照替换，重启后检查健康接口。该命令已用临时数据库验证，本轮没有复制或读取真实留言数据库。
+使用 [Node.js SQLite online backup](https://nodejs.org/api/sqlite.html#sqlitebackupsource-db-path-options) 读取包含 WAL 的一致快照，随后 quick_check 校验；备份文件权限 0600，拒绝覆盖源数据库或已有备份。默认保存在数据库目录下的 `.backups/`；应自行保留异地副本（远程备份接口与 box 脚本见 [SECURITY.md](SECURITY.md#备份与例行检查)）。恢复前停止后端、保留现有数据库及 WAL 文件，再使用已验证的快照替换，重启后检查健康接口。该命令已用临时数据库验证，本轮没有复制或读取真实留言数据库。
