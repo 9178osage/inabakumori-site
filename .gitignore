@@ -11,3 +11,10 @@ backend/.backups/
 dist/
 artifacts/
 trusted-read-*/
+
+# Editor settings
+.vscode/
+
+# iCloud / Finder duplicate copies (e.g. "file 2.js", "dist 2")
+* 2
+* 2.*
