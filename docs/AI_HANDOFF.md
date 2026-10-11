@@ -4,7 +4,7 @@
 
 ## 用户意图与当前状态
 
-2026-10-10 安全更新：管理员邮箱授权现在强制要求邮箱已验证；不要恢复此前“未验证邮箱也授权”的实现。当前没有启用邮件验证，管理账号应通过可信 SuperTokens 后台核对 ID 后配置 `ADMIN_USER_IDS`。详见 [SECURITY.md](SECURITY.md)。新域名为 `https://osagechan.top`，Railway `WEBSITE_URL` 已更新。新增解析前总请求限流，并修复 DELETE 大小写路径限流绕过。
+2026-10-11 安全更新：管理员**只**通过 Railway `ADMIN_USER_IDS`（SuperTokens user ID，逗号分隔）授权，`ADMIN_EMAILS` 已彻底移除；不要恢复按邮箱授权。`/healthz` 只公开 `{ ok, version }`（`version` 为 `RAILWAY_GIT_COMMIT_SHA` 前 7 位）。完整审查见根目录 [SECURITY_NOTES.md](../SECURITY_NOTES.md)。详见 [SECURITY.md](SECURITY.md)。新域名为 `https://osagechan.top`，Railway `WEBSITE_URL` 已更新。新增解析前总请求限流，并修复 DELETE 大小写路径限流绕过。
 
 用户曾授权对站点做一轮综合优化并可推送 `origin/main`。接手后仍应先确认下一项任务，不要把本文当成新增功能需求。
 
@@ -12,9 +12,9 @@
 - 当前分支：`main`
 - 本文可随优化提交一并纳入版本库（不含密钥）。
 - 2026-09-29 已落地：电话/微信审核收紧、API CSP、前后端码点长度对齐、游客同文短窗去重、删除死路径 `songMatchesTags`。
-- 2026-10-01 已落地：静态/首页 CSP 与安全头、DELETE 限流、healthz `uptimeSec`、Permissions-Policy、axios 审计修复、a11y/焦点/SEO 微调、留言墙 `aria-busy`、主题色首屏同步。彩蛋仍为首页标题点击 5 次。
+- 2026-10-01 已落地：静态/首页 CSP 与安全头、DELETE 限流、healthz（2026-10-11 起改为只返回 `ok` 与 `version`）、Permissions-Policy、axios 审计修复、a11y/焦点/SEO 微调、留言墙 `aria-busy`、主题色首屏同步。彩蛋仍为首页标题点击 5 次。
 - 播放量批量刷新需 YouTube Data API 密钥；仓库与本机未配置时请跳过，勿伪造数字。
-- 推送 `main` 后 Railway / Pages 工作流通常自动部署；用 `/healthz` 与 Pages URL 确认。
+- 推送 `main` 后 Railway / Pages 工作流通常自动部署；用 `/healthz` 的 `version`（应等于新提交的前 7 位）与 Pages URL 确认。
 
 ## 项目概况
 

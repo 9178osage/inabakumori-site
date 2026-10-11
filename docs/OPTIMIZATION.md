@@ -34,7 +34,7 @@
 
 ### 后端
 - Helmet：`Cross-Origin-Resource-Policy: cross-origin`（跨域 Pages → Railway JSON）；增加 `Permissions-Policy`。
-- `/healthz` 增加无秘密的 `uptimeSec`。
+- `/healthz` 只返回 `{ ok, version }`；`version` 为部署提交前 7 位，用于确认重新部署（2026-10-11 起移除 `uptimeSec`/环境信息）。
 - 对 `/api/comments/:id` 与 `/api/admin/comments/:id` 的 DELETE 单独限流（每分钟 30 次）。
 - 依赖：传递依赖 axios 升级，后端 `npm audit` 为 0。
 

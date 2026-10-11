@@ -273,17 +273,22 @@ test('admin deletion failures preserve content and translated error; duplicate c
   assert.equal(elements['admin-comments-status'].textContent, '削除に失敗しました。再試行してください。');
 });
 
-test('admin email grants require ownership verification on the matching login method', async () => {
-  const { hasVerifiedAdminEmail, detectCommentSafetyIssue } = await import('../../backend/services.mjs');
-  const emails = new Set(['admin@example.com']);
-  assert.equal(hasVerifiedAdminEmail({ emails: ['admin@example.com'], loginMethods: [{ email: 'admin@example.com', verified: false }] }, emails), false);
-  assert.equal(hasVerifiedAdminEmail({ loginMethods: [{ email: 'other@example.com', verified: true }, { email: 'admin@example.com', verified: false }] }, emails), false);
-  assert.equal(hasVerifiedAdminEmail({ loginMethods: [{ email: 'admin@example.com' }] }, emails), false);
-  assert.equal(hasVerifiedAdminEmail({ loginMethods: [{ email: 'admin@example.com', verified: 'true' }] }, emails), false);
-  assert.equal(hasVerifiedAdminEmail({ loginMethods: [{ email: 'ADMIN@example.com', verified: true }] }, emails), true);
-  assert.equal(hasVerifiedAdminEmail({ loginMethods: [{ email: 'someone@else.com', verified: true }] }, emails), false);
-  assert.equal(hasVerifiedAdminEmail({ emails: ['admin@example.com'], loginMethods: [] }, emails), false);
-  assert.equal(hasVerifiedAdminEmail(undefined, emails), false);
+test('admin rights come only from ADMIN_USER_IDS, never from emails', async () => {
+  const { parseAdminUserIds, createAdminCheck, buildVersion, detectCommentSafetyIssue } = await import('../../backend/services.mjs');
+  const ids = parseAdminUserIds(' d1ec4565-3063-4f7c-acd5-eb9d141482d6 , ,other-id ');
+  assert.deepEqual([...ids], ['d1ec4565-3063-4f7c-acd5-eb9d141482d6', 'other-id']);
+  const isAdmin = createAdminCheck(ids);
+  assert.equal(await isAdmin('d1ec4565-3063-4f7c-acd5-eb9d141482d6'), true);
+  assert.equal(await isAdmin('other-id'), true);
+  for (const value of ['D1EC4565-3063-4F7C-ACD5-EB9D141482D6', 'admin@example.com', '', undefined, null, 'd1ec4565']) assert.equal(await isAdmin(value), false);
+  assert.equal(await createAdminCheck(parseAdminUserIds(''))('anyone'), false);
+  assert.equal(await createAdminCheck(parseAdminUserIds(undefined))(''), false);
+  const server = require('node:fs').readFileSync('backend/server.mjs', 'utf8');
+  assert.doesNotMatch(server, /ADMIN_EMAILS\s*=|hasVerifiedAdminEmail|supertokens\.getUser\(/);
+  assert.match(server, /registerAdminCommentManagement\(app, db, verifySession, createAdminCheck\(ADMIN_USER_IDS\)\)/);
+  assert.match(server, /ADMIN_USER_IDS is empty/);
+  assert.equal(buildVersion({ RAILWAY_GIT_COMMIT_SHA: '7270D91ABCDEF0123456789abcdef0123456789a' }), '7270d91');
+  for (const sha of [undefined, '', 'main', '<script>', '123']) assert.equal(buildVersion({ RAILWAY_GIT_COMMIT_SHA: sha }), 'dev');
   for (const message of ['手机上听这首歌很喜欢', '邮箱收不到邮件', '希望不要有广告', '微信里朋友推荐了这首歌']) assert.equal(detectCommentSafetyIssue(message), null);
   for (const message of ['加微信 abc123', '微信：abc123', 'qq号:123456', '扫码领取优惠']) assert.equal(detectCommentSafetyIssue(message)?.code, 'PROMOTIONAL_CONTENT');
 });

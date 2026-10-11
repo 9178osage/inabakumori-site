@@ -96,11 +96,20 @@ const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/iu;
 const PHONE_PATTERN = /(?<![\d])(?:\+\d{1,3}[\s.-]*)?(?:1[3-9](?:[\s.-]*\d){9}|\(?0\d{2,3}\)?[\s.-]+(?:\d[\s.-]*){6,8}\d)(?![\d])/u;
 const PROMOTION_PATTERN = /(刷单|网赚|返利|代购|贷款|彩票|优惠折扣|扫码.{0,8}(进群|加群|领取)|加\s*(?:一下|一个|下|个|只)?\s*(?:我的\s*)?(微信|微信号?|微|群|qq|vx|v信|威信|wx)|(?:微信号|vx号|qq号)\s*[:：]?\s*[a-z0-9_-]+|(?:微信|wechat|qq|telegram|whatsapp|discord|line|vx|wx|v信)\s*[:：]\s*[@a-z0-9_-]+|联系方式\s*[:：]|\bcontact\s*me\b|\bbuy\s*now\b|\bdiscount\b|\bpromo\b|\baffiliate\b)/iu;
 
-export function hasVerifiedAdminEmail(user, allowedEmails) {
-  // Signup alone does not prove ownership of an allowlisted email address.
-  // Without email verification, provision administrators through ADMIN_USER_IDS.
-  return Boolean(user?.loginMethods?.some(method =>
-    method.verified === true && typeof method.email === "string" && allowedEmails.has(method.email.trim().toLowerCase())));
+// Administrators are granted only by stable SuperTokens user IDs (ADMIN_USER_IDS).
+// Emails are not used: signing up with an address does not prove ownership of it.
+export function parseAdminUserIds(value) {
+  return new Set(String(value ?? "").split(",").map(item => item.trim()).filter(Boolean));
+}
+
+export function createAdminCheck(adminUserIds) {
+  return async userId => typeof userId === "string" && userId.length > 0 && adminUserIds.has(userId);
+}
+
+// Short deploy identifier for /healthz; only a public git commit prefix, never env details.
+export function buildVersion(env) {
+  const sha = String(env.RAILWAY_GIT_COMMIT_SHA ?? "").trim();
+  return /^[0-9a-f]{7,40}$/iu.test(sha) ? sha.slice(0, 7).toLowerCase() : "dev";
 }
 
 export function normalizeCommentForComparison(value) {
