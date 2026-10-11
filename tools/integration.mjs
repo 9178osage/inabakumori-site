@@ -25,7 +25,7 @@ const child = spawn(process.execPath, [path.join(root, "backend/server.mjs")], {
   cwd: directory,
   env: { PATH: process.env.PATH, NODE_ENV: "development", HOST: "127.0.0.1", PORT: String(port),
     API_DOMAIN: api, WEBSITE_URL: previewUrl, ADDITIONAL_WEBSITE_ORIGINS: "https://old-site.example", COMMENTS_DB_PATH: path.join(directory, "comments.db"),
-    SUPERTOKENS_CONNECTION_URI: "http://127.0.0.1:39999", SUPERTOKENS_API_KEY: "local-integration-test-only", BACKUP_TOKEN: "integration-backup-token-0123456789abcdef" },
+    SUPERTOKENS_CONNECTION_URI: "http://127.0.0.1:39999", SUPERTOKENS_API_KEY: "local-integration-test-only", BACKUP_TOKEN: "integration-backup-token-0123456789abcdef", CLIENT_IP_HEADER: "x-real-ip" },
   stdio: ["ignore", "pipe", "pipe"]
 });
 let output = "";
@@ -104,6 +104,10 @@ try {
     if (result.status === 429) { assert.ok(result.headers.get("retry-after")); break; }
     assert.ok(i < 129, "Read throttling should eventually return 429");
   }
+  // Buckets follow the edge-set client IP, so one visitor cannot exhaust everyone's quota.
+  assert.equal((await request(`${api}/api/comments`)).status, 429);
+  assert.equal((await request(`${api}/api/comments`, { headers: { "X-Real-IP": "203.0.113.9" } })).status, 200);
+  assert.equal((await request(`${api}/api/comments`, { headers: { "X-Real-IP": "not-an-ip" } })).status, 429, "invalid header falls back to the socket address");
   // Invalid JSON used to escape all route-level limits because parsing ran first.
   let malformedLimited = false;
   for (let i = 0; i < 181; i++) {

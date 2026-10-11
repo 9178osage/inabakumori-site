@@ -13,7 +13,7 @@ test('auth POST throttling covers tenant paths and URL normalization; disabled e
   const backend = fs.readFileSync('backend/server.mjs', 'utf8');
   const setup = backend.match(/const authSensitiveLimiter =[\s\S]*?(?=app\.use\(middleware\(\)\);)/);
   assert.ok(setup, 'auth limiter must run before the SuperTokens middleware');
-  vm.runInNewContext(setup[0], { app, rateLimit, URL });
+  vm.runInNewContext(setup[0], { app, rateLimit, URL, clientIpKey: req => req.ip });
   app.use((req, res) => res.status(204).end());
   const request = async (method, pathname) => {
     const socket = new Duplex({ read() {}, write(chunk, encoding, callback) { callback(); } });
