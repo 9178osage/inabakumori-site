@@ -88,3 +88,38 @@ test("the site refuses to render inside another site's frame", () => {
   assert.deepEqual(replaced, ["https://osagechan.top/"]);
   assert.match(read("index.html"), /<script src="js\/preferences\.js[^"]*"><\/script>/, "frame guard runs from the first, blocking script");
 });
+
+test("rate-limit keys use the edge-set client IP on Railway and ignore spoofable or invalid values", async () => {
+  const { clientIpResolver } = await import("../../backend/services.mjs");
+  const req = headers => ({ ip: "100.64.0.7", get: name => headers[name.toLowerCase()] });
+  const railway = clientIpResolver({ RAILWAY_SERVICE_ID: "svc" });
+  assert.equal(railway(req({ "x-real-ip": "203.0.113.5" })), "203.0.113.5");
+  assert.equal(railway(req({ "x-real-ip": "2001:db8::1" })), "2001:db8::1");
+  assert.equal(railway(req({ "x-real-ip": "203.0.113.5, 1.2.3.4" })), "100.64.0.7");
+  assert.equal(railway(req({})), "100.64.0.7");
+  assert.equal(clientIpResolver({})(req({ "x-real-ip": "203.0.113.5" })), "100.64.0.7", "header ignored off Railway unless configured");
+  assert.equal(clientIpResolver({ RAILWAY_SERVICE_ID: "svc", CLIENT_IP_HEADER: "none" })(req({ "x-real-ip": "203.0.113.5" })), "100.64.0.7");
+  assert.throws(() => clientIpResolver({ CLIENT_IP_HEADER: "x real ip" }), /CLIENT_IP_HEADER/);
+  const server = read("backend/server.mjs");
+  const limiters = [...server.matchAll(/const (\w+Limiter) = rateLimit\(\{([^\n]*)/g)];
+  assert.ok(limiters.length >= 8);
+  for (const [, name, rest] of limiters) {
+    if (name === "memberCommentLimiter") continue;
+    assert.match(rest, /keyGenerator: clientIpKey/, `${name} must key on the client IP`);
+  }
+});
+
+test("comment validation stays fast on adversarial 500-character inputs (no ReDoS)", async () => {
+  const { validateCommentInput } = await import("../../backend/services.mjs");
+  const inputs = ["1".repeat(500), "a-".repeat(250), "a.".repeat(250), "1.".repeat(250), "１".repeat(500),
+    "+1 ".repeat(166), "(0".repeat(250), "a".repeat(250) + "@" + "b".repeat(249), "加 我的 ".repeat(100), "www.".repeat(125)];
+  for (const content of inputs) {
+    const started = performance.now();
+    for (let i = 0; i < 5; i++) validateCommentInput({ nickname: "n".repeat(30), content });
+    assert.ok(performance.now() - started < 250, `slow validation for ${content.slice(0, 12)}…`);
+  }
+  // Oversized bodies are rejected by length before any pattern runs.
+  const started = performance.now();
+  assert.equal(validateCommentInput({ nickname: "n", content: "a-".repeat(9000) }).ok, false);
+  assert.ok(performance.now() - started < 100);
+});

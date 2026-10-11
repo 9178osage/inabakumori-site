@@ -2,6 +2,7 @@
 // Disabled (404) unless BACKUP_TOKEN is set to at least 32 characters.
 import { createHash, timingSafeEqual } from "node:crypto";
 import { createReadStream } from "node:fs";
+import { pipeline } from "node:stream/promises";
 import { mkdtemp, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -37,13 +38,13 @@ export function backupFilename(now = new Date()) {
   return `comments-${now.toISOString().slice(0, 10).replaceAll("-", "")}.db`;
 }
 
-export function registerBackupEndpoint(app, { databasePath, token, limiter, log = console }) {
+export function registerBackupEndpoint(app, { databasePath, token, limiter, log = console, clientIp = req => req.ip }) {
   const disabled = (req, res, next) => token ? next() : res.status(404).json({ error: "API 路径不存在", code: "NOT_FOUND" });
   app.get(BACKUP_PATH, disabled, limiter, async (req, res, next) => {
     res.setHeader("Cache-Control", "no-store");
     if (req.method !== "GET") return res.status(405).json({ error: "只支持 GET", code: "METHOD_NOT_ALLOWED" });
     if (!bearerMatches(req.get("authorization"), token)) {
-      log.warn("Backup request denied", { requestId: req.requestId, ip: req.ip });
+      log.warn("Backup request denied", { requestId: req.requestId, ip: clientIp(req) });
       return res.status(401).json({ error: "未授权", code: "UNAUTHORIZED" });
     }
     let directory;
@@ -53,15 +54,14 @@ export function registerBackupEndpoint(app, { databasePath, token, limiter, log 
       const file = path.join(directory, "snapshot.db");
       await backupDatabase(databasePath, file);
       const { size } = await stat(file);
-      log.log("Backup served", { requestId: req.requestId, ip: req.ip, size });
+      log.log("Backup served", { requestId: req.requestId, ip: clientIp(req), size });
       res.status(200);
       res.setHeader("Content-Type", "application/octet-stream");
       res.setHeader("Content-Length", String(size));
       res.setHeader("Content-Disposition", `attachment; filename="${backupFilename()}"`);
-      res.on("close", cleanup);
-      const stream = createReadStream(file);
-      stream.on("error", error => { cleanup(); res.destroy(error); });
-      stream.pipe(res);
+      // pipeline settles even if the client already disconnected, so the temp copy is always removed.
+      await pipeline(createReadStream(file), res).catch(() => res.destroy());
+      await cleanup();
     } catch (error) {
       await cleanup();
       next(error);

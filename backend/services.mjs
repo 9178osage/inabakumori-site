@@ -1,4 +1,21 @@
 import path from "node:path";
+import { isIP } from "node:net";
+
+// Client IP for rate limiting and logs. Railway's public edge overwrites X-Real-IP with the
+// connecting client's address; with TRUST_PROXY=1, Express req.ip is an edge/CDN hop that many
+// visitors share. Defaults to x-real-ip on Railway; CLIENT_IP_HEADER overrides ("none" disables).
+export function clientIpResolver(env) {
+  const configured = String(env.CLIENT_IP_HEADER ?? "").trim().toLowerCase();
+  const header = configured === "none" ? "" : configured || (env.RAILWAY_SERVICE_ID ? "x-real-ip" : "");
+  if (header && !/^[a-z0-9-]{1,64}$/u.test(header)) throw new Error("CLIENT_IP_HEADER must be a header name");
+  return req => {
+    if (header) {
+      const value = String(req.get?.(header) ?? "").trim();
+      if (isIP(value)) return value;
+    }
+    return req.ip;
+  };
+}
 
 export function positiveInteger(value, fallback = null) {
   if (value === undefined) return fallback;

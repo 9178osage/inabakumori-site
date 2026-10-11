@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { validateCommentInput, websiteLocation, resolveDatabasePath, parseAdditionalOrigins, parseAdminUserIds, createAdminCheck, buildVersion, createRecentDuplicateChecker, insertFreshComment, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery } from "./services.mjs";
+import { validateCommentInput, websiteLocation, resolveDatabasePath, parseAdditionalOrigins, clientIpResolver, parseAdminUserIds, createAdminCheck, buildVersion, createRecentDuplicateChecker, insertFreshComment, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery } from "./services.mjs";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -9,7 +9,7 @@ import { registerBackupEndpoint, backupTokenFrom, isBackupPath } from "./backup-
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import { rateLimit } from "express-rate-limit";
+import { rateLimit, ipKeyGenerator } from "express-rate-limit";
 import supertokens from "supertokens-node";
 import EmailPassword from "supertokens-node/recipe/emailpassword";
 import Session from "supertokens-node/recipe/session";
@@ -77,6 +77,14 @@ if (IS_PRODUCTION) {
     process.exit(1);
   }
 }
+let clientIp;
+try {
+  clientIp = clientIpResolver(process.env);
+} catch (error) {
+  console.error(`❌ ${error.message}`);
+  process.exit(1);
+}
+const clientIpKey = req => ipKeyGenerator(clientIp(req));
 const app = express();
 app.disable("x-powered-by");
 app.set("query parser", "simple");
@@ -150,12 +158,12 @@ const corsMiddleware = cors(corsOptions);
 app.use((req, res, next) => isBackupPath(req.originalUrl || req.url) ? next() : corsMiddleware(req, res, next));
 // Bound malformed/unknown requests before parsing JSON or contacting the auth service.
 // This is an application-level limit for one backend instance, not DDoS protection.
-const requestLimiter = rateLimit({ windowMs: 60_000, limit: 180,
+const requestLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 60_000, limit: 180,
   standardHeaders: "draft-7", legacyHeaders: false,
   message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 app.use(requestLimiter);
 app.use(express.json({ limit: "20kb", strict: true }));
-const authSensitiveLimiter = rateLimit({ windowMs: 15 * 60 * 1e3, limit: 20, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
+const authSensitiveLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 15 * 60 * 1e3, limit: 20, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 function normalizedRequestPath(value) {
   let pathname;
   try {
@@ -179,8 +187,8 @@ app.use((req, res, next) => {
   return authSensitiveLimiter(req, res, next);
 });
 app.use(middleware());
-const commentLimiter = rateLimit({ windowMs: 60 * 1e3, limit: 10, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "留言发送过于频繁，请稍后再试", code: "RATE_LIMITED" } });
-const guestCommentLimiter = rateLimit({ windowMs: 60 * 60 * 1e3, limit: 3, skipFailedRequests: true, standardHeaders: "draft-7", legacyHeaders: false, skip: req => req.session !== undefined, message: { error: "游客每小时最多留言 3 条，请稍后再试", code: "GUEST_RATE_LIMITED" } });
+const commentLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 60 * 1e3, limit: 10, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "留言发送过于频繁，请稍后再试", code: "RATE_LIMITED" } });
+const guestCommentLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 60 * 60 * 1e3, limit: 3, skipFailedRequests: true, standardHeaders: "draft-7", legacyHeaders: false, skip: req => req.session !== undefined, message: { error: "游客每小时最多留言 3 条，请稍后再试", code: "GUEST_RATE_LIMITED" } });
 const memberCommentLimiter = rateLimit({
   windowMs: 60 * 60 * 1e3,
   limit: 20,
@@ -301,9 +309,9 @@ app.get("/healthz", (req, res) => {
     return res.status(503).json({ ok: false, code: "DATABASE_UNAVAILABLE" });
   }
 });
-const commentReadLimiter = rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: "draft-7", legacyHeaders: false,
+const commentReadLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 60_000, limit: 120, standardHeaders: "draft-7", legacyHeaders: false,
   message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
-const commentDeleteLimiter = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: "draft-7", legacyHeaders: false,
+const commentDeleteLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 60_000, limit: 30, standardHeaders: "draft-7", legacyHeaders: false,
   message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 app.use("/api", commentReadLimiter);
 app.use((req, res, next) => {
@@ -352,9 +360,9 @@ registerCommentManagement(app, db, verifySession);
 registerAdminCommentManagement(app, db, verifySession, createAdminCheck(ADMIN_USER_IDS));
 const BACKUP_TOKEN = backupTokenFrom(process.env);
 if (process.env.BACKUP_TOKEN?.trim() && !BACKUP_TOKEN) console.warn("⚠️ BACKUP_TOKEN is shorter than 32 characters; backup endpoint disabled");
-const backupLimiter = rateLimit({ windowMs: 60 * 60 * 1e3, limit: 5, standardHeaders: "draft-7", legacyHeaders: false,
+const backupLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 60 * 60 * 1e3, limit: 5, standardHeaders: "draft-7", legacyHeaders: false,
   message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
-registerBackupEndpoint(app, { databasePath, token: BACKUP_TOKEN, limiter: backupLimiter });
+registerBackupEndpoint(app, { databasePath, token: BACKUP_TOKEN, limiter: backupLimiter, clientIp });
 app.use("/api", (req, res) => {
   res.status(404).json({ error: "API 路径不存在", code: "NOT_FOUND" });
 });
