@@ -24,7 +24,7 @@ const api = `http://127.0.0.1:${port}`;
 const child = spawn(process.execPath, [path.join(root, "backend/server.mjs")], {
   cwd: directory,
   env: { PATH: process.env.PATH, NODE_ENV: "development", HOST: "127.0.0.1", PORT: String(port),
-    API_DOMAIN: api, WEBSITE_URL: previewUrl, COMMENTS_DB_PATH: path.join(directory, "comments.db"),
+    API_DOMAIN: api, WEBSITE_URL: previewUrl, ADDITIONAL_WEBSITE_ORIGINS: "https://old-site.example", COMMENTS_DB_PATH: path.join(directory, "comments.db"),
     SUPERTOKENS_CONNECTION_URI: "http://127.0.0.1:39999", SUPERTOKENS_API_KEY: "local-integration-test-only" },
   stdio: ["ignore", "pipe", "pipe"]
 });
@@ -52,6 +52,12 @@ try {
   assert.ok(get.headers.get("x-request-id"));
   assert.deepEqual((await get.json()).comments, []);
   assert.equal((await request(`${api}/api/comments`, { headers: { Origin: "https://untrusted.example" } })).status, 403);
+  const legacy = await request(`${api}/api/comments`, { headers: { Origin: "https://old-site.example" } });
+  assert.equal(legacy.status, 200);
+  assert.equal(legacy.headers.get("access-control-allow-origin"), "https://old-site.example");
+  // An allowed Origin is not authentication: protected routes still need a session.
+  assert.equal((await request(`${api}/api/comments/mine`, { headers: { Origin: "https://old-site.example" } })).status, 401);
+  assert.equal((await request(`${api}/api/admin/comments/1`, { method: "DELETE", headers: { Origin: previewUrl } })).status, 401);
   const post = body => request(`${api}/api/comments`, { method: "POST", headers: { "Content-Type": "application/json", Origin: previewUrl }, body: JSON.stringify(body) });
   assert.equal((await post({ nickname: "测试", content: "\u200B" })).status, 400);
   const created = await post({ nickname: "测试", content: "稲葉曇的音乐很好听 ☔" });
