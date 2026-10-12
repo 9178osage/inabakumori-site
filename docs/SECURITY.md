@@ -65,3 +65,5 @@
 ## 验证
 
 `npm run check`（测试、后端语法、生产构建、公开产物检查）与 `npm run test:integration`（临时数据库与本机服务，不触碰生产）。回归测试见 `tools/tests/security.test.cjs` 等。
+
+**本地检查请使用 Node 24.x**：`package.json` 的 `engines` 只是声明，未开启 `engine-strict`，所以 Node 22 也能装能跑；但 `node:sqlite` 等 API 在 22 与 24 之间有差异，用旧版本跑出来的结论不能直接对应 CI 与生产。CI 使用 Node 24。（若要让安装阶段直接拒绝，需要在确认 Railway 也运行 24.x 之后再开 `engine-strict=true`。）

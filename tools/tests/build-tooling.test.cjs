@@ -145,6 +145,65 @@ test("check-build rejects asset references that resolve outside dist/", () => {
   }
 });
 
+test("check-build only allows the known connect-src sources, so a loopback alias cannot ship", () => {
+  // These names resolve to 127.0.0.1 for a browser but contain no loopback text, so the
+  // spelling blocklist cannot see them; the allowlist must reject them all the same.
+  for (const variant of ["http://localtest.me:3001", "http://lvh.me:3001", "http://127-0-0-1.nip.io:3001", "https://cdn.example.com"]) {
+    const box = sandbox(["tools/check-build.mjs", "tools/net-guards.mjs"]);
+    try {
+      fs.mkdirSync(path.join(box.root, "dist"));
+      fs.writeFileSync(path.join(box.root, "dist/index.html"), `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://inabakumori-site-production.up.railway.app ${variant}"/>`);
+      for (const env of [{}, { KEEP_LOCAL_API_CSP: "1" }]) {
+        const result = run(box.root, "tools/check-build.mjs", [], env);
+        assert.notEqual(result.status, 0, variant);
+        assert.match(result.stderr, /Unexpected connect-src source/, variant);
+      }
+    } finally { box.cleanup(); }
+  }
+  // A spelled-out loopback host is caught even earlier, by the loopback assertion.
+  const spelled = sandbox(["tools/check-build.mjs", "tools/net-guards.mjs"]);
+  try {
+    fs.mkdirSync(path.join(spelled.root, "dist"));
+    fs.writeFileSync(path.join(spelled.root, "dist/index.html"), `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://inabakumori-site-production.up.railway.app http://127.0.0.1:3001"/>`);
+    const result = run(spelled.root, "tools/check-build.mjs");
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Production CSP must not allow local development APIs/);
+  } finally { spelled.cleanup(); }
+  // The allowed policy must still pass this assertion (checked via the shipped dist in CI).
+  const box = sandbox(["tools/check-build.mjs", "tools/net-guards.mjs"]);
+  try {
+    fs.mkdirSync(path.join(box.root, "dist"));
+    fs.writeFileSync(path.join(box.root, "dist/index.html"), `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://inabakumori-site-production.up.railway.app"/>`);
+    const result = run(box.root, "tools/check-build.mjs");
+    assert.doesNotMatch(result.stderr, /Unexpected connect-src source/, "the shipped connect-src policy must stay allowed");
+  } finally { box.cleanup(); }
+});
+
+test("link checker pairs each song with its own youtube URL and fails loudly on a missing link", async () => {
+  const { songsFromSource } = await import("../check-links.mjs");
+  const file = list => `const SONGS = ${JSON.stringify(list, null, 2)};\n`;
+  // singers is an inner array: the array literal must not be cut short at the first "]".
+  const complete = file([
+    { title: "Alpha", youtube: "https://youtu.be/AAAAAAAAAAA", singers: ["a", "b"] },
+    { title: "Gamma", youtube: "https://youtu.be/GGGGGGGGGGG", singers: [] }
+  ]);
+  assert.deepEqual(songsFromSource(complete), [
+    { title: "Alpha", url: "https://youtu.be/AAAAAAAAAAA" },
+    { title: "Gamma", url: "https://youtu.be/GGGGGGGGGGG" }
+  ]);
+  // A song without a link used to silently shift every following title onto the wrong video.
+  assert.throws(() => songsFromSource(file([
+    { title: "Alpha", youtube: "https://youtu.be/AAAAAAAAAAA" },
+    { title: "Beta", album: "x" },
+    { title: "Gamma", youtube: "https://youtu.be/GGGGGGGGGGG" }
+  ])), /Missing youtube link for: Beta/);
+  assert.throws(() => songsFromSource("const SONGS = notJson;"), /Could not find the SONGS array/);
+  const real = fs.readFileSync(path.join(repo, "js/songs.js"), "utf8");
+  const songs = songsFromSource(real);
+  assert.ok(songs.length >= 51, `expected the whole catalogue, got ${songs.length}`);
+  for (const song of songs) assert.match(song.url, /^https:\/\/youtu\.be\/[A-Za-z0-9_-]{11}$/u, song.title);
+});
+
 test("link checker fetches only public http(s) URLs, including every redirect hop", async () => {
   const { assertPublicHttpUrl, checkSong } = await import("../check-links.mjs");
   const publicResolver = async () => [{ address: "142.250.72.14", family: 4 }];
