@@ -21,3 +21,6 @@ trusted-read-*/
 
 # Local-only audit reports (contain operational details)
 SECURITY_AUDIT_*.md
+
+# Private maintenance notes stay on this computer
+/.local-notes/
