@@ -106,3 +106,33 @@ test("6: theme-color follows the OS without JS; manual theme still overrides bot
   assert.match(read("js/preferences.js"), /querySelectorAll\('meta\[name="theme-color"\]'\)/);
   assert.doesNotMatch(html, /<style|style="/, "no inline styles added");
 });
+
+test("3b: compositionend alone (Safari) updates the counter and draft; a following input does not double-save", () => {
+  const experience = read("js/experience.js");
+  const block = experience.match(/    const name = document\.getElementById\("message-name"\);[\s\S]*?message\.addEventListener\("compositionend", afterComposition\);/)[0];
+  const helpers = [/const MAX_NICKNAME_LENGTH = \d+;/, /const MAX_COMMENT_LENGTH = \d+;/, /function unicodeLength\(value\) \{[\s\S]*?\n\}/, /function enforceCommentFieldLimits\([\s\S]*?\n\}/]
+    .map(re => script.match(re)[0]).join("\n");
+  const listeners = {};
+  const el = id => ({ id, value: "", textContent: "", addEventListener: (type, fn) => { ((listeners[id] ||= {})[type] ||= []).push(fn); } });
+  const elements = { "message-name": el("message-name"), "message-input": el("message-input"), "message-counter": el("message-counter") };
+  const writes = [];
+  const store = new Map();
+  const sessionStorage = { getItem: key => store.get(key) ?? null, setItem: (key, value) => { writes.push(value); store.set(key, value); }, removeItem: key => { writes.push(null); store.delete(key); } };
+  const feedback = [];
+  const context = { document: { getElementById: id => elements[id] }, sessionStorage, JSON, showLengthFeedback: f => feedback.push(f), window: { addEventListener() {} } };
+  vm.runInNewContext(`${helpers}\n(() => {\n${block}\n})();`, context);
+  const fire = (id, type) => (listeners[id][type] || []).forEach(fn => fn({}));
+  const message = elements["message-input"], counter = elements["message-counter"];
+  message.value = "あ".repeat(503);
+  fire("message-input", "compositionend");
+  assert.equal(Array.from(message.value).length, 500, "trimmed");
+  assert.equal(counter.textContent, "500 / 500", "counter shows the trimmed length without an input event");
+  assert.equal(JSON.parse(store.get("message-draft")).content.length, 500, "draft holds the trimmed text");
+  assert.deepEqual(feedback, ["content"]);
+  const before = writes.length;
+  fire("message-input", "input");
+  fire("message-input", "compositionend");
+  assert.equal(writes.length, before, "repeat events with the same text write nothing");
+  assert.equal(counter.textContent, "500 / 500");
+  assert.deepEqual(feedback, ["content"], "no second over-length message");
+});

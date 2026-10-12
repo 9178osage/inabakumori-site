@@ -152,15 +152,29 @@
         enforceCommentFieldLimits(name, message);
       }
     } catch { /* Session storage can be unavailable. */ }
+    // Idempotent: the counter is recomputed and storage is written only when the draft actually changed,
+    // so compositionend followed by input (Chrome) and compositionend alone (Safari) end in the same state.
+    let lastDraft = null;
     const saveDraft = () => {
       counter.textContent = `${unicodeLength(message.value)} / 500`;
+      const draft = !name.value && !message.value ? "" : JSON.stringify({ nickname: name.value, content: message.value });
+      if (draft === lastDraft) return;
+      lastDraft = draft;
       try {
-        if (!name.value && !message.value) sessionStorage.removeItem("message-draft");
-        else sessionStorage.setItem("message-draft", JSON.stringify({ nickname: name.value, content: message.value }));
+        if (!draft) sessionStorage.removeItem("message-draft");
+        else sessionStorage.setItem("message-draft", draft);
       } catch { /* Posting remains available. */ }
+    };
+    // Safari may not fire input after compositionend: apply the (idempotent) length limit, then refresh
+    // the counter and draft so they never show the pre-trim text.
+    const afterComposition = () => {
+      enforceCommentFieldLimits(name, message);
+      saveDraft();
     };
     name.addEventListener("input", saveDraft);
     message.addEventListener("input", saveDraft);
+    name.addEventListener("compositionend", afterComposition);
+    message.addEventListener("compositionend", afterComposition);
     window.addEventListener("commentposted", saveDraft);
     saveDraft();
 
