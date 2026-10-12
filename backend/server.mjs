@@ -150,6 +150,17 @@ supertokens.init({
 // This is an application-level limit for one backend instance, not DDoS protection.
 const requestLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 60_000, limit: 180,
   standardHeaders: "draft-7", legacyHeaders: false,
+  handler(req, res, _next, options) {
+    // The limiter runs before CORS, but trusted pages must still be able to read 429.
+    const origin = req.get("origin");
+    if (!isBackupPath(req.originalUrl || req.url) && ALLOWED_ORIGINS.has(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+      res.setHeader("Access-Control-Expose-Headers", "X-Request-Id, Retry-After");
+      res.vary("Origin");
+    }
+    res.status(options.statusCode).json(options.message);
+  },
   message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 app.use(requestLimiter);
 // CORS only limits which browser pages may read responses; every protected route still
