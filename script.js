@@ -843,6 +843,7 @@ function updateTagFilter() {
   }
   const query = parseTagQuery(input.value);
   const filtering = query.plain.length > 0 || query.required.length > 0;
+  const favoritesOnly = document.getElementById("favorites-filter")?.getAttribute("aria-pressed") === "true";
   let visibleSongs = 0;
   let totalSongs = 0;
   document.querySelectorAll(".song-scroll a").forEach((link) => {
@@ -856,6 +857,20 @@ function updateTagFilter() {
   library.classList.toggle("tag-filtering", filtering);
   if (emptyState) {
     emptyState.hidden = visibleSongs !== 0;
+    if (favoritesOnly) {
+      const messages = filtering
+        ? {
+            zh: "没有符合当前筛选条件的收藏歌曲。",
+            en: "No favorite songs match the current filters.",
+            ja: "現在の条件に一致するお気に入りの曲はありません。"
+          }
+        : {
+            zh: "还没有收藏歌曲，点击歌曲旁边的星标即可收藏。",
+            en: "You haven't saved any songs yet. Select the star beside a song to save it.",
+            ja: "お気に入りの曲はまだありません。曲の横にある星を押すと追加できます。"
+          };
+      emptyState.textContent = messages[currentLanguage];
+    } else if (emptyState.dataset) emptyState.textContent = emptyState.dataset[currentLanguage] || emptyState.dataset.zh;
   }
   if (count) {
     count.textContent = currentLanguage === "ja" ? `${totalSongs} 曲中 ${visibleSongs} 曲を表示` : currentLanguage === "zh" ? `显示 ${visibleSongs} / ${totalSongs} 首` : `Showing ${visibleSongs} / ${totalSongs} songs`;
@@ -904,6 +919,13 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("theme-btn")?.addEventListener("click", toggleTheme);
   document.getElementById("auth-btn")?.addEventListener("click", () => window.openAuthModal?.());
   document.getElementById("auth-close")?.addEventListener("click", () => window.closeAuthModal?.());
+  // UI only: a click on the dimmed backdrop (not the dialog itself) closes like Escape and the close button.
+  const authModal = document.getElementById("auth-modal");
+  authModal?.addEventListener("click", event => {
+    if (event.target !== authModal || !authModal.classList.contains("open")) return;
+    window.closeAuthModal?.();
+    document.getElementById("auth-btn")?.focus();
+  });
   document.getElementById("auth-submit")?.addEventListener("click", () => window.submitAuth?.());
   document.getElementById("auth-switch")?.addEventListener("click", () => window.switchAuthMode?.());
   document.getElementById("auth-forgot")?.addEventListener("click", () => window.forgotPassword?.());

@@ -160,14 +160,20 @@
         hero.classList.toggle("out-of-view", !entry.isIntersecting);
       }).observe(hero);
       const sections = [...nav.querySelectorAll("a:not(.back-top)")];
+      // Nested targets (#site-about sits inside #about next to #intro) can be visible together,
+      // so track every visible target and highlight the last one in document order.
+      const visible = new Set();
       const observer = new IntersectionObserver(entries => {
         for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          sections.forEach(link => {
-            if (link.hash === `#${entry.target.id}`) link.setAttribute("aria-current", "location");
-            else link.removeAttribute("aria-current");
-          });
+          if (entry.isIntersecting) visible.add(entry.target.id);
+          else visible.delete(entry.target.id);
         }
+        const active = [...sections].reverse().find(link => visible.has(link.hash.slice(1)));
+        if (!active) return;
+        sections.forEach(link => {
+          if (link === active) link.setAttribute("aria-current", "location");
+          else link.removeAttribute("aria-current");
+        });
       }, { rootMargin: "-15% 0px -55% 0px" });
       sections.forEach(link => { const section = document.querySelector(link.hash); if (section) observer.observe(section); });
     }
