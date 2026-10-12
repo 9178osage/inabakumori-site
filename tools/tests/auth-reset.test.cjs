@@ -71,6 +71,15 @@ test("cross-site sessions use header authentication", () => {
   const app = setup();
   assert.equal(app.session.config.tokenTransferMethod, "header");
 });
+test("expired sessions reset the account button and notify message panels", async () => {
+  const app = setup();
+  app.elements["auth-btn"].innerText = "退出登录";
+  await app.session.config.onHandleEvent({ action: "UNAUTHORISED", sessionExpiredOrRevoked: true });
+  assert.equal(app.elements["auth-btn"].innerText, "登录 / 注册");
+  assert.deepEqual(app.events, ["authchange"]);
+  await app.session.config.onHandleEvent({ action: "REFRESH_SESSION" });
+  assert.equal(app.events.length, 1, "ordinary refreshes must not reload the message panels");
+});
 test("GitHub Pages reset email reaches the homepage, preserves SDK credentials, and completes the UI flow", async () => {
   const { passwordResetDelivery } = await import('../../backend/services.mjs');
   let email;

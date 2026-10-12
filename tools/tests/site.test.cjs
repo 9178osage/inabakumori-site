@@ -94,10 +94,14 @@ test("expired messages are removed and track records released", () => {
   assert.equal(messages.length, 0);
   run('createFloatingMessage({nickname:"a",content:"live",expiresAt:new Date(Date.now()+60000).toISOString()})');
   assert.equal(run("messageTracks.length"), 1);
+  elements["message-load-status"] = {};
+  run('messageLoadState = "ready"');
   messages[0].dataset.expiresAt = "0";
   run("removeExpiredMessages()");
   assert.equal(messages.length, 0);
   assert.equal(run("messageTracks.length"), 0);
+  assert.equal(run("messageLoadState"), "empty");
+  assert.match(elements["message-load-status"].textContent, /还没有留言/);
 });
 test("language refresh updates document and existing messages", () => {
   const { run, context, messages, events } = setup();

@@ -486,6 +486,10 @@ function removeExpiredMessages() {
   document.querySelectorAll(".floating-message[data-expires-at]").forEach((element) => {
     if (Number(element.dataset.expiresAt) <= Date.now()) element.disposeMessage();
   });
+  if (messageLoadState === "ready" && !document.querySelectorAll(".floating-message").length) {
+    messageLoadState = "empty";
+    updateMessageLoadStatus();
+  }
 }
 const reducedMotionQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)");
 function updateMotionState() {

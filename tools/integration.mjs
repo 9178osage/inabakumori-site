@@ -151,6 +151,18 @@ try {
     assert.equal(body.code, "INVALID_JSON");
   }
   assert.ok(malformedLimited, "Malformed requests must be limited before JSON parsing");
+  const limited = await request(`${api}/api/comments`, { headers: { Origin: previewUrl } });
+  assert.equal(limited.status, 429);
+  assert.equal(limited.headers.get("access-control-allow-origin"), previewUrl, "the frontend must be able to read the global rate-limit response");
+  assert.equal(limited.headers.get("access-control-allow-credentials"), "true");
+  assert.match(limited.headers.get("access-control-expose-headers"), /Retry-After/i);
+  assert.equal((await limited.json()).code, "RATE_LIMITED");
+  for (const [url, origin] of [[`${api}/api/comments`, "https://untrusted.example"], [backupUrl, previewUrl]]) {
+    const denied = await request(url, { headers: { Origin: origin } });
+    assert.equal(denied.status, 429);
+    assert.equal(denied.headers.get("access-control-allow-origin"), null);
+    await denied.arrayBuffer();
+  }
   // CORS rejections and preflights used to run before every limiter.
   for (const [label, options] of [["hostile Origin", { headers: { Origin: "https://untrusted.example", "X-Real-IP": "198.51.100.71" } }],
     ["preflight", { method: "OPTIONS", headers: { Origin: previewUrl, "Access-Control-Request-Method": "POST", "X-Real-IP": "198.51.100.72" } }]]) {

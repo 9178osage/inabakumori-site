@@ -71,7 +71,14 @@ SuperTokens.init({
     ...original,
     getResetPasswordTokenFromURL: (input) => resetLinkRequested ? resetToken : original.getResetPasswordTokenFromURL(input),
     getTenantIdFromURL: (input) => resetLinkRequested ? resetTenantId : original.getTenantIdFromURL(input)
-  }) } }), Session.init({ tokenTransferMethod: "header" })]
+  }) } }), Session.init({
+    tokenTransferMethod: "header",
+    async onHandleEvent(event) {
+      if (event.action !== "UNAUTHORISED") return;
+      await updateAuthButton();
+      window.dispatchEvent(new Event("authchange"));
+    }
+  })]
 });
 let authMode = "signin";
 let authSubmitting = false;
