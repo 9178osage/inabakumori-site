@@ -40,6 +40,9 @@
 - 本机/卷内快照：`npm --prefix backend run backup`（见 [OPTIMIZATION.md](OPTIMIZATION.md#数据库备份)）。
 - 快照含全部留言与会员 user ID（无邮箱、密码、令牌、IP），按私密数据保管。令牌泄露时在 Railway 换新值并重新部署。
 - 例行：每次推送后看 `Verify website` / `Publish public site` 是否成功、`/healthz` 的 `version`；定期 `npm audit`（根目录与 `backend`）并处理 Dependabot PR；定期恢复演练一次备份。
+- 轮换管理员密码时，复核密码仍为 ≥20 位随机且全站唯一；若不满足，应由账号所有者重新评估已接受的风险。
+
+简明操作说明见 [站长手册](MAINTAINER.md)。
 
 ## DNS / GitHub 状态
 
