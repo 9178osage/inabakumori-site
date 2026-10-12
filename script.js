@@ -967,7 +967,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }, { rootMargin: "400px" });
     loader.observe(messagesSection);
     const wallObserver = new IntersectionObserver(entries => {
-      wallInView = entries[0].isIntersecting;
+      // A fast scroll can queue several entries for the wall; only the last one is current.
+      wallInView = entries[entries.length - 1].isIntersecting;
       updateMotionState();
     });
     wallObserver.observe(messagesSection);

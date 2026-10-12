@@ -1,4 +1,15 @@
 (() => {
+  // The last nav target whose top has reached the sticky nav (plus a small offset) is the current
+  // section; at the very bottom of the page the last target wins even if its top never gets there.
+  // Above the first target (the hero) nothing is current.
+  function activeSectionLink(links, navBottom, viewportHeight, scrollTop, scrollHeight, find = id => document.getElementById(id)) {
+    const targets = links.map(link => [link, find(decodeURIComponent(link.hash.slice(1)))]).filter(([, target]) => target);
+    if (!targets.length) return null;
+    if (scrollTop > 0 && scrollTop + viewportHeight >= scrollHeight - 2) return targets[targets.length - 1][0];
+    let active = null;
+    for (const [link, target] of targets) if (target.getBoundingClientRect().top <= navBottom + 24) active = link;
+    return active;
+  }
   const text = (zh, en, ja) => ({ zh, en, ja })[currentLanguage] || zh;
   const storage = window.siteStorage;
   let favorites;
@@ -156,26 +167,35 @@
     const nav = document.querySelector(".section-nav");
     if (typeof IntersectionObserver !== "undefined") {
       const hero = document.querySelector(".hero");
-      new IntersectionObserver(([entry]) => {
-        hero.classList.toggle("out-of-view", !entry.isIntersecting);
+      new IntersectionObserver(entries => {
+        // Several entries can be queued for one target during a fast scroll; the last one is current.
+        hero.classList.toggle("out-of-view", !entries[entries.length - 1].isIntersecting);
       }).observe(hero);
-      const sections = [...nav.querySelectorAll("a:not(.back-top)")];
-      // Nested targets (#site-about sits inside #about next to #intro) can be visible together,
-      // so track every visible target and highlight the last one in document order.
-      const visible = new Set();
-      const observer = new IntersectionObserver(entries => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) visible.add(entry.target.id);
-          else visible.delete(entry.target.id);
-        }
-        const active = [...sections].reverse().find(link => visible.has(link.hash.slice(1)));
-        if (!active) return;
-        sections.forEach(link => {
+    }
+    // Active section comes from the scroll position on every (rAF-throttled) scroll/resize, not from
+    // IntersectionObserver deltas: those only fire on threshold crossings and could leave a stale
+    // highlight (e.g. songs -> up into artwork -> back down kept 插画).
+    if (nav) {
+      const links = [...nav.querySelectorAll("a:not(.back-top)")];
+      let frame = 0;
+      const update = () => {
+        frame = 0;
+        // Anchor jumps land at scroll-padding-top (110px desktop / 140px mobile), which can sit below the
+        // nav bottom; use whichever is lower so a clicked section is the highlighted one.
+        const padding = Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0;
+        const active = activeSectionLink(links, Math.max(nav.getBoundingClientRect().bottom, padding), window.innerHeight,
+          window.scrollY || document.documentElement.scrollTop, document.documentElement.scrollHeight);
+        links.forEach(link => {
           if (link === active) link.setAttribute("aria-current", "location");
           else link.removeAttribute("aria-current");
         });
-      }, { rootMargin: "-15% 0px -55% 0px" });
-      sections.forEach(link => { const section = document.querySelector(link.hash); if (section) observer.observe(section); });
+      };
+      const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
+      window.addEventListener("scroll", schedule, { passive: true });
+      window.addEventListener("resize", schedule);
+      window.addEventListener("load", schedule);
+      document.fonts?.ready?.then(schedule);
+      update();
     }
     const title = document.querySelector(".glitch");
     const labelTitle = () => title.setAttribute("aria-label", title.dataset[currentLanguage]);
