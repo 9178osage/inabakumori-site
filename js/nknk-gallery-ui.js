@@ -237,7 +237,9 @@
         img.style.aspectRatio = `${item.w} / ${item.h}`;
       }
       if (!canDeferThumbs || (!clone && absoluteIndex < EAGER_THUMBS)) {
-        img.loading = "eager";
+        // Native lazy loading: the gallery sits far below the hero, so its thumbs no longer
+        // compete with first paint; the browser starts them as the section approaches (perf P5).
+        img.loading = "lazy";
         img.src = item.thumb;
       } else {
         img.dataset.src = item.thumb;
@@ -296,6 +298,7 @@
         if (reduced) return;
         pointerId = event.pointerId;
         startX = event.clientX;
+        freezeRow(row);
         startOffset = row.offset;
         moved = false;
         activeButton = event.target.closest?.(".nknk-marquee-item") || null;
@@ -414,42 +417,62 @@
       // Do not keep a 60 fps loop alive while every row is paused (off-screen, hidden tab, lightbox).
       if (rows.length && rows.every(row => row.paused)) stopLoop();
       else if (rows.length && !reduced) startLoop();
+      else updateRows();
     };
 
-    let rafId = 0;
-    let lastTs = 0;
-    const tick = (ts) => {
-      rafId = requestAnimationFrame(tick);
-      if (!lastTs) lastTs = ts;
-      const dt = Math.min(48, ts - lastTs) / 1000;
-      lastTs = ts;
+    // The loop runs as a compositor-driven Web Animation instead of a per-frame JS rAF loop, so a
+    // visible gallery no longer recalculates style 60 times a second on the main thread (perf P2).
+    // A paused row (hover, focus, drag, off-screen, hidden tab, lightbox) freezes back to an inline
+    // transform at its exact position; resuming starts a new animation from that offset.
+    let running = false;
+    const animationTiming = (row) => ({ duration: row.loopWidth / SPEED_PX_PER_SEC * 1000, iterations: Infinity, easing: "linear" });
+    const freezeRow = (row) => {
+      if (!row.animation) return;
+      const { duration } = row.animation.effect.getTiming();
+      const time = Number(row.animation.currentTime) || 0;
+      if (duration > 0) row.offset = (time % duration) / duration * row.loopWidth;
+      row.animation.cancel();
+      row.animation = null;
+      wrapOffset(row);
+      applyTransform(row);
+    };
+    const runRow = (row) => {
+      if (row.animation || !row.loopWidth || typeof row.track.animate !== "function") return;
+      const sign = row.direction < 0 ? -1 : 1;
+      wrapOffset(row);
+      const timing = animationTiming(row);
+      row.animation = row.track.animate([
+        { transform: `translate3d(0px, 0, 0)` },
+        { transform: `translate3d(${sign * row.loopWidth}px, 0, 0)` }
+      ], timing);
+      row.animation.currentTime = row.offset / row.loopWidth * timing.duration;
+    };
+    const updateRows = () => {
       for (const row of rows) {
-        if (row.paused || reduced || !row.loopWidth) continue;
-        row.offset += SPEED_PX_PER_SEC * dt;
-        wrapOffset(row);
-        applyTransform(row);
+        if (!running || row.paused || reduced || !row.loopWidth) freezeRow(row);
+        else runRow(row);
       }
     };
 
     const startLoop = () => {
-      if (rafId || reduced) return;
-      lastTs = 0;
-      rafId = requestAnimationFrame(tick);
+      if (reduced) return;
+      running = true;
+      updateRows();
     };
 
     const stopLoop = () => {
-      if (!rafId) return;
-      cancelAnimationFrame(rafId);
-      rafId = 0;
-      lastTs = 0;
+      running = false;
+      updateRows();
     };
 
     const remeasure = () => {
       for (const row of rows) {
+        freezeRow(row);
         row.loopWidth = reduced ? 0 : measureLoopWidth(row.track);
         wrapOffset(row);
         if (!reduced) applyTransform(row);
       }
+      updateRows();
     };
 
     const loadThumb = (img) => {
@@ -615,6 +638,7 @@
       // Rebuild to switch between marquee loop and scroll-snap row.
       mounted = false;
       stopLoop();
+      rows.forEach(row => row.animation?.cancel());
       rows.length = 0;
       mount();
       syncPauseState();
