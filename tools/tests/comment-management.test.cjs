@@ -408,9 +408,9 @@ test('duplicate comments are scoped to the signed-in account and expire after te
   const { createRecentDuplicateChecker } = await import('../../backend/services.mjs');
   const db = new DatabaseSync(':memory:');
   try {
-    db.exec('CREATE TABLE comments(content TEXT, user_id TEXT, is_guest INTEGER, created_at INTEGER)');
+    db.exec('CREATE TABLE comments(content TEXT, user_id TEXT, is_guest INTEGER, created_at INTEGER, expires_at INTEGER)');
     const now = 1800000000000;
-    const insert = db.prepare('INSERT INTO comments VALUES(?,?,?,?)');
+    const insert = db.prepare('INSERT INTO comments(content, user_id, is_guest, created_at) VALUES(?,?,?,?)');
     insert.run('  Great　song!  ', 'alice', 0, now - 1000);
     insert.run('old comment', 'alice', 0, now - 600000);
     insert.run('guest comment', null, 1, now);
@@ -429,9 +429,9 @@ test('guest same-text dedup uses a short global window and ignores member posts'
   const { createRecentDuplicateChecker } = await import('../../backend/services.mjs');
   const db = new DatabaseSync(':memory:');
   try {
-    db.exec('CREATE TABLE comments(content TEXT, user_id TEXT, is_guest INTEGER, created_at INTEGER)');
+    db.exec('CREATE TABLE comments(content TEXT, user_id TEXT, is_guest INTEGER, created_at INTEGER, expires_at INTEGER)');
     const now = 1800000000000;
-    const insert = db.prepare('INSERT INTO comments VALUES(?,?,?,?)');
+    const insert = db.prepare('INSERT INTO comments(content, user_id, is_guest, created_at) VALUES(?,?,?,?)');
     insert.run('  Nice　track  ', null, 1, now - 60_000);
     insert.run('Nice track', 'member', 0, now - 30_000);
     insert.run('stale guest', null, 1, now - 6 * 60_000);

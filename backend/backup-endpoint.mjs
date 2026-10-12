@@ -54,13 +54,21 @@ export function registerBackupEndpoint(app, { databasePath, token, limiter, log 
       const file = path.join(directory, "snapshot.db");
       await backupDatabase(databasePath, file);
       const { size } = await stat(file);
-      log.log("Backup served", { requestId: req.requestId, ip: clientIp(req), size });
       res.status(200);
       res.setHeader("Content-Type", "application/octet-stream");
       res.setHeader("Content-Length", String(size));
       res.setHeader("Content-Disposition", `attachment; filename="${backupFilename()}"`);
       // pipeline settles even if the client already disconnected, so the temp copy is always removed.
-      await pipeline(createReadStream(file), res).catch(() => res.destroy());
+      // Log "served" only once the whole snapshot was written out; a client abort is logged as such.
+      const meta = { requestId: req.requestId, ip: clientIp(req), size };
+      try {
+        await pipeline(createReadStream(file), res);
+        if (res.writableFinished) log.log("Backup served", meta);
+        else log.warn("Backup aborted", meta);
+      } catch (error) {
+        log.warn("Backup aborted", { ...meta, reason: error?.code || error?.name || "error" });
+        res.destroy();
+      }
       await cleanup();
     } catch (error) {
       await cleanup();
