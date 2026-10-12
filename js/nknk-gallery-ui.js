@@ -575,7 +575,8 @@
       return;
     }
     const observer = new IntersectionObserver((entries) => {
-      sectionVisible = entries.some(entry => entry.isIntersecting);
+      // One target: the last queued entry is the current state (an in+out pair must read as out).
+      sectionVisible = entries[entries.length - 1].isIntersecting;
       syncPauseState();
     }, { rootMargin: "400px 0px" });
     observer.observe(target);
