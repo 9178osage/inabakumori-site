@@ -47,15 +47,15 @@ function applyLanguage() {
   const nameInput = document.getElementById("message-name");
   const messageInput = document.getElementById("message-input");
   if (nameInput) {
-    nameInput.placeholder = pageText("你的名字 / Name", "Your name");
+    nameInput.placeholder = pageText("你的昵称", "Your nickname");
   }
   if (messageInput) {
-    messageInput.placeholder = pageText("想对稲葉曇说些什么？", "Say something to Inabakumori...");
+    messageInput.placeholder = pageText("想对稲葉曇说些什么？", "Say something to Inabakumori…");
   }
   document.title = { zh: "气象观测站 · 稲葉曇", en: "Weather Observation Station · Inabakumori", ja: "気象観測所 · 稲葉曇" }[currentLanguage];
   const description = document.querySelector('meta[name="description"]');
   if (description) {
-    description.content = { zh: "稲葉曇的气象观测站：歌曲、MV、创作链接与留言墙。", en: "A weather observation station for Inabakumori songs, videos, links, and messages.", ja: "稲葉曇さんの楽曲、MV、リンク、メッセージを集めた観測所です。" }[currentLanguage];
+    description.content = { zh: "稲葉曇的气象观测站：歌曲、MV、创作链接与留言墙。", en: "Weather Observation Station — Inabakumori songs, music videos, links, and a message wall.", ja: "稲葉曇さんの楽曲、MV、リンク、メッセージを集めた観測所です。" }[currentLanguage];
   }
   document.querySelector(".site-controls")?.setAttribute("aria-label", currentLanguage === "ja" ? "ページ設定" : currentLanguage === "en" ? "Page controls" : "页面设置");
   document.querySelector(".hero-content nav")?.setAttribute("aria-label", currentLanguage === "ja" ? "メインナビゲーション" : currentLanguage === "en" ? "Main navigation" : "主导航");
@@ -251,7 +251,7 @@ function updateMessageLoadStatus() {
   const retry = document.getElementById("message-retry");
   const wall = document.getElementById("floating-wall");
   if (status) {
-    const text = { loading: ["正在加载留言…", "Loading messages…"], error: ["留言加载失败，请检查连接后重试。", "Could not load messages. Check your connection and retry."], empty: ["还没有留言，留下第一条讯息吧。", "No messages yet. Leave the first one."], ready: ["", ""], idle: ["", ""] };
+    const text = { loading: ["正在加载留言…", "Loading messages…"], error: ["留言加载失败，请检查连接后重试。", "Could not load messages. Check your connection and retry."], empty: ["还没有留言，来留下第一条吧。", "No messages yet. Leave the first one."], ready: ["", ""], idle: ["", ""] };
     status.textContent = pageText(...text[messageLoadState]);
   }
   if (retry) retry.hidden = messageLoadState !== "error";
@@ -279,17 +279,17 @@ async function addMessage() {
   const nickname = nameInput.value.trim();
   const content = messageInput.value.trim();
   if (!nickname || !content) {
-    showMessageFeedback(!nickname ? pageText("请输入昵称。", "Please enter your name.") : pageText("请输入留言内容。", "Please enter a message."));
+    showMessageFeedback(!nickname ? pageText("请输入昵称。", "Please enter a nickname.") : pageText("请输入留言内容。", "Please enter a message."));
     (!nickname ? nameInput : messageInput).focus();
     return;
   }
   if (unicodeLength(nickname) > MAX_NICKNAME_LENGTH) {
-    showMessageFeedback(pageText(`昵称不能超过 ${MAX_NICKNAME_LENGTH} 个字符。`, `Names cannot exceed ${MAX_NICKNAME_LENGTH} characters.`));
+    showMessageFeedback(pageText("昵称不能超过 {max} 个字符。", "Nicknames can be up to {max} characters.").replace("{max}", String(MAX_NICKNAME_LENGTH)));
     nameInput.focus();
     return;
   }
   if (unicodeLength(content) > MAX_COMMENT_LENGTH) {
-    showMessageFeedback(pageText(`留言不能超过 ${MAX_COMMENT_LENGTH} 个字符。`, `Messages cannot exceed ${MAX_COMMENT_LENGTH} characters.`));
+    showMessageFeedback(pageText("留言不能超过 {max} 个字符。", "Messages can be up to {max} characters.").replace("{max}", String(MAX_COMMENT_LENGTH)));
     messageInput.focus();
     return;
   }
@@ -690,10 +690,10 @@ function renderInlineSongTags(link) {
     const enCount = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(song.viewCount);
     views.dataset.zh = `YouTube · ${zhCount} 次播放 · 统计于 ${song.viewsCheckedAt}`;
     views.dataset.en = `YouTube · ${enCount} views · As of ${song.viewsCheckedAt}`;
-    views.dataset.ja = `YouTube · ${new Intl.NumberFormat("ja-JP", { notation: "compact", maximumFractionDigits: 1 }).format(song.viewCount)} 回視聴 · ${song.viewsCheckedAt} 時点`;
+    views.dataset.ja = `YouTube · ${new Intl.NumberFormat("ja-JP", { notation: "compact", maximumFractionDigits: 1 }).format(song.viewCount)} 回再生 · ${song.viewsCheckedAt} 時点`;
     views.textContent = views.dataset[currentLanguage];
     const exactCount = song.viewCount.toLocaleString("en-US");
-    views.title = `${exactCount} 次播放 / views / 回視聴 · ${song.viewsCheckedAt}`;
+    views.title = `${exactCount} 次播放 / views / 回再生 · ${song.viewsCheckedAt}`;
     details.appendChild(views);
   }
   const tagList = document.createElement("span");
@@ -868,7 +868,7 @@ function updateTagFilter() {
 function updateTagLanguage() {
   const input = document.getElementById("tag-filter-input");
   if (input) {
-    input.placeholder = pageText("搜索歌名或 TAG，例如：ラグ / 歌爱 / yuki", "Search titles or tags, e.g. ラグ / yuki / weather");
+    input.placeholder = pageText("搜索歌名或标签，例如：ラグ / 歌爱 / yuki", "Search titles or tags, e.g. ラグ / yuki / weather");
   }
   document.querySelectorAll(".song-inline-tag[data-raw-tag]").forEach((tagElement) => {
     tagElement.textContent = getTagDisplayLabel(tagElement.dataset.rawTag);
@@ -960,7 +960,7 @@ function showEasterEgg() {
     image.height = memeHeight;
   }
   image.src = MEME_FOLDER + filename;
-  image.alt = currentLanguage === "ja" ? `ランダム画像 ${randomNumber}` : currentLanguage === "zh" ? `随机表情包 ${randomNumber}` : `Random meme ${randomNumber}`;
+  image.alt = currentLanguage === "ja" ? `ランダムなミーム画像 ${randomNumber}` : currentLanguage === "zh" ? `随机表情包 ${randomNumber}` : `Random meme ${randomNumber}`;
   easterEggOpen = true;
   easterEggCanClose = true;
   easterEggPreviousFocus = document.activeElement;

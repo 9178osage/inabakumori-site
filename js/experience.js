@@ -116,7 +116,7 @@
       wallButton.setAttribute("aria-pressed", String(Boolean(isStatic)));
       wallButton.disabled = Boolean(reducedMotionQuery?.matches);
       wallButton.textContent = isStatic ? text("弹幕模式", "Floating messages", "流れる表示") : text("静态阅读", "Read as a list", "一覧で読む");
-      if (reducedMotionQuery?.matches) wallButton.textContent = text("静态阅读 · 跟随系统", "Static · reduced motion", "一覧表示 · システム設定");
+      if (reducedMotionQuery?.matches) wallButton.textContent = text("静态阅读 · 跟随系统", "Read as a list · reduced motion", "一覧で読む（システム設定に従う）");
       document.querySelectorAll(".floating-message").forEach(element => element.refreshLayout());
     }
     wallStatic = storage.getItem("wall-static") === "true";

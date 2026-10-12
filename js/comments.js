@@ -29,7 +29,7 @@
     }
     const messages = {
       idle: "", loading: label("正在加载你的留言…", "Loading your messages…"),
-      empty: label("你还没有登录后发布的留言。", "You have no messages posted while signed in."),
+      empty: label("你还没有登录后发布的留言。", "You haven’t posted any messages while signed in yet."),
       error: label("读取失败，请重试。", "Could not load your messages. Please retry."),
       deleteError: label("删除失败，请重试；登录过期时请重新登录。", "Could not delete. Retry, or sign in again if your session expired."),
       deleted: label("留言已删除。", "Message deleted."),
