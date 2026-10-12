@@ -55,10 +55,23 @@ export async function checkSong(song, { fetchImpl = fetch, resolve } = {}) {
   }
 }
 
+// js/songs.js is generated with JSON.stringify, so read the array instead of pairing each
+// "title" with the next "youtube" anywhere in the file (which silently mismatched a song
+// that has no link and checked one title against another song's video).
+export function songsFromSource(source) {
+  const match = /(?:const|let|var)\s+SONGS\s*=\s*(\[[\s\S]*\])\s*;/u.exec(source);
+  if (!match) throw new Error("找不到 js/songs.js 里的 SONGS 数组。 / Could not find the SONGS array in js/songs.js.");
+  let parsed;
+  try { parsed = JSON.parse(match[1]); } catch (error) { throw new Error(`js/songs.js 不是可解析的 JSON 数组：${error.message}`); }
+  if (!Array.isArray(parsed)) throw new Error("js/songs.js 的 SONGS 不是数组。 / SONGS must be an array.");
+  const missing = parsed.filter(song => typeof song?.youtube !== "string" || !song.youtube.trim()).map(song => song?.title ?? "(untitled)");
+  if (missing.length) throw new Error(`这些歌曲缺少 youtube 链接：${missing.join("、")} / Missing youtube link for: ${missing.join(", ")}`);
+  return parsed.map(song => ({ title: song.title, url: song.youtube }));
+}
+
 async function main() {
   const source = await readFile(new URL("../js/songs.js", import.meta.url), "utf8");
-  const songs = [...source.matchAll(/"title"\s*:\s*"([^"]+)"[\s\S]*?"youtube"\s*:\s*"([^"]+)"/g)]
-    .map((match) => ({ title: match[1], url: match[2] }));
+  const songs = songsFromSource(source);
   const strict = process.argv.includes("--strict");
   if (!songs.length) {
     console.error("没有从 js/songs.js 找到歌曲链接。 / No song links found.");

@@ -42,6 +42,12 @@ assert.match(csp, /connect-src 'self' https:\/\/inabakumori-site-production\.up\
 // Always enforced, whatever the environment: a published CSP never reaches a loopback service.
 assert.deepEqual(loopbackCspSources(csp), [], "Production CSP must not allow local development APIs (dist came from build:local/preview? run npm run build)");
 assert.doesNotMatch(csp, /localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0/iu, "Production CSP must not name a loopback host");
+// Positive allowlist instead of a blocklist of spellings: the build cannot resolve DNS, so a
+// public name that resolves to loopback (localtest.me, *.nip.io, ...) would otherwise ship.
+const CONNECT_SRC_ALLOWED = new Set(["'self'", "https://inabakumori-site-production.up.railway.app"]);
+for (const source of (/connect-src([^;]*)/u.exec(csp)?.[1] ?? "").trim().split(/\s+/u).filter(Boolean)) {
+  assert.ok(CONNECT_SRC_ALLOWED.has(source), `Unexpected connect-src source: ${source}`);
+}
 assert.match(html, /<link rel="canonical" href="https:\/\/osagechan\.top\/"\/>/, "canonical must point at the custom domain");
 assert.ok(!html.includes("9178osage.github.io"), "old GitHub Pages URL must not remain in index.html");
 assert.equal((await readFile(path.join(root, "CNAME"), "utf8")).trim(), "osagechan.top", "dist/CNAME must name the custom domain");
