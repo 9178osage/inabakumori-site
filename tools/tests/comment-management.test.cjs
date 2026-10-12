@@ -525,3 +525,34 @@ test('a successful password reset revokes every existing session of that user', 
   await assert.rejects(revokeSessionsAfterPasswordReset(async () => { throw new Error('boom'); }, async () => {}, log)(input), /boom/,
     'errors from the reset itself still propagate to the SuperTokens error handler');
 });
+
+test('the global limiter runs before CORS, and duplicate guest posts count against the guest quota', async () => {
+  const backend = fs.readFileSync('backend/server.mjs', 'utf8');
+  const limiterAt = backend.indexOf('app.use(requestLimiter);');
+  const corsAt = backend.indexOf('corsMiddleware(req, res, next));');
+  assert.ok(limiterAt > 0 && corsAt > limiterAt, 'preflights and rejected origins must be rate limited too');
+  assert.ok(limiterAt < backend.indexOf('app.use(requireJsonRequestBody);') && limiterAt < backend.indexOf('app.use(middleware());'));
+  assert.ok(backend.indexOf('app.use("/api", commentReadLimiter);') > corsAt, 'the /api read limiter keeps its CORS headers');
+  const definition = backend.match(/const guestCommentLimiter = rateLimit\(\{[^\n]*\}\);/);
+  assert.ok(definition, 'guest limiter definition');
+  const express = require('../../backend/node_modules/express');
+  const { rateLimit, ipKeyGenerator } = require('../../backend/node_modules/express-rate-limit');
+  const guestCommentLimiter = vm.runInNewContext(`${definition[0]}; guestCommentLimiter`, { rateLimit, clientIpKey: req => ipKeyGenerator(req.ip) });
+  const app = express();
+  app.post('/comments/:status', guestCommentLimiter, (req, res) => res.status(Number(req.params.status)).json({}));
+  const server = app.listen(0, '127.0.0.1');
+  await require('node:events').once(server, 'listening');
+  try {
+    const post = async status => {
+      const response = await fetch(`http://127.0.0.1:${server.address().port}/comments/${status}`, { method: 'POST' });
+      await response.arrayBuffer();
+      return response.status;
+    };
+    const statuses = [];
+    for (const status of [400, 400, 400, 201, 409, 409, 409, 201]) statuses.push(await post(status));
+    // Invalid input stays free; a created post and duplicates use the 3-per-hour quota.
+    assert.deepEqual(statuses, [400, 400, 400, 201, 409, 409, 429, 429]);
+  } finally {
+    server.close();
+  }
+});

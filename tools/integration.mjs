@@ -151,6 +151,23 @@ try {
     assert.equal(body.code, "INVALID_JSON");
   }
   assert.ok(malformedLimited, "Malformed requests must be limited before JSON parsing");
+  // CORS rejections and preflights used to run before every limiter.
+  for (const [label, options] of [["hostile Origin", { headers: { Origin: "https://untrusted.example", "X-Real-IP": "198.51.100.71" } }],
+    ["preflight", { method: "OPTIONS", headers: { Origin: previewUrl, "Access-Control-Request-Method": "POST", "X-Real-IP": "198.51.100.72" } }]]) {
+    const statuses = {};
+    for (let i = 0; i < 200; i++) {
+      const result = await request(`${api}/api/comments`, options);
+      await result.arrayBuffer();
+      statuses[result.status] = (statuses[result.status] || 0) + 1;
+    }
+    assert.equal(statuses[429], 20, `${label}: ${JSON.stringify(statuses)}`);
+  }
+  // Probing for (or squatting on) a recent guest text costs guest quota.
+  const guestPost = (ip, content) => request(`${api}/api/comments`, { method: "POST", headers: { "Content-Type": "application/json", "X-Real-IP": ip }, body: JSON.stringify({ nickname: "探测", content }) });
+  const probes = [];
+  for (let i = 0; i < 3; i++) probes.push((await guestPost("198.51.100.73", comment.content)).status);
+  probes.push((await guestPost("198.51.100.73", "另一条完全不同的测试留言内容")).status);
+  assert.deepEqual(probes, [409, 409, 409, 429], "duplicates must consume the guest hourly quota");
   child.kill("SIGTERM");
   const [code] = await once(child, "exit");
   assert.equal(code, 0, output);

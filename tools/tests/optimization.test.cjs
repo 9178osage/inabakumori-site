@@ -176,7 +176,10 @@ test("local preview keeps the localhost API in CSP while production builds strip
   assert.match(build, /process\.argv\.includes\("--keep-local-api-csp"\)/);
   assert.match(build, /if \(!keepLocalApiCsp\)/);
   const checkBuild = fs.readFileSync("tools/check-build.mjs", "utf8");
-  assert.match(checkBuild, /assert\.doesNotMatch\(csp, \/localhost\|127\\\.0\\\.0\\\.1\//);
+  assert.match(checkBuild, /assert\.deepEqual\(loopbackCspSources\(csp\), \[\]/);
+  assert.doesNotMatch(checkBuild, /KEEP_LOCAL_API_CSP/, "check-build must not have an environment bypass");
+  assert.match(build, /stripLoopbackCspSources\(policy\)/);
+  assert.match(build, /process\.env\.CI \|\| process\.env\.GITHUB_ACTIONS/);
   for (const workflow of fs.readdirSync(".github/workflows")) {
     const yml = fs.readFileSync(`.github/workflows/${workflow}`, "utf8");
     assert.doesNotMatch(yml, /build:local|keep-local-api-csp|KEEP_LOCAL_API_CSP|npm run preview/, `${workflow} must use the production build`);

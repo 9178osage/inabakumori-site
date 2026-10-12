@@ -145,6 +145,13 @@ supertokens.init({
     Session.init({ getTokenTransferMethod: () => "header" })
   ]
 });
+// Bound every request (including CORS preflights and rejected origins) before CORS,
+// JSON parsing or the auth service.
+// This is an application-level limit for one backend instance, not DDoS protection.
+const requestLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 60_000, limit: 180,
+  standardHeaders: "draft-7", legacyHeaders: false,
+  message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
+app.use(requestLimiter);
 // CORS only limits which browser pages may read responses; every protected route still
 // verifies the SuperTokens session (and admin rights) on the server.
 const ALLOWED_ORIGINS = new Set([WEBSITE_DOMAIN, ...ADDITIONAL_WEBSITE_ORIGINS, ...IS_PRODUCTION ? [] : ["http://127.0.0.1:5500", "http://localhost:5500"]]);
@@ -160,12 +167,6 @@ const corsOptions = { origin(origin, callback) {
 const corsMiddleware = cors(corsOptions);
 // The backup download is server-to-server only: no CORS headers, so browsers cannot read it.
 app.use((req, res, next) => isBackupPath(req.originalUrl || req.url) ? next() : corsMiddleware(req, res, next));
-// Bound malformed/unknown requests before parsing JSON or contacting the auth service.
-// This is an application-level limit for one backend instance, not DDoS protection.
-const requestLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 60_000, limit: 180,
-  standardHeaders: "draft-7", legacyHeaders: false,
-  message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
-app.use(requestLimiter);
 app.use(requireJsonRequestBody);
 app.use(express.json({ limit: "20kb", strict: true }));
 const authSensitiveLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 15 * 60 * 1e3, limit: 20, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
@@ -193,7 +194,8 @@ app.use((req, res, next) => {
 });
 app.use(middleware());
 const commentLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 60 * 1e3, limit: 10, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "留言发送过于频繁，请稍后再试", code: "RATE_LIMITED" } });
-const guestCommentLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 60 * 60 * 1e3, limit: 3, skipFailedRequests: true, standardHeaders: "draft-7", legacyHeaders: false, skip: req => req.session !== undefined, message: { error: "游客每小时最多留言 3 条，请稍后再试", code: "GUEST_RATE_LIMITED" } });
+// A 409 duplicate still counts: otherwise a guest could probe (or squat) recent texts for free.
+const guestCommentLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 60 * 60 * 1e3, limit: 3, skipFailedRequests: true, requestWasSuccessful: (_req, res) => res.statusCode < 400 || res.statusCode === 409, standardHeaders: "draft-7", legacyHeaders: false, skip: req => req.session !== undefined, message: { error: "游客每小时最多留言 3 条，请稍后再试", code: "GUEST_RATE_LIMITED" } });
 const memberCommentLimiter = rateLimit({
   windowMs: 60 * 60 * 1e3,
   limit: 20,

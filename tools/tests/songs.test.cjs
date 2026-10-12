@@ -85,14 +85,19 @@ function setup(extraSong) {
   return { run, elements, list, opened };
 }
 
-test("the original 37 songs retain their exact order, titles, URLs, albums, and singers", () => {
+test("all songs retain their exact order, titles, URLs, albums, and singers", () => {
   const { run, list, elements } = setup();
   const songs = JSON.parse(run("JSON.stringify(SONGS)"));
   assert.equal(songs.length, 51);
   const digest = createHash("sha256")
-    .update(JSON.stringify(songs.slice(0, 37).map(song => [song.title, song.youtube, song.album, song.singers])))
+    .update(JSON.stringify(songs.map(song => [song.title, song.youtube, song.album, song.singers])))
     .digest("hex");
-  assert.equal(digest, "1d559b3903dbfda7d33748235ebb213c13453c9985fc4563b6d3cd4fe44256f6");
+  // Covers every song (not just the first 37). Same videos as before; ?si= share trackers removed.
+  assert.equal(digest, "157795e47cd5d039adf93ea87f70a0229b5915c8bd199bb8dd52a2ea91759f76");
+  for (const song of songs) {
+    const url = new URL(song.youtube);
+    assert.deepEqual([...url.searchParams.keys()].filter(key => key !== "v"), [], `${song.title}: no tracking parameters`);
+  }
   assert.equal(list.children.length, songs.length);
   assert.equal(elements["tag-result-count"].textContent, "显示 51 / 51 首");
   songs.forEach((song, index) => {

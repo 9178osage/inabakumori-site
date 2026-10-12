@@ -14,7 +14,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # npm ci runs third-party install scripts here, so this job never gets a write token.
+    # This job runs repository and dependency code (install scripts stay disabled by .npmrc),
+    # so it never gets a write token.
     permissions:
       contents: read
       pages: read
@@ -37,7 +38,7 @@ jobs:
           grep -E 'nknk-gallery-ui\.js\?v=[a-f0-9]{12}' dist/index.html
           ! grep -q 'nknk-gallery-ui.js?v=20260930' dist/index.html
           ! grep -q 'nknk-gallery-ui.js?v=20261005nknk' dist/index.html
-          ! grep -Eq 'connect-src[^"]*(localhost|127\.0\.0\.1)' dist/index.html
+          ! grep -Eiq 'Content-Security-Policy" content="[^"]*(localhost|127\.[0-9]|\[::1\]|0\.0\.0\.0)' dist/index.html
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
