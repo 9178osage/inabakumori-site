@@ -189,6 +189,9 @@ test("the published contact address never becomes an admin login identifier", ()
   }
   const securityDoc = read("docs/SECURITY.md");
   assert.match(securityDoc, /\*\*唯一\*\*管理员来源/, "the admin source must stay documented as user IDs only");
+  // Pin the prose rule as well as the table phrase: rewriting this sentence to allow
+  // email-based grants must fail even while the table still carries the required words.
+  assert.match(securityDoc, /只通过 `ADMIN_USER_IDS` 授权/, "the prose rule must keep forbidding email-based admin grants");
   assert.match(securityDoc, /管理员登录邮箱应与公开联系邮箱不同/, "the login-email goal must stay documented");
   assert.match(securityDoc, /当前已接受偏差/, "the accepted deviation must stay documented");
 });
