@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const http = require("node:http");
 const { DatabaseSync } = require("node:sqlite");
 const express = require("../../backend/node_modules/express");
 
@@ -69,3 +70,59 @@ test("wrong or missing token is rejected; correct token streams a valid SQLite s
     assert.ok(s.logs.every(line => !line.includes(TOKEN)), "token never logged");
   } finally { await s.close(); fs.rmSync(s.dir, { recursive: true, force: true }); }
 });
+
+// Same file as the cleanup test on purpose: tests in one file run in order, so temp-dir counts never race.
+const ABORT_TOKEN = "c".repeat(48);
+
+async function serveBackup() {
+  const { registerBackupEndpoint } = await import("../../backend/backup-endpoint.mjs");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "backup-abort-test-"));
+  const databasePath = path.join(dir, "comments.db");
+  const db = new DatabaseSync(databasePath);
+  db.exec("CREATE TABLE comments (id INTEGER PRIMARY KEY, content BLOB)");
+  // Big enough (~8 MB) that the response cannot fit in one socket write, so an abort lands mid-stream.
+  const insert = db.prepare("INSERT INTO comments (content) VALUES (randomblob(?))");
+  for (let i = 0; i < 8; i++) insert.run(1024 * 1024);
+  db.close();
+  const logs = [];
+  const log = { log: (...a) => logs.push(["log", ...a]), warn: (...a) => logs.push(["warn", ...a]) };
+  const app = express();
+  registerBackupEndpoint(app, { databasePath, token: ABORT_TOKEN, limiter: (_req, _res, next) => next(), log });
+  const server = await new Promise(resolve => { const s = app.listen(0, "127.0.0.1", () => resolve(s)); });
+  return { port: server.address().port, logs, close: () => new Promise(r => server.close(r)), dir };
+}
+const waitFor = async (predicate, ms = 5000) => {
+  const end = Date.now() + ms;
+  while (!predicate()) { if (Date.now() > end) throw new Error("timed out"); await new Promise(r => setTimeout(r, 20)); }
+};
+
+test("1: 'Backup served' is logged only after the whole snapshot was sent", async () => {
+  const s = await serveBackup();
+  try {
+    const res = await fetch(`http://127.0.0.1:${s.port}/api/admin/backup`, { headers: { Authorization: `Bearer ${ABORT_TOKEN}` } });
+    assert.equal(res.status, 200);
+    const body = Buffer.from(await res.arrayBuffer());
+    assert.equal(body.length, Number(res.headers.get("content-length")));
+    await waitFor(() => s.logs.length > 0);
+    assert.deepEqual(s.logs.map(entry => entry[1]), ["Backup served"]);
+    assert.equal(s.logs[0][2].size, body.length);
+  } finally { await s.close(); fs.rmSync(s.dir, { recursive: true, force: true }); }
+});
+
+test("1: a client that aborts mid-download is logged as aborted, never as served", async () => {
+  const s = await serveBackup();
+  try {
+    await new Promise((resolve, reject) => {
+      const req = http.get({ host: "127.0.0.1", port: s.port, path: "/api/admin/backup", headers: { Authorization: `Bearer ${ABORT_TOKEN}` } }, res => {
+        assert.equal(res.statusCode, 200);
+        res.once("data", () => { req.destroy(); resolve(); });
+      });
+      req.on("error", error => { if (error.code !== "ECONNRESET") reject(error); });
+    });
+    await waitFor(() => s.logs.length > 0);
+    assert.equal(s.logs[0][0], "warn");
+    assert.equal(s.logs[0][1], "Backup aborted");
+    assert.ok(!s.logs.some(entry => entry[1] === "Backup served"));
+  } finally { await s.close(); fs.rmSync(s.dir, { recursive: true, force: true }); }
+});
+
