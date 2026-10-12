@@ -113,7 +113,7 @@
     function updateWallMode() {
       const isStatic = wallStatic || reducedMotionQuery?.matches;
       wall.classList.toggle("wall-static", Boolean(isStatic));
-      wallButton.setAttribute("aria-pressed", String(Boolean(isStatic)));
+      // The label names the mode the button switches to, so it is an action button, not a toggle (no aria-pressed).
       wallButton.disabled = Boolean(reducedMotionQuery?.matches);
       wallButton.textContent = isStatic ? text("弹幕模式", "Floating messages", "流れる表示") : text("静态阅读", "Read as a list", "一覧で読む");
       if (reducedMotionQuery?.matches) wallButton.textContent = text("静态阅读 · 跟随系统", "Read as a list · reduced motion", "一覧で読む（システム設定に従う）");

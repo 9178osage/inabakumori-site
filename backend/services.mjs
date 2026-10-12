@@ -43,9 +43,10 @@ export function validateCommentInput(body) {
   }
   const nickname = body.nickname.normalize("NFC").trim();
   const content = body.content.normalize("NFC").trim();
-  const visible = value => value.replace(/[\s\u200B-\u200D\uFEFF]/gu, "").length > 0;
-  // Preserve emoji joiners and normal line breaks; reject terminal and bidi controls.
-  const unsafeControls = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u202A-\u202E\u2066-\u2069]/u;
+  // Invisible "filler" characters (Hangul fillers, word joiner, soft hyphen, ...) do not count as visible text.
+  const visible = value => value.replace(/[\s\p{Default_Ignorable_Code_Point}\u115F\u1160\u3164\uFFA0]/gu, "").length > 0;
+  // Preserve emoji joiners and normal line breaks; reject terminal and bidi controls (incl. LRM/RLM/ALM).
+  const unsafeControls = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/u;
   if (!visible(nickname) || !visible(content) || /[\r\n\t]/u.test(nickname) ||
       unsafeControls.test(nickname) || unsafeControls.test(content)) {
     return { ok: false, error: "请输入有效的昵称和留言", code: "INVALID_COMMENT" };
@@ -117,12 +118,19 @@ export function resolveDatabasePath(env, directory) {
 }
 
 const LINK_TLDS = "com|net|org|io|be|cn|jp|me|tv|cc|co|app|xyz|info|link|ly|gl|gg|ru|uk|de|fr|kr|tw|hk|sg|ai|dev|page|site|shop|top|vip|pw|ws|to|im|fm|so|vc|is|it|us|eu|edu|gov";
-const LINK_PATTERN = new RegExp(String.raw`(?:https?:\/\/|hxxps?:\/\/|www\.)|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:${LINK_TLDS})\b|(?:[a-z0-9-]{2,}\s*(?:\[\.\]|\(\.\)|\bdot\b)\s*)+(?:${LINK_TLDS})\b`, "iu");
+// TLDs that are also everyday English words ("life.is good", "this.so much", "wait.me too"):
+// a bare name ending in one of these only counts as a link when a path follows it.
+const WORD_TLDS = "be|me|to|im|so|is|it|us";
+const BARE_TLDS = LINK_TLDS.split("|").filter(tld => !WORD_TLDS.split("|").includes(tld)).join("|");
+const LINK_PATTERN = new RegExp(String.raw`(?:https?:\/\/|hxxps?:\/\/|www\.)|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:${BARE_TLDS})\b|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:${WORD_TLDS})\/[^\s]|(?:[a-z0-9-]{2,}\s*(?:\[\.\]|\(\.\)|\bdot\b)\s*)+(?:${LINK_TLDS})\b`, "iu");
 const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/iu;
 // Chinese mobiles, 0-prefixed landlines, and explicit +country numbers.
 // Dates (2026-09-14), plain counters, and dotted IPs are not phones.
-const PHONE_PATTERN = /(?<![\d])(?:\+\d{1,3}[\s.-]*)?(?:1[3-9](?:[\s.-]*\d){9}|\(?0\d{2,3}\)?[\s.-]+(?:\d[\s.-]*){6,8}\d)(?![\d])/u;
-const PROMOTION_PATTERN = /(刷单|网赚|返利|代购|贷款|彩票|优惠折扣|扫码.{0,8}(进群|加群|领取)|加\s*(?:一下|一个|下|个|只)?\s*(?:我的\s*)?(微信|微信号?|微|群|qq|vx|v信|威信|wx)|(?:微信号|vx号|qq号)\s*[:：]?\s*[a-z0-9_-]+|(?:微信|wechat|qq|telegram|whatsapp|discord|line|vx|wx|v信)\s*[:：]\s*[@a-z0-9_-]+|联系方式\s*[:：]|\bcontact\s*me\b|\bbuy\s*now\b|\bdiscount\b|\bpromo\b|\baffiliate\b)/iu;
+// A bare 11-digit number ("listened 13812345678 times") is only a phone with a +country code,
+// mobile-style grouping (138 1234 5678 / 138-1234-5678) or a contact word right before it.
+const PHONE_PATTERN = /(?<![\d])(?:\+\d{1,3}[\s.-]*(?:1[3-9](?:[\s.-]*\d){9}|(?:\d[\s.-]*){6,12}\d)|1[3-9]\d[\s.-]+\d{4}[\s.-]+\d{4}|(?:电话|手机|号码|致电|打给?我|联系|加|好友|微信|wx|vx|qq|tel|phone|call|mobile|whatsapp)[^\d\n]{0,6}1[3-9](?:[\s.-]*\d){9}|\(?0\d{2,3}\)?[\s.-]+(?:\d[\s.-]*){6,8}\d)(?![\d])/iu;
+// Advertising phrases, not single words: "用彩票的心情等新歌" or "promo of the new album" are fan talk.
+const PROMOTION_PATTERN = /(刷单|网赚|返利|代购|(?:无抵押|低息|秒批|快速|网上|小额)贷款|贷款.{0,6}(?:平台|办理|秒批|秒到|下款|额度|找我)|(?:彩票|博彩|时时彩).{0,6}(?:平台|代理|充值|计划|导师|带单)|(?:买|跟)彩票.{0,4}(?:找我|加我|进群)|优惠折扣|扫码.{0,8}(进群|加群|领取)|加\s*(?:一下|一个|下|个|只)?\s*(?:我的\s*)?(微信|微信号?|微|群|qq|vx|v信|威信|wx)|(?:微信号|vx号|qq号)\s*[:：]?\s*[a-z0-9_-]+|(?:微信|wechat|qq|telegram|whatsapp|discord|line|vx|wx|v信)\s*[:：]\s*[@a-z0-9_-]+|联系方式\s*[:：]|\bcontact\s*me\s*(?:on|at|via|through|@|[:：])|\bbuy\s*now\b|\b(?:discount|promo|coupon)\s*codes?\b|\buse\s+(?:my\s+)?code\b|\b\d{1,3}\s*%\s*off\b|\baffiliate\s*link|\bdm\s*me\s*(?:for|to)\b)/iu;
 
 // Administrators are granted only by stable SuperTokens user IDs (ADMIN_USER_IDS).
 // Emails are not used: signing up with an address does not prove ownership of it.

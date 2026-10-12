@@ -29,6 +29,8 @@ jobs:
       changed: ${{ steps.commit.outputs.changed }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # full history so the pull --rebase before push can replay the commit
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
@@ -62,6 +64,8 @@ jobs:
           esac
           git add js/songs.js
           git commit -m "chore: refresh YouTube view counts"
+          # main may have moved while the job ran; replay this commit on top instead of a non-fast-forward failure.
+          git pull --rebase origin "$REF_NAME"
           git push origin "HEAD:refs/heads/$REF_NAME"
           echo "changed=true" >> "$GITHUB_OUTPUT"
           # If push to main is blocked for GITHUB_TOKEN, replace the push with a PR flow:

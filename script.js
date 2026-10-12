@@ -42,7 +42,8 @@ function applyLanguage() {
   const langButton = document.getElementById("lang-btn");
   if (langButton) {
     langButton.innerText = { zh: "English", en: "日本語", ja: "中文" }[currentLanguage];
-    langButton.setAttribute("aria-label", { zh: "切换语言，当前：中文", en: "Switch language, current: English", ja: "言語を切り替え、現在：日本語" }[currentLanguage]);
+    // The accessible name starts with the visible text (WCAG 2.5.3 label-in-name).
+    langButton.setAttribute("aria-label", { zh: "English — 切换语言，当前：中文", en: "日本語 — Switch language, current: English", ja: "中文 — 言語を切り替え、現在：日本語" }[currentLanguage]);
   }
   const nameInput = document.getElementById("message-name");
   const messageInput = document.getElementById("message-input");
@@ -62,6 +63,9 @@ function applyLanguage() {
   document.querySelector(".section-nav")?.setAttribute("aria-label", currentLanguage === "ja" ? "セクションナビ" : currentLanguage === "en" ? "Section navigation" : "章节导航");
   document.getElementById("tag-suggestions")?.setAttribute("aria-label", currentLanguage === "ja" ? "選択できるタグ" : currentLanguage === "en" ? "Available tags" : "可选标签");
   document.getElementById("floating-wall")?.setAttribute("aria-label", currentLanguage === "ja" ? "メッセージ" : currentLanguage === "en" ? "Messages" : "留言");
+  document.querySelectorAll("[data-aria-zh]").forEach(element => {
+    element.setAttribute("aria-label", element.dataset[`aria${currentLanguage[0].toUpperCase()}${currentLanguage.slice(1)}`] || element.dataset.ariaZh);
+  });
   document.querySelector(".skip-link")?.replaceChildren(document.createTextNode({ zh: "跳到主要内容", en: "Skip to content", ja: "メインコンテンツへ" }[currentLanguage]));
   updateConnectivityStatus();
   updateMessageLoadStatus();
@@ -96,7 +100,8 @@ function applyTheme() {
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", currentTheme === "dark" ? "#171b1f" : "#c4c4c0");
   if (themeButton) {
     themeButton.innerText = currentTheme === "dark" ? "☀" : "☾";
-    themeButton.setAttribute("aria-label", currentTheme === "dark" ? pageText("切换浅色主题", "Switch to light theme") : pageText("切换深色主题", "Switch to dark theme"));
+    // Toggle button: a fixed name plus aria-pressed (an action name like "switch to light" would contradict pressed=true).
+    themeButton.setAttribute("aria-label", { zh: "深色主题", en: "Dark theme", ja: "ダークテーマ" }[currentLanguage] || "Dark theme");
     themeButton.setAttribute("aria-pressed", String(currentTheme === "dark"));
   }
 }
@@ -279,17 +284,17 @@ async function addMessage() {
   const nickname = nameInput.value.trim();
   const content = messageInput.value.trim();
   if (!nickname || !content) {
-    showMessageFeedback(!nickname ? pageText("请输入昵称。", "Please enter a nickname.") : pageText("请输入留言内容。", "Please enter a message."));
+    showMessageFeedback(!nickname ? () => pageText("请输入昵称。", "Please enter a nickname.") : () => pageText("请输入留言内容。", "Please enter a message."));
     (!nickname ? nameInput : messageInput).focus();
     return;
   }
   if (unicodeLength(nickname) > MAX_NICKNAME_LENGTH) {
-    showMessageFeedback(pageText("昵称不能超过 {max} 个字符。", "Nicknames can be up to {max} characters.").replace("{max}", String(MAX_NICKNAME_LENGTH)));
+    showMessageFeedback(() => pageText("昵称不能超过 {max} 个字符。", "Nicknames can be up to {max} characters.").replace("{max}", String(MAX_NICKNAME_LENGTH)));
     nameInput.focus();
     return;
   }
   if (unicodeLength(content) > MAX_COMMENT_LENGTH) {
-    showMessageFeedback(pageText("留言不能超过 {max} 个字符。", "Messages can be up to {max} characters.").replace("{max}", String(MAX_COMMENT_LENGTH)));
+    showMessageFeedback(() => pageText("留言不能超过 {max} 个字符。", "Messages can be up to {max} characters.").replace("{max}", String(MAX_COMMENT_LENGTH)));
     messageInput.focus();
     return;
   }
@@ -297,14 +302,14 @@ async function addMessage() {
   const originalName = nameInput.value;
   const originalContent = messageInput.value;
   messageSubmitting = true;
-  showMessageFeedback(pageText("正在发送…", "Posting…"), false);
+  showMessageFeedback(() => pageText("正在发送…", "Posting…"), false);
   if (button) button.disabled = true;
   try {
     const response = await (window.siteFetch || fetch)(COMMENTS_API, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ nickname, content }) });
     const data = await response.json();
     if (!response.ok) {
       const failure = new Error("Comment rejected");
-      failure.userMessage = commentErrorMessage(data, response);
+      failure.userMessage = () => commentErrorMessage(data, response);
       throw failure;
     }
     if (!data.comment || !Number.isSafeInteger(data.comment.id)) {
@@ -314,16 +319,17 @@ async function addMessage() {
     if (messageInput.value === originalContent) messageInput.value = "";
     wallRevision++;
     pendingWallMessages.set(data.comment.id, { revision: wallRevision, message: data.comment });
-    if (messageLoadState === "empty") messageLoadState = "ready";
+    // A successful post also clears an earlier load error: the wall now shows a message.
+    if (messageLoadState === "empty" || messageLoadState === "error") messageLoadState = "ready";
     updateMessageLoadStatus();
     createFloatingMessage(data.comment, false);
-    showMessageFeedback(pageText("留言已贴到墙上。", "Your message is on the wall."), false);
+    showMessageFeedback(() => pageText("留言已贴到墙上。", "Your message is on the wall."), false);
     window.dispatchEvent(new Event("commentposted"));
   } catch (error) {
     console.error("留言发布失败：", error);
     // Only show text we localized ourselves; never surface a raw Error message.
     const networkFailure = error instanceof TypeError || error instanceof SyntaxError || error?.name === "TimeoutError" || error?.name === "AbortError";
-    showMessageFeedback(typeof error?.userMessage === "string" && error.userMessage ? error.userMessage : networkFailure ? pageText("无法连接服务器或响应异常，请稍后重试。", "The server is unavailable or returned an invalid response. Please try again.") : pageText("留言发布失败。", "Failed to post your message."));
+    showMessageFeedback(typeof error?.userMessage === "function" ? error.userMessage : networkFailure ? () => pageText("无法连接服务器或响应异常，请稍后重试。", "The server is unavailable or returned an invalid response. Please try again.") : () => pageText("留言发布失败。", "Failed to post your message."));
   } finally {
     messageSubmitting = false;
     if (button) button.disabled = false;
@@ -360,12 +366,20 @@ async function loadMessages() {
     updateMessageLoadStatus();
   }
 }
+// message is a string or a function returning the current-language text; functions are
+// re-run on languagechange so the status follows a language switch.
 function showMessageFeedback(message, error = true) {
+  const render = typeof message === "function" ? message : () => message;
   const status = document.getElementById("message-submit-status");
-  if (!status) { if (error) alert(message); return; }
-  status.textContent = message;
+  if (!status) { if (error) alert(render()); return; }
+  status._renderFeedback = render;
+  status.textContent = render();
   status.dataset.error = String(error);
 }
+window.addEventListener?.("languagechange", () => {
+  const status = document.getElementById("message-submit-status");
+  if (typeof status?._renderFeedback === "function") status.textContent = status._renderFeedback();
+});
 const messageTracks = [];
 let wallInView = true;
 let wallStatic = false;
@@ -487,7 +501,11 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden) removeExpiredMessages();
 });
 let wallResizeTimer;
+let wallResizeWidth = window.innerWidth;
 window.addEventListener("resize", () => {
+  // Height-only resizes (iOS address bar collapsing while scrolling) must not reshuffle the wall.
+  if (window.innerWidth === wallResizeWidth) return;
+  wallResizeWidth = window.innerWidth;
   clearTimeout(wallResizeTimer);
   wallResizeTimer = setTimeout(() => document.querySelectorAll(".floating-message").forEach(element => element.refreshLayout()), 150);
 });
@@ -498,8 +516,13 @@ const TAG_PRIORITY = new Map([
   ["singles", 2]
 ]);
 let singerTagCounts = new Map();
+// js/songs.js can fail to load (flaky network/CDN); keep the pre-rendered list and the rest of the page working.
+function songsAvailable() {
+  return typeof SONGS !== "undefined" && Array.isArray(SONGS);
+}
 function buildSingerTagCounts() {
   const counts = new Map();
+  if (!songsAvailable()) return counts;
   SONGS.forEach(({ singers }) => {
     const uniqueSingers = new Set(singers.map((singer) => normalizeTag(singer)));
     uniqueSingers.forEach((singer) => {
@@ -581,7 +604,7 @@ function getCleanSongTitle(link) {
 }
 function renderSongs() {
   const list = document.getElementById("song-list");
-  if (!list) return;
+  if (!list || !songsAvailable()) return;
   list.replaceChildren();
   SONGS.forEach((song, index) => {
     const link = document.createElement("a");
@@ -647,10 +670,10 @@ function getSongThumbnailUrl(href) {
   }
 }
 function formatChineseViews(count) {
-  const units = [[100000000, "亿"], [1000000, "百万"], [10000, "万"]];
+  const units = [[100000000, "亿"], [10000, "万"]];
   const unit = units.find(([minimum]) => count >= minimum);
   if (!unit) return count.toLocaleString("zh-CN");
-  return new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 1 }).format(count / unit[0]) + unit[1];
+  return new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 1, useGrouping: false }).format(count / unit[0]) + unit[1];
 }
 function renderInlineSongTags(link) {
   if (link.classList.contains("tag-ready")) return;
@@ -913,7 +936,6 @@ document.addEventListener("DOMContentLoaded", () => {
   applyTheme();
   discoverHeroImages();
   initEasterEgg();
-  initTagFilter();
   // Bind controls in JS so CSP can omit script-src 'unsafe-inline'.
   document.getElementById("lang-btn")?.addEventListener("click", toggleLanguage);
   document.getElementById("theme-btn")?.addEventListener("click", toggleTheme);
@@ -951,6 +973,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const trimCommentFields = () => enforceCommentFieldLimits(nameInput, messageInput);
   nameInput?.addEventListener("input", trimCommentFields);
   messageInput?.addEventListener("input", trimCommentFields);
+  // Enter posts from the nickname field; the textarea keeps Enter for new lines and posts on Ctrl/Cmd+Enter.
+  nameInput?.addEventListener("keydown", event => {
+    if (event.key === "Enter" && !event.isComposing && event.keyCode !== 229) { event.preventDefault(); addMessage(); }
+  });
+  messageInput?.addEventListener("keydown", event => {
+    if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && !event.isComposing) { event.preventDefault(); addMessage(); }
+  });
+  // Song list/tag filter last: a failure there must not leave the buttons above unbound.
+  try { initTagFilter(); } catch (error) { console.error("曲库初始化失败：", error); }
   const heroBg = document.getElementById("hero-bg");
   if (heroBg) {
     heroBg.addEventListener("click", (event) => {
@@ -1006,13 +1037,13 @@ function createConfetti() {
     const card = i % 3 === 0;
     piece.className = card ? "forecast-particle forecast-card" : "forecast-particle forecast-symbol";
     if (card) {
-      const song = SONGS[Math.floor(Math.random() * SONGS.length)];
+      const song = songsAvailable() && SONGS.length ? SONGS[Math.floor(Math.random() * SONGS.length)] : null;
       const number = document.createElement("small");
       number.textContent = `FM · ${String(i + 1).padStart(2, "0")}`;
       const title = document.createElement("strong");
-      title.textContent = song.title;
+      title.textContent = song?.title || "INABAKUMORI";
       const album = document.createElement("small");
-      album.textContent = song.album;
+      album.textContent = song?.album || "";
       piece.append(number, title, album);
     } else piece.textContent = symbols[i % symbols.length];
     piece.style.setProperty("--left", `${Math.random() * 100}%`);

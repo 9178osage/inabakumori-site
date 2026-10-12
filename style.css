@@ -34,7 +34,7 @@
   --ui-surface-solid: #e8e8e8;
   --ui-input-bg: var(--color-white);
   --ui-text: var(--color-ink);
-  --ui-muted: #5d5d5d;
+  --ui-muted: #474747; /* 5.1:1 on --main-bg #c4c4c4 (was #5d5d5d, 3.77:1) */
   --ui-border: rgba(37, 37, 37, 0.24);
   --ui-border-strong: rgba(37, 37, 37, 0.52);
   --ui-action-bg: var(--color-ink);
@@ -1341,8 +1341,11 @@ body.dark .tag-chip.active {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 44px auto;
     gap: 8px;
-    width: min(420px, calc(100% - 24px - env(safe-area-inset-left) - env(safe-area-inset-right)));
+    /* left+right instead of a min()/env() width: that declaration fell back to max-content (380px at 320px wide). */
+    left: max(12px, env(safe-area-inset-left, 0px), calc(100% - 432px));
+    width: auto;
   }
+  #auth-btn { overflow: hidden; text-overflow: ellipsis; }
   #lang-btn,
   #theme-btn,
   #auth-btn {
@@ -1709,7 +1712,7 @@ body.modal-open { overflow: hidden; }
   .section-nav { gap: 24px; padding-right: 320px; }
 }
 @media (max-width: 700px), (pointer: coarse) and (max-width: 1000px) {
-  .hero { min-height: 580px; }
+  .hero { min-height: 580px; min-height: min(580px, 100svh); }
   .station-mark { top: 84px; left: 22px; font-size: 11px; }
   .station-mark-small { font-size: 8px; }
   .hero-content { padding-top: 48px; }
@@ -1749,6 +1752,13 @@ body.modal-open { overflow: hidden; }
   .song-thumbnail { display: none; }
   .section-nav a { padding-inline: 8px; }
 }
+/* Long (ja/en) labels must never widen the page: the sticky nav scrolls on its own instead. */
+@media (max-width: 480px) {
+  .section-nav { justify-content: flex-start; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
+  .section-nav::-webkit-scrollbar { display: none; }
+  .section-nav a { flex: 0 0 auto; padding-inline: 8px; }
+}
+
 
 /* Hidden forecast: monochrome celebration, only animated while open. */
 #easter-egg-trigger {
@@ -1929,6 +1939,7 @@ body.easter-egg-open { overflow: hidden; }
   margin: 0;
   max-width: min(96vw, 1100px);
   max-height: calc(100vh - 120px);
+  max-height: calc(100dvh - 120px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1940,6 +1951,7 @@ body.easter-egg-open { overflow: hidden; }
 .nknk-lightbox-image {
   max-width: 100%;
   max-height: calc(100vh - 160px);
+  max-height: calc(100dvh - 160px);
   width: auto;
   height: auto;
   object-fit: contain;
@@ -1963,6 +1975,8 @@ body.easter-egg-open { overflow: hidden; }
 body.nknk-lightbox-open {
   overflow: hidden;
 }
+/* The lightbox close button sits where the language button is; the page controls are inert behind it anyway. */
+body.nknk-lightbox-open .site-controls { visibility: hidden; }
 @media (max-width: 700px) {
   .nknk-lightbox {
     grid-template-columns: 1fr;
@@ -1975,6 +1989,7 @@ body.nknk-lightbox-open {
     grid-column: 1;
     grid-row: 2;
     max-height: calc(100vh - 160px);
+    max-height: calc(100dvh - 160px);
   }
   .nknk-lightbox-prev,
   .nknk-lightbox-next {
