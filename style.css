@@ -1648,10 +1648,11 @@ button, select { touch-action: manipulation; }
 .section-kicker { font: 500 11px/1.6 var(--font-data); letter-spacing: .18em; color: var(--ui-muted); margin: 0 0 26px; }
 main > section:not(#songs) { width: min(1120px, calc(100% - 64px)); }
 main > section + section { border-top: 1px solid var(--link-border); }
-#about { display: grid; grid-template-columns: 1fr 1fr; column-gap: 80px; }
-.artist-profile { grid-row: span 4; margin: 0; }
-#about > h2:not(#related-links-title) { font-size: 24px; margin: 6px 0 0; }
-#about > p { line-height: 1.9; }
+#about { display: block; }
+.artist-profile { margin: 0; }
+.site-about { margin-top: 56px; }
+.site-about > h2 { font-size: 24px; margin: 6px 0 0; }
+.site-about > p { line-height: 1.9; max-width: 75ch; }
 #about > #related-links-title { grid-column: 1 / -1; margin: 68px 0 0; font-size: 26px; }
 #about > .links-intro, #about > .artist-links { grid-column: 1 / -1; }
 .links-intro { font-family: var(--font-body); font-size: 14px; color: var(--ui-muted); max-width: 75ch; }
@@ -1700,7 +1701,6 @@ footer > p { max-width: 720px; margin: 16px auto; font-size: 13px; }
 body.modal-open { overflow: hidden; }
 @media (max-width: 1000px) {
   .section-nav { gap: 24px; padding-right: 320px; }
-  #about { column-gap: 32px; }
 }
 @media (max-width: 700px), (pointer: coarse) and (max-width: 1000px) {
   .hero { min-height: 580px; }
@@ -1716,8 +1716,7 @@ body.modal-open { overflow: hidden; }
   .section-nav a { padding: 8px 12px; font-size: 12px; }
   .section-nav .back-top { margin: 0; }
   html { scroll-padding-top: calc(140px + env(safe-area-inset-top)); }
-  #about { display: block; }
-  .artist-profile { margin-bottom: 38px; }
+  .site-about { margin-top: 38px; }
   #about > #related-links-title { margin-top: 44px; }
   main > section:not(#songs), main > section#messages, #songs { width: calc(100% - 36px); }
   h2 { font-size: 30px; letter-spacing: 2px; }
