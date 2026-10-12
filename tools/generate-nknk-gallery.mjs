@@ -105,6 +105,13 @@ const entries = (await readdir(sourceDir))
   .filter(Boolean)
   .sort((a, b) => a.id - b.id);
 
+// Numbered symlink inputs could make the image tool read outside the gallery source.
+for (const item of entries) {
+  const input = path.join(sourceDir, item.name);
+  if (!(await lstat(input)).isFile()) throw new Error(`Refusing non-file gallery source: ${item.name}`);
+  assertRepoPath(root, input, { mustExist: true });
+}
+
 if (!entries.length) throw new Error(`No numbered images found in ${sourceDir}`);
 for (let i = 0; i < entries.length; i++) {
   if (entries[i].id !== i + 1) throw new Error(`Expected sequential ids starting at 1; got gap at ${i + 1} (found ${entries[i].id})`);
