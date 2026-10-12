@@ -22,6 +22,6 @@ if (window.top !== window.self) {
   const resolved = ["light", "dark"].includes(theme)
     ? theme : window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   document.documentElement.dataset.theme = resolved;
-  const themeColor = typeof document.querySelector === "function" ? document.querySelector('meta[name="theme-color"]') : null;
-  if (themeColor) themeColor.setAttribute("content", resolved === "dark" ? "#171b1f" : "#c4c4c0");
+  const themeColors = typeof document.querySelectorAll === "function" ? document.querySelectorAll('meta[name="theme-color"]') : [];
+  themeColors.forEach(meta => meta.setAttribute("content", resolved === "dark" ? "#171b1f" : "#c4c4c0"));
 })();

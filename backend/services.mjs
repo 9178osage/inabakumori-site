@@ -345,3 +345,11 @@ export function revokeSessionsAfterPasswordReset(passwordResetPOST, revokeAllSes
     return response;
   };
 }
+
+// Client errors raised by middleware (body-parser: corrupt gzip/deflate/br, bad Content-Length, ...)
+// keep their 4xx status. The body is always generic so the error's own message never leaks.
+export function clientErrorResponse(err) {
+  const status = Number(err?.status ?? err?.statusCode);
+  if (!Number.isInteger(status) || status < 400 || status > 499) return null;
+  return { status, body: { error: "请求无法处理，请刷新页面后重试", code: "BAD_REQUEST" } };
+}

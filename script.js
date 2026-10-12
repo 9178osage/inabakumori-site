@@ -121,7 +121,8 @@ function applyTheme() {
   const themeButton = document.getElementById("theme-btn");
   document.body.classList.toggle("dark", currentTheme === "dark");
   if (document.documentElement.dataset) document.documentElement.dataset.theme = currentTheme;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", currentTheme === "dark" ? "#171b1f" : "#c4c4c0");
+  // Manual theme overrides both media-specific theme-color tags (the HTML defaults follow the OS without JS).
+  document.querySelectorAll?.('meta[name="theme-color"]').forEach(meta => meta.setAttribute("content", currentTheme === "dark" ? "#171b1f" : "#c4c4c0"));
   if (themeButton) {
     themeButton.innerText = currentTheme === "dark" ? "☀" : "☾";
     // Toggle button: a fixed name plus aria-pressed (an action name like "switch to light" would contradict pressed=true).
@@ -1049,9 +1050,14 @@ document.addEventListener("DOMContentLoaded", () => {
   } else loadMessages();
   const nameInput = document.getElementById("message-name");
   const messageInput = document.getElementById("message-input");
-  const trimCommentFields = () => enforceCommentFieldLimits(nameInput, messageInput);
+  // Never trim mid-composition (IME): cutting the field while a Japanese/Chinese candidate is open
+  // breaks the input. Enforce the limit once the composition is committed instead.
+  const trimCommentFields = event => { if (!event?.isComposing) enforceCommentFieldLimits(nameInput, messageInput); };
+  const trimAfterComposition = () => enforceCommentFieldLimits(nameInput, messageInput);
   nameInput?.addEventListener("input", trimCommentFields);
   messageInput?.addEventListener("input", trimCommentFields);
+  nameInput?.addEventListener("compositionend", trimAfterComposition);
+  messageInput?.addEventListener("compositionend", trimAfterComposition);
   // Enter posts from the nickname field; the textarea keeps Enter for new lines and posts on Ctrl/Cmd+Enter.
   nameInput?.addEventListener("keydown", event => {
     if (event.key === "Enter" && !event.isComposing && event.keyCode !== 229) { event.preventDefault(); addMessage(); }
