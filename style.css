@@ -1757,7 +1757,6 @@ body.easter-egg-open { overflow: hidden; }
 .easter-egg-kicker { font: 10px/1.6 var(--font-data); letter-spacing: .15em; color: var(--ui-muted); }
 #easter-egg-title { font: 600 clamp(20px, 4vw, 28px)/1.5 var(--font-heading); margin: 14px 0; }
 .easter-egg-stars { font-size: 28px; letter-spacing: .12em; margin: 8px 0; }
-#easter-egg-description { font-size: 13px; line-height: 1.8; color: var(--ui-muted); }
 #easter-egg-close { min-height: 44px; padding: 10px 24px; border-radius: 6px; }
 .forecast-particle {
   position: absolute; top: -160px; left: var(--left); will-change: transform;
