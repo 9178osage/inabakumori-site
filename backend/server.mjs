@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { validateCommentInput, websiteLocation, resolveDatabasePath, parseAdditionalOrigins, clientIpResolver, parseAdminUserIds, createAdminCheck, buildVersion, createRecentDuplicateChecker, insertFreshComment, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery, requireJsonRequestBody } from "./services.mjs";
+import { validateCommentInput, websiteLocation, resolveDatabasePath, parseAdditionalOrigins, clientIpResolver, parseAdminUserIds, createAdminCheck, buildVersion, createRecentDuplicateChecker, insertFreshComment, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery, requireJsonRequestBody, revokeSessionsAfterPasswordReset } from "./services.mjs";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -134,6 +134,10 @@ supertokens.init({
           const next = { ...original };
           // Unused by this site. Leaving it open allows bulk email enumeration.
           delete next.emailExistsGET;
+          // A reset must also sign out every existing session (a stolen session would otherwise survive it).
+          if (original.passwordResetPOST) {
+            next.passwordResetPOST = revokeSessionsAfterPasswordReset(original.passwordResetPOST, userId => Session.revokeAllSessionsForUser(userId));
+          }
           return next;
         }
       }

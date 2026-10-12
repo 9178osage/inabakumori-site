@@ -487,3 +487,41 @@ test('unknown non-API backend paths return a JSON 404 before the error handlers'
   const errors = backend.indexOf('app.use(errorHandler());');
   assert.ok(apiNotFound > 0 && catchAll > apiNotFound && errors > catchAll, 'catch-all JSON 404 must sit after /api 404 and before errorHandler');
 });
+
+test('a successful password reset revokes every existing session of that user', async () => {
+  const backend = fs.readFileSync('backend/server.mjs', 'utf8');
+  assert.match(backend, /delete next\.emailExistsGET;/, 'email-exists API must remain disabled');
+  assert.match(backend, /next\.passwordResetPOST = revokeSessionsAfterPasswordReset\(original\.passwordResetPOST, userId => Session\.revokeAllSessionsForUser\(userId\)\)/,
+    'password reset must be wrapped so it revokes all sessions');
+  const { revokeSessionsAfterPasswordReset } = await import('../../backend/services.mjs');
+  const logs = [];
+  const log = { warn: (...args) => logs.push(['warn', ...args]), error: (...args) => logs.push(['error', ...args]) };
+  const input = { token: 'secret-reset-token-123', tenantId: 'public', formFields: [{ id: 'password', value: 'NewPassw0rd!' }] };
+  const run = async (result, revoke) => {
+    const revoked = [];
+    const wrapped = revokeSessionsAfterPasswordReset(async received => { assert.equal(received, input); return result; },
+      revoke || (async userId => { revoked.push(userId); return ['handle']; }), log);
+    return { response: await wrapped(input), revoked };
+  };
+  const ok = { status: 'OK', email: 'fan@example.com', user: { id: 'user-1' } };
+  let outcome = await run(ok);
+  assert.equal(outcome.response, ok);
+  assert.deepEqual(outcome.revoked, ['user-1']);
+  for (const status of ['RESET_PASSWORD_INVALID_TOKEN_ERROR', 'PASSWORD_POLICY_VIOLATED_ERROR', 'GENERAL_ERROR']) {
+    const failed = { status };
+    outcome = await run(failed);
+    assert.equal(outcome.response, failed);
+    assert.deepEqual(outcome.revoked, [], `${status} must not revoke sessions`);
+  }
+  assert.equal(logs.length, 0);
+  outcome = await run({ status: 'OK', email: 'fan@example.com' });
+  assert.deepEqual(outcome.revoked, [], 'a missing user is handled without throwing');
+  assert.equal(logs.at(-1)[0], 'warn');
+  const failure = Object.assign(new Error('core unreachable secret-reset-token-123'), { code: 'ECONNREFUSED' });
+  outcome = await run(ok, async () => { throw failure; });
+  assert.equal(outcome.response, ok, 'a revocation failure must not turn a completed reset into an error');
+  assert.equal(logs.at(-1)[0], 'error');
+  assert.doesNotMatch(JSON.stringify(logs), /secret-reset-token-123|NewPassw0rd|fan@example\.com/, 'logs must not contain tokens, passwords or emails');
+  await assert.rejects(revokeSessionsAfterPasswordReset(async () => { throw new Error('boom'); }, async () => {}, log)(input), /boom/,
+    'errors from the reset itself still propagate to the SuperTokens error handler');
+});

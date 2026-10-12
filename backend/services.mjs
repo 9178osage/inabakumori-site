@@ -308,3 +308,24 @@ export function passwordResetDelivery(websiteDomain) {
     })
   };
 }
+
+// SuperTokens keeps existing sessions after a password reset. Revoke all of the user's
+// sessions (across tenants and linked accounts) once the reset succeeded. A revocation
+// failure is logged without tokens or emails and never turns a completed reset into a 500.
+export function revokeSessionsAfterPasswordReset(passwordResetPOST, revokeAllSessionsForUser, log = console) {
+  return async input => {
+    const response = await passwordResetPOST(input);
+    if (response?.status !== "OK") return response;
+    const userId = response.user?.id;
+    if (typeof userId !== "string" || !userId) {
+      log.warn("Password reset succeeded without a user id; no sessions revoked");
+      return response;
+    }
+    try {
+      await revokeAllSessionsForUser(userId);
+    } catch (error) {
+      log.error("Session revocation after password reset failed", { name: error?.name, code: error?.code });
+    }
+    return response;
+  };
+}
