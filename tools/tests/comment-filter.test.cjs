@@ -33,3 +33,13 @@ test('comment validation rejects invisible-only text and bidi marks, keeps emoji
   }
   assert.deepEqual(validateCommentInput({ nickname: '\u3164rain', content: '👨‍👩‍👧 好听\n第二行' }), { ok: true, nickname: '\u3164rain', content: '👨‍👩‍👧 好听\n第二行' });
 });
+
+test('"加" only counts as a contact word when it introduces contact details', async () => {
+  const { detectCommentSafetyIssue } = await load();
+  for (const text of ['加油！13812345678次', '加油加油 我听了13812345678遍', '增加 13812345678 次播放']) {
+    assert.equal(detectCommentSafetyIssue(text), null, text);
+  }
+  for (const text of ['加我 13812345678', '加微信13812345678', '加v 13812345678', '加qq：13812345678', '加个好友 13812345678', '加一下 13812345678']) {
+    assert.notEqual(detectCommentSafetyIssue(text), null, text);
+  }
+});
