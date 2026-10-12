@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { validateCommentInput, websiteLocation, resolveDatabasePath, parseAdditionalOrigins, clientIpResolver, parseAdminUserIds, createAdminCheck, buildVersion, createRecentDuplicateChecker, insertFreshComment, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery, requireJsonRequestBody, revokeSessionsAfterPasswordReset } from "./services.mjs";
+import { validateCommentInput, websiteLocation, resolveDatabasePath, parseAdditionalOrigins, clientIpResolver, parseAdminUserIds, createAdminCheck, buildVersion, createRecentDuplicateChecker, insertFreshComment, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery, requireJsonRequestBody, revokeSessionsAfterPasswordReset, clientErrorResponse } from "./services.mjs";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -404,6 +404,10 @@ app.use((err, req, res, next) => {
   if (res.headersSent) {
     return next(err);
   }
+  // Any other client error (e.g. body-parser's 400 for a corrupt gzip/deflate/br body) keeps its 4xx
+  // status; only a generic message is sent, never the error's own text.
+  const clientError = clientErrorResponse(err);
+  if (clientError) return res.status(clientError.status).json(clientError.body);
   if (IS_PRODUCTION) {
     console.error("Internal server error", { requestId: req.requestId, name: err?.name, code: err?.code });
   } else {
