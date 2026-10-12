@@ -169,7 +169,10 @@
       const hero = document.querySelector(".hero");
       new IntersectionObserver(entries => {
         // Several entries can be queued for one target during a fast scroll; the last one is current.
-        hero.classList.toggle("out-of-view", !entries[entries.length - 1].isIntersecting);
+        const out = !entries[entries.length - 1].isIntersecting;
+        hero.classList.toggle("out-of-view", out);
+        // Class on the controls themselves (not body:has(...)) so toggling restyles only them (perf P6).
+        document.querySelector(".site-controls")?.classList.toggle("hero-out", out);
       }).observe(hero);
     }
     // Active section comes from the scroll position on every (rAF-throttled) scroll/resize, not from

@@ -398,7 +398,8 @@ async function loadMessages() {
       if (entry.revision > revision) merged.set(entry.message.id, entry.message);
     });
     const comments = [...merged.values()].filter((message) => !deletedWallMessages.has(message.id) && (!message.expiresAt || Date.parse(message.expiresAt) > Date.now()));
-    comments.forEach((message) => createFloatingMessage(message, true));
+    const created = comments.map((message) => createFloatingMessage(message, true, true)).filter(Boolean);
+    created.forEach((element) => element.refreshLayout());
     pendingWallMessages.clear();
     messageLoadState = comments.length ? "ready" : "empty";
     updateMessageLoadStatus();
@@ -471,7 +472,7 @@ function findSafeY(messageHeight, wallHeight) {
   messageTracks.push({ y: bestY, height: messageHeight });
   return bestY;
 }
-function createFloatingMessage(message, startInside = false) {
+function createFloatingMessage(message, startInside = false, deferLayout = false) {
   const wall = document.getElementById("floating-wall");
   const expiresAt = message.expiresAt ? Date.parse(message.expiresAt) : NaN;
   if (!wall || Number.isFinite(expiresAt) && expiresAt <= Date.now()) return;
@@ -523,7 +524,10 @@ function createFloatingMessage(message, startInside = false) {
   element.style.left = "0";
   element.style.top = "0";
   wall.appendChild(element);
+  // Batched callers append every message first and lay them out afterwards (perf P1: one forced layout, not one per message).
+  if (deferLayout) return element;
   element.refreshLayout();
+  return element;
 }
 function removeExpiredMessages() {
   document.querySelectorAll(".floating-message[data-expires-at]").forEach((element) => {
@@ -652,7 +656,10 @@ function getCleanSongTitle(link) {
 function renderSongs() {
   const list = document.getElementById("song-list");
   if (!list || !songsAvailable()) return;
-  list.replaceChildren();
+  // Build off-document and insert once: one style/layout pass instead of one per song (perf P1).
+  const fragment = document.createDocumentFragment?.() || null;
+  if (!fragment) list.replaceChildren();
+  const links = [];
   SONGS.forEach((song, index) => {
     const link = document.createElement("a");
     link.href = song.youtube;
@@ -662,12 +669,16 @@ function renderSongs() {
     link.dataset.songTitle = song.title;
     link._songData = song;
     link.textContent = String(index + 1).padStart(2, "0") + "　" + song.title;
-    list.appendChild(link);
+    (fragment || list).appendChild(link);
+    links.push(link);
   });
+  prepareSongTags(links);
+  if (fragment) list.replaceChildren(fragment);
+  return true;
 }
-function prepareSongTags() {
+function prepareSongTags(links) {
   buildSingerTagCounts();
-  document.querySelectorAll(".song-scroll a").forEach((link) => {
+  (links || document.querySelectorAll(".song-scroll a")).forEach((link) => {
     const title = getCleanSongTitle(link);
     const albumTitle = String(link.dataset.album || "").trim();
     link.dataset.songTitle = title;
@@ -966,8 +977,7 @@ function initTagFilter() {
   if (!input) {
     return;
   }
-  renderSongs();
-  prepareSongTags();
+  if (!renderSongs()) prepareSongTags();
   input.addEventListener("input", updateTagFilter);
   if (clear) {
     clear.addEventListener("click", () => {
