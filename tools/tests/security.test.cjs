@@ -189,5 +189,6 @@ test("the published contact address never becomes an admin login identifier", ()
   }
   const securityDoc = read("docs/SECURITY.md");
   assert.match(securityDoc, /\*\*唯一\*\*管理员来源/, "the admin source must stay documented as user IDs only");
-  assert.match(securityDoc, /管理员登录邮箱必须与公开联系邮箱不同/, "the login-email invariant must stay documented");
+  assert.match(securityDoc, /管理员登录邮箱应与公开联系邮箱不同/, "the login-email goal must stay documented");
+  assert.match(securityDoc, /当前已接受偏差/, "the accepted deviation must stay documented");
 });
