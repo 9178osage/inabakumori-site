@@ -643,5 +643,7 @@
     syncPauseState();
   }
 
-  document.addEventListener("DOMContentLoaded", initNknkGallery);
+  // The gallery sits below the fold: build it in its own task so it does not lengthen the
+  // DOMContentLoaded task shared with script.js/experience.js (one ~470 ms task at 4x CPU).
+  document.addEventListener("DOMContentLoaded", () => setTimeout(initNknkGallery, 0));
 })();

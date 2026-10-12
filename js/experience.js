@@ -188,7 +188,13 @@
         links.forEach(link => {
           if (link === active) link.setAttribute("aria-current", "location");
           else link.removeAttribute("aria-current");
-        });
+        });        // Narrow screens scroll the nav strip sideways (long ja/en labels); keep the active link in view.
+        if (active && nav.scrollWidth > nav.clientWidth + 1) {
+          const navBox = nav.getBoundingClientRect(), linkBox = active.getBoundingClientRect();
+          const edge = 12;
+          if (linkBox.right > navBox.right - edge) nav.scrollLeft += linkBox.right - navBox.right + edge;
+          else if (linkBox.left < navBox.left + edge) nav.scrollLeft -= navBox.left + edge - linkBox.left;
+        }
       };
       const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
       window.addEventListener("scroll", schedule, { passive: true });

@@ -231,9 +231,11 @@ html:lang(zh-CN) .hero-content nav a {
   text-shadow: 0 1px 5px rgba(0, 0, 0, 0.55);
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
-.hero-content nav a:hover {
-  opacity: 0.65;
-  transform: translateY(-2px);
+@media (hover: hover) {
+  .hero-content nav a:hover {
+    opacity: 0.65;
+    transform: translateY(-2px);
+  }
 }
 .glitch {
   position: relative;
@@ -477,8 +479,10 @@ h2 {
   flex-shrink: 0;
   transition: transform 0.2s ease;
 }
-.artist-links a:hover img {
-  transform: scale(1.12);
+@media (hover: hover) {
+  .artist-links a:hover img {
+    transform: scale(1.12);
+  }
 }
 button {
   padding: 15px 30px;
@@ -489,8 +493,10 @@ button {
   cursor: pointer;
   transition: var(--transition-button);
 }
-button:hover {
-  background: var(--button-hover);
+@media (hover: hover) {
+  button:hover {
+    background: var(--button-hover);
+  }
 }
 button:disabled {
   cursor: not-allowed;
@@ -534,14 +540,16 @@ button:disabled {
   right: 174px;
   min-width: 104px;
 }
-#lang-btn:hover,
-#theme-btn:hover,
-#auth-btn:hover {
-  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  color: var(--ui-action-text);
-  background: var(--ui-action-bg);
-  border-color: var(--ui-action-bg);
-  transform: translateY(-1px);
+@media (hover: hover) {
+  #lang-btn:hover,
+  #theme-btn:hover,
+  #auth-btn:hover {
+    box-shadow: 0 5px 14px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    color: var(--ui-action-text);
+    background: var(--ui-action-bg);
+    border-color: var(--ui-action-bg);
+    transform: translateY(-1px);
+  }
 }
 #lang-btn:active,
 #theme-btn:active,
@@ -747,9 +755,11 @@ main > section#messages {
   border: 1px solid var(--color-ink);
   transition: var(--transition-surface);
 }
-.auth-switch:hover {
-  background: var(--color-ink);
-  color: var(--color-white);
+@media (hover: hover) {
+  .auth-switch:hover {
+    background: var(--color-ink);
+    color: var(--color-white);
+  }
 }
 #auth-error {
   min-height: 20px;
@@ -1077,9 +1087,11 @@ body.dark .auth-switch {
   color: var(--color-light-text);
   border-color: #b1b1b1;
 }
-body.dark .auth-switch:hover {
-  background: var(--color-light-text);
-  color: var(--color-ink);
+@media (hover: hover) {
+  body.dark .auth-switch:hover {
+    background: var(--color-light-text);
+    color: var(--color-ink);
+  }
 }
 body.dark #tag-filter-input:focus-visible {
   outline-color: var(--color-light-text);
@@ -1160,20 +1172,26 @@ body.dark footer {
   background: var(--ui-action-bg);
   border-color: var(--ui-action-bg);
 }
-.tag-clear-button:hover {
-  color: var(--ui-action-text);
-  background: var(--ui-action-bg);
-  border-color: var(--ui-action-bg);
+@media (hover: hover) {
+  .tag-clear-button:hover {
+    color: var(--ui-action-text);
+    background: var(--ui-action-bg);
+    border-color: var(--ui-action-bg);
+  }
 }
-.message-box button:hover {
-  opacity: 0.84;
+@media (hover: hover) {
+  .message-box button:hover {
+    opacity: 0.84;
+  }
 }
 .message-box button:active {
   transform: translateY(1px);
 }
-.tag-chip:hover {
-  border-color: var(--ui-border-strong);
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .tag-chip:hover {
+    border-color: var(--ui-border-strong);
+    transform: translateY(-1px);
+  }
 }
 .tag-chip.active {
   color: var(--ui-action-text);
@@ -1240,9 +1258,11 @@ body.dark .tag-chip.active {
   border-radius: 10px;
   transition: opacity 0.18s ease, transform 0.18s ease;
 }
-#random-song-button:hover {
-  opacity: 0.8;
-  transform: translateY(-1px);
+@media (hover: hover) {
+  #random-song-button:hover {
+    opacity: 0.8;
+    transform: translateY(-1px);
+  }
 }
 #random-song-button:active {
   transform: translateY(0);
@@ -1480,9 +1500,11 @@ body.dark .tag-chip.active {
     padding: 14px;
     font-size: 17px;
   }
-  .song-list a:hover {
-    opacity: 1;
-    transform: none;
+  @media (hover: hover) {
+    .song-list a:hover {
+      opacity: 1;
+      transform: none;
+    }
   }
   #tag-filter-input {
     height: 44px;
@@ -1617,7 +1639,7 @@ html.page-hidden *::after {
 [hidden] { display: none !important; }
 body { line-height: 1.65; }
 button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
-button, select { touch-action: manipulation; }
+button, select, a { touch-action: manipulation; }
 ::selection { background: #d0d0d0; color: #252525; }
 .station-mark {
   position: absolute; top: 22px; left: max(32px, env(safe-area-inset-left));
@@ -1635,7 +1657,9 @@ button, select { touch-action: manipulation; }
   border: 1px solid #fff8; border-radius: 4px; text-decoration: none; font-size: 14px;
   transition: background .2s, transform .2s;
 }
-.hero-cta:hover { background: white; transform: translateY(-2px); }
+@media (hover: hover) {
+  .hero-cta:hover { background: white; transform: translateY(-2px); }
+}
 .hero-content nav { margin-top: 28px; }
 .hero-content nav a { margin: 10px 15px; font-size: 13px; border-bottom-color: #ffffff50; }
 .hero-bottom {
@@ -1688,7 +1712,9 @@ main > section + section { border-top: 1px solid var(--link-border); }
 .song-row:focus-within { outline: 2px solid var(--ui-border-strong); outline-offset: 2px; }
 .song-row a:focus-visible { outline: 2px solid var(--ui-text); outline-offset: -3px; }
 .song-favorite { flex: 0 0 48px; padding: 8px; font-size: 24px; color: var(--ui-muted); background: transparent; border-left: 1px solid var(--link-border); }
-.song-favorite:hover { color: var(--ui-text); background: var(--link-hover-bg); }
+@media (hover: hover) {
+  .song-favorite:hover { color: var(--ui-text); background: var(--link-hover-bg); }
+}
 .song-favorite[aria-pressed="true"] { color: var(--ui-text); }
 .song-favorite:focus-visible { outline-offset: -4px; }
 .wall-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
@@ -1727,7 +1753,7 @@ body.modal-open { overflow: hidden; }
   html { scroll-padding-top: calc(140px + env(safe-area-inset-top)); }
   .site-about { margin-top: 38px; }
   #about > #related-links-title { margin-top: 44px; }
-  main > section:not(#songs), main > section#messages, #songs { width: calc(100% - 36px); }
+  main > section:not(#songs), main > section#messages, #songs { width: calc(100% - 36px - env(safe-area-inset-left) - env(safe-area-inset-right)); }
   h2 { font-size: 30px; letter-spacing: 2px; }
   .section-kicker { font-size: 10px; margin-bottom: 18px; }
   .artist-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -2000,3 +2026,8 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
   .nknk-lightbox-next { justify-self: end; }
 }
 
+
+/* Touch feedback: hover styles are pointer-only, so taps get a brief pressed state instead. */
+@media (hover: none) {
+  :is(button, .hero-cta, .artist-links a, .artwork-link, .song-list a, .contact-email, .hero-content nav a):active { opacity: 0.72; }
+}
