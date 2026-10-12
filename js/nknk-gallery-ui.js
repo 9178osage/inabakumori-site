@@ -126,13 +126,50 @@
       preloadAdjacent(lightboxIndex);
     };
 
-    const openAt = (nextIndex) => {
+    // Back (phone/browser) closes the lightbox: opening adds one same-URL history entry, closing by any
+    // other means removes it again, so hash navigation and scroll restoration are unaffected.
+    let historyEntry = false;
+    let ignoreNextPop = false;
+    let openScrollY = 0;
+    let ignoreBackdropUntil = 0;
+    // Going back to the earlier entry would apply that entry's saved scroll position; the page could
+    // not scroll while the lightbox was open, so put it back where the reader opened the lightbox.
+    // While our entry exists, scroll restoration is manual so the traversal does not move the page;
+    // the previous setting comes back once the traversal is done (reload restoration is unaffected).
+    let savedRestoration = null;
+    // Pin on the next frame: an instant scrollTo then also cancels the smooth fragment scroll that
+    // Chrome starts after the traversal (scroll-behavior: smooth), which a synchronous call cannot.
+    const keepScroll = (y) => requestAnimationFrame(() => {
+      window.scrollTo({ top: y, behavior: "instant" });
+      if (savedRestoration !== null) { try { history.scrollRestoration = savedRestoration; } catch { /* ignore */ } savedRestoration = null; }
+    });
+    window.addEventListener("popstate", () => {
+      if (ignoreNextPop) { ignoreNextPop = false; keepScroll(openScrollY); return; }
+      if (!lightboxOpen) return;
+      historyEntry = false;
+      keepScroll(openScrollY);
+      // The browser may move focus while it finishes the traversal; restore it afterwards.
+      closeLightbox({ deferFocus: true });
+    });
+    const openAt = (nextIndex, source = null) => {
       if (lightboxOpen) {
         showLightbox(nextIndex);
         return;
       }
-      previousFocus = document.activeElement;
+      // A tap/click leaves focus on <body>; return it to the illustration that was activated instead.
+      const active = document.activeElement;
+      previousFocus = source || (active && active !== document.body ? active : null);
       lightboxOpen = true;
+      openScrollY = window.scrollY;
+      if (source) ignoreBackdropUntil = performance.now() + 500;
+      try {
+        history.pushState({ ...(history.state || {}), nknkLightbox: true }, "", location.href);
+        historyEntry = true;
+        if (savedRestoration === null && "scrollRestoration" in history) {
+          savedRestoration = history.scrollRestoration;
+          history.scrollRestoration = "manual";
+        }
+      } catch { historyEntry = false; }
       showLightbox(nextIndex);
       lightbox.hidden = false;
       // Same pattern as the easter-egg dialog: make everything behind the dialog inert.
@@ -145,7 +182,7 @@
       closeBtn?.focus();
     };
 
-    const closeLightbox = () => {
+    const closeLightbox = ({ deferFocus = false } = {}) => {
       if (!lightboxOpen) return;
       lightboxOpen = false;
       lightbox.hidden = true;
@@ -154,9 +191,26 @@
       document.body.classList.remove("nknk-lightbox-open");
       inertState.forEach(([node, wasInert]) => { node.inert = wasInert; });
       inertState = [];
-      previousFocus?.focus?.({ preventScroll: true });
+      if (previousFocus?.matches?.(".nknk-marquee-item")) {
+        galleryTrackOf(previousFocus)?.querySelectorAll(".nknk-marquee-item:not([aria-hidden='true'])").forEach(button => { button.tabIndex = button === previousFocus ? 0 : -1; });
+      }
+      if (deferFocus) {
+        const returnFocus = previousFocus;
+        setTimeout(() => returnFocus?.focus?.({ preventScroll: true }), 0);
+      } else previousFocus?.focus?.({ preventScroll: true });
       previousFocus = null;
+      if (historyEntry) {
+        historyEntry = false;
+        if (history.state?.nknkLightbox) { ignoreNextPop = true; history.back(); }
+        else keepScroll(window.scrollY);
+      }
       syncPauseState();
+    };
+    const galleryTrackOf = (button) => button.closest?.(".nknk-marquee-track");
+    // Clones are aria-hidden duplicates for the seamless loop; focus the original with the same index.
+    const originalButton = (button) => {
+      if (!button || button.getAttribute("aria-hidden") !== "true") return button;
+      return galleryTrackOf(button)?.querySelector(`.nknk-marquee-item:not([aria-hidden='true'])[data-gallery-index="${button.dataset.galleryIndex}"]`) || null;
     };
 
     const createButton = (item, absoluteIndex, { clone = false } = {}) => {
@@ -273,7 +327,7 @@
         activeButton = null;
         if (shouldClick) {
           const absoluteIndex = Number(shouldClick.dataset.galleryIndex);
-          if (Number.isFinite(absoluteIndex)) openAt(absoluteIndex);
+          if (Number.isFinite(absoluteIndex)) openAt(absoluteIndex, originalButton(shouldClick));
         }
         syncPauseState();
       };
@@ -334,6 +388,7 @@
         const button = event.target.closest?.(".nknk-marquee-item");
         if (!button) return;
         const absoluteIndex = Number(button.dataset.galleryIndex);
+        // Keyboard activation: the focused button is already document.activeElement.
         if (Number.isFinite(absoluteIndex)) openAt(absoluteIndex);
       });
     };
@@ -480,10 +535,13 @@
       if (!reduced) startLoop();
     };
 
-    closeBtn?.addEventListener("click", closeLightbox);
+    closeBtn?.addEventListener("click", () => closeLightbox());
     prevBtn?.addEventListener("click", () => openAt(lightboxIndex - 1));
     nextBtn?.addEventListener("click", () => openAt(lightboxIndex + 1));
     lightbox.addEventListener("click", (event) => {
+      // The lightbox opens on pointerup; on touch the browser's follow-up click then lands on the
+      // backdrop and would close it straight away, so ignore backdrop clicks right after opening.
+      if (performance.now() < ignoreBackdropUntil) return;
       if (event.target === lightbox) closeLightbox();
     });
 

@@ -288,3 +288,27 @@ test("Japanese authentication covers validation, reset instructions, and languag
   app.language("en");
   assert.equal(app.elements["auth-submit"].innerText, "Send Reset Email");
 });
+test("login button is busy during the session check and ignores repeat taps (UI only)", async () => {
+  const app = setup();
+  const attributes = {};
+  app.elements["auth-btn"].setAttribute = (name, value) => { attributes[name] = value; };
+  let checks = 0;
+  let release;
+  app.context.doesSessionExist = () => { checks++; return new Promise(resolve => { release = resolve; }); };
+  const first = app.run("openAuthModal()");
+  assert.equal(attributes["aria-busy"], "true");
+  assert.equal(attributes["aria-disabled"], "true");
+  app.run("openAuthModal()");
+  app.run("openAuthModal()");
+  assert.equal(checks, 1, "repeat taps during the check must not start more checks");
+  release(false);
+  await first;
+  assert.equal(attributes["aria-busy"], "false");
+  assert.equal(attributes["aria-disabled"], "false");
+  assert.equal(app.elements["auth-modal"].classList.contains("open"), true);
+  app.run("closeAuthModal()");
+  const second = app.run("openAuthModal()");
+  assert.equal(checks, 2, "a later tap starts a new check");
+  release(false);
+  await second;
+});

@@ -74,3 +74,23 @@ test("zh view counts use 万/亿 with one decimal and no grouping", () => {
   assert.equal(format(123456789), "1.2亿");
   assert.equal(format(9999), "9,999");
 });
+
+test("rate-limited message loads show a retry countdown from Retry-After in every language", async () => {
+  const { context, elements } = loadWithoutSongs();
+  vm.runInContext(fs.readFileSync("js/i18n.js", "utf8"), context);
+  const run = code => vm.runInContext(code, context);
+  assert.equal(run('retryAfterSeconds("42")'), 42);
+  assert.equal(run('retryAfterSeconds("")'), 30);
+  assert.equal(run('retryAfterSeconds("nonsense")'), 30);
+  assert.ok(Math.abs(run(`retryAfterSeconds(new Date(Date.now() + 90000).toUTCString())`) - 90) <= 1);
+  context.window.siteFetch = async () => ({ status: 429, ok: false, headers: { get: name => name.toLowerCase() === "retry-after" ? "25" : null }, json: async () => ({ code: "RATE_LIMITED" }) });
+  await run("loadMessages()");
+  assert.equal(run("messageLoadState"), "ratelimited");
+  assert.equal(elements["message-load-status"].textContent, "留言读取过于频繁，请在 25 秒后重试。");
+  assert.equal(elements["message-retry"].hidden, false, "retry stays available");
+  run('currentLanguage = "en"; updateMessageLoadStatus()');
+  assert.equal(elements["message-load-status"].textContent, "Too many requests. Please retry in 25 s.");
+  context.localStorage.getItem = () => "ja";
+  run('currentLanguage = "ja"; updateMessageLoadStatus()');
+  assert.equal(elements["message-load-status"].textContent, "読み込みが多すぎます。25 秒後に再試行してください。");
+});

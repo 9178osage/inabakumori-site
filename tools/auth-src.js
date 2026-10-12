@@ -126,8 +126,24 @@ function showAuthModal(mode) {
     document.getElementById(mode === "reset" ? "auth-password" : "auth-email")?.focus?.();
   }
 }
+// UI only: the session check can take a moment on slow networks, so show the button as busy right
+// away and ignore repeat taps until it finishes. The check and sign-in/out logic are unchanged.
+let authOpening = false;
 async function openAuthModal() {
-  if (authSubmitting) return;
+  if (authSubmitting || authOpening) return;
+  const button = document.getElementById("auth-btn");
+  authOpening = true;
+  button?.setAttribute("aria-busy", "true");
+  button?.setAttribute("aria-disabled", "true");
+  try {
+    await openAuthModalNow();
+  } finally {
+    authOpening = false;
+    button?.setAttribute("aria-busy", "false");
+    button?.setAttribute("aria-disabled", "false");
+  }
+}
+async function openAuthModalNow() {
   if (resetToken) {
     showAuthModal("reset");
     return;

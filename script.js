@@ -88,10 +88,34 @@ function updateConnectivityStatus() {
 function toggleLanguage() {
   currentLanguage = pageLanguages[(pageLanguages.indexOf(currentLanguage) + 1) % pageLanguages.length];
   (window.siteStorage || localStorage).setItem("language", currentLanguage);
+  const restorePlace = captureReadingPosition();
   applyLanguage();
   if (typeof updateTagLanguage === "function") {
     updateTagLanguage();
   }
+  restorePlace();
+}
+// Text lengths differ per language, so content above the reader can grow or shrink on a switch.
+// Remember the element just below the sticky nav and put it back at the same screen position.
+function captureReadingPosition() {
+  const noop = () => {};
+  if (typeof document.elementFromPoint !== "function" || !(window.scrollY > 0)) return noop;
+  const nav = document.querySelector(".section-nav");
+  const y = Math.min(window.innerHeight - 1, (nav?.getBoundingClientRect().bottom || 0) + 8);
+  // Keep the whole ancestor chain: re-rendering can replace the innermost element (e.g. song tags),
+  // in which case the closest ancestor that survived is used instead.
+  const chain = [];
+  for (let node = document.elementFromPoint(window.innerWidth / 2, y); node && node !== document.body; node = node.parentElement) {
+    if (!node.closest?.("main")) break;
+    if (node.getClientRects().length) chain.push([node, node.getBoundingClientRect().top]);
+  }
+  if (!chain.length) return noop;
+  return () => {
+    const kept = chain.find(([node]) => node.isConnected && node.getClientRects().length);
+    if (!kept) return;
+    const delta = kept[0].getBoundingClientRect().top - kept[1];
+    if (Math.abs(delta) >= 1) window.scrollTo({ top: window.scrollY + delta, behavior: "instant" });
+  };
 }
 function applyTheme() {
   const themeButton = document.getElementById("theme-btn");
@@ -251,15 +275,27 @@ window.removeWallMessage = (id) => {
     updateMessageLoadStatus();
   }
 };
+let messageRetryAt = 0;
+// Retry-After is either delta-seconds or an HTTP date; fall back to 30 s when absent or invalid.
+function retryAfterSeconds(value) {
+  const text = String(value ?? "").trim();
+  if (/^\d+$/.test(text)) return Math.min(3600, Math.max(1, Number(text)));
+  const date = Date.parse(text);
+  if (Number.isFinite(date)) return Math.min(3600, Math.max(1, Math.ceil((date - Date.now()) / 1000)));
+  return 30;
+}
 function updateMessageLoadStatus() {
   const status = document.getElementById("message-load-status");
   const retry = document.getElementById("message-retry");
   const wall = document.getElementById("floating-wall");
   if (status) {
     const text = { loading: ["正在加载留言…", "Loading messages…"], error: ["留言加载失败，请检查连接后重试。", "Could not load messages. Check your connection and retry."], empty: ["还没有留言，来留下第一条吧。", "No messages yet. Leave the first one."], ready: ["", ""], idle: ["", ""] };
-    status.textContent = pageText(...text[messageLoadState]);
+    if (messageLoadState === "ratelimited") {
+      const seconds = String(Math.max(1, Math.ceil((messageRetryAt - Date.now()) / 1000)));
+      status.textContent = pageText("留言读取过于频繁，请在 {n} 秒后重试。", "Too many requests. Please retry in {n} s.").replace("{n}", seconds);
+    } else status.textContent = pageText(...text[messageLoadState]);
   }
-  if (retry) retry.hidden = messageLoadState !== "error";
+  if (retry) retry.hidden = messageLoadState !== "error" && messageLoadState !== "ratelimited";
   wall?.setAttribute?.("aria-busy", String(messageLoadState === "loading"));
 }
 const MAX_NICKNAME_LENGTH = 30;
@@ -320,7 +356,7 @@ async function addMessage() {
     wallRevision++;
     pendingWallMessages.set(data.comment.id, { revision: wallRevision, message: data.comment });
     // A successful post also clears an earlier load error: the wall now shows a message.
-    if (messageLoadState === "empty" || messageLoadState === "error") messageLoadState = "ready";
+    if (messageLoadState === "empty" || messageLoadState === "error" || messageLoadState === "ratelimited") messageLoadState = "ready";
     updateMessageLoadStatus();
     createFloatingMessage(data.comment, false);
     showMessageFeedback(() => pageText("留言已贴到墙上。", "Your message is on the wall."), false);
@@ -342,6 +378,13 @@ async function loadMessages() {
   updateMessageLoadStatus();
   try {
     const response = await (window.siteFetch || fetch)(COMMENTS_API, { credentials: "include", cache: "no-store" });
+    if (response.status === 429) {
+      if (loadId !== messageLoadId) return;
+      messageRetryAt = Date.now() + retryAfterSeconds(response.headers?.get?.("Retry-After")) * 1000;
+      messageLoadState = "ratelimited";
+      updateMessageLoadStatus();
+      return;
+    }
     if (!response.ok) throw new Error("无法读取留言");
     const data = await response.json();
     if (!Array.isArray(data.comments)) throw new Error("留言响应格式不正确");
