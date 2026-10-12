@@ -147,3 +147,47 @@ test("every GitHub Action is pinned to a commit SHA, workflows avoid pull_reques
   const dependabot = read(".github/dependabot.yml");
   for (const part of [/package-ecosystem: npm\n\s+directory: \/\n/, /package-ecosystem: npm\n\s+directory: \/backend/, /package-ecosystem: github-actions/]) assert.match(dependabot, part);
 });
+
+// Public, text-only files where the contact address could be written back as a login
+// identifier. Untracked local files (backend/.env, SECURITY_AUDIT_*.md, dist/) are
+// deliberately out of scope: they are not published, and the real .env legitimately
+// holds the local ADMIN_EMAILS line.
+function publishedTextFiles() {
+  const skip = new Set(["node_modules", ".git", "dist", "artifacts", ".backups", ".vscode"]);
+  const files = ["index.html", "404.html", "script.js", "style.css", "README.md", "SECURITY.md", "site.webmanifest", "robots.txt", "sitemap.xml", "backend/.env.example"];
+  const walk = (directory, filter) => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      if (skip.has(entry.name)) continue;
+      const file = `${directory}/${entry.name}`;
+      if (entry.isDirectory()) walk(file, filter);
+      else if (filter.test(entry.name)) files.push(file);
+    }
+  };
+  for (const [directory, filter] of Object.entries({ docs: /\.md$/i, js: /\.js$/i, tools: /\.(?:mjs|cjs|js)$/i, backend: /\.mjs$/i, ".github": /\.ya?ml$/i })) walk(directory, filter);
+  return files.filter(file => fs.existsSync(file));
+}
+
+test("the published contact address never becomes an admin login identifier", () => {
+  const page = read("index.html");
+  const publicAddresses = [...new Set((page.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || []).map(address => address.toLowerCase()))];
+  // Tripwire: if the page stops publishing a contact route, the guard below would
+  // silently become a no-op, so change it deliberately instead of deleting it.
+  assert.ok(publicAddresses.length > 0, "index.html must keep publishing a contact address");
+  const files = publishedTextFiles();
+  assert.ok(files.length > 25, `expected the public file scan to cover the repository, got ${files.length}`);
+  assert.ok(files.includes("docs/SECURITY.md") && files.includes("backend/.env.example"));
+  for (const file of files) {
+    const source = read(file);
+    // The address may only appear where it is published as a contact route.
+    if (file !== "index.html") {
+      for (const address of publicAddresses) {
+        assert.ok(!source.toLowerCase().includes(address), `${file}: the public contact address must never be reused (login identifier, admin list or docs)`);
+      }
+    }
+    // Email must never grant admin: a real value here would be the removed-by-design pattern.
+    assert.doesNotMatch(source, /^\s*ADMIN_EMAILS\s*=\s*\S/m, `${file}: admin is granted by ADMIN_USER_IDS only`);
+  }
+  const securityDoc = read("docs/SECURITY.md");
+  assert.match(securityDoc, /\*\*唯一\*\*管理员来源/, "the admin source must stay documented as user IDs only");
+  assert.match(securityDoc, /管理员登录邮箱必须与公开联系邮箱不同/, "the login-email invariant must stay documented");
+});
