@@ -14,9 +14,10 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { assertRepoPath } from "./safe-fs.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const SONGS_PATH = path.join(ROOT, "js", "songs.js");
+const SONGS_PATH = assertRepoPath(ROOT, "js/songs.js", { mustExist: true });
 const BATCH_SIZE = 50;
 const API_BASE = "https://www.googleapis.com/youtube/v3/videos";
 
@@ -89,7 +90,7 @@ async function fetchStatistics(ids) {
   return map;
 }
 
-const source = await readFile(SONGS_PATH, "utf8");
+const source = await readFile(assertRepoPath(ROOT, SONGS_PATH, { mustExist: true }), "utf8");
 const songs = loadSongs(source);
 const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
@@ -154,7 +155,7 @@ for (const e of withIds) {
   }
 }
 
-await writeFile(SONGS_PATH, formatSongsFile(songs), "utf8");
+await writeFile(assertRepoPath(ROOT, SONGS_PATH, { mustExist: true }), formatSongsFile(songs), "utf8");
 
 console.log("\n--- summary ---");
 console.log(`songs total:     ${songs.length}`);

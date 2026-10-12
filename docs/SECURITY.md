@@ -9,6 +9,7 @@
 - `/healthz` 只公开 `{ ok, version }`；`version` = 部署提交前 7 位（`RAILWAY_GIT_COMMIT_SHA`），用于确认重新部署。
 - 三轮审查（2026-10-11）发现的问题均已修复上线：限流按真实访客 IP（`X-Real-IP`）计数；认证请求必须为 `application/json`（非 JSON 415，JSON 解压后 ≤20 KB）；生产会话 Cookie 使用 `__Host-station-` 前缀并强制 `Secure`、`Path=/`；CSP 含 Trusted Types、`frame-src/worker-src 'none'`；404 页独立 CSP；防嵌入脚本；GitHub Actions 固定 SHA，Dependabot 每周检查。
 - 已有防护：SuperTokens 会话（header 传输）；会员只能删除自己的留言，管理接口另查权限；SQLite 参数化；服务端校验留言；前端只用 `textContent` 渲染；生产错误不返回堆栈；密码重置令牌放在 URL fragment 并立即清除。CORS 不是认证，保护操作始终依赖会话与权限。
+- 本地维护工具也按输入边界加固：链接检查器只访问公开 HTTP(S) 地址、逐跳检查重定向并固定到已验证的 DNS 答案；构建、图库生成、播放量更新拒绝符号链接输入/输出，防止访问或覆盖仓库外的文件。
 
 ## Railway 变量（只写名称，值不要进仓库或聊天）
 

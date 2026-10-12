@@ -90,6 +90,33 @@ test("NKNK generator refuses symlinked output folders instead of emptying their 
   }
 });
 
+test("NKNK generator refuses numbered source-image symlinks", () => {
+  const box = sandbox(["tools/generate-nknk-gallery.mjs", "tools/safe-fs.mjs"]);
+  try {
+    fs.mkdirSync(path.join(box.root, "NKNK"));
+    fs.writeFileSync(path.join(box.outside, "image.png"), "private file");
+    fs.symlinkSync(path.join(box.outside, "image.png"), path.join(box.root, "NKNK/1.png"));
+    const result = run(box.root, "tools/generate-nknk-gallery.mjs", ["--config-only"]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Refusing non-file gallery source: 1\.png/);
+    assert.equal(fs.readFileSync(path.join(box.outside, "image.png"), "utf8"), "private file");
+  } finally { box.cleanup(); }
+});
+
+test("view-count updater refuses to replace js/songs.js when it is a symlink", () => {
+  const box = sandbox(["tools/refresh-youtube-views.mjs", "tools/safe-fs.mjs"]);
+  try {
+    fs.mkdirSync(path.join(box.root, "js"));
+    const victim = path.join(box.outside, "victim.js");
+    fs.writeFileSync(victim, "KEEP");
+    fs.symlinkSync(victim, path.join(box.root, "js/songs.js"));
+    const result = run(box.root, "tools/refresh-youtube-views.mjs");
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Refusing symlinked path: js\/songs\.js/);
+    assert.equal(fs.readFileSync(victim, "utf8"), "KEEP");
+  } finally { box.cleanup(); }
+});
+
 test("every loopback spelling is detected and stripped from CSP source lists", async () => {
   const { loopbackCspSources, stripLoopbackCspSources, isLoopbackCspSource } = await import("../net-guards.mjs");
   const variants = ["http://127.0.0.1:3001", "http://localhost:3001", "http://[::1]:3001", "http://LOCALHOST:3001", "http://LocalHost.:3001",
@@ -205,7 +232,7 @@ test("link checker pairs each song with its own youtube URL and fails loudly on 
 });
 
 test("link checker fetches only public http(s) URLs, including every redirect hop", async () => {
-  const { assertPublicHttpUrl, checkSong } = await import("../check-links.mjs");
+  const { assertPublicHttpUrl, checkSong, createPinnedLookup } = await import("../check-links.mjs");
   const publicResolver = async () => [{ address: "142.250.72.14", family: 4 }];
   assert.equal((await assertPublicHttpUrl("https://youtu.be/abcdefghijk", { resolve: publicResolver })).hostname, "youtu.be");
   for (const url of ["file:///etc/passwd", "data:text/plain,hi", "ftp://example.com/x", "javascript:alert(1)", "http://user:pw@example.com/",
@@ -214,17 +241,52 @@ test("link checker fetches only public http(s) URLs, including every redirect ho
     await assert.rejects(assertPublicHttpUrl(url, { resolve: publicResolver }), /Refusing|Not a URL/, url);
   }
   await assert.rejects(assertPublicHttpUrl("https://rebind.example/", { resolve: async () => [{ address: "127.0.0.1", family: 4 }] }), /resolves to a non-public address/);
+  let pinned;
+  createPinnedLookup([{ address: "142.250.72.14", family: 4 }, { address: "2607:f8b0:4007:80c::200e", family: 6 }])(
+    "rebind.example", { all: true }, (error, addresses) => { assert.ifError(error); pinned = addresses; }
+  );
+  assert.deepEqual(pinned, [
+    { address: "142.250.72.14", family: 4 },
+    { address: "2607:f8b0:4007:80c::200e", family: 6 }
+  ], "the connector can only see the already-validated DNS answers");
+  assert.throws(() => createPinnedLookup([]), /without a validated address/);
   const fetched = [];
-  const fetchImpl = async url => {
-    fetched.push(url);
-    return url.startsWith("https://youtu.be/")
-      ? new Response(null, { status: 302, headers: { location: "http://169.254.169.254/latest/meta-data/" } })
-      : new Response("ok", { status: 200 });
+  const requestImpl = async (url, addresses) => {
+    fetched.push(url.href);
+    assert.deepEqual(addresses, [{ address: "142.250.72.14", family: 4 }], "the checked DNS answer is passed to the connector");
+    return url.href.startsWith("https://youtu.be/")
+      ? { status: 302, headers: new Headers({ location: "http://169.254.169.254/latest/meta-data/" }), body: { cancel: async () => {} } }
+      : { status: 200, headers: new Headers(), body: { cancel: async () => {} } };
   };
-  const result = await checkSong({ title: "t", url: "https://youtu.be/abcdefghijk" }, { fetchImpl, resolve: publicResolver });
+  const result = await checkSong({ title: "t", url: "https://youtu.be/abcdefghijk" }, { requestImpl, resolve: publicResolver });
   assert.equal(result.ok, false);
   assert.match(result.detail, /Refusing non-public host: 169\.254\.169\.254/);
   assert.deepEqual(fetched, ["https://youtu.be/abcdefghijk"], "the private redirect target is never requested");
-  const okResult = await checkSong({ title: "t", url: "https://www.youtube.com/watch?v=abcdefghijk" }, { fetchImpl, resolve: publicResolver });
+  const okResult = await checkSong({ title: "t", url: "https://www.youtube.com/watch?v=abcdefghijk" }, { requestImpl, resolve: publicResolver });
   assert.equal(okResult.ok, true);
+});
+
+test("link checker deadline covers stalled initial and redirect DNS lookups", { timeout: 2000 }, async () => {
+  const { checkSong } = await import("../check-links.mjs");
+  for (const stallOn of [1, 2]) {
+    let lookups = 0;
+    let requests = 0;
+    let rejectLookup;
+    const result = await checkSong({ title: "timeout", url: "https://first.example/" }, {
+      deadlineMs: 20,
+      resolve: async () => {
+        if (++lookups === stallOn) return new Promise((_, reject) => { rejectLookup = reject; });
+        return [{ address: "142.250.72.14", family: 4 }];
+      },
+      requestImpl: async () => {
+        requests++;
+        return { status: 302, headers: new Headers({ location: "https://second.example/" }), body: { cancel: async () => {} } };
+      }
+    });
+    assert.equal(result.status, "TIMEOUT");
+    assert.equal(result.ok, false);
+    assert.equal(requests, stallOn - 1, "a stalled DNS lookup must never reach the connector");
+    rejectLookup(new Error("late DNS failure"));
+    await new Promise(resolve => setImmediate(resolve));
+  }
 });
