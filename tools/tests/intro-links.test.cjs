@@ -43,6 +43,11 @@ test("related links are categorized and include known destinations only", () => 
   assert.doesNotMatch(html, /site-resource-link/);
   assert.doesNotMatch(html, /\?si=/);
   assert.doesNotMatch(html, /spm_id_from=/);
+  // Song links are pre-rendered into the built page from js/songs.js, so the data must be clean too,
+  // the build strips share trackers, and check-build rejects them in the published dist/.
+  assert.doesNotMatch(fs.readFileSync(path.join(root, "js/songs.js"), "utf8"), /[?&](?:si|feature|pp)=/);
+  assert.match(fs.readFileSync(path.join(root, "tools/build-site.mjs"), "utf8"), /href="\$\{escape\(cleanSongUrl\(song\.youtube\)\)\}"/);
+  assert.match(fs.readFileSync(path.join(root, "tools/check-build.mjs"), "utf8"), /Published links must not carry share-tracking parameters/);
 
   const aboutBlock = html.match(/id="about"[\s\S]*?<\/section>/)[0];
   assert.doesNotMatch(aboutBlock, /href="#songs"/);

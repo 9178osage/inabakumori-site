@@ -1,8 +1,9 @@
-import { readdir, mkdir, writeFile, stat, rm, unlink } from "node:fs/promises";
+import { readdir, mkdir, writeFile, stat, rm, unlink, lstat } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { assertRepoPath } from "./safe-fs.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const sourceDir = path.join(root, "NKNK");
@@ -88,8 +89,13 @@ async function imageSize(filePath, ext) {
   return null;
 }
 
+// Refuse symlinked folders/files before deleting or writing anything: a linked
+// images/optimized/nknk would otherwise get its target's contents removed and replaced.
+for (const target of [sourceDir, thumbDir, fullDir, configPath]) assertRepoPath(root, target);
+assertRepoPath(root, sourceDir, { mustExist: true });
 await mkdir(thumbDir, { recursive: true });
 await mkdir(fullDir, { recursive: true });
+for (const target of [thumbDir, fullDir]) assertRepoPath(root, target, { mustExist: true });
 
 const entries = (await readdir(sourceDir))
   .map(name => {
@@ -109,10 +115,17 @@ const keepFull = new Set(entries.map(item => `${item.id}.webp`));
 for (const name of await readdir(thumbDir)) {
   const target = path.join(thumbDir, name);
   if (name === "full") continue;
-  if (!keepThumbs.has(name)) await rm(target, { recursive: true, force: true });
+  if (keepThumbs.has(name)) {
+    // An output that is a symlink would make cwebp write through it.
+    if ((await lstat(target)).isSymbolicLink()) await unlink(target);
+    continue;
+  }
+  // rm never follows a symlinked entry: only the link itself is removed.
+  await rm(target, { recursive: true, force: true });
 }
 for (const name of await readdir(fullDir)) {
-  if (!keepFull.has(name)) await unlink(path.join(fullDir, name)).catch(() => {});
+  const target = path.join(fullDir, name);
+  if (!keepFull.has(name) || (await lstat(target)).isSymbolicLink()) await unlink(target).catch(() => {});
 }
 
 let cursor = 0;
@@ -123,8 +136,8 @@ async function worker() {
   while (cursor < entries.length) {
     const item = entries[cursor++];
     const source = path.join(sourceDir, item.name);
-    const thumb = path.join(thumbDir, `${item.id}.webp`);
-    const full = path.join(fullDir, `${item.id}.webp`);
+    const thumb = assertRepoPath(root, path.join(thumbDir, `${item.id}.webp`));
+    const full = assertRepoPath(root, path.join(fullDir, `${item.id}.webp`));
     const size = await imageSize(source, item.ext);
     let fullResize = ["-resize", String(FULL_LONG_EDGE), "0"];
     if (size && size.height > size.width) fullResize = ["-resize", "0", String(FULL_LONG_EDGE)];
@@ -155,7 +168,7 @@ const lines = [
   "if (typeof window !== \"undefined\") window.NKNK_GALLERY = NKNK_GALLERY;",
   ""
 ];
-await writeFile(configPath, lines.join("\n"));
+await writeFile(assertRepoPath(root, configPath), lines.join("\n"));
 
 const mi = n => (n / 1024 / 1024).toFixed(2);
 console.log(`NKNK gallery: ${entries.length} images`);

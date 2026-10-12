@@ -1,7 +1,7 @@
 const SONGS = [
   {
     "title": "アンチサイクロン",
-    "youtube": "https://youtu.be/2_93SNGYgYs?si=9pIHFnP-MxJwdrdO",
+    "youtube": "https://youtu.be/2_93SNGYgYs",
     "album": "ANTICYCLONE",
     "singers": [
       "歌爱雪",
@@ -12,7 +12,7 @@ const SONGS = [
   },
   {
     "title": "ロストアンブレラ",
-    "youtube": "https://youtu.be/DeKLpgzh-qQ?si=aepnibrMsceBIhqL",
+    "youtube": "https://youtu.be/DeKLpgzh-qQ",
     "album": "ANTICYCLONE",
     "singers": [
       "歌爱雪"
@@ -22,7 +22,7 @@ const SONGS = [
   },
   {
     "title": "パスカルビーツ",
-    "youtube": "https://youtu.be/M8ZGGCqJduU?si=vQvDRUzwA4WlngqF",
+    "youtube": "https://youtu.be/M8ZGGCqJduU",
     "album": "ANTICYCLONE",
     "singers": [
       "歌爱雪"
@@ -32,7 +32,7 @@ const SONGS = [
   },
   {
     "title": "クーラーガール",
-    "youtube": "https://youtu.be/r8Lrrx6TMMY?si=I1p_dSCRm06Hl4pX",
+    "youtube": "https://youtu.be/r8Lrrx6TMMY",
     "album": "ANTICYCLONE",
     "singers": [
       "歌爱雪"
@@ -42,7 +42,7 @@ const SONGS = [
   },
   {
     "title": "ループスピナ",
-    "youtube": "https://youtu.be/ffGcA4Kj-rk?si=lVC7JUSezFt_QhO-",
+    "youtube": "https://youtu.be/ffGcA4Kj-rk",
     "album": "ANTICYCLONE",
     "singers": [
       "歌爱雪"
@@ -52,7 +52,7 @@ const SONGS = [
   },
   {
     "title": "ナミダ電波",
-    "youtube": "https://youtu.be/vyfNM-tIfiw?si=Eb05g-n--2IaxjMj",
+    "youtube": "https://youtu.be/vyfNM-tIfiw",
     "album": "ANTICYCLONE",
     "singers": [
       "歌爱雪"
@@ -62,7 +62,7 @@ const SONGS = [
   },
   {
     "title": "ツクリカケノ心象",
-    "youtube": "https://youtu.be/3NWuC2UF0u0?si=5kZB--HYnJ6H83Dz",
+    "youtube": "https://youtu.be/3NWuC2UF0u0",
     "album": "ANTICYCLONE",
     "singers": [
       "歌爱雪"
@@ -72,7 +72,7 @@ const SONGS = [
   },
   {
     "title": "浮遊月光街",
-    "youtube": "https://youtu.be/Jhw7Hum-eLw?si=JlKyIXrEWzGczMug",
+    "youtube": "https://youtu.be/Jhw7Hum-eLw",
     "album": "ANTICYCLONE",
     "singers": [
       "歌爱雪"
@@ -82,7 +82,7 @@ const SONGS = [
   },
   {
     "title": "絶体暗星",
-    "youtube": "https://youtu.be/lYtZ5oMs3_8?si=PbKYI1we-Gv3tMxp",
+    "youtube": "https://youtu.be/lYtZ5oMs3_8",
     "album": "ANTICYCLONE",
     "singers": [],
     "viewCount": 1162127,
@@ -90,7 +90,7 @@ const SONGS = [
   },
   {
     "title": "渦巻ハナビ",
-    "youtube": "https://youtu.be/e5d-DvD55OI?si=vtN_bLdYSFVLnvSF",
+    "youtube": "https://youtu.be/e5d-DvD55OI",
     "album": "ANTICYCLONE",
     "singers": [],
     "viewCount": 1142367,
@@ -98,7 +98,7 @@ const SONGS = [
   },
   {
     "title": "うつしあそび",
-    "youtube": "https://youtu.be/MZvTr20tkro?si=olbaxea8EUrRsrxw",
+    "youtube": "https://youtu.be/MZvTr20tkro",
     "album": "ANTICYCLONE",
     "singers": [
       "歌爱雪"
@@ -108,7 +108,7 @@ const SONGS = [
   },
   {
     "title": "さかさま少女感",
-    "youtube": "https://youtu.be/n8O_gZ0Ebbs?si=a014yXRT4wxRqhsf",
+    "youtube": "https://youtu.be/n8O_gZ0Ebbs",
     "album": "ANTICYCLONE",
     "singers": [],
     "viewCount": 809015,
@@ -116,7 +116,7 @@ const SONGS = [
   },
   {
     "title": "ノンユース",
-    "youtube": "https://youtu.be/-5T-L0b43no?si=YuL-s9d2wyrJfcYX",
+    "youtube": "https://youtu.be/-5T-L0b43no",
     "album": "ANTICYCLONE",
     "singers": [
       "歌爱雪"
@@ -126,7 +126,7 @@ const SONGS = [
   },
   {
     "title": "秘密音楽",
-    "youtube": "https://youtu.be/sXc204xHj8g?si=yFlpUvHNjbTf6sIG",
+    "youtube": "https://youtu.be/sXc204xHj8g",
     "album": "ANTICYCLONE",
     "singers": [
       "歌爱雪"
@@ -136,7 +136,7 @@ const SONGS = [
   },
   {
     "title": "ひみつの小学生",
-    "youtube": "https://youtu.be/wdUCRDvFv3Q?si=olhsP7JTNdxLevhY",
+    "youtube": "https://youtu.be/wdUCRDvFv3Q",
     "album": "WEATHER STATION",
     "singers": [
       "歌爱雪"
@@ -146,7 +146,7 @@ const SONGS = [
   },
   {
     "title": "ハローマリーナ",
-    "youtube": "https://youtu.be/g6sYNwl1EWg?si=NOZc4UM0o2RbDkQG",
+    "youtube": "https://youtu.be/g6sYNwl1EWg",
     "album": "WEATHER STATION",
     "singers": [
       "歌爱雪",
@@ -157,7 +157,7 @@ const SONGS = [
   },
   {
     "title": "レイニーブーツ",
-    "youtube": "https://youtu.be/G5hScSFkib4?si=XQjiN81YuToRksUW",
+    "youtube": "https://youtu.be/G5hScSFkib4",
     "album": "WEATHER STATION",
     "singers": [
       "歌爱雪"
@@ -167,7 +167,7 @@ const SONGS = [
   },
   {
     "title": "ラグトレイン",
-    "youtube": "https://youtu.be/UnIhRpIT7nc?si=fxQo0MD_tQPmuefq",
+    "youtube": "https://youtu.be/UnIhRpIT7nc",
     "album": "WEATHER STATION",
     "singers": [
       "歌爱雪"
@@ -177,7 +177,7 @@ const SONGS = [
   },
   {
     "title": "ハルノ寂寞",
-    "youtube": "https://youtu.be/mFih47l1pVI?si=lDqI3PehNyUhYnD4",
+    "youtube": "https://youtu.be/mFih47l1pVI",
     "album": "WEATHER STATION",
     "singers": [
       "弦卷真纪"
@@ -187,7 +187,7 @@ const SONGS = [
   },
   {
     "title": "カゼマチグサ (album ver.)",
-    "youtube": "https://youtu.be/FRFgNWBAa8k?si=xeoYHjDaQQ_RZjkC",
+    "youtube": "https://youtu.be/FRFgNWBAa8k",
     "album": "WEATHER STATION",
     "singers": [
       "鸣花Hime"
@@ -197,7 +197,7 @@ const SONGS = [
   },
   {
     "title": "レーダー",
-    "youtube": "https://youtu.be/xyrUvwVpDRI?si=QKFmCp4DgXDmRS2M",
+    "youtube": "https://youtu.be/xyrUvwVpDRI",
     "album": "WEATHER STATION",
     "singers": [],
     "viewCount": 541423,
@@ -205,7 +205,7 @@ const SONGS = [
   },
   {
     "title": "かたむすび",
-    "youtube": "https://youtu.be/n9xlE973OMs?si=anQx8reFpjRysffn",
+    "youtube": "https://youtu.be/n9xlE973OMs",
     "album": "WEATHER STATION",
     "singers": [],
     "viewCount": 707047,
@@ -213,7 +213,7 @@ const SONGS = [
   },
   {
     "title": "天泣",
-    "youtube": "https://youtu.be/1_8pQVYJtwQ?si=yby8vMuW-oh7OduK",
+    "youtube": "https://youtu.be/1_8pQVYJtwQ",
     "album": "WEATHER STATION",
     "singers": [],
     "viewCount": 773289,
@@ -221,7 +221,7 @@ const SONGS = [
   },
   {
     "title": "ポストシェルター",
-    "youtube": "https://youtu.be/kYwB-kZyNU4?si=VfdQHlEa1XhtF-Hm",
+    "youtube": "https://youtu.be/kYwB-kZyNU4",
     "album": "WEATHER STATION",
     "singers": [
       "弦卷真纪"
@@ -231,7 +231,7 @@ const SONGS = [
   },
   {
     "title": "きみに回帰線",
-    "youtube": "https://youtu.be/3NLsyjOH92k?si=hTveZaXrCq6boH_w",
+    "youtube": "https://youtu.be/3NLsyjOH92k",
     "album": "WEATHER STATION",
     "singers": [
       "歌爱雪"
@@ -241,7 +241,7 @@ const SONGS = [
   },
   {
     "title": "とこしずめ",
-    "youtube": "https://youtu.be/8Rq6dVpEUS4?si=pbBxuiI_eji2Eu1q",
+    "youtube": "https://youtu.be/8Rq6dVpEUS4",
     "album": "SINGLES",
     "singers": [
       "星界"
@@ -251,7 +251,7 @@ const SONGS = [
   },
   {
     "title": "シンクタンク",
-    "youtube": "https://youtu.be/xn4qndSd3vs?si=U7wpBSCBf2nOdJHd",
+    "youtube": "https://youtu.be/xn4qndSd3vs",
     "album": "SINGLES",
     "singers": [
       "里命"
@@ -261,7 +261,7 @@ const SONGS = [
   },
   {
     "title": "フロートプレイ",
-    "youtube": "https://youtu.be/NRQRC_0ZQ00?si=9rbwVoDaByWgRFhx",
+    "youtube": "https://youtu.be/NRQRC_0ZQ00",
     "album": "SINGLES",
     "singers": [
       "歌爱雪"
@@ -271,7 +271,7 @@ const SONGS = [
   },
   {
     "title": "期待通り",
-    "youtube": "https://youtu.be/o14pj9CsNVY?si=b4tawqK8dQHgJQp1",
+    "youtube": "https://youtu.be/o14pj9CsNVY",
     "album": "SINGLES",
     "singers": [
       "音街鳗"
@@ -281,7 +281,7 @@ const SONGS = [
   },
   {
     "title": "リレイアウター",
-    "youtube": "https://youtu.be/b56xjtP6Qac?si=QmNHaPCmLrlD1jvn",
+    "youtube": "https://youtu.be/b56xjtP6Qac",
     "album": "SINGLES",
     "singers": [
       "歌爱雪"
@@ -291,7 +291,7 @@ const SONGS = [
   },
   {
     "title": "電気予報",
-    "youtube": "https://youtu.be/Imcr7rsBxsc?si=cJ97bszBuqR_qLxW",
+    "youtube": "https://youtu.be/Imcr7rsBxsc",
     "album": "SINGLES",
     "singers": [
       "初音未来"
@@ -301,7 +301,7 @@ const SONGS = [
   },
   {
     "title": "余裕欲",
-    "youtube": "https://youtu.be/uZdnPgDaOpk?si=Mx2IDt6YOegEcMN_",
+    "youtube": "https://youtu.be/uZdnPgDaOpk",
     "album": "SINGLES",
     "singers": [
       "nagiβ",
@@ -312,7 +312,7 @@ const SONGS = [
   },
   {
     "title": "私は雨",
-    "youtube": "https://youtu.be/EEk4JGzqoFg?si=9UqVXVliapQAk6n_",
+    "youtube": "https://youtu.be/EEk4JGzqoFg",
     "album": "SINGLES",
     "singers": [
       "歌爱雪"
@@ -322,7 +322,7 @@ const SONGS = [
   },
   {
     "title": "アイペース",
-    "youtube": "https://youtu.be/9x7t1s4xMw4?si=OTmti9qQ0jk5Maaz",
+    "youtube": "https://youtu.be/9x7t1s4xMw4",
     "album": "SINGLES",
     "singers": [
       "歌爱雪"
@@ -332,7 +332,7 @@ const SONGS = [
   },
   {
     "title": "超深淵帯",
-    "youtube": "https://youtu.be/IJN0piNZhBE?si=BIB5L144Ap3sRAlj",
+    "youtube": "https://youtu.be/IJN0piNZhBE",
     "album": "SINGLES",
     "singers": [
       "歌爱雪"
@@ -342,7 +342,7 @@ const SONGS = [
   },
   {
     "title": "春難色",
-    "youtube": "https://youtu.be/1nZwWpHF0mQ?si=ll9vS1S2vwlYTMH6",
+    "youtube": "https://youtu.be/1nZwWpHF0mQ",
     "album": "SINGLES",
     "singers": [
       "彩澄しゅお",
@@ -353,7 +353,7 @@ const SONGS = [
   },
   {
     "title": "スポットレイト",
-    "youtube": "https://youtu.be/STBoCK69vVQ?si=b8cR_91DZpBhAG3n",
+    "youtube": "https://youtu.be/STBoCK69vVQ",
     "album": "SINGLES",
     "singers": [
       "歌爱雪"
