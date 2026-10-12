@@ -300,23 +300,39 @@ function updateMessageLoadStatus() {
 }
 const MAX_NICKNAME_LENGTH = 30;
 const MAX_COMMENT_LENGTH = 500;
+// Count like the server: NFC first, then code points (a decomposed "é" is one character, not two).
 function unicodeLength(value) {
-  return Array.from(String(value ?? "")).length;
+  return Array.from(String(value ?? "").normalize("NFC")).length;
 }
+// With the u flag a valid surrogate pair is one code point, so only unpaired halves match (same as the server).
+const LONE_SURROGATE = /[\uD800-\uDFFF]/u;
+function hasLoneSurrogate(value) {
+  return LONE_SURROGATE.test(String(value ?? ""));
+}
+function showLengthFeedback(field) {
+  if (field === "nickname") showMessageFeedback(() => pageText("昵称不能超过 {max} 个字符。", "Nicknames can be up to {max} characters.").replace("{max}", String(MAX_NICKNAME_LENGTH)));
+  else showMessageFeedback(() => pageText("留言不能超过 {max} 个字符。", "Messages can be up to {max} characters.").replace("{max}", String(MAX_COMMENT_LENGTH)));
+}
+// While typing/pasting: trim to the limit and say so (never silently). Returns the trimmed field, if any.
 function enforceCommentFieldLimits(nameInput, messageInput) {
+  let trimmed = null;
   if (nameInput && unicodeLength(nameInput.value) > MAX_NICKNAME_LENGTH) {
-    nameInput.value = Array.from(nameInput.value).slice(0, MAX_NICKNAME_LENGTH).join("");
+    nameInput.value = Array.from(nameInput.value.normalize("NFC")).slice(0, MAX_NICKNAME_LENGTH).join("");
+    trimmed = "nickname";
   }
   if (messageInput && unicodeLength(messageInput.value) > MAX_COMMENT_LENGTH) {
-    messageInput.value = Array.from(messageInput.value).slice(0, MAX_COMMENT_LENGTH).join("");
+    messageInput.value = Array.from(messageInput.value.normalize("NFC")).slice(0, MAX_COMMENT_LENGTH).join("");
+    trimmed = trimmed || "content";
   }
+  if (trimmed) showLengthFeedback(trimmed);
+  return trimmed;
 }
 async function addMessage() {
   if (messageSubmitting) return;
   const nameInput = document.getElementById("message-name");
   const messageInput = document.getElementById("message-input");
   if (!nameInput || !messageInput) return;
-  enforceCommentFieldLimits(nameInput, messageInput);
+  // No silent truncation on submit: an over-length field is reported below and nothing is sent.
   const nickname = nameInput.value.trim();
   const content = messageInput.value.trim();
   if (!nickname || !content) {
@@ -324,13 +340,18 @@ async function addMessage() {
     (!nickname ? nameInput : messageInput).focus();
     return;
   }
+  if (hasLoneSurrogate(nickname) || hasLoneSurrogate(content)) {
+    showMessageFeedback(() => pageText("内容包含无效字符，请删除后重试。", "The text contains an invalid character. Please remove it and try again."));
+    (hasLoneSurrogate(nickname) ? nameInput : messageInput).focus();
+    return;
+  }
   if (unicodeLength(nickname) > MAX_NICKNAME_LENGTH) {
-    showMessageFeedback(() => pageText("昵称不能超过 {max} 个字符。", "Nicknames can be up to {max} characters.").replace("{max}", String(MAX_NICKNAME_LENGTH)));
+    showLengthFeedback("nickname");
     nameInput.focus();
     return;
   }
   if (unicodeLength(content) > MAX_COMMENT_LENGTH) {
-    showMessageFeedback(() => pageText("留言不能超过 {max} 个字符。", "Messages can be up to {max} characters.").replace("{max}", String(MAX_COMMENT_LENGTH)));
+    showLengthFeedback("content");
     messageInput.focus();
     return;
   }

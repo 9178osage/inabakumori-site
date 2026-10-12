@@ -36,10 +36,16 @@ export function positiveInteger(value, fallback = null) {
   return Number.isSafeInteger(number) ? number : null;
 }
 
+// With the u flag a valid surrogate pair is one code point, so only unpaired halves match.
+export const LONE_SURROGATE = /[\uD800-\uDFFF]/u;
 export function validateCommentInput(body) {
   if (!body || typeof body !== "object" || Array.isArray(body) ||
       typeof body.nickname !== "string" || typeof body.content !== "string") {
     return { ok: false, error: "昵称和留言必须为文本", code: "INVALID_COMMENT" };
+  }
+  // Lone (unpaired) UTF-16 surrogates are not text: they cannot be stored or displayed reliably.
+  if (LONE_SURROGATE.test(body.nickname) || LONE_SURROGATE.test(body.content)) {
+    return { ok: false, error: "请输入有效的昵称和留言", code: "INVALID_COMMENT" };
   }
   const nickname = body.nickname.normalize("NFC").trim();
   const content = body.content.normalize("NFC").trim();
@@ -166,17 +172,19 @@ export function createRecentDuplicateChecker(db, {
   guestWindowMs = 5 * 60 * 1000
 } = {}) {
   const recentMember = db.prepare(`SELECT content FROM comments
-    WHERE user_id = ? AND is_guest = 0 AND created_at > ?`);
+    WHERE user_id = ? AND is_guest = 0 AND created_at > ?
+      AND (expires_at IS NULL OR expires_at > ?)`);
   const recentGuest = db.prepare(`SELECT content FROM comments
-    WHERE is_guest = 1 AND created_at > ?`);
+    WHERE is_guest = 1 AND created_at > ?
+      AND (expires_at IS NULL OR expires_at > ?)`);
   return (content, userId, now = Date.now()) => {
     const normalized = normalizeCommentForComparison(content);
     if (userId) {
-      return recentMember.all(userId, now - memberWindowMs)
+      return recentMember.all(userId, now - memberWindowMs, now)
         .some(row => normalizeCommentForComparison(row.content) === normalized);
     }
     if (Array.from(normalized).length < GUEST_GLOBAL_DEDUP_MIN_LENGTH) return false;
-    return recentGuest.all(now - guestWindowMs)
+    return recentGuest.all(now - guestWindowMs, now)
       .some(row => normalizeCommentForComparison(row.content) === normalized);
   };
 }
