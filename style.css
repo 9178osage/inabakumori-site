@@ -1327,6 +1327,12 @@ body.dark .tag-chip.active {
   .hero-rain span:nth-child(n + 10) {
     display: none;
   }
+  /* Solid band behind the fixed controls once the hero has scrolled away, so page text doesn't show through. */
+  body:has(.hero.out-of-view) .site-controls::before {
+    content: ""; position: fixed; z-index: -1; top: 0; left: 0; right: 0;
+    height: calc(66px + env(safe-area-inset-top));
+    background: var(--main-bg); border-bottom: 1px solid var(--link-border);
+  }
   .site-controls {
     position: fixed;
     z-index: 1000;
