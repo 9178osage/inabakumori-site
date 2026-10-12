@@ -112,6 +112,7 @@ async function updateAuthButton() {
     console.error("检查登录状态失败：", error);
   }
 }
+let authScrollY = null;
 function showAuthModal(mode) {
   authMode = mode;
   authNotice = "";
@@ -120,6 +121,8 @@ function showAuthModal(mode) {
   const modal = document.getElementById("auth-modal");
   if (modal) {
     authReturnFocus = document.activeElement;
+    // UI only: remember the page position so a keyboard/rotation resize while open can't move it.
+    authScrollY = typeof window !== "undefined" ? window.scrollY : null;
     modal.classList.add("open");
     document.body?.classList.add("modal-open");
     setAuthBackgroundInert(true);
@@ -179,7 +182,11 @@ function closeAuthModal() {
     modal.classList.remove("open");
     document.body?.classList.remove("modal-open");
     setAuthBackgroundInert(false);
-    authReturnFocus?.focus?.();
+    authReturnFocus?.focus?.({ preventScroll: true });
+    if (typeof window !== "undefined" && Number.isFinite(authScrollY) && Math.abs(window.scrollY - authScrollY) > 1) {
+      window.scrollTo?.({ top: authScrollY, behavior: "instant" });
+    }
+    authScrollY = null;
   }
   clearAuthPasswords();
   clearAuthError();
