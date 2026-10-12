@@ -170,6 +170,8 @@
         button.tabIndex = -1;
       } else {
         button.setAttribute("aria-label", altFor(item.id));
+        // Roving tabindex: the gallery is one Tab stop; arrow keys move between illustrations.
+        button.tabIndex = absoluteIndex === 0 ? 0 : -1;
       }
       const img = document.createElement("img");
       img.alt = clone ? "" : altFor(item.id);
@@ -204,7 +206,8 @@
       for (let i = 0; i < half; i++) width += kids[i].offsetWidth;
       const style = getComputedStyle(track);
       const gap = Number.parseFloat(style.columnGap || style.gap) || 0;
-      width += gap * Math.max(0, half - 1);
+      // half items plus the gap between the last original and the first clone.
+      width += gap * half;
       return width || track.scrollWidth / 2;
     };
 
@@ -288,7 +291,21 @@
         row.hover = true;
         syncPauseState();
       });
+      viewport.addEventListener("keydown", (event) => {
+        const current = event.target.closest?.(".nknk-marquee-item:not([aria-hidden='true'])");
+        if (!current || event.altKey || event.ctrlKey || event.metaKey) return;
+        const buttons = [...track.querySelectorAll(".nknk-marquee-item:not([aria-hidden='true'])")];
+        const index = buttons.indexOf(current);
+        const next = { ArrowRight: index + 1, ArrowDown: index + 1, ArrowLeft: index - 1, ArrowUp: index - 1, Home: 0, End: buttons.length - 1 }[event.key];
+        if (next === undefined) return;
+        event.preventDefault();
+        const target = buttons[(next + buttons.length) % buttons.length];
+        buttons.forEach(button => { button.tabIndex = button === target ? 0 : -1; });
+        target.focus();
+      });
       viewport.addEventListener("focusin", (event) => {
+        const focused = event.target.closest?.(".nknk-marquee-item:not([aria-hidden='true'])");
+        if (focused) track.querySelectorAll(".nknk-marquee-item:not([aria-hidden='true'])").forEach(button => { button.tabIndex = button === focused ? 0 : -1; });
         row.focus = true;
         syncPauseState();
         revealFocusedItem(row, event.target.closest?.(".nknk-marquee-item"));
@@ -339,6 +356,9 @@
       for (const row of rows) {
         row.paused = reduced || !sectionVisible || !pageVisible || row.hover || row.focus || row.dragging || lightboxOpen;
       }
+      // Do not keep a 60 fps loop alive while every row is paused (off-screen, hidden tab, lightbox).
+      if (rows.length && rows.every(row => row.paused)) stopLoop();
+      else if (rows.length && !reduced) startLoop();
     };
 
     let rafId = 0;
@@ -482,7 +502,11 @@
     });
     image.addEventListener("load", () => lightbox.classList.remove("is-error"));
 
-    window.addEventListener("resize", remeasure);
+    let resizeTimer;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => { if (!document.hidden) remeasure(); }, 150);
+    });
 
     document.addEventListener("keydown", (event) => {
       if (!lightboxOpen) return;

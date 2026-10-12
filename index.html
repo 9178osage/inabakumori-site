@@ -49,7 +49,7 @@
         English
     </button>
 
-<button id="theme-btn" type="button" aria-label="切换深色主题" aria-pressed="false">
+<button id="theme-btn" type="button" aria-label="深色主题" aria-pressed="false">
         ☾
     </button>
 
@@ -81,7 +81,7 @@
 </div>
 
 <header class="hero" id="top">
-<a class="station-mark" href="#top" aria-label="气象观测站 / Weather Observation Station"><span aria-hidden="true">☂</span> INABAKUMORI<span class="station-mark-small">UNOFFICIAL ARCHIVE</span></a>
+<a class="station-mark" href="#top"><span aria-hidden="true">☂</span> INABAKUMORI<span class="station-mark-small">UNOFFICIAL ARCHIVE</span></a>
 
 <div class="hero-bg" id="hero-bg">
     <picture>
@@ -144,7 +144,7 @@
 </a>
 </nav>
 </div>
-<div class="hero-bottom"><a href="#intro" aria-label="向下浏览 / Scroll down">↓</a></div>
+<div class="hero-bottom"><a href="#intro" aria-label="向下浏览" data-aria-zh="向下浏览" data-aria-en="Scroll down" data-aria-ja="下へスクロール">↓</a></div>
 </header>
 <nav class="section-nav" aria-label="章节导航 / Section navigation">
 <a href="#intro" data-zh="简介" data-en="Intro" data-ja="紹介">简介</a>
@@ -223,7 +223,7 @@
 <p class="section-kicker">02 / THE ARTWORK</p>
 <h2 id="artwork-title" data-zh="NKNK" data-en="Nukunuku Nigirimeshi" data-ja="ぬくぬくにぎりめし">NKNK</h2>
 <p class="artwork-intro" data-zh="别忘了还有ぬくぬくにぎりめし" data-en="Don’t forget ぬくぬくにぎりめし, too." data-ja="ぬくぬくにぎりめしさんもお忘れなく。">别忘了还有ぬくぬくにぎりめし</p>
-<div id="nknk-gallery" class="nknk-gallery" aria-label="NKNK 插画库"></div>
+<div id="nknk-gallery" class="nknk-gallery" role="group" aria-label="NKNK 插画库"></div>
 <div class="artwork-links">
 <a class="artwork-link" href="https://twitter.com/NKNK_NGRMS" target="_blank" rel="noopener noreferrer"><img loading="lazy" decoding="async" src="images/X.png" alt="" width="36" height="36"><span><strong>X / Twitter</strong><span  data-zh="插画与最新动态" data-en="Artwork and latest updates" data-ja="イラスト・最新情報">插画与最新动态</span>
  </span><span aria-hidden="true">↗</span></a>
@@ -315,7 +315,8 @@
     没有找到符合歌名和标签条件的歌曲。
 </div>
 <div class="song-library">
-  <div class="song-scroll song-list" id="song-list"></div>
+  <a class="skip-link" href="#messages" data-zh="跳过歌曲列表" data-en="Skip the song list" data-ja="楽曲一覧をスキップ">跳过歌曲列表</a>
+<div class="song-scroll song-list" id="song-list"></div>
 </div>
 <noscript><p>启用 JavaScript 可使用搜索、收藏和账号功能。 / Enable JavaScript for search, favorites and accounts.</p></noscript>
 </section>
@@ -335,7 +336,7 @@
     <button id="message-retry" class="tag-clear-button" type="button" hidden
         data-zh="重新加载" data-ja="再読み込み" data-en="Retry">重新加载</button>
 </div>
-<div class="wall-toolbar"><button type="button" id="wall-mode" class="tag-clear-button" aria-pressed="false" aria-controls="floating-wall" data-zh="静态阅读" data-en="Read as a list" data-ja="一覧で読む">静态阅读</button><span class="wall-note" data-zh="来自喜欢同一片雨的人。" data-en="From people who love the same rain." data-ja="同じ雨が好きな人たちから。">来自喜欢同一片雨的人。</span></div>
+<div class="wall-toolbar"><button type="button" id="wall-mode" class="tag-clear-button" aria-controls="floating-wall" data-zh="静态阅读" data-en="Read as a list" data-ja="一覧で読む">静态阅读</button><span class="wall-note" data-zh="来自喜欢同一片雨的人。" data-en="From people who love the same rain." data-ja="同じ雨が好きな人たちから。">来自喜欢同一片雨的人。</span></div>
 <div id="floating-wall" role="region" aria-label="留言 / Messages" aria-busy="false" tabindex="0"></div>
 
 <div class="message-box">

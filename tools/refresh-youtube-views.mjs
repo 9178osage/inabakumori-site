@@ -155,6 +155,12 @@ for (const e of withIds) {
   }
 }
 
+// Every request failing (revoked key, quota, outage) must fail the job instead of silently going stale.
+if (withIds.length && statsById.size === 0) {
+  console.error(`❌ No view counts were returned for any of ${withIds.length} songs; js/songs.js left unchanged.`);
+  process.exit(1);
+}
+
 await writeFile(assertRepoPath(ROOT, SONGS_PATH, { mustExist: true }), formatSongsFile(songs), "utf8");
 
 console.log("\n--- summary ---");
