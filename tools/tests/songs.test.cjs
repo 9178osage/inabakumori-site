@@ -184,5 +184,5 @@ test("Japanese singer tags filter correctly and counts use Japanese", () => {
   elements["tag-filter-input"].dispatch("input");
   assert.ok(list.children.filter(row => !row.hidden).length > 0);
   assert.match(elements["tag-result-count"].textContent, /51 曲中/);
-  assert.match(list.children[0].querySelector(".song-views").dataset.ja, /回視聴/);
+  assert.match(list.children[0].querySelector(".song-views").dataset.ja, /回再生/);
 });

@@ -483,7 +483,7 @@ test('helmet keeps an explicit API CSP instead of disabling it', () => {
 test('unknown non-API backend paths return a JSON 404 before the error handlers', () => {
   const backend = fs.readFileSync('backend/server.mjs', 'utf8');
   const apiNotFound = backend.indexOf('app.use("/api", (req, res) => {');
-  const catchAll = backend.indexOf('app.use((req, res) => {\n  res.status(404).json({ error: "路径不存在", code: "NOT_FOUND" });');
+  const catchAll = backend.indexOf('app.use((req, res) => {\n  res.status(404).json({ error: "请求的地址不存在，请刷新页面后重试", code: "NOT_FOUND" });');
   const errors = backend.indexOf('app.use(errorHandler());');
   assert.ok(apiNotFound > 0 && catchAll > apiNotFound && errors > catchAll, 'catch-all JSON 404 must sit after /api 404 and before errorHandler');
 });

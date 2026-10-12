@@ -371,15 +371,15 @@ const backupLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 60 * 60 *
   message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 registerBackupEndpoint(app, { databasePath, token: BACKUP_TOKEN, limiter: backupLimiter, clientIp });
 app.use("/api", (req, res) => {
-  res.status(404).json({ error: "API 路径不存在", code: "NOT_FOUND" });
+  res.status(404).json({ error: "请求的地址不存在，请刷新页面后重试", code: "NOT_FOUND" });
 });
 app.use((req, res) => {
-  res.status(404).json({ error: "路径不存在", code: "NOT_FOUND" });
+  res.status(404).json({ error: "请求的地址不存在，请刷新页面后重试", code: "NOT_FOUND" });
 });
 app.use(errorHandler());
 app.use((err, req, res, next) => {
   if (err?.message === "Origin not allowed by CORS") {
-    return res.status(403).json({ error: "Origin 不被允许", code: "CORS_ORIGIN_DENIED" });
+    return res.status(403).json({ error: "当前网页无法访问此服务，请从本站网址打开", code: "CORS_ORIGIN_DENIED" });
   }
   if (err?.type === "entity.too.large") {
     return res.status(413).json({ error: "请求内容过大", code: "PAYLOAD_TOO_LARGE" });
@@ -388,7 +388,7 @@ app.use((err, req, res, next) => {
     return res.status(415).json({ error: "请求的字符集或压缩格式不受支持", code: "UNSUPPORTED_MEDIA_TYPE" });
   }
   if (err instanceof SyntaxError && Object.prototype.hasOwnProperty.call(err, "body")) {
-    return res.status(400).json({ error: "JSON 格式不正确", code: "INVALID_JSON" });
+    return res.status(400).json({ error: "请求格式不正确，请刷新页面后重试", code: "INVALID_JSON" });
   }
   if (res.headersSent) {
     return next(err);
