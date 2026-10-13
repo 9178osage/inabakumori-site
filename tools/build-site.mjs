@@ -63,7 +63,7 @@ async function removeStrayDotfiles(folder) {
     if (entry.isFile() && entry.name.startsWith(".") && entry.name !== ".nojekyll") await rm(`${folder}/${entry.name}`);
   }
 }
-await removeStrayDotfiles("dist");
+await removeStrayDotfiles(out);
 
 const context = vm.createContext({});
 vm.runInContext(await readFile(source("js/songs.js"), "utf8"), context);
