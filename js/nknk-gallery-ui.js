@@ -513,9 +513,14 @@
         if (img) loadThumb(img);
       }
     };
+    const hasPendingThumbs = () => rows.some(row => row.track.querySelector("img[data-src]"));
     const startThumbLoadTimer = () => {
-      if (thumbLoadTimer !== null) return;
-      thumbLoadTimer = setInterval(() => { for (const row of rows) loadThumbsInWindow(row); }, THUMB_LOAD_INTERVAL_MS);
+      if (thumbLoadTimer !== null || !hasPendingThumbs()) return;
+      thumbLoadTimer = setInterval(() => {
+        for (const row of rows) loadThumbsInWindow(row);
+        // Every thumb is fetched: stop polling layout instead of reading it every 400 ms forever.
+        if (!hasPendingThumbs()) stopThumbLoadTimer();
+      }, THUMB_LOAD_INTERVAL_MS);
     };
     const stopThumbLoadTimer = () => {
       if (thumbLoadTimer === null) return;
