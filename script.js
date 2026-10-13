@@ -290,6 +290,8 @@ window.removeWallMessage = (id) => {
 };
 let messageRetryAt = 0;
 let messageRetryTimer = null;
+// The visible status ticks every second; screen readers only hear the start and the end of a countdown.
+let messageAnnouncedRetryAt = 0;
 // Retry-After is either delta-seconds or an HTTP date; fall back to 30 s when absent or invalid.
 function retryAfterSeconds(value) {
   const text = String(value ?? "").trim();
@@ -304,6 +306,7 @@ function updateMessageLoadStatus() {
   const status = document.getElementById("message-load-status");
   const retry = document.getElementById("message-retry");
   const wall = document.getElementById("floating-wall");
+  const announce = document.getElementById("message-load-announce");
   const retryRemaining = messageLoadState === "ratelimited" ? Math.max(0, messageRetryAt - Date.now()) : 0;
   if (status) {
     const text = { loading: ["正在加载留言…", "Loading messages…"], error: ["留言加载失败，请检查连接后重试。", "Could not load messages. Check your connection and retry."], empty: ["还没有留言，来留下第一条吧。", "No messages yet. Leave the first one."], ready: ["", ""], idle: ["", ""] };
@@ -313,6 +316,13 @@ function updateMessageLoadStatus() {
         ? pageText("留言读取过于频繁，请在 {n} 秒后重试。", "Too many requests. Please retry in {n} s.").replace("{n}", seconds)
         : { zh: "现在可以重新加载留言。", en: "You can retry loading messages now.", ja: "メッセージを再読み込みできます。" }[currentLanguage];
     } else status.textContent = pageText(...text[messageLoadState]);
+    if (announce) {
+      // Mid-countdown ticks leave the live region alone; only a new countdown or a state change is announced.
+      const ticking = retryRemaining > 0 && messageAnnouncedRetryAt === messageRetryAt;
+      if (retryRemaining > 0) messageAnnouncedRetryAt = messageRetryAt;
+      else messageAnnouncedRetryAt = 0;
+      if (!ticking && announce.textContent !== status.textContent) announce.textContent = status.textContent;
+    }
   }
   if (retry) {
     retry.hidden = messageLoadState !== "error" && messageLoadState !== "ratelimited";

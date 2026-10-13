@@ -9,6 +9,7 @@ function setup() {
   const timers = new Map();
   const elements = {
     "message-load-status": {},
+    "message-load-announce": (() => { const el = { writes: [] }; let value = ""; Object.defineProperty(el, "textContent", { get: () => value, set: next => { value = next; el.writes.push(next); } }); return el; })(),
     "message-retry": {},
     "floating-wall": { setAttribute() {} }
   };
@@ -103,4 +104,35 @@ test("a new load clears the old countdown so its result cannot be overwritten", 
   assert.equal(app.elements["message-load-status"].textContent, "还没有留言，来留下第一条吧。");
   assert.equal(app.elements["message-retry"].hidden, true);
   assert.equal(app.timers.size, 0);
+});
+
+test("screen readers hear only the start and the end of a countdown in every language", async () => {
+  for (const [language, start, ready] of [
+    ["zh", "留言读取过于频繁，请在 3 秒后重试。", "现在可以重新加载留言。"],
+    ["en", "Too many requests. Please retry in 3 s.", "You can retry loading messages now."],
+    ["ja", "読み込みが多すぎます。3 秒後に再試行してください。", "メッセージを再読み込みできます。"]
+  ]) {
+    const app = setup();
+    app.run(`currentLanguage = "${language}"`);
+    const announce = app.elements["message-load-announce"];
+    await app.limited(3);
+    // loadMessages announces "loading" first, then the countdown start once.
+    assert.equal(announce.writes.at(-1), start);
+    announce.writes.length = 0;
+    app.run("updateMessageLoadStatus()");
+    assert.deepEqual(announce.writes, [], "re-rendering the same countdown is silent");
+    app.advance(1000);
+    app.advance(1000);
+    assert.equal(app.elements["message-load-status"].textContent.includes("1"), true, "visible countdown keeps ticking");
+    assert.deepEqual(announce.writes, [], "ticks must not touch the live region");
+    app.advance(1000);
+    assert.deepEqual(announce.writes, [ready]);
+    assert.equal(app.elements["message-retry"].disabled, false);
+  }
+});
+
+test("only the hidden announcer is a live region; the ticking text is hidden from assistive tech", () => {
+  const html = fs.readFileSync("index.html", "utf8");
+  assert.match(html, /<p id="message-load-status" aria-hidden="true"><\/p>/);
+  assert.match(html, /<p id="message-load-announce" class="sr-only" role="status" aria-live="polite"><\/p>/);
 });
