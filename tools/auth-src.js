@@ -128,10 +128,10 @@ function authFailureMessage(error) {
 function notifyAuthChange() {
   try { (window.siteStorage || localStorage).setItem("auth-sync", String(Date.now())); } catch {}
 }
+// Receiving side only: never write auth-sync here, or two open tabs would echo the key back and forth.
 window.addEventListener("storage", event => {
   if (event.key !== "auth-sync") return;
   updateAuthButton();
-  notifyAuthChange();
   window.dispatchEvent(new Event("authchange"));
 });
 async function updateAuthButton() {
