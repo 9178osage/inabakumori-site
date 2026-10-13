@@ -54,6 +54,12 @@
       document.getElementById("my-comments-controls").hidden = !signedIn;
       if (!signedIn) { state = "signedOut"; return; }
       const response = await (window.siteFetch || fetch)(`${api}/mine${more ? `?before=${nextCursor}` : ""}`, { credentials: "include", cache: "no-store" });
+      // A dead session is not a load failure: show the signed-out panel like the admin list does.
+      if (response.status === 401 || response.status === 403) {
+        document.getElementById("my-comments-controls").hidden = true;
+        state = "signedOut";
+        return;
+      }
       if (!response.ok) throw new Error("Could not load messages");
       const data = await response.json();
       if (!Array.isArray(data.comments)) throw new Error("Invalid messages");

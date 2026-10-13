@@ -130,6 +130,18 @@ function applyTheme() {
     themeButton.setAttribute("aria-pressed", String(currentTheme === "dark"));
   }
 }
+// iOS Safari keeps the layout viewport at its largest size while the keyboard or the collapsing
+// toolbars shrink the visible area, so vh/dvh-based dialogs can end up taller than what a visitor
+// can actually see (and tap). --app-vh mirrors the visual viewport for those rules.
+function syncVisualViewportHeight() {
+  const height = Math.round(window.visualViewport?.height || window.innerHeight || 0);
+  if (height > 0) document.documentElement.style.setProperty("--app-vh", `${height}px`);
+}
+syncVisualViewportHeight();
+window.visualViewport?.addEventListener("resize", syncVisualViewportHeight);
+window.addEventListener("resize", syncVisualViewportHeight);
+window.addEventListener("orientationchange", syncVisualViewportHeight);
+
 function toggleTheme() {
   currentTheme = currentTheme === "light" ? "dark" : "light";
   (window.siteStorage || localStorage).setItem("theme", currentTheme);
@@ -532,7 +544,7 @@ function createFloatingMessage(message, startInside = false, deferLayout = false
     const startX = wall.clientWidth + 30;
     const endX = -element.offsetWidth - 30;
     const duration = (startX - endX) / 70 * 1e3;
-    animation = element.animate([{ transform: `translate(${startX}px, ${y}px)` }, { transform: `translate(${endX}px, ${y}px)` }], { duration, iterations: Infinity, easing: "linear" });
+    animation = element.animate([{ transform: `translate3d(${startX}px, ${y}px, 0)` }, { transform: `translate3d(${endX}px, ${y}px, 0)` }], { duration, iterations: Infinity, easing: "linear" });
     animation.currentTime = reducedMotionQuery?.matches ? duration * Math.max(0.15, Math.min(0.85, progress)) : progress * duration;
     element.updateMotion();
   };

@@ -6,6 +6,7 @@
   // come within THUMB_LOOKAHEAD_PX of the marquee viewport (≈50 s ahead at 30 px/s).
   const EAGER_THUMBS = 15;
   const THUMB_LOOKAHEAD_PX = 1600;
+  const THUMB_LOAD_INTERVAL_MS = 400;
 
   // Enter/Space (and assistive-tech activation) dispatch a click with detail === 0. Pointer
   // clicks have detail >= 1 and are handled on pointerup so drags can be told apart.
@@ -237,9 +238,11 @@
         img.style.aspectRatio = `${item.w} / ${item.h}`;
       }
       if (!canDeferThumbs || (!clone && absoluteIndex < EAGER_THUMBS)) {
-        // Native lazy loading: the gallery sits far below the hero, so its thumbs no longer
-        // compete with first paint; the browser starts them as the section approaches (perf P5).
-        img.loading = "lazy";
+        // The illustrations a visitor reaches first. They cannot be left to native lazy loading:
+        // CSS-transform motion does not count as "near the viewport", so the browser would keep them
+        // unfetched while they are already on screen. fetchPriority keeps them cheap for first paint.
+        img.loading = "eager";
+        img.fetchPriority = "low";
         img.src = item.thumb;
       } else {
         img.dataset.src = item.thumb;
@@ -458,11 +461,13 @@
       if (reduced) return;
       running = true;
       updateRows();
+      startThumbLoadTimer();
     };
 
     const stopLoop = () => {
       running = false;
       updateRows();
+      stopThumbLoadTimer();
     };
 
     const remeasure = () => {
@@ -480,6 +485,42 @@
       if (!src) return;
       img.removeAttribute("data-src");
       img.src = src;
+    };
+
+    // IntersectionObserver is not re-evaluated for compositor-driven animation and native lazy
+    // loading ignores CSS transforms, so the row also loads its own thumbs from the live position:
+    // anything within THUMB_LOOKAHEAD_PX of the visible window is fetched on the next tick.
+    let lastThumbLoad = 0;
+    let thumbLoadTimer = null;
+    const loadThumbsInWindow = (row, force = false) => {
+      const viewportWidth = row.viewport.clientWidth;
+      if (!viewportWidth) return;
+      const now = performance.now();
+      if (!force && now - lastThumbLoad < THUMB_LOAD_INTERVAL_MS) return;
+      lastThumbLoad = now;
+      const transform = getComputedStyle(row.track).transform;
+      let offsetX = 0;
+      if (transform && transform !== "none") {
+        try { offsetX = new DOMMatrixReadOnly(transform).m41; } catch { offsetX = 0; }
+      }
+      const from = -offsetX - THUMB_LOOKAHEAD_PX;
+      const to = -offsetX + viewportWidth + THUMB_LOOKAHEAD_PX;
+      for (const child of row.track.children) {
+        const start = child.offsetLeft;
+        if (start > to) break;
+        if (start + child.offsetWidth < from) continue;
+        const img = child.querySelector("img[data-src]");
+        if (img) loadThumb(img);
+      }
+    };
+    const startThumbLoadTimer = () => {
+      if (thumbLoadTimer !== null) return;
+      thumbLoadTimer = setInterval(() => { for (const row of rows) loadThumbsInWindow(row); }, THUMB_LOAD_INTERVAL_MS);
+    };
+    const stopThumbLoadTimer = () => {
+      if (thumbLoadTimer === null) return;
+      clearInterval(thumbLoadTimer);
+      thumbLoadTimer = null;
     };
 
     const observeDeferredThumbs = () => {
@@ -552,6 +593,7 @@
         img.addEventListener("load", remeasure, { once: true });
       });
       observeDeferredThumbs();
+      rows.forEach(row => loadThumbsInWindow(row, true));
 
       syncChromeLabels();
       syncPauseState();
@@ -637,6 +679,7 @@
     motionQuery?.addEventListener?.("change", () => {
       // Rebuild to switch between marquee loop and scroll-snap row.
       mounted = false;
+      stopThumbLoadTimer();
       stopLoop();
       rows.forEach(row => row.animation?.cancel());
       rows.length = 0;

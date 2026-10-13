@@ -18,7 +18,12 @@
     favorites = new Set(Array.isArray(saved) ? saved.filter(id => typeof id === "string").slice(0, 1000) : []);
   } catch { favorites = new Set(); }
   let favoritesOnly = false;
-  const songId = link => getSongThumbnailUrl(link.href)?.split("/").at(-2) || link.href;
+  // Array.prototype.at is Safari/iOS 15.4+. Older iOS threw here, which killed the whole
+  // tag filter (search, chips, sort, favorites) with a TypeError, so use plain indexing.
+  const songId = link => {
+    const parts = getSongThumbnailUrl(link.href)?.split("/");
+    return (parts && parts.length > 1 ? parts[parts.length - 2] : "") || link.href;
+  };
   window.includeFavoriteSong = link => !favoritesOnly || favorites.has(songId(link));
 
   document.addEventListener("DOMContentLoaded", () => {

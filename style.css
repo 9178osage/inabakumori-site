@@ -101,6 +101,7 @@ textarea {
 .hero {
   position: relative;
   width: 100%;
+  height: 100vh;
   height: 100svh;
   min-height: 640px;
   overflow: hidden;
@@ -709,7 +710,7 @@ main > section#messages {
   border-bottom: 3px solid #555555;
   box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.25);
   transition: var(--transition-surface);
-  max-height: 90vh;
+  max-height: min(90vh, calc(var(--app-vh, 100vh) - 24px));
   overflow-y: auto;
 }
 .auth-window h2 {
@@ -862,6 +863,7 @@ main > section#messages {
   display: block;
   flex: 0 0 128px;
   width: 128px;
+  height: 72px;
   aspect-ratio: 16 / 9;
   overflow: hidden;
   border-radius: 8px;
@@ -974,6 +976,7 @@ body.dark .song-thumbnail {
   position: relative;
   z-index: 10002;
   width: min(440px, calc(100vw - 40px));
+  max-height: calc(100vh - 48px);
   max-height: calc(100dvh - 48px);
   overflow: auto;
   padding: 28px;
@@ -1341,6 +1344,7 @@ body.dark .tag-chip.active {
     scroll-padding-top: calc(76px + env(safe-area-inset-top));
   }
   .hero {
+    height: 100vh;
     height: 100svh;
     min-height: 360px;
   }
@@ -1462,7 +1466,7 @@ body.dark .tag-chip.active {
   .auth-window {
     width: min(400px, calc(100% - 24px));
     padding: 28px 20px 20px;
-    max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    max-height: calc(var(--app-vh, 100dvh) - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
   }
   .auth-close {
     min-width: 44px;
@@ -1809,9 +1813,13 @@ body.easter-egg-open { overflow: hidden; }
 .forecast-card small { display: block; font: 9px/1.6 var(--font-data); overflow-wrap: anywhere; }
 .forecast-card strong { display: block; margin: 8px 0; font: 14px/1.5 var(--font-song); overflow-wrap: anywhere; }
 .forecast-symbol { width: 42px; height: 42px; border-radius: 50%; text-align: center; font: 26px/40px sans-serif; }
+:root { --fall-viewport: 100vh; }
+@supports (height: 100dvh) {
+  :root { --fall-viewport: 100dvh; }
+}
 @keyframes forecastFall {
   from { transform: translate3d(0, 0, 0) rotate(0deg); }
-  to { transform: translate3d(var(--drift), calc(100dvh + 320px), 0) rotate(var(--turn)); }
+  to { transform: translate3d(var(--drift), calc(var(--fall-viewport) + 320px), 0) rotate(var(--turn)); }
 }
 .easter-egg-overlay.motion-paused .forecast-particle { animation-play-state: paused; }
 @media (prefers-reduced-motion: reduce) {
@@ -1917,6 +1925,7 @@ body.easter-egg-open { overflow: hidden; }
 .nknk-lightbox {
   position: fixed;
   inset: 0;
+  height: var(--app-vh, 100vh);
   z-index: 1200;
   display: grid;
   grid-template-columns: auto 1fr auto;
@@ -1924,7 +1933,7 @@ body.easter-egg-open { overflow: hidden; }
   align-items: center;
   justify-items: center;
   gap: 8px;
-  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
   background: rgba(20, 20, 20, 0.82);
   color: #f2f2f2;
 }
@@ -2030,4 +2039,33 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
 /* Touch feedback: hover styles are pointer-only, so taps get a brief pressed state instead. */
 @media (hover: none) {
   :is(button, .hero-cta, .artist-links a, .artwork-link, .song-list a, .contact-email, .hero-content nav a):active { opacity: 0.72; }
+}
+
+/* Safari/iOS <=15.3 drops `overflow-wrap: anywhere` (15.4+). A duplicate declaration inside the same
+   block is removed by the CSS minifier, so the fallback lives in its own @supports rule. */
+@supports not (overflow-wrap: anywhere) {
+  #artwork-title,
+  .artwork-link > span:nth-child(2),
+  .artist-links a,
+  .song-details,
+  #admin-comments-list p,
+  .hero-content h1,
+  .auth-window h2,
+  .tag-chip,
+  footer,
+  .forecast-particle {
+    overflow-wrap: break-word;
+  }
+}
+
+/* Coarse-pointer devices wider than the mobile breakpoint (e.g. iPad Pro 12.9") kept the desktop
+   13-15px field sizes, which makes iOS Safari zoom the whole page as soon as a field is focused. */
+@media (pointer: coarse) {
+  #tag-filter-input,
+  #message-name,
+  #message-input,
+  .sort-control,
+  .sort-control select {
+    font-size: 16px;
+  }
 }
