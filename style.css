@@ -1769,7 +1769,7 @@ body.modal-open { overflow: hidden; }
   .song-thumbnail { flex-basis: 76px; width: 76px; }
   .song-title-text { font-size: 16px; }
   .song-favorite { flex-basis: 44px; font-size: 22px; }
-  .song-views { font-size: 10px; }
+  .song-views { font-size: 12px; }
   .library-toolbar { gap: 8px; }
   .sort-control { width: 100%; }
   .sort-control select { flex: 1; font-size: 16px; }
