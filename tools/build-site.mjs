@@ -40,7 +40,8 @@ async function copyPublicFolder(folder, allowed) {
   for (const entry of await readdir(source(folder), { withFileTypes: true })) {
     const file = `${folder}/${entry.name}`;
     if (entry.isDirectory()) await copyPublicFolder(file, allowed);
-    else if (entry.isFile() && allowed.test(entry.name)) await copyFile(source(file), output(`dist/${file}`));
+    // Dotfiles (.DS_Store from Finder, editor leftovers) are never public assets.
+    else if (entry.isFile() && !entry.name.startsWith(".") && allowed.test(entry.name)) await copyFile(source(file), output(`dist/${file}`));
   }
 }
 await copyPublicFolder("images/optimized", /\.webp$/i);
@@ -52,6 +53,17 @@ for (const entry of await readdir(source("images"), { withFileTypes: true })) {
 }
 for (const file of ["favicon.ico", "site.webmanifest", "robots.txt", "sitemap.xml", "404.html", "CNAME"]) await copyFile(source(file), output(`dist/${file}`));
 await writeFile(output("dist/.nojekyll"), "");
+
+// dist is not wiped between builds, so a Finder visit can leave .DS_Store files behind; they would
+// be counted as public files and shipped in the Pages artifact. Remove them before the artifact is
+// assembled (`.nojekyll` is the only dotfile we publish on purpose).
+async function removeStrayDotfiles(folder) {
+  for (const entry of await readdir(folder, { withFileTypes: true })) {
+    if (entry.isDirectory()) { await removeStrayDotfiles(`${folder}/${entry.name}`); continue; }
+    if (entry.isFile() && entry.name.startsWith(".") && entry.name !== ".nojekyll") await rm(`${folder}/${entry.name}`);
+  }
+}
+await removeStrayDotfiles("dist");
 
 const context = vm.createContext({});
 vm.runInContext(await readFile(source("js/songs.js"), "utf8"), context);
