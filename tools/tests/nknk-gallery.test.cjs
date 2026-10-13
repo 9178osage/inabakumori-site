@@ -79,7 +79,9 @@ test("NKNK marquee: keyboard activation opens the lightbox while pointer clicks 
   const click = ui.match(/track\.addEventListener\("click", \(event\) => \{([\s\S]*?)\n      \}\);/);
   assert.ok(click, "track click handler present");
   assert.match(click[1], /if \(!reduced && !isKeyboardActivation\(event\)\)/);
-  assert.match(click[1], /openAt\(absoluteIndex\)/);
+  // Keyboard activation opens the lightbox and marks it as keyboard-initiated, so the row keeps its
+  // reading pause; pointer clicks never reach here (they open on pointerup).
+  assert.match(click[1], /openAt\(absoluteIndex, null, true\)/);
   // A cancelled pointer (page scroll gesture) must not count as a tap.
   assert.match(ui, /addEventListener\("pointercancel", event => onPointerUp\(event, true\)\)/);
   assert.match(ui, /const shouldClick = !cancelled && !moved && activeButton;/);
@@ -99,7 +101,10 @@ test("NKNK lightbox traps Tab focus, makes the page inert and restores focus on 
   assert.match(ui, /event\.key === "Tab"[\s\S]{0,300}focusTrapTarget\(focusables, document\.activeElement, event\.shiftKey\)/);
   assert.match(ui, /node\.inert = true/);
   assert.match(ui, /node\.inert = wasInert/);
-  assert.match(ui, /previousFocus\?\.focus\?\.\(\{ preventScroll: true \}\)/);
+  // Focus is still handed back to the illustration on close (preventScroll keeps the page still);
+  // it now goes through restoreFocus() so a pointer-initiated close can skip the reading pause.
+  assert.match(ui, /const restoreFocus = \(element\) => \{\s*element\?\.focus\?\.\(\{ preventScroll: true \}\)/);
+  assert.match(ui, /else restoreFocus\(previousFocus\)/);
   assert.match(ui, /image\.addEventListener\("error"/);
   assert.match(ui, /chromeLabel\("error"\)/);
 });

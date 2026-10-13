@@ -63,6 +63,11 @@
     let lightboxIndex = 0;
     let lightboxOpen = false;
     let previousFocus = null;
+    // Whether the open lightbox was opened from the keyboard (Enter/Space) rather than a pointer.
+    let lightboxOpenedByKeyboard = false;
+    // Set while we hand focus back after a pointer-initiated close, so that focusin does not re-arm
+    // the "reading" pause the visitor never asked for.
+    let suppressFocusPause = false;
     let touchStartX = 0;
     let touchStartY = 0;
     let mounted = false;
@@ -152,11 +157,12 @@
       // The browser may move focus while it finishes the traversal; restore it afterwards.
       closeLightbox({ deferFocus: true });
     });
-    const openAt = (nextIndex, source = null) => {
+    const openAt = (nextIndex, source = null, byKeyboard = false) => {
       if (lightboxOpen) {
         showLightbox(nextIndex);
         return;
       }
+      lightboxOpenedByKeyboard = byKeyboard;
       // A tap/click leaves focus on <body>; return it to the illustration that was activated instead.
       const active = document.activeElement;
       previousFocus = source || (active && active !== document.body ? active : null);
@@ -195,10 +201,21 @@
       if (previousFocus?.matches?.(".nknk-marquee-item")) {
         galleryTrackOf(previousFocus)?.querySelectorAll(".nknk-marquee-item:not([aria-hidden='true'])").forEach(button => { button.tabIndex = button === previousFocus ? 0 : -1; });
       }
+      // A pointer visitor gets focus back as well, but without the reading pause: the row freezing
+      // after closing an illustration reads as a broken gallery. Keyboard visitors keep the pause.
+      const ownerRow = previousFocus ? rows.find(candidate => candidate.track === galleryTrackOf(previousFocus)) : null;
+      if (!lightboxOpenedByKeyboard && ownerRow) {
+        ownerRow.pointerFocusExempt = true;
+        suppressFocusPause = true;
+      }
+      const restoreFocus = (element) => {
+        element?.focus?.({ preventScroll: true });
+        queueMicrotask(() => { suppressFocusPause = false; });
+      };
       if (deferFocus) {
         const returnFocus = previousFocus;
-        setTimeout(() => returnFocus?.focus?.({ preventScroll: true }), 0);
-      } else previousFocus?.focus?.({ preventScroll: true });
+        setTimeout(() => restoreFocus(returnFocus), 0);
+      } else restoreFocus(previousFocus);
       previousFocus = null;
       if (historyEntry) {
         historyEntry = false;
@@ -367,6 +384,10 @@
         const focused = event.target.closest?.(".nknk-marquee-item:not([aria-hidden='true'])");
         if (focused) track.querySelectorAll(".nknk-marquee-item:not([aria-hidden='true'])").forEach(button => { button.tabIndex = button === focused ? 0 : -1; });
         row.focus = true;
+        // Our own focus restore after a pointer close must not re-arm the pause; any genuine focus
+        // move (Tab, arrow keys, click that focuses) does.
+        if (suppressFocusPause) { row.pointerFocusExempt = true; suppressFocusPause = false; }
+        else row.pointerFocusExempt = false;
         syncPauseState();
         revealFocusedItem(row, event.target.closest?.(".nknk-marquee-item"));
       });
@@ -380,6 +401,7 @@
         // Defer so focus moving within the row does not briefly resume.
         queueMicrotask(() => {
           row.focus = viewport.contains(document.activeElement);
+          if (!row.focus) row.pointerFocusExempt = false;
           syncPauseState();
         });
       });
@@ -395,7 +417,7 @@
         if (!button) return;
         const absoluteIndex = Number(button.dataset.galleryIndex);
         // Keyboard activation: the focused button is already document.activeElement.
-        if (Number.isFinite(absoluteIndex)) openAt(absoluteIndex);
+        if (Number.isFinite(absoluteIndex)) openAt(absoluteIndex, null, true);
       });
     };
 
@@ -415,7 +437,7 @@
 
     const syncPauseState = () => {
       for (const row of rows) {
-        row.paused = reduced || !sectionVisible || !pageVisible || row.hover || row.focus || row.dragging || lightboxOpen;
+        row.paused = reduced || !sectionVisible || !pageVisible || row.hover || (row.focus && !row.pointerFocusExempt) || row.dragging || lightboxOpen;
       }
       // Do not keep a 60 fps loop alive while every row is paused (off-screen, hidden tab, lightbox).
       if (rows.length && rows.every(row => row.paused)) stopLoop();
@@ -584,6 +606,8 @@
           paused: true,
           hover: false,
           focus: false,
+          // True while the in-row focus came from our own restore after a pointer-initiated close.
+          pointerFocusExempt: false,
           dragging: false
         };
         rows.push(row);
