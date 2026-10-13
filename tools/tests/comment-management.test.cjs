@@ -162,6 +162,30 @@ test('Japanese message management shows a localized sign-in prompt', async () =>
   assert.equal(elements['my-comments-status'].textContent, 'メッセージを管理するにはログインしてください。');
 });
 
+test('a stale unauthorized response cannot hide a newer signed-in message list', async () => {
+  for (const status of [401, 403]) {
+    const { context, elements, events } = ui();
+    let resolveStale;
+    context.fetch = () => new Promise(resolve => { resolveStale = resolve; });
+    const staleLoad = events.authchange();
+    await new Promise(resolve => setImmediate(resolve));
+
+    context.fetch = async () => ({ ok: true, json: async () => ({
+      comments: [{ id: 2, nickname: 'new account', content: 'current message' }], nextCursor: 2
+    }) });
+    await events.authchange();
+    resolveStale({ ok: false, status });
+    await staleLoad;
+
+    assert.equal(elements['my-comments-controls'].hidden, false, `${status} from an old request must not hide the current controls`);
+    assert.equal(elements['my-comments-list'].children[0].children[0].textContent, 'new account：current message');
+    events.languagechange();
+    assert.equal(elements['my-comments-status'].textContent, '', `${status} must not leave stale signed-out state for a later render`);
+    assert.equal(elements['my-comments-more'].hidden, false);
+    assert.equal(elements['my-comments-more'].disabled, false);
+  }
+});
+
 test('comment safety blocks links, contact details and common advertising language', async () => {
   const { detectCommentSafetyIssue, normalizeCommentForComparison } = await import('../../backend/services.mjs');
   for (const content of [
