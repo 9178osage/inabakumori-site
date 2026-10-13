@@ -32,9 +32,16 @@ test("P2: marquee runs as a Web Animation, not a per-frame JS loop", () => {
   assert.match(gallery, /freezeRow\(row\);\n\s*startOffset = row\.offset;/);
 });
 
-test("P5: gallery thumbs never load eagerly at page start", () => {
-  assert.doesNotMatch(gallery, /img\.loading = "eager"/);
-  assert.match(gallery, /img\.loading = "lazy"/);
+test("P5: only the leading gallery thumbs load eagerly, at low priority", () => {
+  // The first EAGER_THUMBS illustrations are fetched up front: CSS-transform motion does not count as
+  // "near the viewport" for native lazy loading, so lazy thumbs could stay unfetched while already
+  // visible on screen. fetchPriority keeps them out of the first-paint race instead.
+  assert.match(gallery, /img\.loading = "eager"/);
+  assert.match(gallery, /img\.fetchPriority = "low"/);
+  assert.match(gallery, /absoluteIndex < EAGER_THUMBS/);
+  // Everything past the leading window is still deferred and loaded on demand.
+  assert.match(gallery, /img\.dataset\.src = item\.thumb/);
+  assert.match(gallery, /img\[data-src\]/);
 });
 
 test("P6: fixed-controls band uses a class on the controls, not body:has()", () => {

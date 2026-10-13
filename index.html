@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="referrer" content="no-referrer"/>
-<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" name="viewport"/>
 <meta name="description" content="稲葉曇的气象观测站：歌曲、MV、创作链接与留言墙。"/>
 <meta name="theme-color" content="#c4c4c0" media="(prefers-color-scheme: light)"/>
 <meta name="theme-color" content="#171b1f" media="(prefers-color-scheme: dark)"/>
@@ -66,9 +66,9 @@
             ×
         </button>
 <h2 id="auth-title">登录</h2>
-<input id="auth-email" aria-label="邮箱" autocomplete="username" placeholder="邮箱" type="email"/>
-<input id="auth-password" aria-label="密码" autocomplete="current-password" placeholder="密码" type="password"/>
-<input id="auth-password-confirm" aria-label="确认新密码" autocomplete="new-password" placeholder="再次输入新密码" type="password" hidden/>
+<input id="auth-email" aria-label="邮箱" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="email" placeholder="邮箱" type="email"/>
+<input id="auth-password" aria-label="密码" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="密码" type="password"/>
+<input id="auth-password-confirm" aria-label="确认新密码" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="再次输入新密码" type="password" hidden/>
 <p id="auth-status" role="status" aria-live="polite"></p>
 <p id="auth-error" role="alert"></p>
 <button id="auth-submit" type="button">
@@ -261,6 +261,10 @@
             aria-describedby="search-help"
             aria-controls="song-list"
             autocomplete="off"
+            autocapitalize="off"
+            autocorrect="off"
+            inputmode="search"
+            enterkeyhint="search"
             spellcheck="false"
             placeholder="搜索歌名或 TAG，例如：ラグ / 歌爱 / yuki"
         >
@@ -342,9 +346,9 @@
 
 <div class="message-box">
 <label for="message-name" data-zh="昵称" data-en="Nickname" data-ja="ニックネーム">昵称</label>
-<input id="message-name" name="nickname" maxlength="60" placeholder="你的昵称" type="text" autocomplete="nickname" data-max-code-points="30"/>
+<input id="message-name" name="nickname" maxlength="60" placeholder="你的昵称" type="text" autocomplete="nickname" autocapitalize="off" autocorrect="off" enterkeyhint="send" data-max-code-points="30"/>
 <label for="message-input" data-zh="留言" data-en="Message" data-ja="メッセージ">留言</label>
-<textarea aria-describedby="message-policy message-counter" id="message-input" name="message" maxlength="1000" placeholder="想对稲葉曇说些什么？ / Say something to Inabakumori..." data-max-code-points="500"></textarea>
+<textarea aria-describedby="message-policy message-counter" id="message-input" name="message" maxlength="1000" autocapitalize="off" enterkeyhint="send" placeholder="想对稲葉曇说些什么？ / Say something to Inabakumori..." data-max-code-points="500"></textarea>
 <div class="message-meta"><p id="message-policy" data-zh="游客留言保留半年，每小时最多 3 条。请勿发布联系方式或广告。" data-en="Guest messages stay for 6 months, up to 3 per hour. No contact details or ads." data-ja="ゲストの投稿は6か月間保存、1時間に3件まで。連絡先や広告は投稿しないでください。">游客留言保留半年，每小时最多 3 条。请勿发布联系方式或广告。</p><span id="message-counter">0 / 500</span></div>
 <p id="message-submit-status" role="status" aria-live="polite"></p>
 <button type="button" id="message-submit" data-en="Post Message" data-zh="贴到墙上" data-ja="投稿する">

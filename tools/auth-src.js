@@ -76,6 +76,7 @@ SuperTokens.init({
     async onHandleEvent(event) {
       if (event.action !== "UNAUTHORISED") return;
       await updateAuthButton();
+      notifyAuthChange();
       window.dispatchEvent(new Event("authchange"));
     }
   })]
@@ -103,6 +104,36 @@ function currentPageLanguage() {
 function authText(zh, en) {
   return window.siteText?.(zh, en) ?? (currentPageLanguage() === "zh" ? zh : en);
 }
+
+// The SDK rejects with the raw Response for every non-2xx reply, so a deliberate rate limit (429) or
+// a server error used to be reported to the visitor as "could not connect". Map what they can act on.
+function authFailureMessage(error) {
+  // Response may be absent (very old engines, the test sandbox), so probe before instanceof.
+  const hasResponse = typeof Response === "function";
+  const response = hasResponse && error instanceof Response
+    ? error
+    : hasResponse && error?.response instanceof Response
+      ? error.response
+      : null;
+  if (!response) return ["连接服务器失败，请稍后重试。", "Could not connect to the server. Please try again later."];
+  if (response.status === 429) return ["请求过于频繁，请稍后再试。", "Too many requests. Please try again later."];
+  if (response.status === 413) return ["输入内容过长，请精简后重试。", "Your input is too long. Please shorten it and try again."];
+  if (response.status >= 500) return ["服务器暂时不可用，请稍后重试。", "The server is temporarily unavailable. Please try again later."];
+  if (response.status === 400) return ["请求格式不正确，请刷新页面后重试。", "The request was malformed. Please refresh the page and try again."];
+  return ["暂时无法完成操作，请稍后重试。", "This action is currently not available. Please try again later."];
+}
+
+// Header-mode tokens live in cookies, so no storage event fires on its own: another tab would keep a
+// stale "Sign In / Sign Up" label and treat the next click as a sign-out.
+function notifyAuthChange() {
+  try { (window.siteStorage || localStorage).setItem("auth-sync", String(Date.now())); } catch {}
+}
+window.addEventListener("storage", event => {
+  if (event.key !== "auth-sync") return;
+  updateAuthButton();
+  notifyAuthChange();
+  window.dispatchEvent(new Event("authchange"));
+});
 async function updateAuthButton() {
   const button = document.getElementById("auth-btn");
   if (!button) return;
@@ -161,10 +192,13 @@ async function openAuthModalNow() {
     try {
       await signOut();
       await updateAuthButton();
+      notifyAuthChange();
       window.dispatchEvent(new Event("authchange"));
       alert(authText("已退出登录。", "Signed out."));
     } catch (error) {
       console.error("退出失败：", error);
+      alert(authText("退出登录失败，请稍后重试。", "Sign out failed. Please try again later."));
+      await updateAuthButton();
     }
     return;
   }
@@ -344,18 +378,23 @@ async function submitAuth() {
       authNotice = "resetSuccess";
       updateAuthModal();
       document.getElementById("auth-email")?.focus?.();
+      // The backend revokes every session on a password reset, but doesSessionExist() answers from
+      // the cached tokens, so the header would keep offering "Sign Out" for up to an hour.
+      await signOut().catch(() => {});
       await updateAuthButton();
+      notifyAuthChange();
       window.dispatchEvent(new Event("authchange"));
     } else {
       emailInput.value = "";
       closeAuthModal();
       await updateAuthButton();
+      notifyAuthChange();
       window.dispatchEvent(new Event("authchange"));
       alert(submittedMode === "signup" ? authText("注册成功！你现在已经登录。", "Account created! You are now signed in.") : authText("登录成功！", "Signed in successfully!"));
     }
   } catch (error) {
     console.error("账号操作失败：", error);
-    showAuthError("连接服务器失败，请稍后重试。", "Could not connect to the server. Please try again later.");
+    showAuthError(...authFailureMessage(error));
   } finally {
     authSubmitting = false;
     if (submitButton) submitButton.disabled = false;

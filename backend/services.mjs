@@ -50,7 +50,9 @@ export function validateCommentInput(body) {
   const nickname = body.nickname.normalize("NFC").trim();
   const content = body.content.normalize("NFC").trim();
   // Invisible "filler" characters (Hangul fillers, word joiner, soft hyphen, ...) do not count as visible text.
-  const visible = value => value.replace(/[\s\p{Default_Ignorable_Code_Point}\u115F\u1160\u3164\uFFA0]/gu, "").length > 0;
+  // U+2800 (Braille blank) and U+1D159 (musical null notehead) are graphic-visible to the engine but
+  // paint nothing, so they are stripped here as well instead of relying on Default_Ignorable alone.
+  const visible = value => value.replace(/[\s\p{Default_Ignorable_Code_Point}\u115F\u1160\u3164\uFFA0\u2800\u{1D159}]/gu, "").length > 0;
   // Preserve emoji joiners and normal line breaks; reject terminal and bidi controls (incl. LRM/RLM/ALM).
   const unsafeControls = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/u;
   if (!visible(nickname) || !visible(content) || /[\r\n\t]/u.test(nickname) ||
