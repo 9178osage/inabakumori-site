@@ -289,6 +289,7 @@ window.removeWallMessage = (id) => {
   }
 };
 let messageRetryAt = 0;
+let messageRetryTimer = null;
 // Retry-After is either delta-seconds or an HTTP date; fall back to 30 s when absent or invalid.
 function retryAfterSeconds(value) {
   const text = String(value ?? "").trim();
@@ -298,17 +299,26 @@ function retryAfterSeconds(value) {
   return 30;
 }
 function updateMessageLoadStatus() {
+  if (messageRetryTimer !== null) clearTimeout(messageRetryTimer);
+  messageRetryTimer = null;
   const status = document.getElementById("message-load-status");
   const retry = document.getElementById("message-retry");
   const wall = document.getElementById("floating-wall");
+  const retryRemaining = messageLoadState === "ratelimited" ? Math.max(0, messageRetryAt - Date.now()) : 0;
   if (status) {
     const text = { loading: ["正在加载留言…", "Loading messages…"], error: ["留言加载失败，请检查连接后重试。", "Could not load messages. Check your connection and retry."], empty: ["还没有留言，来留下第一条吧。", "No messages yet. Leave the first one."], ready: ["", ""], idle: ["", ""] };
     if (messageLoadState === "ratelimited") {
-      const seconds = String(Math.max(1, Math.ceil((messageRetryAt - Date.now()) / 1000)));
-      status.textContent = pageText("留言读取过于频繁，请在 {n} 秒后重试。", "Too many requests. Please retry in {n} s.").replace("{n}", seconds);
+      const seconds = String(Math.ceil(retryRemaining / 1000));
+      status.textContent = retryRemaining > 0
+        ? pageText("留言读取过于频繁，请在 {n} 秒后重试。", "Too many requests. Please retry in {n} s.").replace("{n}", seconds)
+        : { zh: "现在可以重新加载留言。", en: "You can retry loading messages now.", ja: "メッセージを再読み込みできます。" }[currentLanguage];
     } else status.textContent = pageText(...text[messageLoadState]);
   }
-  if (retry) retry.hidden = messageLoadState !== "error" && messageLoadState !== "ratelimited";
+  if (retry) {
+    retry.hidden = messageLoadState !== "error" && messageLoadState !== "ratelimited";
+    retry.disabled = retryRemaining > 0;
+  }
+  if (retryRemaining > 0) messageRetryTimer = setTimeout(updateMessageLoadStatus, Math.min(1000, retryRemaining));
   wall?.setAttribute?.("aria-busy", String(messageLoadState === "loading"));
 }
 const MAX_NICKNAME_LENGTH = 30;

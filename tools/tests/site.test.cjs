@@ -422,6 +422,33 @@ test("mobile manifest opens the first optimized image without eagerly downloadin
   assert.equal(run("heroImages.length"), 2);
 });
 
+test("mobile hero keeps its preloaded cache version through initialization, cycling and viewport changes", async () => {
+  const html = fs.readFileSync("index.html", "utf8");
+  const initialSource = html.match(/id="hero-mobile-source"[^>]*srcset="([^"]+)"/)[1];
+  const preload = html.match(/rel="preload" as="image" href="([^"]+)"[^>]*media="\(max-width: 700px\)/)[1];
+  assert.equal(initialSource, preload);
+  const query = { matches: true, addEventListener() {} };
+  const { run, elements, context } = setup({
+    window: { location: { hostname: "osagechan.top" }, matchMedia: () => query },
+    Image: class { set src(value) { queueMicrotask(() => this.onload?.()); } }
+  });
+  vm.runInContext(fs.readFileSync("js/config.js", "utf8"), context);
+  const slide = elements["hero-slide"] = { removeAttribute() {} };
+  const pictureSource = elements["hero-mobile-source"] = { srcset: initialSource };
+  await run("discoverHeroImages()");
+  assert.equal(slide.src, preload, "initialization must reuse the preloaded URL");
+  assert.equal(pictureSource.srcset, preload);
+  const count = run("heroImages.length");
+  for (let i = 0; i < count; i++) await run("changeHeroSlide()");
+  assert.equal(slide.src, preload, "cycling back must not reuse the old unversioned image");
+  query.matches = false;
+  await run("discoverHeroImages()");
+  query.matches = true;
+  await run("discoverHeroImages()");
+  assert.equal(slide.src, preload, "returning to mobile must preserve the image version");
+  assert.equal(pictureSource.srcset, preload);
+});
+
 test("static wall messages do not allocate animations or overlapping tracks", () => {
   const { run, context, elements, messages } = setup();
   elements["floating-wall"] = { appendChild(element) { element.isConnected = true; messages.push(element); } };

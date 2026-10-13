@@ -1984,6 +1984,8 @@ body.easter-egg-open { overflow: hidden; }
   visibility: hidden;
 }
 .nknk-lightbox-image {
+  /* Allow the image to shrink inside the capped figure, leaving room for its caption. */
+  min-height: 0;
   max-width: 100%;
   max-height: calc(100vh - 160px);
   max-height: calc(100dvh - 160px);
@@ -1997,6 +1999,7 @@ body.easter-egg-open { overflow: hidden; }
   touch-action: pan-y;
 }
 .nknk-lightbox-caption {
+  flex-shrink: 0;
   font: 13px/1.5 var(--font-data, sans-serif);
   letter-spacing: 0.04em;
   color: rgba(242, 242, 242, 0.82);

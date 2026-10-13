@@ -12,11 +12,13 @@
   }
   const text = (zh, en, ja) => ({ zh, en, ja })[currentLanguage] || zh;
   const storage = window.siteStorage;
-  let favorites;
-  try {
-    const saved = JSON.parse(storage.getItem("favorite-songs") || "[]");
-    favorites = new Set(Array.isArray(saved) ? saved.filter(id => typeof id === "string").slice(0, 1000) : []);
-  } catch { favorites = new Set(); }
+  function readFavorites(value) {
+    try {
+      const saved = JSON.parse(value || "[]");
+      return new Set(Array.isArray(saved) ? saved.filter(id => typeof id === "string").slice(0, 1000) : []);
+    } catch { return new Set(); }
+  }
+  let favorites = readFavorites(storage.getItem("favorite-songs"));
   let favoritesOnly = false;
   // Array.prototype.at is Safari/iOS 15.4+. Older iOS threw here, which killed the whole
   // tag filter (search, chips, sort, favorites) with a TypeError, so use plain indexing.
@@ -60,7 +62,7 @@
     });
     function sortRows() {
       const ordered = [...rows].sort((a, b) => {
-        if (sort.value === "popular") return (b.link._songData.viewCount ?? -1) - (a.link._songData.viewCount ?? -1) || a.index - b.index;
+        if (sort.value === "popular") return (b.link._songData?.viewCount ?? -1) - (a.link._songData?.viewCount ?? -1) || a.index - b.index;
         if (sort.value === "title") return a.link.dataset.songTitle.localeCompare(b.link.dataset.songTitle, "ja");
         return a.index - b.index;
       });
@@ -87,6 +89,13 @@
       rows.forEach(({ refresh }) => refresh());
       syncUrl();
       status.textContent = "";
+    });
+    window.addEventListener("storage", event => {
+      if (event.key !== "favorite-songs" && event.key !== null) return;
+      try { if (event.storageArea !== window.localStorage) return; } catch { return; }
+      // Read the event value: the preferences fallback may still cache this tab's last write.
+      favorites = readFavorites(event.newValue);
+      updateTagFilter();
     });
     sort.addEventListener("change", () => { sortRows(); syncUrl(); });
     favoriteFilter.addEventListener("click", () => {

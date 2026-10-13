@@ -54,6 +54,7 @@
       document.getElementById("my-comments-controls").hidden = !signedIn;
       if (!signedIn) { state = "signedOut"; return; }
       const response = await (window.siteFetch || fetch)(`${api}/mine${more ? `?before=${nextCursor}` : ""}`, { credentials: "include", cache: "no-store" });
+      if (current !== version) return;
       // A dead session is not a load failure: show the signed-out panel like the admin list does.
       if (response.status === 401 || response.status === 403) {
         document.getElementById("my-comments-controls").hidden = true;

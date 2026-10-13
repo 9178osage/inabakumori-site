@@ -6,7 +6,8 @@
 
 window.MOBILE_BACKGROUNDS = {
   lazy: true,
-  files: Array.from({ length: 8 }, (_, index) => `${String(index + 1).padStart(3, "0")}.webp`),
+  // Keep the first image's cache version aligned with index.html's preload and <source>.
+  files: Array.from({ length: 8 }, (_, index) => `${String(index + 1).padStart(3, "0")}.webp${index === 0 ? "?v=3" : ""}`),
   folder: "images/optimized/hero-mobile/",
   extensions: ["png", "jpg", "jpeg"],
   maxImages: 99
