@@ -64,8 +64,10 @@ test("wrong or missing token is rejected; correct token streams a valid SQLite s
     const check = new DatabaseSync(copy, { readOnly: true });
     assert.equal(check.prepare("SELECT content FROM comments").get().content, "hello");
     check.close();
-    await new Promise(resolve => setTimeout(resolve, 50));
-    assert.equal(fs.readdirSync(os.tmpdir()).filter(name => name.startsWith("inabakumori-backup-")).length, tmpBefore, "temp snapshot removed");
+    // Cleanup runs after the response finishes; on a busy CI runner that can take longer than a fixed sleep.
+    const snapshots = () => fs.readdirSync(os.tmpdir()).filter(name => name.startsWith("inabakumori-backup-")).length;
+    for (let waited = 0; snapshots() !== tmpBefore && waited < 5000; waited += 25) await new Promise(resolve => setTimeout(resolve, 25));
+    assert.equal(snapshots(), tmpBefore, "temp snapshot removed");
     assert.ok(s.logs.length >= 3);
     assert.ok(s.logs.every(line => !line.includes(TOKEN)), "token never logged");
   } finally { await s.close(); fs.rmSync(s.dir, { recursive: true, force: true }); }
