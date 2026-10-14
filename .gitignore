@@ -24,3 +24,6 @@ SECURITY_AUDIT_*.md
 
 # Private maintenance notes stay on this computer
 /.local-notes/
+
+# Text export handed to a text-only AI reader (local tool, never published).
+inabakumori-site-all-code/
