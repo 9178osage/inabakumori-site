@@ -91,14 +91,14 @@
     render();
     try {
       const response = await (window.siteFetch || fetch)(`${api}/${id}`, { method: "DELETE", credentials: "include" });
-      // An expired session is not a delete failure: show the signed-out panel, like load() does.
-      // A late answer from a session that already ended must not touch a panel a newer load owns.
-      if (response.status === 401 || response.status === 403) {
+      // Only a lost session hides the panel: 401 means the session is gone, while 403 is the server
+      // refusing this one request (for example someone else's message). That is a failed delete, so
+      // it falls through to the error path below and the reader keeps seeing their list.
+      // A late 401 from a session that already ended must not touch a panel a newer load owns.
+      if (response.status === 401) {
         if (current === version) {
-          if (response.status === 401) {
-            comments.clear();
-            nextCursor = null;
-          }
+          comments.clear();
+          nextCursor = null;
           document.getElementById("my-comments-controls").hidden = true;
           state = "signedOut";
         }

@@ -153,6 +153,9 @@ test('delete cancellation sends no request and failed deletion leaves the messag
   assert.equal(deletes, 1);
   assert.equal(elements['my-comments-list'].children.length, 1);
   assert.equal(removed.length, 0);
+  // A refused delete (403) is not a lost session: the panel stays on screen and reports the failure.
+  assert.equal(elements['my-comments-controls'].hidden, false);
+  assert.equal(elements['my-comments-status'].textContent, '删除失败，请重试；登录过期时请重新登录。');
   context.fetch = async () => ({ ok: true });
   await button().listeners.click();
   assert.equal(elements['my-comments-list'].children.length, 0);

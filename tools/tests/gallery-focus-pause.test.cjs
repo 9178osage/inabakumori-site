@@ -23,3 +23,15 @@ test("closing a pointer-opened lightbox exempts the restored focus; leaving the 
   // Reduced motion still wins over everything.
   assert.match(ui, /row\.paused = reduced \|\|/);
 });
+
+test("a paused row still fetches the thumbs a drag or keyboard jump reveals", () => {
+  // The poll timer stops while a row is paused, so the pointer and keyboard paths fetch themselves.
+  const reveal = ui.slice(ui.indexOf("const revealFocusedItem"), ui.indexOf("const onPointerMove"));
+  assert.match(reveal, /applyTransform\(row\);[\s\S]*?loadThumbsInWindow\(row, true\);/);
+  const move = ui.slice(ui.indexOf("const onPointerMove"), ui.indexOf("const onPointerUp"));
+  assert.match(move, /applyTransform\(row\);[\s\S]*?loadThumbsInWindow\(row\);/);
+  const up = ui.slice(ui.indexOf("const onPointerUp"), ui.indexOf('viewport.addEventListener("pointerdown"'));
+  assert.match(up, /loadThumbsInWindow\(row, true\);[\s\S]*?syncPauseState\(\);/);
+  // While paused the loader trusts the offset the drag wrote instead of forcing a layout read per move.
+  assert.match(ui, /let offsetX = row\.direction < 0 \? -row\.offset : row\.offset;/);
+});

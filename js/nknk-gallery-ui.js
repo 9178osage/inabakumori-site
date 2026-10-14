@@ -309,6 +309,9 @@
       // applyTransform renders -offset for leftward rows and +offset for rightward rows.
       row.offset = row.direction < 0 ? shift : -shift;
       applyTransform(row);
+      // The row is paused while it has focus, so its poll timer is stopped: fetch in this same task
+      // instead of waiting for the IntersectionObserver callback, which leaves blank frames visible.
+      loadThumbsInWindow(row, true);
     };
 
     const bindRowInteractions = (row) => {
@@ -343,6 +346,8 @@
         row.offset = startOffset + (row.direction > 0 ? dx : -dx);
         wrapOffset(row);
         applyTransform(row);
+        // Throttled inside: a drag reveals thumbs while the poll timer is stopped.
+        loadThumbsInWindow(row);
       };
 
       const onPointerUp = (event, cancelled = false) => {
@@ -358,6 +363,7 @@
           const absoluteIndex = Number(shouldClick.dataset.galleryIndex);
           if (Number.isFinite(absoluteIndex)) openAt(absoluteIndex, originalButton(shouldClick));
         }
+        loadThumbsInWindow(row, true);
         syncPauseState();
       };
 
@@ -526,10 +532,15 @@
       // Per row: a shared timestamp would let one row throttle every later row.
       if (!force && now - row.lastThumbLoad < THUMB_LOAD_INTERVAL_MS) return;
       row.lastThumbLoad = now;
-      const transform = getComputedStyle(row.track).transform;
-      let offsetX = 0;
-      if (transform && transform !== "none") {
-        try { offsetX = new DOMMatrixReadOnly(transform).m41; } catch { offsetX = 0; }
+      // A running marquee animates off the main thread, so its computed transform is the only live
+      // source. While paused (hover, drag, keyboard) applyTransform() already wrote row.offset inline,
+      // which avoids a forced synchronous layout on every pointermove.
+      let offsetX = row.direction < 0 ? -row.offset : row.offset;
+      if (row.animation) {
+        const transform = getComputedStyle(row.track).transform;
+        if (transform && transform !== "none") {
+          try { offsetX = new DOMMatrixReadOnly(transform).m41; } catch { offsetX = 0; }
+        }
       }
       const from = -offsetX - THUMB_LOOKAHEAD_PX;
       const to = -offsetX + viewportWidth + THUMB_LOOKAHEAD_PX;
