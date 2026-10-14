@@ -66,18 +66,22 @@ test("another tab's language or theme change is followed instead of drifting apa
 test("a refused delete keeps the message, a lost session drops the stale list", () => {
   const comments = read("js/comments.js");
   const personal = comments.slice(comments.indexOf("async function remove(id) {"), comments.indexOf('document.addEventListener("DOMContentLoaded"'));
-  const guard = personal.slice(personal.indexOf("response.status === 401 || response.status === 403"));
-  // The panel belongs to whichever load is current: a late answer must not hide a newer one.
+  // 401 means the session is gone: drop the list that belonged to it and show the sign-in state.
+  const guard = personal.slice(personal.indexOf("if (response.status === 401) {"));
   assert.match(guard, /if \(current === version\) \{/);
-  assert.match(guard, /if \(response\.status === 401\) \{/);
-  assert.ok(guard.indexOf("comments.clear()") < guard.indexOf("state = \"signedOut\""), "the stale list is dropped before the signed-out state");
+  assert.match(guard, /comments\.clear\(\);/);
   assert.match(guard, /document\.getElementById\("my-comments-controls"\)\.hidden = true;/);
-  // 403 is a refused request (for example someone else's message), not a dead session.
-  const clearing = guard.slice(guard.indexOf("if (response.status === 401) {"), guard.indexOf("document.getElementById"));
-  assert.doesNotMatch(clearing, /403/);
+  // 403 is the server refusing one request (for example someone else's message), not a dead session,
+  // so it must fall through to the ordinary failure path and leave the list on screen.
+  assert.doesNotMatch(personal, /response\.status === 401 \|\| response\.status === 403/);
+  assert.match(personal, /if \(!response\.ok && response\.status !== 404\) throw new Error\("Could not delete message"\);/);
+  assert.match(personal, /if \(current === version\) state = "deleteError";/);
 
+  // Loading the list has no such distinction: either status means nothing can be listed.
   const load = comments.slice(comments.indexOf("async function load(more = false) {"));
-  assert.match(load.slice(0, load.indexOf("if (!response.ok)")), /if \(response\.status === 401\) \{\n\s+comments\.clear\(\);/);
+  const loadGuard = load.slice(0, load.indexOf("if (!response.ok)"));
+  assert.match(loadGuard, /if \(response\.status === 401 \|\| response\.status === 403\) \{/);
+  assert.match(loadGuard, /comments\.clear\(\);/);
 });
 
 test("the iOS overflow fallback covers the reader's own comment list and the static wall", () => {
