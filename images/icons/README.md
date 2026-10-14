@@ -8,4 +8,4 @@ Final prompt:
 
 Exports: `icon-192.png` (192 × 192), `icon-512.png` (512 × 512), and `apple-touch-icon.png` (180 × 180). The manifest declares `purpose: any`; these are not certified maskable icons.
 
-Browser compatibility exports: `favicon-16.png`, `favicon-32.png`, `favicon-48.png`, and root `favicon.ico` containing all three sizes. Icon URLs use `?v=2` to distinguish the updated declarations from previously cached icons. The 512px PNG also serves as a high-resolution Apple touch icon.
+Browser compatibility exports: `favicon-16.png`, `favicon-32.png`, `favicon-48.png`, and root `favicon.ico` containing all three sizes. Icon URLs use `?v=3` to distinguish the updated declarations from previously cached icons. The 512px PNG also serves as a high-resolution Apple touch icon.

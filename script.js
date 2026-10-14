@@ -67,7 +67,6 @@ function applyLanguage() {
   document.querySelectorAll("[data-aria-zh]").forEach(element => {
     element.setAttribute("aria-label", element.dataset[`aria${currentLanguage[0].toUpperCase()}${currentLanguage.slice(1)}`] || element.dataset.ariaZh);
   });
-  document.querySelector(".skip-link")?.replaceChildren(document.createTextNode({ zh: "跳到主要内容", en: "Skip to content", ja: "メインコンテンツへ" }[currentLanguage]));
   updateConnectivityStatus();
   updateMessageLoadStatus();
   if (document.body) applyTheme();
