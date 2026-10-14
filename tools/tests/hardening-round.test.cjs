@@ -135,7 +135,9 @@ test("wall, share links, dialogs and gallery follow the hardening rules", () => 
 
   const comments = read("js/comments.js");
   const personalRemove = comments.slice(comments.indexOf("async function remove(id) {"), comments.indexOf("document.addEventListener(\"DOMContentLoaded\""));
-  assert.match(personalRemove, /response\.status === 401 \|\| response\.status === 403/);
+  // Deliberate change: only 401 is a lost session; 403 is a refused request and keeps the list.
+  assert.match(personalRemove, /if \(response\.status === 401\) \{/);
+  assert.doesNotMatch(personalRemove, /response\.status === 401 \|\| response\.status === 403/);
   assert.match(personalRemove, /if \(current === version\) render\(\);/);
 
   const gallery = read("js/nknk-gallery-ui.js");
