@@ -864,7 +864,8 @@ function parseTagQuery(value) {
   const plain = [];
   const required = [];
   String(value || "").split(/[,，]+/).map((item) => item.trim()).filter(Boolean).forEach((item) => {
-    const isRequired = item.startsWith("+");
+    // Full-width ＋ is what a Chinese/Japanese IME produces; treat it like the ASCII plus.
+    const isRequired = /^[+＋]/u.test(item);
     const raw = isRequired ? item.slice(1).trim() : item;
     if (!raw) {
       return;
@@ -967,7 +968,7 @@ function toggleTagInInput(normalizedTag, displayTag) {
     return;
   }
   const parts = String(input.value || "").split(/[,，]+/).map((item) => item.trim()).filter(Boolean);
-  const existsAt = parts.findIndex((part) => normalizeTag(part.replace(/^\+/, "")) === normalizedTag);
+  const existsAt = parts.findIndex((part) => normalizeTag(part.replace(/^[+＋]/u, "")) === normalizedTag);
   if (existsAt >= 0) {
     parts.splice(existsAt, 1);
   } else {
@@ -1122,6 +1123,31 @@ document.addEventListener("DOMContentLoaded", () => {
       event.preventDefault();
       changeHeroSlide();
     });
+  }
+});
+// Another tab changed the language or theme: follow it here too. Without this the page kept its
+// own copy while the auth dialog and "my comments" panel — which read storage on every render —
+// switched immediately, leaving one page in two languages.
+window.addEventListener?.("storage", (event) => {
+  try { if (event.storageArea && event.storageArea !== window.localStorage) return; } catch { return; }
+  if (event.key === "language" || event.key === null) {
+    const nextLanguage = pageLanguages.includes(event.newValue) ? event.newValue : "zh";
+    if (nextLanguage !== currentLanguage) {
+      currentLanguage = nextLanguage;
+      const restoreReadingPosition = captureReadingPosition();
+      applyLanguage();
+      if (typeof updateTagLanguage === "function") updateTagLanguage();
+      restoreReadingPosition();
+    }
+  }
+  if (event.key === "theme" || event.key === null) {
+    const nextTheme = ["light", "dark"].includes(event.newValue)
+      ? event.newValue
+      : window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light";
+    if (nextTheme !== currentTheme) {
+      currentTheme = nextTheme;
+      if (document.body) applyTheme();
+    }
   }
 });
 window.addEventListener?.("online", updateConnectivityStatus);

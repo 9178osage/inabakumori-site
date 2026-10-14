@@ -56,7 +56,14 @@
       const response = await (window.siteFetch || fetch)(`${api}/mine${more ? `?before=${nextCursor}` : ""}`, { credentials: "include", cache: "no-store" });
       if (current !== version) return;
       // A dead session is not a load failure: show the signed-out panel like the admin list does.
+      // The list belongs to the session that just died, so drop it before showing the sign-in state.
       if (response.status === 401 || response.status === 403) {
+        // 401 means the session is gone, so the list belongs to a session that no longer exists and is
+        // dropped. 403 means the request itself was refused — keep the list, it is still the reader's.
+        if (response.status === 401) {
+          comments.clear();
+          nextCursor = null;
+        }
         document.getElementById("my-comments-controls").hidden = true;
         state = "signedOut";
         return;
@@ -85,9 +92,16 @@
     try {
       const response = await (window.siteFetch || fetch)(`${api}/${id}`, { method: "DELETE", credentials: "include" });
       // An expired session is not a delete failure: show the signed-out panel, like load() does.
+      // A late answer from a session that already ended must not touch a panel a newer load owns.
       if (response.status === 401 || response.status === 403) {
-        document.getElementById("my-comments-controls").hidden = true;
-        if (current === version) state = "signedOut";
+        if (current === version) {
+          if (response.status === 401) {
+            comments.clear();
+            nextCursor = null;
+          }
+          document.getElementById("my-comments-controls").hidden = true;
+          state = "signedOut";
+        }
         return;
       }
       if (!response.ok && response.status !== 404) throw new Error("Could not delete message");

@@ -2052,6 +2052,8 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
   .artist-links a,
   .song-details,
   #admin-comments-list p,
+  #my-comments-list p,
+  .wall-static .floating-message,
   .hero-content h1,
   .auth-window h2,
   .tag-chip,
