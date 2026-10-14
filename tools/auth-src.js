@@ -248,7 +248,7 @@ function forgotPassword() {
 function updateAuthModal() {
   const title = document.getElementById("auth-title");
   const submit = document.getElementById("auth-submit");
-  const switchButton = document.querySelector(".auth-switch");
+  const switchButton = document.getElementById("auth-switch");
   const email = document.getElementById("auth-email");
   const password = document.getElementById("auth-password");
   const confirm = document.getElementById("auth-password-confirm");
@@ -267,8 +267,10 @@ function updateAuthModal() {
   if (password) {
     password.hidden = authMode === "forgot";
     password.autocomplete = authMode === "signin" ? "current-password" : "new-password";
-    password.placeholder = reset ? authText("新密码（至少 8 位，包含字母和数字）", "New password (8+ characters, letters and numbers)") : authText("密码", "Password");
-    password.setAttribute?.("aria-label", reset ? authText("新密码", "New password") : authText("密码", "Password"));
+    // Sign-up has the same rule as reset, so it gets the same hint.
+    const needsRuleHint = authMode === "reset" || authMode === "signup";
+    password.placeholder = needsRuleHint ? authText("新密码（至少 8 位，包含字母和数字）", "New password (8+ characters, letters and numbers)") : authText("密码", "Password");
+    password.setAttribute?.("aria-label", needsRuleHint ? authText("新密码", "New password") : authText("密码", "Password"));
   }
   if (confirm) {
     confirm.hidden = !reset;
@@ -313,13 +315,16 @@ async function submitAuth() {
     showAuthError("请输入密码。", "Please enter your password.");
     return;
   }
+  // Sign-up and reset create a password, so the rule is checked before the request (the server still
+  // enforces it). Sign-in must not: an older account may predate the rule.
+  if ((submittedMode === "signup" || submittedMode === "reset") &&
+      (password.length < 8 || password.length > 99 || !/[a-zA-Z]/.test(password) || !/[0-9]/.test(password))) {
+    showAuthError("密码需要 8–99 位，并包含字母和数字。", "Use 8–99 characters, including letters and numbers.");
+    return;
+  }
   if (submittedMode === "reset") {
     if (!resetToken) {
       showAuthError("重置链接已失效，请重新获取重置邮件。", "This reset link is invalid. Please request another reset email.");
-      return;
-    }
-    if (password.length < 8 || password.length > 99 || !/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
-      showAuthError("密码需要 8–99 位，并包含字母和数字。", "Use 8–99 characters, including letters and numbers.");
       return;
     }
     if (password !== document.getElementById("auth-password-confirm")?.value) {

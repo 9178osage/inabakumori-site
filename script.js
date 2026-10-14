@@ -72,9 +72,11 @@ function applyLanguage() {
   if (document.body) applyTheme();
   document.documentElement.lang = { zh: "zh-CN", en: "en", ja: "ja" }[currentLanguage];
   window.dispatchEvent(new Event("languagechange"));
-  document.querySelectorAll(".floating-message").forEach((element) => {
-    element.refreshLanguage?.();
-  });
+  // Two passes: rewrite every message first, then measure once — otherwise each message forces its
+  // own synchronous layout read while the wall is being rewritten.
+  const floatingMessages = document.querySelectorAll(".floating-message");
+  floatingMessages.forEach((element) => element.refreshLanguage?.(true));
+  floatingMessages.forEach((element) => element.refreshLayout?.());
 }
 function updateConnectivityStatus() {
   const status = document.getElementById("site-status");
@@ -536,10 +538,10 @@ function createFloatingMessage(message, startInside = false, deferLayout = false
   if (Number.isFinite(expiresAt)) element.dataset.expiresAt = String(expiresAt);
   let track;
   let animation;
-  element.refreshLanguage = () => {
+  element.refreshLanguage = (deferLayout = false) => {
     const identity = message.isGuest === true ? pageText(" [游客]", " [Guest]") : message.isGuest === false ? pageText(" [已登录]", " [Member]") : "";
     element.textContent = (message.nickname || message.name || "Anonymous") + identity + "： " + (message.content || message.text || "");
-    if (element.isConnected) element.refreshLayout();
+    if (element.isConnected && !deferLayout) element.refreshLayout();
   };
   element.updateMotion = () => {
     if (!animation) return;
@@ -577,7 +579,9 @@ function createFloatingMessage(message, startInside = false, deferLayout = false
   element.refreshLanguage();
   element.style.left = "0";
   element.style.top = "0";
-  wall.appendChild(element);
+  // A newly posted message belongs at the top, matching the order a reload produces in static mode.
+  if (!deferLayout && wall.firstChild && typeof wall.insertBefore === "function") wall.insertBefore(element, wall.firstChild);
+  else wall.appendChild(element);
   // Batched callers append every message first and lay them out afterwards (perf P1: one forced layout, not one per message).
   if (deferLayout) return element;
   element.refreshLayout();
@@ -600,7 +604,8 @@ function updateMotionState() {
 reducedMotionQuery?.addEventListener("change", () => {
   document.querySelectorAll(".floating-message").forEach(element => element.refreshLayout());
 });
-setInterval(() => { if (!document.hidden) removeExpiredMessages(); }, 1000);
+// Expiry is measured in months; polling every second only burned battery.
+setInterval(() => { if (!document.hidden) removeExpiredMessages(); }, 30000);
 document.addEventListener("visibilitychange", () => {
   updateMotionState();
   if (!document.hidden) removeExpiredMessages();

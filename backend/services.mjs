@@ -38,6 +38,8 @@ export function positiveInteger(value, fallback = null) {
 
 // With the u flag a valid surrogate pair is one code point, so only unpaired halves match.
 export const LONE_SURROGATE = /[\uD800-\uDFFF]/u;
+// A comment may be multi-paragraph, but not a wall-stretching column of blank lines.
+const MAX_COMMENT_LINE_BREAKS = 15;
 export function validateCommentInput(body) {
   if (!body || typeof body !== "object" || Array.isArray(body) ||
       typeof body.nickname !== "string" || typeof body.content !== "string") {
@@ -48,7 +50,12 @@ export function validateCommentInput(body) {
     return { ok: false, error: "请输入有效的昵称和留言", code: "INVALID_COMMENT" };
   }
   const nickname = body.nickname.normalize("NFC").trim();
-  const content = body.content.normalize("NFC").trim();
+  // Windows-style endings are normalised, runs of blank lines collapsed, and the total number of
+  // breaks capped: the wall renders pre-wrap, so one comment with hundreds of \n would stretch it.
+  const content = body.content.normalize("NFC").replace(/\r\n?/gu, "\n").replace(/\n{3,}/gu, "\n\n").trim();
+  if ((content.match(/\n/gu) || []).length > MAX_COMMENT_LINE_BREAKS) {
+    return { ok: false, error: "请输入有效的昵称和留言", code: "INVALID_COMMENT" };
+  }
   // Invisible "filler" characters (Hangul fillers, word joiner, soft hyphen, ...) do not count as visible text.
   // U+2800 (Braille blank) and U+1D159 (musical null notehead) are graphic-visible to the engine but
   // paint nothing, so they are stripped here as well instead of relying on Default_Ignorable alone.
@@ -138,7 +145,7 @@ const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/iu;
 // mobile-style grouping (138 1234 5678 / 138-1234-5678) or a contact word right before it.
 const PHONE_PATTERN = /(?<![\d])(?:\+\d{1,3}[\s.-]*(?:1[3-9](?:[\s.-]*\d){9}|(?:\d[\s.-]*){6,12}\d)|1[3-9]\d[\s.-]+\d{4}[\s.-]+\d{4}|(?:电话|手机|号码|致电|打给?我|联系|加(?=\s*(?:我|个|一下|好友|微信|v|wx|vx|qq|q|扣|企鹅))|好友|微信|wx|vx|qq|tel|phone|call|mobile|whatsapp)[^\d\n]{0,6}1[3-9](?:[\s.-]*\d){9}|\(?0\d{2,3}\)?[\s.-]+(?:\d[\s.-]*){6,8}\d)(?![\d])/iu;
 // Advertising phrases, not single words: "用彩票的心情等新歌" or "promo of the new album" are fan talk.
-const PROMOTION_PATTERN = /(刷单|网赚|返利|代购|(?:无抵押|低息|秒批|快速|网上|小额)贷款|贷款.{0,6}(?:平台|办理|秒批|秒到|下款|额度|找我)|(?:彩票|博彩|时时彩).{0,6}(?:平台|代理|充值|计划|导师|带单)|(?:买|跟)彩票.{0,4}(?:找我|加我|进群)|优惠折扣|扫码.{0,8}(进群|加群|领取)|加\s*(?:一下|一个|下|个|只)?\s*(?:我的\s*)?(微信|微信号?|微|群|qq|vx|v信|威信|wx)|(?:微信号|vx号|qq号)\s*[:：]?\s*[a-z0-9_-]+|(?:微信|wechat|qq|telegram|whatsapp|discord|line|vx|wx|v信)\s*[:：]\s*[@a-z0-9_-]+|联系方式\s*[:：]|\bcontact\s*me\s*(?:on|at|via|through|@|[:：])|\bbuy\s*now\b|\b(?:discount|promo|coupon)\s*codes?\b|\buse\s+(?:my\s+)?code\b|\b\d{1,3}\s*%\s*off\b|\baffiliate\s*link|\bdm\s*me\s*(?:for|to)\b)/iu;
+const PROMOTION_PATTERN = /(刷单|网赚|返利|(?:无抵押|低息|秒批|快速|网上|小额)贷款|贷款.{0,6}(?:平台|办理|秒批|秒到|下款|额度|找我)|(?:彩票|博彩|时时彩).{0,6}(?:平台|代理|充值|计划|导师|带单)|(?:买|跟)彩票.{0,4}(?:找我|加我|进群)|优惠折扣|扫码.{0,8}(进群|加群|领取)|加\s*(?:一下|一个|下|个|只)?\s*(?:我的\s*)?(微信|微信号?|微|群|qq|vx|v信|威信|wx)|(?:微信号|vx号|qq号)\s*[:：]?\s*[a-z0-9_-]+|(?:微信|wechat|qq|telegram|whatsapp|discord|line|vx|wx|v信)\s*[:：]\s*[@a-z0-9_-]+|联系方式\s*[:：]|\bcontact\s*me\s*(?:on|at|via|through|@|[:：])|\bbuy\s*now\b|\b(?:discount|promo|coupon)\s*codes?\b|\buse\s+(?:my\s+)?code\b|\b\d{1,3}\s*%\s*off\b|\baffiliate\s*link|\bdm\s*me\s*(?:for|to)\b|代购\s*(?:加|联系|咨询|下单|私|微|vx|wx|qq|群|找我|加我))/iu;
 
 // Administrators are granted only by stable SuperTokens user IDs (ADMIN_USER_IDS).
 // Emails are not used: signing up with an address does not prove ownership of it.
@@ -157,12 +164,42 @@ export function buildVersion(env) {
 }
 
 export function normalizeCommentForComparison(value) {
+  // Strip everything that renders as nothing (word joiner, soft hyphen, braille blank, fillers):
+  // otherwise "138<U+2800>1234<U+2800>5678" or "微信<U+2060>：abc" would read like a phone/contact to a
+  // human while slipping past the link/contact patterns and the duplicate check.
   return String(value ?? "")
     .normalize("NFKC")
-    .replace(/[\u200B-\u200D\uFEFF]/gu, "")
-    .replace(/\s+/gu, " ")
+    .replace(/[\p{Default_Ignorable_Code_Point}\u115F\u1160\u3164\uFFA0\u{1D159}]/gu, "")
+    .replace(/[\s\u2800]+/gu, " ")
     .trim()
     .toLocaleLowerCase("und");
+}
+
+// Requests can arrive with doubled or backslash separators ("//auth/signin", "\\api\\comments"). The
+// WHATWG URL parser reads "//auth" as a *host* and would report "/signin", so the rate limiters and
+// the backup-path check would look at the wrong path. Collapse separators and resolve . / .. first.
+export function normalizeRequestPath(value) {
+  let raw = String(value ?? "");
+  if (/^[a-z][a-z0-9+.-]*:\/\//iu.test(raw)) {
+    try {
+      raw = new URL(raw).pathname;
+    } catch {
+      return "";
+    }
+  }
+  let pathname = raw.split(/[?#]/u)[0].replace(/\\/gu, "/");
+  // Percent-encoded separators and dots must collapse too ("/outside/%2e%2e/auth/signin"), exactly
+  // like the WHATWG URL parser used to do for us. Malformed escapes keep the raw path.
+  try {
+    pathname = decodeURIComponent(pathname);
+  } catch { /* keep raw */ }
+  const parts = [];
+  for (const part of pathname.split("/")) {
+    if (!part || part === ".") continue;
+    if (part === "..") { parts.pop(); continue; }
+    parts.push(part);
+  }
+  return `/${parts.join("/")}`.toLocaleLowerCase("und");
 }
 
 // Members: same text within 10 minutes is scoped to the account.
@@ -191,9 +228,24 @@ export function createRecentDuplicateChecker(db, {
   };
 }
 
+// Invisible characters are often used as separators ("138<U+2800>1234<U+2800>5678" reads like a phone
+// number). For the filter they become spaces, so the patterns see the separators a human sees; the
+// duplicate check keeps deleting them instead, so "text<U+2060>" still matches "text".
+function withVisibleSeparators(value) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .replace(/[\p{Default_Ignorable_Code_Point}\u115F\u1160\u3164\uFFA0\u{1D159}\u2800]+/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim()
+    .toLocaleLowerCase("und");
+}
+
 export function detectCommentSafetyIssue(content) {
   const value = normalizeCommentForComparison(content);
-  if (LINK_PATTERN.test(value) || EMAIL_PATTERN.test(value) || PHONE_PATTERN.test(value) || PROMOTION_PATTERN.test(value)) {
+  const spaced = withVisibleSeparators(content);
+  if ([value, spaced].some(candidate =>
+    LINK_PATTERN.test(candidate) || EMAIL_PATTERN.test(candidate) ||
+    PHONE_PATTERN.test(candidate) || PROMOTION_PATTERN.test(candidate))) {
     return {
       code: "PROMOTIONAL_CONTENT",
       error: "留言内容不能包含链接、邮箱、电话号码或广告联系方式"

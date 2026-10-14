@@ -7,6 +7,9 @@
   const EAGER_THUMBS = 15;
   const THUMB_LOOKAHEAD_PX = 1600;
   const THUMB_LOAD_INTERVAL_MS = 400;
+  // Decoded neighbours kept alive for instant lightbox navigation. Bounded: a long mobile session
+  // used to accumulate one decoded image per visited illustration.
+  const MAX_PRELOAD_CACHE = 6;
 
   // Enter/Space (and assistive-tech activation) dispatch a click with detail === 0. Pointer
   // clicks have detail >= 1 and are handled on pointerup so drags can be told apart.
@@ -112,6 +115,7 @@
         pre.decoding = "async";
         pre.src = item.full;
         preloadCache.set(item.full, pre);
+        while (preloadCache.size > MAX_PRELOAD_CACHE) preloadCache.delete(preloadCache.keys().next().value);
       }
     };
 
@@ -192,6 +196,8 @@
     const closeLightbox = ({ deferFocus = false } = {}) => {
       if (!lightboxOpen) return;
       lightboxOpen = false;
+      // The decoded neighbours were only kept for instant navigation while the dialog was open.
+      preloadCache.clear();
       lightbox.hidden = true;
       image.removeAttribute("src");
       lightbox.classList.remove("is-error");
@@ -512,14 +518,14 @@
     // IntersectionObserver is not re-evaluated for compositor-driven animation and native lazy
     // loading ignores CSS transforms, so the row also loads its own thumbs from the live position:
     // anything within THUMB_LOOKAHEAD_PX of the visible window is fetched on the next tick.
-    let lastThumbLoad = 0;
     let thumbLoadTimer = null;
     const loadThumbsInWindow = (row, force = false) => {
       const viewportWidth = row.viewport.clientWidth;
       if (!viewportWidth) return;
       const now = performance.now();
-      if (!force && now - lastThumbLoad < THUMB_LOAD_INTERVAL_MS) return;
-      lastThumbLoad = now;
+      // Per row: a shared timestamp would let one row throttle every later row.
+      if (!force && now - row.lastThumbLoad < THUMB_LOAD_INTERVAL_MS) return;
+      row.lastThumbLoad = now;
       const transform = getComputedStyle(row.track).transform;
       let offsetX = 0;
       if (transform && transform !== "none") {
@@ -605,6 +611,7 @@
           loopWidth: 0,
           paused: true,
           hover: false,
+          lastThumbLoad: 0,
           focus: false,
           // True while the in-row focus came from our own restore after a pointer-initiated close.
           pointerFocusExempt: false,
