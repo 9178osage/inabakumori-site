@@ -7,8 +7,8 @@ const source = fs.readFileSync("js/experience.js", "utf8");
 const fn = source.match(/function activeSectionLink\([\s\S]*?\n  }\n/);
 const activeSectionLink = vm.runInNewContext(`(${fn[0]})`, { decodeURIComponent });
 
-// Page model (document coordinates): hero 0-800, #intro 800, #site-about 1400, #artwork 2200, #songs 2900, #messages 5200, end 6400.
-const tops = { intro: 800, "site-about": 1400, artwork: 2200, songs: 2900, messages: 5200 };
+// Page model (document coordinates): hero 0-800, #intro 800, #artwork 2200, #songs 2900, #messages 5200, end 6400.
+const tops = { intro: 800, artwork: 2200, songs: 2900, messages: 5200 };
 const links = Object.keys(tops).map(id => ({ hash: `#${id}`, id }));
 const NAV = 72, VIEW = 800, HEIGHT = 6400;
 const at = scrollY => activeSectionLink(links, NAV, VIEW, scrollY, HEIGHT,
@@ -24,10 +24,10 @@ test("section highlight follows the scroll position in both directions (songs ->
   for (let y = HEIGHT - VIEW - 10; y >= 0; y -= 41) assert.equal(at(y), expected(y), `up ${y}`);
 });
 
-test("hero has no current section, About is its own anchor inside #about, and page bottom selects the last section", () => {
+test("hero has no current section, Intro is the anchor inside #about, and page bottom selects the last section", () => {
   assert.equal(at(0), null);
   assert.equal(at(900), "intro");
-  assert.equal(at(1400 - NAV), "site-about");
+  assert.equal(at(1400 - NAV), "intro");
   assert.equal(at(HEIGHT - VIEW), "messages");
 });
 

@@ -1687,9 +1687,6 @@ main > section:not(#songs) { width: min(1120px, calc(100% - 64px)); }
 main > section + section { border-top: 1px solid var(--link-border); }
 #about { display: block; }
 .artist-profile { margin: 0; }
-.site-about { margin-top: 56px; }
-.site-about > h2 { font-size: 24px; margin: 6px 0 0; }
-.site-about > p { line-height: 1.9; max-width: 75ch; }
 #about > #related-links-title { grid-column: 1 / -1; margin: 68px 0 0; font-size: 26px; }
 #about > .links-intro, #about > .artist-links { grid-column: 1 / -1; }
 .links-intro { font-family: var(--font-body); font-size: 14px; color: var(--ui-muted); max-width: 75ch; }
@@ -1755,7 +1752,6 @@ body.modal-open { overflow: hidden; }
   .section-nav a { padding: 8px 12px; font-size: 12px; }
   .section-nav .back-top { margin: 0; }
   html { scroll-padding-top: calc(140px + env(safe-area-inset-top)); }
-  .site-about { margin-top: 38px; }
   #about > #related-links-title { margin-top: 44px; }
   main > section:not(#songs), main > section#messages, #songs { width: calc(100% - 36px - env(safe-area-inset-left) - env(safe-area-inset-right)); }
   h2 { font-size: 30px; letter-spacing: 2px; }
