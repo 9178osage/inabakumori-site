@@ -80,8 +80,11 @@ test("a refused delete keeps the message, a lost session drops the stale list", 
   // Loading the list has no such distinction: either status means nothing can be listed.
   const load = comments.slice(comments.indexOf("async function load(more = false) {"));
   const loadGuard = load.slice(0, load.indexOf("if (!response.ok)"));
-  assert.match(loadGuard, /if \(response\.status === 401 \|\| response\.status === 403\) \{/);
+  assert.match(loadGuard, /if \(response\.status === 401\) \{/);
+  assert.doesNotMatch(loadGuard, /response\.status === 401 \|\| response\.status === 403/);
   assert.match(loadGuard, /comments\.clear\(\);/);
+  // A refused page request falls through to the failure branch, which offers the retry button.
+  assert.match(load, /if \(!response\.ok\) throw new Error\("Could not load messages"\);/);
 });
 
 test("the iOS overflow fallback covers the reader's own comment list and the static wall", () => {

@@ -162,6 +162,31 @@ test('delete cancellation sends no request and failed deletion leaves the messag
   assert.deepEqual(removed, [1]);
 });
 
+test('a 403 while loading more keeps the messages on screen and offers a retry', async () => {
+  const { elements, context, events } = ui();
+  let calls = 0;
+  context.fetch = async () => {
+    calls += 1;
+    if (calls === 1) {
+      return { ok: true, status: 200, json: async () => ({ comments: [{ id: 1, nickname: 'n', content: '第一页' }], nextCursor: 10 }) };
+    }
+    return { ok: false, status: 403 };
+  };
+  await events.DOMContentLoaded();
+  // dispatchEvent() in the stand-in does not return the listener's promise, so wait for the render.
+  for (let wait = 0; wait < 40 && elements['my-comments-list'].children.length === 0; wait++) {
+    await new Promise(resolve => setTimeout(resolve, 5));
+  }
+  assert.equal(elements['my-comments-list'].children.length, 1);
+  await elements['my-comments-more'].listeners.click();
+  // A refused page request is not a dead session: page 1 stays and the reader can retry.
+  assert.equal(elements['my-comments-controls'].hidden, false, '403 must not hide the loaded messages');
+  assert.equal(elements['my-comments-list'].children.length, 1);
+  assert.equal(elements['my-comments-status'].textContent, '读取失败，请重试。');
+  assert.equal(elements['my-comments-retry'].hidden, false, 'the retry button is offered');
+  assert.equal(elements['my-comments-more'].hidden, false, 'the cursor is kept for the retry');
+});
+
 test('Japanese message management shows a localized sign-in prompt', async () => {
   const { context, elements, events } = ui();
   context.localStorage.getItem = () => 'ja';
@@ -539,6 +564,14 @@ test('a successful password reset revokes every existing session of that user', 
   let outcome = await run(ok);
   assert.equal(outcome.response, ok);
   assert.deepEqual(outcome.revoked, ['user-1']);
+  // A transient hiccup between this process and the Core is retried once, not silently dropped.
+  let attempts = 0;
+  outcome = await run(ok, async userId => {
+    if (++attempts === 1) throw Object.assign(new Error('blip'), { code: 'ECONNRESET' });
+    return [userId];
+  });
+  assert.equal(outcome.response, ok);
+  assert.equal(attempts, 2, 'revocation is retried once on a transient failure');
   for (const status of ['RESET_PASSWORD_INVALID_TOKEN_ERROR', 'PASSWORD_POLICY_VIOLATED_ERROR', 'GENERAL_ERROR']) {
     const failed = { status };
     outcome = await run(failed);

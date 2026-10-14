@@ -55,15 +55,12 @@
       if (!signedIn) { state = "signedOut"; return; }
       const response = await (window.siteFetch || fetch)(`${api}/mine${more ? `?before=${nextCursor}` : ""}`, { credentials: "include", cache: "no-store" });
       if (current !== version) return;
-      // A dead session is not a load failure: show the signed-out panel like the admin list does.
-      // The list belongs to the session that just died, so drop it before showing the sign-in state.
-      if (response.status === 401 || response.status === 403) {
-        // 401 means the session is gone, so the list belongs to a session that no longer exists and is
-        // dropped. 403 means the request itself was refused — keep the list, it is still the reader's.
-        if (response.status === 401) {
-          comments.clear();
-          nextCursor = null;
-        }
+      // A dead session (401) is not a load failure: the list belonged to that session, so drop it and
+      // show the sign-in state. A refused request (403) is not a dead session either — fall through to
+      // the error path, which keeps the messages already on screen and offers the retry button.
+      if (response.status === 401) {
+        comments.clear();
+        nextCursor = null;
         document.getElementById("my-comments-controls").hidden = true;
         state = "signedOut";
         return;

@@ -125,15 +125,29 @@ test("comment validation stays fast on adversarial 500-character inputs (no ReDo
   const { validateCommentInput } = await import("../../backend/services.mjs");
   const inputs = ["1".repeat(500), "a-".repeat(250), "a.".repeat(250), "1.".repeat(250), "１".repeat(500),
     "+1 ".repeat(166), "(0".repeat(250), "a".repeat(250) + "@" + "b".repeat(249), "加 我的 ".repeat(100), "www.".repeat(125)];
-  for (const content of inputs) {
-    const started = performance.now();
+  // Warm the lazy regex compilation once: the other test files spawn esbuild and git workers, and the
+  // first run otherwise pays for compiling four large Unicode patterns while the CPU is contended.
+  validateCommentInput({ nickname: "warmup", content: "warmup@example.com 138 0013 8000" });
+  const runBatch = content => {
+    const cpuStart = process.cpuUsage();
+    const wallStart = performance.now();
     for (let i = 0; i < 5; i++) validateCommentInput({ nickname: "n".repeat(30), content });
-    assert.ok(performance.now() - started < 250, `slow validation for ${content.slice(0, 12)}…`);
+    const wallMs = performance.now() - wallStart;
+    const usage = process.cpuUsage(cpuStart);
+    return { wallMs, cpuMs: (usage.user + usage.system) / 1000 };
+  };
+  for (const content of inputs) {
+    let { wallMs, cpuMs } = runBatch(content);
+    // Wall time can include time this process spent descheduled; CPU time cannot. Re-measure once
+    // when the wall clock looks bad but the CPU work was cheap, and keep both assertions.
+    if (wallMs >= 250 && cpuMs < 150) ({ wallMs, cpuMs } = runBatch(content));
+    assert.ok(cpuMs < 150, `high CPU time (${cpuMs.toFixed(1)}ms) for ${content.slice(0, 12)}…`);
+    assert.ok(wallMs < 250, `slow validation (${wallMs.toFixed(1)}ms) for ${content.slice(0, 12)}…`);
   }
   // Oversized bodies are rejected by length before any pattern runs.
-  const started = performance.now();
+  const oversized = runBatch("a-".repeat(9000));
   assert.equal(validateCommentInput({ nickname: "n", content: "a-".repeat(9000) }).ok, false);
-  assert.ok(performance.now() - started < 100);
+  assert.ok(oversized.cpuMs < 50 && oversized.wallMs < 100);
 });
 
 test("every GitHub Action is pinned to a commit SHA, workflows avoid pull_request_target, Dependabot watches all ecosystems", () => {
