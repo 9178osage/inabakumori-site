@@ -391,10 +391,17 @@ export function revokeSessionsAfterPasswordReset(passwordResetPOST, revokeAllSes
       log.warn("Password reset succeeded without a user id; no sessions revoked");
       return response;
     }
-    try {
-      await revokeAllSessionsForUser(userId);
-    } catch (error) {
-      log.error("Session revocation after password reset failed", { name: error?.name, code: error?.code });
+    // The reset token is already consumed and the new password already stored, so a revocation
+    // failure must never surface as a 500. One immediate retry covers a transient hiccup between
+    // this process and the Core; if it still fails the error is logged with name/code only (no user
+    // id, token or address) and the reset still reports success.
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        await revokeAllSessionsForUser(userId);
+        return response;
+      } catch (error) {
+        if (attempt === 2) log.error("Session revocation after password reset failed", { name: error?.name, code: error?.code });
+      }
     }
     return response;
   };
