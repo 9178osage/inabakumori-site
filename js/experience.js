@@ -94,11 +94,19 @@
       status.textContent = "";
     });
     window.addEventListener("storage", event => {
-      if (event.key !== "favorite-songs" && event.key !== null) return;
       try { if (event.storageArea !== window.localStorage) return; } catch { return; }
-      // Read the event value: the preferences fallback may still cache this tab's last write.
-      favorites = readFavorites(event.newValue);
-      updateTagFilter();
+      if (event.key === "favorite-songs" || event.key === null) {
+        // Read the event value: the preferences fallback may still cache this tab's last write.
+        favorites = readFavorites(event.newValue);
+        updateTagFilter();
+      }
+      if (event.key === "wall-static" || event.key === null) {
+        const nextStatic = event.newValue === "true";
+        if (nextStatic !== wallStatic) {
+          wallStatic = nextStatic;
+          updateWallMode();
+        }
+      }
     });
     sort.addEventListener("change", () => { sortRows(); syncUrl(); });
     favoriteFilter.addEventListener("click", () => {
