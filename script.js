@@ -10,6 +10,7 @@ function commentErrorMessage(data, response) {
     GUEST_RATE_LIMITED: ["游客每小时最多留言 3 条，请稍后再试", "Guests can post up to 3 messages per hour. Please try again later."],
     RATE_LIMITED: ["留言发送过于频繁，请稍后再试", "Messages are being sent too quickly. Please try again later."],
     MEMBER_RATE_LIMITED: ["登录用户每小时最多留言 20 条，请稍后再试", "Signed-in members can post up to 20 messages per hour. Please try again later."],
+    TOO_MANY_LINE_BREAKS: ["留言换行太多，最多 15 个换行。", "Your message has too many line breaks (up to 15)."],
     MEMBER_COMMENT_CAP: ["每个账号最多保留 100 条留言，请先删除旧留言", "Each account can keep up to 100 messages. Please delete some older ones first."]
   };
   const message = messages[data?.code];
@@ -335,6 +336,12 @@ function updateMessageLoadStatus() {
 }
 const MAX_NICKNAME_LENGTH = 30;
 const MAX_COMMENT_LENGTH = 500;
+const MAX_COMMENT_LINE_BREAKS = 15;
+// Same normalisation as the server: CRLF/CR -> LF, 3+ newlines collapse to 2, then trim.
+function countCommentLineBreaks(value) {
+  const text = String(value ?? "").normalize("NFC").replace(/\r\n?/gu, "\n").replace(/\n{3,}/gu, "\n\n").trim();
+  return (text.match(/\n/gu) || []).length;
+}
 // Count like the server: NFC first, then code points (a decomposed "é" is one character, not two).
 function unicodeLength(value) {
   return Array.from(String(value ?? "").normalize("NFC")).length;
@@ -387,6 +394,11 @@ async function addMessage() {
   }
   if (unicodeLength(content) > MAX_COMMENT_LENGTH) {
     showLengthFeedback("content");
+    messageInput.focus();
+    return;
+  }
+  if (countCommentLineBreaks(content) > MAX_COMMENT_LINE_BREAKS) {
+    showMessageFeedback(() => pageText("留言换行太多，最多 15 个换行。", "Your message has too many line breaks (up to 15)."));
     messageInput.focus();
     return;
   }

@@ -54,7 +54,7 @@ export function validateCommentInput(body) {
   // breaks capped: the wall renders pre-wrap, so one comment with hundreds of \n would stretch it.
   const content = body.content.normalize("NFC").replace(/\r\n?/gu, "\n").replace(/\n{3,}/gu, "\n\n").trim();
   if ((content.match(/\n/gu) || []).length > MAX_COMMENT_LINE_BREAKS) {
-    return { ok: false, error: "请输入有效的昵称和留言", code: "INVALID_COMMENT" };
+    return { ok: false, error: `留言换行太多，最多 ${MAX_COMMENT_LINE_BREAKS} 个换行`, code: "TOO_MANY_LINE_BREAKS" };
   }
   // Invisible "filler" characters (Hangul fillers, word joiner, soft hyphen, ...) do not count as visible text.
   // U+2800 (Braille blank) and U+1D159 (musical null notehead) are graphic-visible to the engine but
