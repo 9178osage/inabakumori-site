@@ -14,8 +14,16 @@ if (window.top !== window.self) {
       catch { return memory.get(key) ?? null; }
     },
     setItem(key, value) {
-      memory.set(key, String(value));
-      try { localStorage.setItem(key, String(value)); } catch { /* In-memory fallback. */ }
+      const stored = String(value);
+      try {
+        localStorage.setItem(key, stored);
+        // Never keep a shadow copy: it would hide updates written by other tabs (language, theme,
+        // favourites) for the rest of this tab's life. Memory is only a fallback for storage that
+        // refuses to write (private mode, quota).
+        memory.delete(key);
+      } catch {
+        memory.set(key, stored);
+      }
     }
   };
   const theme = window.siteStorage.getItem("theme");

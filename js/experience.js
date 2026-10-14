@@ -70,6 +70,9 @@
     }
     function syncUrl() {
       const url = new URL(window.location.href);
+      // Rebuild the query instead of editing it: leftovers such as ?icons=2 would otherwise ride along
+      // into every copied filter link.
+      url.search = "";
       const values = { q: input.value.trim().slice(0, 200), sort: sort.value === "original" ? "" : sort.value, favorites: favoritesOnly ? "1" : "" };
       for (const [key, value] of Object.entries(values)) {
         if (value) url.searchParams.set(key, value); else url.searchParams.delete(key);
@@ -128,6 +131,11 @@
       if (event.key !== "/" || event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return;
       if (event.target.closest("input, textarea, select, [contenteditable], [role=dialog]")) return;
       if (document.getElementById("auth-modal").classList.contains("open")) return;
+      // The lightbox and the easter egg own the page while they are open: focusing the search box
+      // would scroll the inert background behind them.
+      const lightbox = document.getElementById("nknk-lightbox");
+      if (lightbox && !lightbox.hidden) return;
+      if (document.getElementById("easter-egg-overlay")?.classList.contains("show")) return;
       event.preventDefault();
       input.focus();
       input.scrollIntoView({ block: "center", behavior: reducedMotionQuery?.matches ? "instant" : "smooth" });

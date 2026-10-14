@@ -13,7 +13,10 @@ test('auth POST throttling covers tenant paths and URL normalization; disabled e
   const backend = fs.readFileSync('backend/server.mjs', 'utf8');
   const setup = backend.match(/const authSensitiveLimiter =[\s\S]*?(?=app\.use\(middleware\(\)\);)/);
   assert.ok(setup, 'auth limiter must run before the SuperTokens middleware');
-  vm.runInNewContext(setup[0], { app, rateLimit, URL, clientIpKey: req => ipKeyGenerator(req.ip) });
+  // The limiter block imports its path normaliser from services.mjs; inject the real one instead of
+  // duplicating it, so this harness tests the implementation that ships.
+  const { normalizeRequestPath } = await import('../../backend/services.mjs');
+  vm.runInNewContext(setup[0], { app, rateLimit, URL, normalizeRequestPath, clientIpKey: req => ipKeyGenerator(req.ip) });
   app.use((req, res) => res.status(204).end());
   const request = async (method, pathname) => {
     const socket = new Duplex({ read() {}, write(chunk, encoding, callback) { callback(); } });
@@ -41,7 +44,9 @@ test('auth POST throttling covers tenant paths and URL normalization; disabled e
     '/auth/signin', '/auth/public/signin', '/auth/public/signup',
     '/auth/public/user/password/reset/token', '/auth/public/user/password/reset',
     '/auth/example-tenant/signin', '/outside/../auth/public/signin',
-    '/outside/%2e%2e/auth/public/signin'
+    '/outside/%2e%2e/auth/public/signin',
+    // Doubled and backslash separators must not slip past the limiter.
+    '//auth/signin', '///auth//public/signin', '\\auth\\public\\signin'
   ];
   for (let i = 0; i < 20; i++) assert.equal(await request('POST', paths[i % paths.length]), 204);
   for (const pathname of paths) assert.equal(await request('POST', pathname), 429, pathname);

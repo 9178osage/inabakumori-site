@@ -84,6 +84,12 @@
     render();
     try {
       const response = await (window.siteFetch || fetch)(`${api}/${id}`, { method: "DELETE", credentials: "include" });
+      // An expired session is not a delete failure: show the signed-out panel, like load() does.
+      if (response.status === 401 || response.status === 403) {
+        document.getElementById("my-comments-controls").hidden = true;
+        if (current === version) state = "signedOut";
+        return;
+      }
       if (!response.ok && response.status !== 404) throw new Error("Could not delete message");
       deleted.add(id);
       comments.delete(id);
@@ -94,7 +100,8 @@
       if (current === version) state = "deleteError";
     } finally {
       deleting.delete(id);
-      render();
+      // A newer load (sign-in change, reload, language switch) owns the panel now.
+      if (current === version) render();
     }
   }
   document.addEventListener("DOMContentLoaded", () => {

@@ -7,6 +7,7 @@ import { mkdtemp, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { backupDatabase } from "./backup.mjs";
+import { normalizeRequestPath } from "./services.mjs";
 
 export const BACKUP_PATH = "/api/admin/backup";
 export const MIN_BACKUP_TOKEN_LENGTH = 32;
@@ -17,11 +18,9 @@ export function backupTokenFrom(env) {
 }
 
 export function isBackupPath(url) {
-  try {
-    return new URL(url, "http://localhost").pathname.replace(/\/+$/u, "").toLowerCase() === BACKUP_PATH;
-  } catch {
-    return false;
-  }
+  // Shares the path normaliser used by the rate limiters: "//api/admin/backup" and
+  // "/api//admin/backup/" must be recognised as the backup path, not treated as ordinary API traffic.
+  return normalizeRequestPath(url) === BACKUP_PATH;
 }
 
 // Hash both sides first so timingSafeEqual always compares equal-length buffers.

@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { validateCommentInput, websiteLocation, resolveDatabasePath, parseAdditionalOrigins, clientIpResolver, parseAdminUserIds, createAdminCheck, buildVersion, createRecentDuplicateChecker, insertFreshComment, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery, requireJsonRequestBody, revokeSessionsAfterPasswordReset, clientErrorResponse } from "./services.mjs";
+import { normalizeRequestPath, validateCommentInput, websiteLocation, resolveDatabasePath, parseAdditionalOrigins, clientIpResolver, parseAdminUserIds, createAdminCheck, buildVersion, createRecentDuplicateChecker, insertFreshComment, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery, requireJsonRequestBody, revokeSessionsAfterPasswordReset, clientErrorResponse } from "./services.mjs";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -181,25 +181,10 @@ app.use((req, res, next) => isBackupPath(req.originalUrl || req.url) ? next() : 
 app.use(requireJsonRequestBody);
 app.use(express.json({ limit: "20kb", strict: true }));
 const authSensitiveLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 15 * 60 * 1e3, limit: 20, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
-function normalizedRequestPath(value) {
-  let pathname;
-  try {
-    pathname = new URL(value, "http://localhost").pathname;
-  } catch {
-    return "";
-  }
-  const parts = [];
-  for (const part of pathname.split("/")) {
-    if (!part || part === ".") continue;
-    if (part === "..") parts.pop();
-    else parts.push(part);
-  }
-  return `/${parts.join("/")}`;
-}
 // emailExistsGET is removed from the SuperTokens APIs, so only POST auth routes need throttling.
 app.use((req, res, next) => {
   if (req.method !== "POST") return next();
-  const pathname = normalizedRequestPath(req.originalUrl || req.url);
+  const pathname = normalizeRequestPath(req.originalUrl || req.url);
   if (pathname !== "/auth" && !pathname.startsWith("/auth/")) return next();
   return authSensitiveLimiter(req, res, next);
 });
@@ -334,13 +319,8 @@ const commentDeleteLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 60
 app.use("/api", commentReadLimiter);
 app.use((req, res, next) => {
   if (req.method !== "DELETE") return next();
-  let pathname;
-  try {
-    pathname = new URL(req.originalUrl || req.url, "http://localhost").pathname;
-  } catch {
-    return next();
-  }
-  return /^\/api\/(?:admin\/)?comments(?:\/|$)/iu.test(pathname) ? commentDeleteLimiter(req, res, next) : next();
+  const pathname = normalizeRequestPath(req.originalUrl || req.url);
+  return /^\/api\/(?:admin\/)?comments(?:\/|$)/u.test(pathname) ? commentDeleteLimiter(req, res, next) : next();
 });
 app.get("/api/comments", (req, res) => {
   res.setHeader("Cache-Control", "no-store");
