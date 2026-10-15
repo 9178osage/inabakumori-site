@@ -129,7 +129,7 @@
         await navigator.clipboard.writeText(url.href);
         status.textContent = text("链接已复制", "Link copied", "リンクをコピーしました");
       } catch {
-        status.textContent = text("请从地址栏复制链接", "Copy the link from your address bar", "アドレスバーからリンクをコピーしてください");
+        status.textContent = `${text("无法自动复制，请复制此链接：", "Could not copy automatically. Copy this link: ", "自動コピーできませんでした。このリンクをコピーしてください：")}${url.href}`;
       }
     });
     window.addEventListener("popstate", restoreUrl);
