@@ -840,6 +840,13 @@ main > section#messages {
   font-weight: 700;
   color: var(--ui-muted);
 }
+#library-status {
+  min-width: 0;
+  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  user-select: text;
+}
 .tag-empty-state {
   margin: 0 0 32px;
   padding: 28px;

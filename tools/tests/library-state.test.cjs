@@ -56,9 +56,38 @@ function loadLibrary(search = "") {
     location: new URL(`https://example.com/${search}`), history: { state: null, replaceState() {} },
     URL, URLSearchParams, navigator: {}
   };
+  context.history.replaceState = (_state, _title, url) => { context.location = new URL(url, context.location); };
   context.window = context;
   vm.runInNewContext(fs.readFileSync("js/experience.js", "utf8"), context);
-  return { elements, list, ready, saved, storage, fire };
+  return { elements, list, ready, saved, storage, fire, context };
+}
+
+test("share succeeds with clipboard support and falls back when the API is absent", async () => {
+  const { elements, ready, context } = loadLibrary("?favorites=1&icons=2");
+  ready.forEach(handler => handler());
+  elements.get("tag-filter-input").value = "rain";
+  let copied;
+  context.navigator.clipboard = { writeText: async value => { copied = value; } };
+  await elements.get("share-search").listeners.click[0]();
+  assert.equal(copied, "https://example.com/?q=rain#songs");
+  assert.equal(elements.get("library-status").textContent, "链接已复制");
+  delete context.navigator.clipboard;
+  await elements.get("share-search").listeners.click[0]();
+  assert.ok(elements.get("library-status").textContent.includes(copied));
+});
+
+for (const language of ["zh", "en", "ja"]) {
+  test(`share fallback exposes the public URL without local favorites (${language})`, async () => {
+    const { elements, ready, context } = loadLibrary("?q=rain&sort=title&favorites=1#intro");
+    context.currentLanguage = language;
+    context.navigator.clipboard = { writeText: async () => { throw new Error("permission denied"); } };
+    ready.forEach(handler => handler());
+    await elements.get("share-search").listeners.click[0]();
+    const message = elements.get("library-status").textContent;
+    assert.ok(message.includes("https://example.com/?q=rain&sort=title#songs"));
+    assert.ok(!message.includes("favorites="));
+    assert.equal(elements.get("favorites-filter").attributes["aria-pressed"], "true");
+  });
 }
 
 test("popular sort tolerates pre-rendered songs when the song data script fails", () => {
