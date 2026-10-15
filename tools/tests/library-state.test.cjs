@@ -124,3 +124,69 @@ test("favorite synchronization ignores other storage areas and handles malformed
   assert.doesNotThrow(() => fire("storage", { key: "favorite-songs", newValue: "invalid", storageArea: storage }));
   assert.equal(button.attributes["aria-pressed"], "false");
 });
+
+test("share hint follows the language switch after a successful copy", async () => {
+  const { elements, ready, context, fire } = loadLibrary("?q=rain&favorites=1");
+  ready.forEach(handler => handler());
+  context.navigator.clipboard = { writeText: async () => {} };
+  await elements.get("share-search").listeners.click[0]();
+  const status = elements.get("library-status");
+  assert.equal(status.textContent, "链接已复制");
+  for (const [language, expected] of [["en", "Link copied"], ["ja", "リンクをコピーしました"], ["zh", "链接已复制"]]) {
+    context.currentLanguage = language;
+    fire("languagechange");
+    assert.equal(status.textContent, expected, `status should follow the switch to ${language}`);
+  }
+});
+
+test("share fallback keeps the public URL across a language switch", async () => {
+  const { elements, ready, context, fire } = loadLibrary("?q=rain&sort=title&favorites=1#intro");
+  ready.forEach(handler => handler());
+  context.navigator.clipboard = { writeText: async () => { throw new Error("permission denied"); } };
+  await elements.get("share-search").listeners.click[0]();
+  const status = elements.get("library-status");
+  const sharedUrl = "https://example.com/?q=rain&sort=title#songs";
+  assert.ok(status.textContent.includes(sharedUrl));
+  assert.ok(!status.textContent.includes("favorites="));
+  context.currentLanguage = "ja";
+  fire("languagechange");
+  assert.ok(status.textContent.includes("自動コピーできませんでした"), status.textContent);
+  assert.ok(status.textContent.includes(sharedUrl), "the URL itself must not change");
+  assert.ok(!status.textContent.includes("favorites="));
+  context.currentLanguage = "en";
+  fire("languagechange");
+  assert.ok(status.textContent.startsWith("Could not copy automatically."), status.textContent);
+  assert.ok(status.textContent.includes(sharedUrl));
+});
+
+test("a language switch keeps the share hint, a real filter change clears it", async () => {
+  const { elements, list, ready, context, fire, storage } = loadLibrary("?q=rain");
+  ready.forEach(handler => handler());
+  const status = elements.get("library-status");
+  context.navigator.clipboard = { writeText: async () => {} };
+  await elements.get("share-search").listeners.click[0]();
+  assert.equal(status.textContent, "链接已复制");
+
+  // The language switch re-runs the filter with the same visible songs: the hint must
+  // be translated, not erased.
+  const originalUpdateTagFilter = context.updateTagFilter;
+  context.updateTagFilter = () => { fire("songsfiltered"); };
+  context.currentLanguage = "ja";
+  fire("languagechange");
+  assert.equal(status.textContent, "リンクをコピーしました");
+  context.currentLanguage = "zh";
+  fire("languagechange");
+  assert.equal(status.textContent, "链接已复制");
+
+  // A filter that actually changes the visible songs retires the hint for good.
+  context.updateTagFilter = originalUpdateTagFilter;
+  context.includeFavoriteSong = link => JSON.parse(storage.getItem("favorite-songs") || "[]").includes(link.dataset.songTitle);
+  storage.setItem("favorite-songs", JSON.stringify(["first"]));
+  elements.get("favorites-filter").click();
+  const links = list.children.filter(item => item.dataset.songTitle);
+  assert.deepEqual(links.map(link => link.hidden), [false, true, true], "the visible set really changed");
+  assert.equal(status.textContent, "", "a real filter change clears the hint");
+  context.currentLanguage = "ja";
+  fire("languagechange");
+  assert.equal(status.textContent, "", "the cleared hint never comes back");
+});

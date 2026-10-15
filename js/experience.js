@@ -34,6 +34,9 @@
     const sort = document.getElementById("song-sort");
     const favoriteFilter = document.getElementById("favorites-filter");
     const status = document.getElementById("library-status");
+    // The share hint is written once but has to survive a language switch: keep the
+    // renderer beside the element so languagechange can replay it in the new language.
+    let renderLibraryStatus = null;
     const rows = [...list.querySelectorAll("a")].map((link, index) => {
       const row = document.createElement("div");
       row.className = "song-row";
@@ -88,10 +91,20 @@
       sortRows();
       updateTagFilter();
     }
+    // The visible songs decide whether a share hint is still relevant. A language
+    // switch also re-runs the filter (updateTagLanguage -> updateTagFilter) and fires
+    // this event with the same visible set: clearing on that would erase the hint
+    // instead of translating it.
+    let visibleSongKey = "";
+    const visibleKey = () => rows.map(({ row }) => (row.hidden ? "0" : "1")).join("");
     window.addEventListener("songsfiltered", () => {
       rows.forEach(({ refresh }) => refresh());
       syncUrl();
+      const key = visibleKey();
+      if (key === visibleSongKey) return;
+      visibleSongKey = key;
       status.textContent = "";
+      renderLibraryStatus = null;
     });
     window.addEventListener("storage", event => {
       try { if (event.storageArea !== window.localStorage) return; } catch { return; }
@@ -125,15 +138,21 @@
       const url = new URL(window.location.href);
       url.hash = "songs";
       url.searchParams.delete("favorites");
+      const sharedUrl = url.href;
       try {
-        await navigator.clipboard.writeText(url.href);
-        status.textContent = text("链接已复制", "Link copied", "リンクをコピーしました");
+        await navigator.clipboard.writeText(sharedUrl);
+        renderLibraryStatus = () => text("链接已复制", "Link copied", "リンクをコピーしました");
       } catch {
-        status.textContent = `${text("无法自动复制，请复制此链接：", "Could not copy automatically. Copy this link: ", "自動コピーできませんでした。このリンクをコピーしてください：")}${url.href}`;
+        // Capture the public URL here: it must not change when the language does.
+        renderLibraryStatus = () => `${text("无法自动复制，请复制此链接：", "Could not copy automatically. Copy this link: ", "自動コピーできませんでした。このリンクをコピーしてください：")}${sharedUrl}`;
       }
+      status.textContent = renderLibraryStatus();
     });
     window.addEventListener("popstate", restoreUrl);
-    window.addEventListener("languagechange", () => rows.forEach(({ refresh }) => refresh()));
+    window.addEventListener("languagechange", () => {
+      rows.forEach(({ refresh }) => refresh());
+      if (renderLibraryStatus) status.textContent = renderLibraryStatus();
+    });
     restoreUrl();
     document.addEventListener("keydown", event => {
       if (event.key !== "/" || event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return;
