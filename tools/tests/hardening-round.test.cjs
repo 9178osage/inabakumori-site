@@ -138,7 +138,11 @@ test("wall, share links, dialogs and gallery follow the hardening rules", () => 
   // Deliberate change: only 401 is a lost session; 403 is a refused request and keeps the list.
   assert.match(personalRemove, /if \(response\.status === 401\) \{/);
   assert.doesNotMatch(personalRemove, /response\.status === 401 \|\| response\.status === 403/);
-  assert.match(personalRemove, /if \(current === version\) render\(\);/);
+  // Only the request's current version may clear session data or replace its result state.
+  // finally redraws current data to clear pending buttons; comment-focus.test.cjs covers late replies.
+  assert.match(personalRemove, /if \(response\.status === 401\) \{\s*if \(current === version\) \{\s*comments\.clear\(\);/);
+  assert.match(personalRemove, /if \(current === version\) state = "deleted";/);
+  assert.match(personalRemove, /if \(current === version\) state = "deleteError";/);
 
   const gallery = read("js/nknk-gallery-ui.js");
   assert.match(gallery, /const MAX_PRELOAD_CACHE = 6;/);

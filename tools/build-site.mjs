@@ -38,10 +38,11 @@ async function copyPublicFolder(folder, allowed) {
   await mkdir(output(`dist/${folder}`), { recursive: true });
   // withFileTypes does not follow symlinks: linked files and folders are never copied.
   for (const entry of await readdir(source(folder), { withFileTypes: true })) {
+    // Hidden files and folders (Finder/editor leftovers or private assets) stay local.
+    if (entry.name.startsWith(".")) continue;
     const file = `${folder}/${entry.name}`;
     if (entry.isDirectory()) await copyPublicFolder(file, allowed);
-    // Dotfiles (.DS_Store from Finder, editor leftovers) are never public assets.
-    else if (entry.isFile() && !entry.name.startsWith(".") && allowed.test(entry.name)) await copyFile(source(file), output(`dist/${file}`));
+    else if (entry.isFile() && allowed.test(entry.name)) await copyFile(source(file), output(`dist/${file}`));
   }
 }
 await copyPublicFolder("images/optimized", /\.webp$/i);
@@ -49,21 +50,22 @@ await copyPublicFolder("images/icons", /\.(png|ico)$/i);
 await copyPublicFolder("images/memes", /\.png$/i);
 await copyPublicFolder("fonts", /\.(woff2|txt)$/i);
 for (const entry of await readdir(source("images"), { withFileTypes: true })) {
-  if (entry.isFile() && /\.(png|jpe?g|webp)$/i.test(entry.name)) await copyFile(source(`images/${entry.name}`), output(`dist/images/${entry.name}`));
+  if (entry.isFile() && !entry.name.startsWith(".") && /\.(png|jpe?g|webp)$/i.test(entry.name)) await copyFile(source(`images/${entry.name}`), output(`dist/images/${entry.name}`));
 }
 for (const file of ["favicon.ico", "site.webmanifest", "robots.txt", "sitemap.xml", "404.html", "CNAME"]) await copyFile(source(file), output(`dist/${file}`));
 await writeFile(output("dist/.nojekyll"), "");
 
-// dist is not wiped between builds, so a Finder visit can leave .DS_Store files behind; they would
-// be counted as public files and shipped in the Pages artifact. Remove them before the artifact is
-// assembled (`.nojekyll` is the only dotfile we publish on purpose).
-async function removeStrayDotfiles(folder) {
+// dist starts clean, but Finder/editor leftovers can appear while it is being built.
+// Only the regular .nojekyll file at the dist root is intentionally public.
+async function removeStrayHiddenPaths(folder) {
   for (const entry of await readdir(folder, { withFileTypes: true })) {
-    if (entry.isDirectory()) { await removeStrayDotfiles(`${folder}/${entry.name}`); continue; }
-    if (entry.isFile() && entry.name.startsWith(".") && entry.name !== ".nojekyll") await rm(`${folder}/${entry.name}`);
+    const file = path.join(folder, entry.name);
+    if (entry.name.startsWith(".") && !(folder === out && entry.isFile() && entry.name === ".nojekyll")) {
+      await rm(file, { recursive: true, force: true });
+    } else if (entry.isDirectory()) await removeStrayHiddenPaths(file);
   }
 }
-await removeStrayDotfiles(out);
+await removeStrayHiddenPaths(out);
 
 const context = vm.createContext({});
 vm.runInContext(await readFile(source("js/songs.js"), "utf8"), context);

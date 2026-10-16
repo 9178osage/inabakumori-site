@@ -19,8 +19,10 @@ function distFile(reference) {
 let bytes = 0;
 async function checkFolder(folder) {
   for (const entry of await readdir(folder, { withFileTypes: true })) {
-    if (entry.isFile() && entry.name.startsWith(".") && entry.name !== ".nojekyll") throw new Error(`refusing to publish dotfile: ${folder}/${entry.name}`);
     const name = path.relative(root, path.join(folder, entry.name));
+    if (entry.name.startsWith(".") && !(folder === root && entry.isFile() && entry.name === ".nojekyll")) {
+      throw new Error(`refusing to publish hidden path: ${name}`);
+    }
     assert.ok(!/(^|\/)(backend|tools|docs|node_modules|trusted-read[^/]*|\.git|\.env)/i.test(name), `Private file in build: ${name}`);
     assert.ok(!/\.(db|mjs|map|md)$/i.test(name), `Non-public file in build: ${name}`);
     if (entry.isDirectory()) await checkFolder(path.join(folder, entry.name));

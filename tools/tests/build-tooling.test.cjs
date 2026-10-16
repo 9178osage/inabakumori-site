@@ -73,6 +73,71 @@ test("build refuses to delete through a symlinked dist/ folder", () => {
   } finally { box.cleanup(); }
 });
 
+function imageOptimizerSandbox() {
+  const box = sandbox(["tools/optimize-images.mjs", "tools/safe-fs.mjs"]);
+  for (const folder of ["images/hero", "images/hero-mobile", "images/optimized/hero", "bin"]) {
+    fs.mkdirSync(path.join(box.root, folder), { recursive: true });
+  }
+  fs.writeFileSync(path.join(box.root, "images/hero/input.png"), "PUBLIC_IMAGE");
+  // A tiny encoder stand-in makes an unsafe write observable without requiring cwebp.
+  fs.writeFileSync(path.join(box.root, "bin/cwebp"), `#!/usr/bin/env node
+const fs = require("node:fs");
+const args = process.argv.slice(2);
+const outputIndex = args.indexOf("-o");
+fs.writeFileSync(${JSON.stringify(path.join(box.root, "encoder-called"))}, "called");
+fs.copyFileSync(args[outputIndex - 1], args[outputIndex + 1]);
+`, { mode: 0o755 });
+  box.env = { PATH: `${path.join(box.root, "bin")}${path.delimiter}${process.env.PATH}` };
+  return box;
+}
+
+test("image optimizer refuses symlinked outputs and parent folders before running the encoder", () => {
+  for (const linked of ["images/optimized", "images/optimized/hero", "images/optimized/hero/input.webp"]) {
+    const box = imageOptimizerSandbox();
+    try {
+      const victim = path.join(box.outside, "input.webp");
+      fs.writeFileSync(victim, "KEEP");
+      // A linked optimized/ needs a hero/ subfolder so the old implementation writes through it.
+      if (linked === "images/optimized") {
+        fs.mkdirSync(path.join(box.outside, "hero"));
+        fs.writeFileSync(path.join(box.outside, "hero/input.webp"), "KEEP");
+      }
+      fs.rmSync(path.join(box.root, linked), { recursive: true, force: true });
+      fs.symlinkSync(linked.endsWith(".webp") ? victim : box.outside, path.join(box.root, linked));
+      const result = run(box.root, "tools/optimize-images.mjs", [], box.env);
+      assert.notEqual(result.status, 0, linked);
+      assert.match(result.stderr, /Refusing symlinked path/, linked);
+      assert.equal(fs.readFileSync(victim, "utf8"), "KEEP", linked);
+      if (linked === "images/optimized") assert.equal(fs.readFileSync(path.join(box.outside, "hero/input.webp"), "utf8"), "KEEP");
+      assert.equal(fs.existsSync(path.join(box.root, "encoder-called")), false, linked);
+    } finally { box.cleanup(); }
+  }
+});
+
+test("image optimizer refuses symlinked source files and parents while allowing ordinary images", () => {
+  for (const linked of ["images/hero", "images/hero/input.png"]) {
+    const box = imageOptimizerSandbox();
+    try {
+      const privateImage = path.join(box.outside, "input.png");
+      fs.writeFileSync(privateImage, "PRIVATE_IMAGE");
+      fs.rmSync(path.join(box.root, linked), { recursive: true, force: true });
+      fs.symlinkSync(linked.endsWith(".png") ? privateImage : box.outside, path.join(box.root, linked));
+      const result = run(box.root, "tools/optimize-images.mjs", [], box.env);
+      assert.notEqual(result.status, 0, linked);
+      assert.match(result.stderr, /Refusing symlinked path/, linked);
+      assert.equal(fs.readFileSync(privateImage, "utf8"), "PRIVATE_IMAGE", linked);
+      assert.equal(fs.existsSync(path.join(box.root, "encoder-called")), false, linked);
+    } finally { box.cleanup(); }
+  }
+  const box = imageOptimizerSandbox();
+  try {
+    const result = run(box.root, "tools/optimize-images.mjs", [], box.env);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(fs.readFileSync(path.join(box.root, "images/optimized/hero/input.webp"), "utf8"), "PUBLIC_IMAGE");
+    assert.equal(fs.readFileSync(path.join(box.root, "images/hero/input.png"), "utf8"), "PUBLIC_IMAGE");
+  } finally { box.cleanup(); }
+});
+
 test("NKNK generator refuses symlinked output folders instead of emptying their targets", () => {
   for (const linked of ["images/optimized/nknk", "images/optimized", "images/optimized/nknk/full"]) {
     const box = sandbox(["tools/generate-nknk-gallery.mjs", "tools/safe-fs.mjs"]);
