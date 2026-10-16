@@ -57,12 +57,16 @@
       const more = document.getElementById(moreId);
       if (!list || !more || document.activeElement !== more) return () => {};
       const before = list.children.length;
+      // Recorded as a fallback: if a row disappears while the request is in flight, children[before]
+      // can fall off the end and the new page's first row is the one after this element instead.
+      const lastItem = list.lastElementChild;
       return () => {
         const active = document.activeElement;
         if (active !== more && active !== document.body) return;
         if (list.closest?.("[hidden]")) return;
         if (!more.hidden) { if (active !== more) more.focus?.({ preventScroll: true }); return; }
-        let target = list.children[before]?.querySelector?.("button") ?? list.children[before]?.children?.[1];
+        const firstNew = list.children[before] ?? lastItem?.nextElementSibling ?? null;
+        let target = firstNew?.querySelector?.("button") ?? firstNew?.children?.[1];
         if (!target) {
           target = list;
           list.setAttribute("tabindex", "-1");
@@ -170,8 +174,10 @@
       deleted.add(id);
       comments.delete(id);
       window.removeWallMessage?.(id);
-      window.dispatchEvent(new CustomEvent("commentdeleted", { detail: { id } }));
+      // Set the status before announcing the deletion: this panel's own listener re-renders
+      // synchronously, so with the state still idle the first repaint focused an empty status node.
       if (current === version) state = "deleted";
+      window.dispatchEvent(new CustomEvent("commentdeleted", { detail: { id } }));
     } catch {
       if (current === version) state = "deleteError";
     } finally {
