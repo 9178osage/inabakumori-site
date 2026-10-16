@@ -71,5 +71,5 @@ GitHub Pages 提供网页、图片和音乐目录。登录与留言通过 HTTPS 
 
 ## 已知测试缺口
 
-- **`loadMoreFocus` 的"请求期间有行被删"分支曾被认为无法用替身验证——已由 `d668c27` 补上**（2026-10-16 记录该缺口）：替身现已实现 `lastElementChild` 与 `nextElementSibling`，生产逻辑也改为比较请求前后的行集合、只把此后出现的行当作新留言，因此这两条分支现在**既是红证据也是绿证据**：`tools/tests/comment-focus.test.cjs` 的两条"请求期间有行被删"用例在 `bae8810` 的旧逻辑下失败、在当前逻辑下通过，两条"空末页"用例在按长度猜测的版本下失败。用例在点击前会等待并断言按钮确实持有焦点，按钮不可聚焦时不再静默通过。真机上的键盘路径仍按上文清单抽检。
+- **`loadMoreFocus` 的"请求期间有行被删"分支无法用现有替身验证**（2026-10-16 记录）：`tools/tests/comment-focus.test.cjs` 的 DOM 替身没有实现 `lastElementChild` 与 `nextElementSibling`，其 `insertBefore` 行为也与真实 DOM 不一致（在替身里 `children.pop()` 之后重建出的行序与真机不同）。实测：撤掉兜底与保留兜底在该替身里**都会失败**，因此这条用例既不能当红证据也不能当绿证据。要补测试需先给 `element()` 工厂加上 `nextElementSibling` getter 并让 `insertBefore` 按索引插入；否则只能在真机/真浏览器里验证，而"我的留言"需要真实会话，不在自动化范围内。功能本身已在 `bae8810` 上线（真机 DOM 具备这两个 API，兜底生效）。
 
