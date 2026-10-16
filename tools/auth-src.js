@@ -17,11 +17,7 @@ async function authRequestDeadline({ url, requestInit = {} }) {
   if (originalSignal?.aborted) cancelFromCaller();
   else {
     originalSignal?.addEventListener("abort", cancelFromCaller, { once: true });
-    timer = setTimeout(() => {
-      // Same fallback as js/network.js: older engines may not expose the DOMException constructor.
-      try { controller.abort(new DOMException("The authentication request timed out", "TimeoutError")); }
-      catch { controller.abort(); }
-    }, 15000);
+    timer = setTimeout(() => controller.abort(new DOMException("The authentication request timed out", "TimeoutError")), 15000);
   }
   return { url, requestInit: { ...requestInit, signal: controller.signal } };
 }
