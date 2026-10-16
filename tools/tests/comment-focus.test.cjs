@@ -19,6 +19,12 @@ async function ui(ids = [1, 2, 3], cursor = null) {
         disabled = value;
         if (value && document.activeElement === this) document.activeElement = document.body;
       },
+      get lastElementChild() { return this.children[this.children.length - 1] ?? null; },
+      get nextElementSibling() {
+        if (!this.parentElement) return null;
+        const index = this.parentElement.children.indexOf(this);
+        return index >= 0 ? (this.parentElement.children[index + 1] ?? null) : null;
+      },
       contains(node) { return node === this || this.children.some(child => child.contains(node)); },
       closest() { for (let node = this; node; node = node.parentElement) if (node.hidden) return node; return null; },
       focus() { if (!this.disabled && !this.closest() && document.body.contains(this)) document.activeElement = this; },
@@ -174,12 +180,24 @@ for (const panel of ["my-comments", "admin-comments"]) {
   const page = (ids, nextCursor) => ({ ok: true, json: async () => ({
     comments: ids.map(id => ({ id, nickname: "fan", content: `message ${id}` })), nextCursor }) });
 
-  test(`${panel}: load more keeps focus on the button while pending and after another page`, async () => {
+  // The button is only focusable once the first page rendered. If that focus() had silently failed,
+  // loadMoreFocus() would hand back a no-op and every assertion below would pass for the wrong reason,
+  // so wait for the button to actually hold focus and prove it before clicking.
+  const loaded = async () => {
     const app = await ui([1, 2], 2);
     await app.events.DOMContentLoaded();
     await new Promise(setImmediate);
     const more = app.elements[`${panel}-more`];
-    more.focus();
+    for (let wait = 0; wait < 40 && app.document.activeElement !== more; wait++) {
+      more.focus();
+      await new Promise(setImmediate);
+    }
+    assert.equal(app.document.activeElement, more, "the load-more button must hold focus before the click");
+    return { app, more };
+  };
+
+  test(`${panel}: load more keeps focus on the button while pending and after another page`, async () => {
+    const { app, more } = await loaded();
     let finish, calls = 0;
     app.context.fetch = () => { calls++; return new Promise(resolve => { finish = resolve; }); };
     const pending = more.listeners.click();
@@ -196,36 +214,42 @@ for (const panel of ["my-comments", "admin-comments"]) {
   });
 
   test(`${panel}: load more moves focus to the first new message when the button hides`, async () => {
-    const app = await ui([1, 2], 2);
-    await app.events.DOMContentLoaded();
-    await new Promise(setImmediate);
-    const more = app.elements[`${panel}-more`];
-    more.focus();
+    const { app, more } = await loaded();
     app.context.fetch = async () => page([3, 4], null);
     await more.listeners.click();
     assert.equal(more.hidden, true);
     assert.equal(app.document.activeElement, app.button(panel, 3));
   });
 
-  test(`${panel}: an empty last page focuses the list, not the body`, async () => {
-    const app = await ui([1, 2], 2);
-    await app.events.DOMContentLoaded();
+  test(`${panel}: a row removed mid-request keeps load-more focus on the new message`, async () => {
+    const { app, more } = await loaded();
+    const list = app.elements[`${panel}-list`];
+    let release;
+    const gate = new Promise(resolve => { release = resolve; });
+    app.context.fetch = async () => { await gate; return page([3], null); };
+    const clicking = more.listeners.click();
     await new Promise(setImmediate);
-    const more = app.elements[`${panel}-more`];
-    more.focus();
+    // A row disappears through the real event while the page request is in flight.
+    app.context.window.dispatchEvent(new CustomEvent("commentdeleted", { detail: { id: 2 } }));
+    release();
+    await clicking;
+    assert.equal(more.hidden, true);
+    assert.notEqual(app.document.activeElement, list, "focus must not fall back to the whole list");
+    assert.equal(app.document.activeElement, app.button(panel, 3));
+  });
+
+  test(`${panel}: an empty last page focuses the list, not the body`, async () => {
+    const { app, more } = await loaded();
+    const list = app.elements[`${panel}-list`];
     app.context.fetch = async () => page([], null);
     await more.listeners.click();
-    const list = app.elements[`${panel}-list`];
+    assert.equal(more.hidden, true);
     assert.equal(app.document.activeElement, list);
     assert.equal(list.attributes.tabindex, "-1");
   });
 
   test(`${panel}: a failed load more keeps focus on the button`, async () => {
-    const app = await ui([1, 2], 2);
-    await app.events.DOMContentLoaded();
-    await new Promise(setImmediate);
-    const more = app.elements[`${panel}-more`];
-    more.focus();
+    const { app, more } = await loaded();
     app.context.fetch = async () => ({ ok: false, status: 500 });
     await more.listeners.click();
     assert.equal(more.hidden, false);
@@ -234,11 +258,7 @@ for (const panel of ["my-comments", "admin-comments"]) {
   });
 
   test(`${panel}: load more does not pull focus back after the user moves away`, async () => {
-    const app = await ui([1, 2], 2);
-    await app.events.DOMContentLoaded();
-    await new Promise(setImmediate);
-    const more = app.elements[`${panel}-more`];
-    more.focus();
+    const { app, more } = await loaded();
     let finish;
     app.context.fetch = () => new Promise(resolve => { finish = resolve; });
     const pending = more.listeners.click();

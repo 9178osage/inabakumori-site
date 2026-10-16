@@ -56,16 +56,17 @@
       const list = document.getElementById(listId);
       const more = document.getElementById(moreId);
       if (!list || !more || document.activeElement !== more) return () => {};
-      const before = list.children.length;
-      // Recorded as a fallback: if a row disappears while the request is in flight, children[before]
-      // can fall off the end and the new page's first row is the one after this element instead.
-      const lastItem = list.lastElementChild;
+      // Remember the rows already on screen. Comparing counts instead cannot tell an empty page apart
+      // from a page that replaced a row deleted mid-request, because both leave the length unchanged.
+      const known = new Set([...list.children]);
       return () => {
         const active = document.activeElement;
         if (active !== more && active !== document.body) return;
         if (list.closest?.("[hidden]")) return;
         if (!more.hidden) { if (active !== more) more.focus?.({ preventScroll: true }); return; }
-        const firstNew = list.children[before] ?? lastItem?.nextElementSibling ?? null;
+        // Only the rows this page appended are new. An empty last page appends nothing, so focus belongs
+        // on the list itself rather than on a row the reader has already seen.
+        const firstNew = [...list.children].find(item => !known.has(item));
         let target = firstNew?.querySelector?.("button") ?? firstNew?.children?.[1];
         if (!target) {
           target = list;
