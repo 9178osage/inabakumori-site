@@ -49,6 +49,29 @@
     };
   }
 
+  // "Load more" stays focusable while busy (aria-disabled; load() already blocks duplicates). When the
+  // page arrives and the button hides, hand focus to the first new message instead of dropping it on <body>.
+  function loadMoreFocus(listId, moreId) {
+    return () => {
+      const list = document.getElementById(listId);
+      const more = document.getElementById(moreId);
+      if (!list || !more || document.activeElement !== more) return () => {};
+      const before = list.children.length;
+      return () => {
+        const active = document.activeElement;
+        if (active !== more && active !== document.body) return;
+        if (list.closest?.("[hidden]")) return;
+        if (!more.hidden) { if (active !== more) more.focus?.({ preventScroll: true }); return; }
+        let target = list.children[before]?.querySelector?.("button") ?? list.children[before]?.children?.[1];
+        if (!target) {
+          target = list;
+          list.setAttribute("tabindex", "-1");
+        }
+        target.focus?.({ preventScroll: true });
+      };
+    };
+  }
+
 (() => {
   if (!document.getElementById("my-comments-list")) return;
   const api = `${window.APP_CONFIG.apiDomain}/api/comments`;
@@ -61,6 +84,7 @@
   const deleted = new Set();
   const label = (zh, en) => window.siteText?.(zh, en) ?? ((window.siteStorage || localStorage).getItem("language") === "en" ? en : zh);
   const renderList = commentListView("my-comments-list", "my-comments-status");
+  const watchMore = loadMoreFocus("my-comments-list", "my-comments-more");
   function render() {
     const list = document.getElementById("my-comments-list");
     if (!list) return;
@@ -77,10 +101,11 @@
     document.getElementById("my-comments-retry").hidden = state !== "error";
     const more = document.getElementById("my-comments-more");
     more.hidden = !nextCursor;
-    more.disabled = busy;
+    more.setAttribute("aria-disabled", String(busy));
   }
   async function load(more = false, reset = false) {
     if (more && (busy || !nextCursor)) return;
+    const restoreFocus = more ? watchMore() : () => {};
     const current = ++version;
     busy = true;
     state = "loading";
@@ -117,7 +142,7 @@
     } catch {
       if (current === version) state = "error";
     } finally {
-      if (current === version) { busy = false; render(); }
+      if (current === version) { busy = false; render(); restoreFocus(); }
     }
   }
   async function remove(id) {
@@ -194,6 +219,7 @@
     nextCursor = null;
   }
   const renderList = commentListView("admin-comments-list", "admin-comments-status");
+  const watchMore = loadMoreFocus("admin-comments-list", "admin-comments-more");
   function render() {
     const element = panel();
     const list = document.getElementById("admin-comments-list");
@@ -205,10 +231,11 @@
     retry.hidden = !error;
     retry.disabled = loading;
     const more = document.getElementById("admin-comments-more");
-    if (more) { more.hidden = !nextCursor; more.disabled = loading; }
+    if (more) { more.hidden = !nextCursor; more.setAttribute("aria-disabled", String(loading)); }
   }
   async function load(more = false) {
     if (more && (loading || !nextCursor)) return;
+    const restoreFocus = more ? watchMore() : () => {};
     const current = ++version;
     loading = true;
     error = "";
@@ -232,7 +259,7 @@
     } catch {
       if (current === version && authorized) error = "load";
     } finally {
-      if (current === version) { loading = false; render(); }
+      if (current === version) { loading = false; render(); restoreFocus(); }
     }
   }
   async function remove(id) {

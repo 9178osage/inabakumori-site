@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
 
-async function ui(ids = [1, 2, 3]) {
+async function ui(ids = [1, 2, 3], cursor = null) {
   const events = {}, listeners = {};
   const listen = (name, fn) => {
     (listeners[name] ||= []).push(fn);
@@ -57,7 +57,7 @@ async function ui(ids = [1, 2, 3]) {
   document.getElementById = id => elements[id];
   document.createElement = element;
   const rows = ids.map(id => ({ id, nickname: "fan", content: `message ${id}` }));
-  const reply = () => ({ ok: true, json: async () => ({ comments: rows, nextCursor: null }) });
+  const reply = () => ({ ok: true, json: async () => ({ comments: rows, nextCursor: cursor }) });
   const context = {
     document, CustomEvent, confirm: () => true, localStorage: { getItem: () => "en" }, fetch: async () => reply(),
     window: { APP_CONFIG: { apiDomain: "" }, hasCommentSession: async () => true, addEventListener: listen,
@@ -167,5 +167,85 @@ for (const panel of ["my-comments", "admin-comments"]) {
     assert.equal(app.document.activeElement, app.elements.outside);
     assert.equal(app.elements[`${panel}-list`].children.length, 0);
     assert.equal(app.elements[panel === "my-comments" ? "my-comments-controls" : "admin-comments"].hidden, true);
+  });
+}
+
+for (const panel of ["my-comments", "admin-comments"]) {
+  const page = (ids, nextCursor) => ({ ok: true, json: async () => ({
+    comments: ids.map(id => ({ id, nickname: "fan", content: `message ${id}` })), nextCursor }) });
+
+  test(`${panel}: load more keeps focus on the button while pending and after another page`, async () => {
+    const app = await ui([1, 2], 2);
+    await app.events.DOMContentLoaded();
+    await new Promise(setImmediate);
+    const more = app.elements[`${panel}-more`];
+    more.focus();
+    let finish, calls = 0;
+    app.context.fetch = () => { calls++; return new Promise(resolve => { finish = resolve; }); };
+    const pending = more.listeners.click();
+    await new Promise(setImmediate);
+    assert.equal(app.document.activeElement, more);
+    assert.equal(more.attributes["aria-disabled"], "true");
+    await more.listeners.click();
+    assert.equal(calls, 1);
+    finish(page([3], 3));
+    await pending;
+    assert.equal(more.hidden, false);
+    assert.equal(more.attributes["aria-disabled"], "false");
+    assert.equal(app.document.activeElement, more);
+  });
+
+  test(`${panel}: load more moves focus to the first new message when the button hides`, async () => {
+    const app = await ui([1, 2], 2);
+    await app.events.DOMContentLoaded();
+    await new Promise(setImmediate);
+    const more = app.elements[`${panel}-more`];
+    more.focus();
+    app.context.fetch = async () => page([3, 4], null);
+    await more.listeners.click();
+    assert.equal(more.hidden, true);
+    assert.equal(app.document.activeElement, app.button(panel, 3));
+  });
+
+  test(`${panel}: an empty last page focuses the list, not the body`, async () => {
+    const app = await ui([1, 2], 2);
+    await app.events.DOMContentLoaded();
+    await new Promise(setImmediate);
+    const more = app.elements[`${panel}-more`];
+    more.focus();
+    app.context.fetch = async () => page([], null);
+    await more.listeners.click();
+    const list = app.elements[`${panel}-list`];
+    assert.equal(app.document.activeElement, list);
+    assert.equal(list.attributes.tabindex, "-1");
+  });
+
+  test(`${panel}: a failed load more keeps focus on the button`, async () => {
+    const app = await ui([1, 2], 2);
+    await app.events.DOMContentLoaded();
+    await new Promise(setImmediate);
+    const more = app.elements[`${panel}-more`];
+    more.focus();
+    app.context.fetch = async () => ({ ok: false, status: 500 });
+    await more.listeners.click();
+    assert.equal(more.hidden, false);
+    assert.equal(app.document.activeElement, more);
+    assert.notEqual(app.document.activeElement, app.document.body);
+  });
+
+  test(`${panel}: load more does not pull focus back after the user moves away`, async () => {
+    const app = await ui([1, 2], 2);
+    await app.events.DOMContentLoaded();
+    await new Promise(setImmediate);
+    const more = app.elements[`${panel}-more`];
+    more.focus();
+    let finish;
+    app.context.fetch = () => new Promise(resolve => { finish = resolve; });
+    const pending = more.listeners.click();
+    await new Promise(setImmediate);
+    app.elements.outside.focus();
+    finish(page([3], null));
+    await pending;
+    assert.equal(app.document.activeElement, app.elements.outside);
   });
 }
