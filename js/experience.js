@@ -37,6 +37,12 @@
     // The share hint is written once but has to survive a language switch: keep the
     // renderer beside the element so languagechange can replay it in the new language.
     let renderLibraryStatus = null;
+    let shareVersion = 0;
+    function clearLibraryStatus() {
+      shareVersion++;
+      status.textContent = "";
+      renderLibraryStatus = null;
+    }
     const rows = [...list.querySelectorAll("a")].map((link, index) => {
       const row = document.createElement("div");
       row.className = "song-row";
@@ -91,21 +97,20 @@
       sortRows();
       updateTagFilter();
     }
-    // The visible songs decide whether a share hint is still relevant. A language
-    // switch also re-runs the filter (updateTagLanguage -> updateTagFilter) and fires
-    // this event with the same visible set: clearing on that would erase the hint
-    // instead of translating it.
-    let visibleSongKey = "";
-    const visibleKey = () => rows.map(({ row }) => (row.hidden ? "0" : "1")).join("");
-    window.addEventListener("songsfiltered", () => {
+    // Language changes re-run the filter without changing its state. Compare both
+    // the controls and visible songs so a different query with the same results
+    // still retires the old share URL, while a translation keeps the hint.
+    let libraryStateKey = "";
+    function refreshLibraryState() {
       rows.forEach(({ refresh }) => refresh());
       syncUrl();
-      const key = visibleKey();
-      if (key === visibleSongKey) return;
-      visibleSongKey = key;
-      status.textContent = "";
-      renderLibraryStatus = null;
-    });
+      const key = JSON.stringify([input.value.trim().slice(0, 200), sort.value, favoritesOnly,
+        rows.map(({ row }) => (row.hidden ? "0" : "1")).join("")]);
+      if (key === libraryStateKey) return;
+      libraryStateKey = key;
+      clearLibraryStatus();
+    }
+    window.addEventListener("songsfiltered", refreshLibraryState);
     window.addEventListener("storage", event => {
       try { if (event.storageArea !== window.localStorage) return; } catch { return; }
       if (event.key === "favorite-songs" || event.key === null) {
@@ -121,7 +126,7 @@
         }
       }
     });
-    sort.addEventListener("change", () => { sortRows(); syncUrl(); });
+    sort.addEventListener("change", () => { sortRows(); refreshLibraryState(); });
     favoriteFilter.addEventListener("click", () => {
       favoritesOnly = !favoritesOnly;
       favoriteFilter.setAttribute("aria-pressed", String(favoritesOnly));
@@ -133,19 +138,24 @@
       updateTagFilter();
     });
     document.getElementById("share-search").addEventListener("click", async () => {
-      syncUrl();
+      refreshLibraryState();
+      clearLibraryStatus();
+      const version = shareVersion;
       // Favorites are local to each device; share only the public search and sort.
       const url = new URL(window.location.href);
       url.hash = "songs";
       url.searchParams.delete("favorites");
       const sharedUrl = url.href;
+      let copied = false;
       try {
         await navigator.clipboard.writeText(sharedUrl);
-        renderLibraryStatus = () => text("链接已复制", "Link copied", "リンクをコピーしました");
-      } catch {
-        // Capture the public URL here: it must not change when the language does.
-        renderLibraryStatus = () => `${text("无法自动复制，请复制此链接：", "Could not copy automatically. Copy this link: ", "自動コピーできませんでした。このリンクをコピーしてください：")}${sharedUrl}`;
-      }
+        copied = true;
+      } catch { /* Show a manually copyable public URL when clipboard access fails. */ }
+      // A pending permission prompt can outlive a filter change or another share.
+      if (version !== shareVersion) return;
+      renderLibraryStatus = copied
+        ? () => text("链接已复制", "Link copied", "リンクをコピーしました")
+        : () => `${text("无法自动复制，请复制此链接：", "Could not copy automatically. Copy this link: ", "自動コピーできませんでした。このリンクをコピーしてください：")}${sharedUrl}`;
       status.textContent = renderLibraryStatus();
     });
     window.addEventListener("popstate", restoreUrl);

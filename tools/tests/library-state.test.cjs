@@ -170,12 +170,13 @@ test("a language switch keeps the share hint, a real filter change clears it", a
   // The language switch re-runs the filter with the same visible songs: the hint must
   // be translated, not erased.
   const originalUpdateTagFilter = context.updateTagFilter;
-  context.updateTagFilter = () => { fire("songsfiltered"); };
   context.currentLanguage = "ja";
   fire("languagechange");
+  context.updateTagFilter();
   assert.equal(status.textContent, "リンクをコピーしました");
   context.currentLanguage = "zh";
   fire("languagechange");
+  context.updateTagFilter();
   assert.equal(status.textContent, "链接已复制");
 
   // A filter that actually changes the visible songs retires the hint for good.
@@ -189,4 +190,55 @@ test("a language switch keeps the share hint, a real filter change clears it", a
   context.currentLanguage = "ja";
   fire("languagechange");
   assert.equal(status.textContent, "", "the cleared hint never comes back");
+});
+
+test("changing the query or sort retires a share link even when the visible songs stay the same", async () => {
+  const { elements, ready, context, fire } = loadLibrary("?q=rain");
+  ready.forEach(handler => handler());
+  const share = () => elements.get("share-search").listeners.click[0]();
+  const status = elements.get("library-status");
+  await share(); // Missing Clipboard API displays a manually copyable URL.
+  assert.ok(status.textContent.includes("q=rain"));
+  elements.get("tag-filter-input").value = "weather";
+  context.updateTagFilter(); // Same visible songs in this fixture.
+  assert.equal(status.textContent, "", "the old query URL must disappear");
+  await share();
+  assert.ok(status.textContent.includes("q=weather"));
+  elements.get("song-sort").value = "title";
+  elements.get("song-sort").listeners.change[0]();
+  assert.equal(status.textContent, "", "the old sort URL must disappear");
+  context.currentLanguage = "en";
+  fire("languagechange");
+  context.updateTagFilter();
+  assert.equal(status.textContent, "", "translation must not revive an old link");
+});
+
+for (const succeeds of [true, false]) {
+  test(`a pending clipboard ${succeeds ? "success" : "failure"} cannot restore a retired hint`, async () => {
+    const { elements, ready, context } = loadLibrary("?q=rain");
+    ready.forEach(handler => handler());
+    let settle;
+    context.navigator.clipboard = { writeText: () => new Promise((resolve, reject) => {
+      settle = () => succeeds ? resolve() : reject(new Error("permission denied"));
+    }) };
+    const pending = elements.get("share-search").listeners.click[0]();
+    elements.get("tag-filter-input").value = "weather";
+    context.updateTagFilter();
+    settle();
+    await pending;
+    assert.equal(elements.get("library-status").textContent, "");
+  });
+}
+
+test("an earlier clipboard request cannot overwrite the latest share result", async () => {
+  const { elements, ready, context } = loadLibrary("?q=rain");
+  ready.forEach(handler => handler());
+  let rejectFirst;
+  context.navigator.clipboard = { writeText: () => new Promise((_resolve, reject) => { rejectFirst = reject; }) };
+  const first = elements.get("share-search").listeners.click[0]();
+  context.navigator.clipboard.writeText = async () => {};
+  await elements.get("share-search").listeners.click[0]();
+  rejectFirst(new Error("permission denied"));
+  await first;
+  assert.equal(elements.get("library-status").textContent, "链接已复制");
 });
