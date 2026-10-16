@@ -18,7 +18,7 @@ function commentElement(hidden = false) {
       const siblings = this.parentElement.children;
       siblings.splice(siblings.indexOf(this), 1); this.parentElement = null;
     },
-    setAttribute() {}, addEventListener(name, fn) { this.listeners[name] = fn; }
+    setAttribute(name, value) { (this.attributes ||= {})[name] = value; }, addEventListener(name, fn) { this.listeners[name] = fn; }
   };
 }
 
@@ -233,7 +233,7 @@ test('a stale unauthorized response cannot hide a newer signed-in message list',
     events.languagechange();
     assert.equal(elements['my-comments-status'].textContent, '', `${status} must not leave stale signed-out state for a later render`);
     assert.equal(elements['my-comments-more'].hidden, false);
-    assert.equal(elements['my-comments-more'].disabled, false);
+    assert.equal(elements['my-comments-more'].attributes['aria-disabled'], 'false');
   }
 });
 
