@@ -69,3 +69,7 @@ GitHub Pages 提供网页、图片和音乐目录。登录与留言通过 HTTPS 
 
 发现问题请记录：机型 / 系统版本 / 浏览器（Safari 或微信内置）/ 复现步骤 + 一张截图，即可定位。
 
+## 已知测试缺口
+
+- **`loadMoreFocus` 的"请求期间有行被删"分支无法用现有替身验证**（2026-10-16 记录）：`tools/tests/comment-focus.test.cjs` 的 DOM 替身没有实现 `lastElementChild` 与 `nextElementSibling`，其 `insertBefore` 行为也与真实 DOM 不一致（在替身里 `children.pop()` 之后重建出的行序与真机不同）。实测：撤掉兜底与保留兜底在该替身里**都会失败**，因此这条用例既不能当红证据也不能当绿证据。要补测试需先给 `element()` 工厂加上 `nextElementSibling` getter 并让 `insertBefore` 按索引插入；否则只能在真机/真浏览器里验证，而"我的留言"需要真实会话，不在自动化范围内。功能本身已在 `bae8810` 上线（真机 DOM 具备这两个 API，兜底生效）。
+
