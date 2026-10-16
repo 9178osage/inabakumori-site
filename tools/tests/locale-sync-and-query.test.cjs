@@ -77,9 +77,14 @@ test("a refused delete keeps the message, a lost session drops the stale list", 
   assert.match(personal, /if \(!response\.ok && response\.status !== 404\) throw new Error\("Could not delete message"\);/);
   assert.match(personal, /if \(current === version\) state = "deleteError";/);
 
-  // Loading the list has no such distinction: either status means nothing can be listed.
-  const load = comments.slice(comments.indexOf("async function load(more = false) {"));
+  // Scope to the personal loader without depending on its optional parameters or selecting admin.
+  const loadStart = comments.indexOf("async function load(");
+  const removeStart = comments.indexOf("async function remove(", loadStart);
+  assert.ok(loadStart >= 0 && removeStart > loadStart, "personal loader must precede its delete handler");
+  const load = comments.slice(loadStart, removeStart);
   const loadGuard = load.slice(0, load.indexOf("if (!response.ok)"));
+  // Stale replies must return before the 401 session-clearing branch can touch the current list.
+  assert.match(loadGuard, /const response = await[\s\S]*?if \(current !== version\) return;[\s\S]*?if \(response\.status === 401\) \{/);
   assert.match(loadGuard, /if \(response\.status === 401\) \{/);
   assert.doesNotMatch(loadGuard, /response\.status === 401 \|\| response\.status === 403/);
   assert.match(loadGuard, /comments\.clear\(\);/);

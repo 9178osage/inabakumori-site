@@ -2,6 +2,26 @@ import SuperTokens from "supertokens-web-js";
 import EmailPassword, { signIn, signUp, sendPasswordResetEmail, submitNewPassword } from "supertokens-web-js/recipe/emailpassword";
 import Session, { doesSessionExist, signOut } from "supertokens-web-js/recipe/session";
 
+// The SDK makes its own fetch calls (including refresh/sign-out), bypassing siteFetch.
+// Abort the actual request so a stalled connection cannot keep the account controls locked.
+// Use a controller directly: AbortSignal.timeout/any are absent in older Safari versions.
+async function authRequestDeadline({ url, requestInit = {} }) {
+  const controller = new AbortController();
+  const originalSignal = requestInit.signal;
+  let timer;
+  const cancelFromCaller = () => controller.abort(originalSignal.reason);
+  controller.signal.addEventListener("abort", () => {
+    clearTimeout(timer);
+    originalSignal?.removeEventListener("abort", cancelFromCaller);
+  }, { once: true });
+  if (originalSignal?.aborted) cancelFromCaller();
+  else {
+    originalSignal?.addEventListener("abort", cancelFromCaller, { once: true });
+    timer = setTimeout(() => controller.abort(new DOMException("The authentication request timed out", "TimeoutError")), 15000);
+  }
+  return { url, requestInit: { ...requestInit, signal: controller.signal } };
+}
+
 // Header sessions are stored by the SDK in JavaScript cookies. Its default writer
 // omits Secure outside iframe mode, even when this page and the API use HTTPS.
 // Use a separate, host-only Secure namespace. Discard legacy credentials rather
@@ -67,12 +87,13 @@ let resetLinkRequested = false;
 SuperTokens.init({
   appInfo: { appName: "Inabakumori Fanswall", apiDomain: window.APP_CONFIG.apiDomain, websiteDomain: window.location.origin, apiBasePath: "/auth", websiteBasePath: "/auth" },
   cookieHandler: secureSessionCookieHandler,
-  recipeList: [EmailPassword.init({ override: { functions: (original) => ({
+  recipeList: [EmailPassword.init({ preAPIHook: authRequestDeadline, override: { functions: (original) => ({
     ...original,
     getResetPasswordTokenFromURL: (input) => resetLinkRequested ? resetToken : original.getResetPasswordTokenFromURL(input),
     getTenantIdFromURL: (input) => resetLinkRequested ? resetTenantId : original.getTenantIdFromURL(input)
   }) } }), Session.init({
     tokenTransferMethod: "header",
+    preAPIHook: authRequestDeadline,
     async onHandleEvent(event) {
       if (event.action !== "UNAUTHORISED") return;
       await updateAuthButton();

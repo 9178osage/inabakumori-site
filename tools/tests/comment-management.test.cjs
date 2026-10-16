@@ -4,6 +4,24 @@ const { DatabaseSync } = require('node:sqlite');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
+function commentElement(hidden = false) {
+  return {
+    children: [], hidden, listeners: {}, textContent: '', parentElement: null,
+    append(...items) { items.forEach(item => this.insertBefore(item, null)); },
+    insertBefore(item, before) {
+      item.remove();
+      const index = before ? this.children.indexOf(before) : this.children.length;
+      this.children.splice(index, 0, item); item.parentElement = this;
+    },
+    remove() {
+      if (!this.parentElement) return;
+      const siblings = this.parentElement.children;
+      siblings.splice(siblings.indexOf(this), 1); this.parentElement = null;
+    },
+    setAttribute() {}, addEventListener(name, fn) { this.listeners[name] = fn; }
+  };
+}
+
 test('auth POST throttling covers tenant paths and URL normalization; disabled email-exists API needs no limiter', async () => {
   const express = require('../../backend/node_modules/express');
   const { rateLimit, ipKeyGenerator } = require('../../backend/node_modules/express-rate-limit');
@@ -121,7 +139,7 @@ test('reset email redirects to the GitHub Pages homepage and keeps the token in 
   assert.equal(fragment.get('tenantId'), 'public');
 });
 function ui() {
-  function element() { return { children: [], hidden: false, listeners: {}, textContent: '', append(...items) { this.children.push(...items); }, replaceChildren() { this.children = []; }, setAttribute() {}, addEventListener(name, fn) { this.listeners[name] = fn; } }; }
+  const element = () => commentElement();
   const elements = Object.fromEntries(['my-comments-list','my-comments-controls','my-comments-status','my-comments-more','my-comments-retry'].map(id => [id, element()]));
   const events = {};
   const removed = [];
@@ -286,7 +304,7 @@ test('admin comment management lists and deletes any comment only for configured
 });
 
 function adminUi() {
-  const element = () => ({ hidden: true, children: [], textContent: '', listeners: {}, append(...items) { this.children.push(...items); }, replaceChildren() { this.children = []; }, setAttribute() {}, addEventListener(name, fn) { this.listeners[name] = fn; } });
+  const element = () => commentElement(true);
   const elements = Object.fromEntries(['admin-comments', 'admin-comments-list', 'admin-comments-status', 'admin-comments-retry'].map(id => [id, element()]));
   const events = {};
   const context = {
@@ -393,7 +411,7 @@ test('admin deletion remains applied when a concurrent refresh returns stale dat
 });
 
 function combinedCommentUi() {
-  const element = () => ({ hidden: true, children: [], textContent: '', listeners: {}, append(...items) { this.children.push(...items); }, replaceChildren() { this.children = []; }, setAttribute() {}, addEventListener(name, fn) { this.listeners[name] = fn; } });
+  const element = () => commentElement(true);
   const elements = Object.fromEntries([
     'my-comments-list', 'my-comments-controls', 'my-comments-status', 'my-comments-more', 'my-comments-retry',
     'admin-comments', 'admin-comments-list', 'admin-comments-status', 'admin-comments-retry', 'admin-comments-more'

@@ -1,4 +1,55 @@
 (() => {
+  // Reuse each row so translations, pagination and pending deletes keep the focused button.
+  function commentListView(listId, statusId) {
+    const rows = new Map();
+    let order = [];
+    return (comments, deleting, label, remove) => {
+      const list = document.getElementById(listId);
+      if (!list) return;
+      const focusedId = order.find(id => rows.get(id)?.button === document.activeElement);
+      const previousOrder = order;
+      order = comments.map(comment => comment.id);
+      const retained = new Set(order);
+      for (const [id, row] of rows) {
+        if (!retained.has(id)) { row.item.remove(); rows.delete(id); }
+      }
+      comments.forEach((comment, index) => {
+        let row = rows.get(comment.id);
+        if (!row) {
+          const item = document.createElement("li");
+          const text = document.createElement("p");
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "tag-clear-button";
+          button.addEventListener("click", () => remove(comment.id));
+          item.append(text, button);
+          row = { item, text, button };
+          rows.set(comment.id, row);
+        }
+        row.text.textContent = `${comment.nickname}：${comment.content}`;
+        row.button.textContent = deleting.has(comment.id) ? label("正在删除…", "Deleting…") : label("删除", "Delete");
+        // Keep it focusable while the request is pending; remove() already blocks duplicate activation.
+        row.button.setAttribute("aria-disabled", String(deleting.has(comment.id)));
+        row.button.setAttribute("aria-label", label("删除这条留言：", "Delete this message: ") + comment.content);
+        if (list.children[index] !== row.item) list.insertBefore(row.item, list.children[index] || null);
+      });
+      if (focusedId === undefined || list.closest?.("[hidden]")) return;
+      let target = rows.get(focusedId)?.button;
+      if (!target) {
+        const index = previousOrder.indexOf(focusedId);
+        const neighbor = previousOrder.slice(index + 1).find(id => retained.has(id)) ??
+          previousOrder.slice(0, index).reverse().find(id => retained.has(id)) ?? order[0];
+        target = rows.get(neighbor)?.button;
+      }
+      if (!target) {
+        target = document.getElementById(statusId);
+        target?.setAttribute("tabindex", "-1");
+      }
+      if (target && document.activeElement !== target) target.focus?.({ preventScroll: true });
+    };
+  }
+
+(() => {
   if (!document.getElementById("my-comments-list")) return;
   const api = `${window.APP_CONFIG.apiDomain}/api/comments`;
   let version = 0;
@@ -9,24 +60,11 @@
   const deleting = new Set();
   const deleted = new Set();
   const label = (zh, en) => window.siteText?.(zh, en) ?? ((window.siteStorage || localStorage).getItem("language") === "en" ? en : zh);
+  const renderList = commentListView("my-comments-list", "my-comments-status");
   function render() {
     const list = document.getElementById("my-comments-list");
     if (!list) return;
-    list.replaceChildren();
-    for (const comment of comments.values()) {
-      const item = document.createElement("li");
-      const text = document.createElement("p");
-      text.textContent = `${comment.nickname}：${comment.content}`;
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "tag-clear-button";
-      button.textContent = deleting.has(comment.id) ? label("正在删除…", "Deleting…") : label("删除", "Delete");
-      button.disabled = deleting.has(comment.id);
-      button.setAttribute("aria-label", label("删除这条留言：", "Delete this message: ") + comment.content);
-      button.addEventListener("click", () => remove(comment.id));
-      item.append(text, button);
-      list.append(item);
-    }
+    renderList([...comments.values()], deleting, label, remove);
     const messages = {
       idle: "", loading: label("正在加载你的留言…", "Loading your messages…"),
       empty: label("你还没有登录后发布的留言。", "You haven’t posted any messages while signed in yet."),
@@ -41,18 +79,19 @@
     more.hidden = !nextCursor;
     more.disabled = busy;
   }
-  async function load(more = false) {
+  async function load(more = false, reset = false) {
     if (more && (busy || !nextCursor)) return;
     const current = ++version;
     busy = true;
     state = "loading";
-    if (!more) { comments.clear(); nextCursor = null; }
+    if (!more) nextCursor = null;
+    if (reset) comments.clear();
     render();
     try {
       const signedIn = await window.hasCommentSession?.();
       if (current !== version) return;
       document.getElementById("my-comments-controls").hidden = !signedIn;
-      if (!signedIn) { state = "signedOut"; return; }
+      if (!signedIn) { comments.clear(); nextCursor = null; state = "signedOut"; return; }
       const response = await (window.siteFetch || fetch)(`${api}/mine${more ? `?before=${nextCursor}` : ""}`, { credentials: "include", cache: "no-store" });
       if (current !== version) return;
       // A dead session (401) is not a load failure: the list belonged to that session, so drop it and
@@ -69,6 +108,7 @@
       const data = await response.json();
       if (!Array.isArray(data.comments)) throw new Error("Invalid messages");
       if (current !== version) return;
+      if (!more) comments.clear();
       for (const comment of data.comments) {
         if (!deleted.has(comment.id)) comments.set(comment.id, comment);
       }
@@ -111,8 +151,8 @@
       if (current === version) state = "deleteError";
     } finally {
       deleting.delete(id);
-      // A newer load (sign-in change, reload, language switch) owns the panel now.
-      if (current === version) render();
+      // Render the current load's data; even a newer refresh must clear this button's pending state.
+      render();
     }
   }
   document.addEventListener("DOMContentLoaded", () => {
@@ -120,7 +160,7 @@
     document.getElementById("my-comments-more").addEventListener("click", () => load(true));
     load();
   });
-  window.addEventListener("authchange", () => load());
+  window.addEventListener("authchange", () => load(false, true));
   window.addEventListener("commentposted", () => load());
   window.addEventListener("commentdeleted", ({ detail }) => {
     const id = detail?.id;
@@ -153,27 +193,14 @@
     comments = [];
     nextCursor = null;
   }
+  const renderList = commentListView("admin-comments-list", "admin-comments-status");
   function render() {
     const element = panel();
     const list = document.getElementById("admin-comments-list");
     const status = document.getElementById("admin-comments-status");
     const retry = document.getElementById("admin-comments-retry");
     if (!element || !list || !status || !retry) return;
-    list.replaceChildren();
-    comments.forEach(comment => {
-      const item = document.createElement("li");
-      const text = document.createElement("p");
-      text.textContent = `${comment.nickname}：${comment.content}`;
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "tag-clear-button";
-      button.textContent = deleting.has(comment.id) ? label("正在删除…", "Deleting…") : label("删除", "Delete");
-      button.disabled = deleting.has(comment.id);
-      button.setAttribute("aria-label", label("删除这条留言：", "Delete this message: ") + comment.content);
-      button.addEventListener("click", () => remove(comment.id));
-      item.append(text, button);
-      list.append(item);
-    });
+    renderList(comments, deleting, label, remove);
     status.textContent = error === "load" ? label("读取留言失败，请重试。", "Could not load messages. Please retry.") : error === "delete" ? label("删除失败，请重试。", "Could not delete. Please retry.") : loading ? label("正在读取留言…", "Loading messages…") : comments.length ? "" : label("暂时没有留言。", "There are no messages.");
     retry.hidden = !error;
     retry.disabled = loading;
@@ -247,4 +274,6 @@
     render();
   });
   window.addEventListener("languagechange", render);
+})();
+
 })();
