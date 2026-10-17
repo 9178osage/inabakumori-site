@@ -10,6 +10,7 @@
     "build": "node tools/build-site.mjs",
     "build:local": "node tools/build-site.mjs --keep-local-api-csp",
     "check": "npm test && npm --prefix backend run check && npm run build && node tools/check-build.mjs",
+    "check:changelog": "node tools/check-changelog-table.mjs",
     "check:links": "node tools/check-links.mjs",
     "check:links:strict": "node tools/check-links.mjs --strict",
     "preview": "npm run build:local && node tools/static-server.mjs --dist",
