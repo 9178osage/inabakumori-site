@@ -193,7 +193,7 @@
       closeBtn?.focus();
     };
 
-    const closeLightbox = ({ deferFocus = false } = {}) => {
+    function closeLightbox({ deferFocus = false } = {}) {
       if (!lightboxOpen) return;
       lightboxOpen = false;
       // The decoded neighbours were only kept for instant navigation while the dialog was open.
@@ -229,8 +229,8 @@
         else keepScroll(window.scrollY);
       }
       syncPauseState();
-    };
-    const galleryTrackOf = (button) => button.closest?.(".nknk-marquee-track");
+    }
+    function galleryTrackOf(button) { return button.closest?.(".nknk-marquee-track"); }
     // Clones are aria-hidden duplicates for the seamless loop; focus the original with the same index.
     const originalButton = (button) => {
       if (!button || button.getAttribute("aria-hidden") !== "true") return button;
@@ -433,21 +433,21 @@
       });
     };
 
-    const applyTransform = (row) => {
+    function applyTransform(row) {
       trackTransform(row.track, row.direction < 0 ? -row.offset : row.offset);
-    };
+    }
 
-    const trackTransform = (track, x) => {
+    function trackTransform(track, x) {
       track.style.transform = `translate3d(${x}px, 0, 0)`;
-    };
+    }
 
-    const wrapOffset = (row) => {
+    function wrapOffset(row) {
       if (!row.loopWidth) return;
       row.offset %= row.loopWidth;
       if (row.offset < 0) row.offset += row.loopWidth;
-    };
+    }
 
-    const syncPauseState = () => {
+    function syncPauseState() {
       for (const row of rows) {
         row.paused = reduced || !sectionVisible || !pageVisible || row.hover || (row.focus && !row.pointerFocusExempt) || row.dragging || lightboxOpen;
       }
@@ -455,7 +455,7 @@
       if (rows.length && rows.every(row => row.paused)) stopLoop();
       else if (rows.length && !reduced) startLoop();
       else updateRows();
-    };
+    }
 
     // The loop runs as a compositor-driven Web Animation instead of a per-frame JS rAF loop, so a
     // visible gallery no longer recalculates style 60 times a second on the main thread (perf P2).
@@ -463,7 +463,7 @@
     // transform at its exact position; resuming starts a new animation from that offset.
     let running = false;
     const animationTiming = (row) => ({ duration: row.loopWidth / SPEED_PX_PER_SEC * 1000, iterations: Infinity, easing: "linear" });
-    const freezeRow = (row) => {
+    function freezeRow(row) {
       if (!row.animation) return;
       const { duration } = row.animation.effect.getTiming();
       const time = Number(row.animation.currentTime) || 0;
@@ -472,7 +472,7 @@
       row.animation = null;
       wrapOffset(row);
       applyTransform(row);
-    };
+    }
     const runRow = (row) => {
       if (row.animation || !row.loopWidth || typeof row.track.animate !== "function") return;
       const sign = row.direction < 0 ? -1 : 1;
@@ -484,25 +484,25 @@
       ], timing);
       row.animation.currentTime = row.offset / row.loopWidth * timing.duration;
     };
-    const updateRows = () => {
+    function updateRows() {
       for (const row of rows) {
         if (!running || row.paused || reduced || !row.loopWidth) freezeRow(row);
         else runRow(row);
       }
-    };
+    }
 
-    const startLoop = () => {
+    function startLoop() {
       if (reduced) return;
       running = true;
       updateRows();
       startThumbLoadTimer();
-    };
+    }
 
-    const stopLoop = () => {
+    function stopLoop() {
       running = false;
       updateRows();
       stopThumbLoadTimer();
-    };
+    }
 
     const remeasure = () => {
       for (const row of rows) {
@@ -525,7 +525,7 @@
     // loading ignores CSS transforms, so the row also loads its own thumbs from the live position:
     // anything within THUMB_LOOKAHEAD_PX of the visible window is fetched on the next tick.
     let thumbLoadTimer = null;
-    const loadThumbsInWindow = (row, force = false) => {
+    function loadThumbsInWindow(row, force = false) {
       const viewportWidth = row.viewport.clientWidth;
       if (!viewportWidth) return;
       const now = performance.now();
@@ -551,21 +551,21 @@
         const img = child.querySelector("img[data-src]");
         if (img) loadThumb(img);
       }
-    };
+    }
     const hasPendingThumbs = () => rows.some(row => row.track.querySelector("img[data-src]"));
-    const startThumbLoadTimer = () => {
+    function startThumbLoadTimer() {
       if (thumbLoadTimer !== null || !hasPendingThumbs()) return;
       thumbLoadTimer = setInterval(() => {
         for (const row of rows) loadThumbsInWindow(row);
         // Every thumb is fetched: stop polling layout instead of reading it every 400 ms forever.
         if (!hasPendingThumbs()) stopThumbLoadTimer();
       }, THUMB_LOAD_INTERVAL_MS);
-    };
-    const stopThumbLoadTimer = () => {
+    }
+    function stopThumbLoadTimer() {
       if (thumbLoadTimer === null) return;
       clearInterval(thumbLoadTimer);
       thumbLoadTimer = null;
-    };
+    }
 
     const observeDeferredThumbs = () => {
       thumbObserver?.disconnect();

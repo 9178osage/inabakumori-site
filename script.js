@@ -255,6 +255,7 @@ async function discoverHeroImages() {
   }
 }
 mobileHeroQuery?.addEventListener("change", discoverHeroImages);
+let easterEggOpen = false;
 async function changeHeroSlide() {
   if (easterEggOpen) return;
   const heroSlide = document.getElementById("hero-slide");
@@ -438,6 +439,7 @@ async function addMessage() {
     if (button) button.disabled = false;
   }
 }
+const messageTracks = [];
 async function loadMessages() {
   const revision = wallRevision;
   const loadId = ++messageLoadId;
@@ -491,7 +493,6 @@ window.addEventListener?.("languagechange", () => {
   const status = document.getElementById("message-submit-status");
   if (typeof status?._renderFeedback === "function") status.textContent = status._renderFeedback();
 });
-const messageTracks = [];
 let wallInView = true;
 let wallStatic = false;
 const MAX_OVERLAP = 0.4;
@@ -539,6 +540,7 @@ function findSafeY(messageHeight, wallHeight) {
   messageTracks.push({ y: bestY, height: messageHeight });
   return bestY;
 }
+const reducedMotionQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)");
 function createFloatingMessage(message, startInside = false, deferLayout = false) {
   const wall = document.getElementById("floating-wall");
   const expiresAt = message.expiresAt ? Date.parse(message.expiresAt) : NaN;
@@ -607,7 +609,6 @@ function removeExpiredMessages() {
     updateMessageLoadStatus();
   }
 }
-const reducedMotionQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)");
 function updateMotionState() {
   document.documentElement.classList?.toggle("page-hidden", Boolean(document.hidden));
   document.querySelectorAll(".floating-message").forEach(element => element.updateMotion?.());
@@ -1156,7 +1157,6 @@ const MEME_COUNT = 6;
 const MEME_FOLDER = "images/memes/";
 // Intrinsic sizes keep the dialog from jumping while a meme loads (index = number - 1).
 const MEME_SIZES = [[259, 224], [616, 532], [370, 320], [628, 542], [116, 139], [110, 59]];
-let easterEggOpen = false;
 let easterEggCanClose = false;
 let easterEggPreviousFocus = null;
 let easterEggInertState = [];

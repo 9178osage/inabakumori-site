@@ -9,7 +9,8 @@
     "test": "node --test tools/tests/*.test.cjs",
     "build": "node tools/build-site.mjs",
     "build:local": "node tools/build-site.mjs --keep-local-api-csp",
-    "check": "npm test && npm --prefix backend run check && npm run build && node tools/check-build.mjs",
+    "lint": "eslint script.js js tools backend eslint.config.mjs",
+    "check": "npm run lint && npm test && npm --prefix backend run check && npm run build && node tools/check-build.mjs",
     "check:changelog": "node tools/check-changelog-table.mjs",
     "check:links": "node tools/check-links.mjs",
     "check:links:strict": "node tools/check-links.mjs --strict",
@@ -32,5 +33,9 @@
   },
   "engines": {
     "node": "24.x"
+  },
+  "devDependencies": {
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0"
   }
 }

@@ -148,6 +148,7 @@ supertokens.init({
 // Bound every request (including CORS preflights and rejected origins) before CORS,
 // JSON parsing or the auth service.
 // This is an application-level limit for one backend instance, not DDoS protection.
+const ALLOWED_ORIGINS = new Set([WEBSITE_DOMAIN, ...ADDITIONAL_WEBSITE_ORIGINS, ...IS_PRODUCTION ? [] : ["http://127.0.0.1:5500", "http://localhost:5500"]]);
 const requestLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 60_000, limit: 180,
   standardHeaders: "draft-7", legacyHeaders: false,
   handler(req, res, _next, options) {
@@ -165,7 +166,6 @@ const requestLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 60_000, 
 app.use(requestLimiter);
 // CORS only limits which browser pages may read responses; every protected route still
 // verifies the SuperTokens session (and admin rights) on the server.
-const ALLOWED_ORIGINS = new Set([WEBSITE_DOMAIN, ...ADDITIONAL_WEBSITE_ORIGINS, ...IS_PRODUCTION ? [] : ["http://127.0.0.1:5500", "http://localhost:5500"]]);
 const corsOptions = { origin(origin, callback) {
   if (!origin) {
     return callback(null, true);
