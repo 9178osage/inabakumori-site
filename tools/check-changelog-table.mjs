@@ -1,7 +1,9 @@
-import { readFile } from "node:fs/promises";
-import { realpathSync } from "node:fs";
+import { readFile, mkdir, lstat, open, rename, unlink } from "node:fs/promises";
+import { constants, realpathSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { requestGithubJson, validateGithubCache } from "./github-run-request.mjs";
 
 const DEFAULT_REPO = "9178osage/inabakumori-site";
 const WORKFLOWS = ["Verify website", "Publish public site"];
@@ -114,35 +116,6 @@ function parseRun(data, id) {
   return { ...data, head_sha: data.head_sha.toLowerCase(), createdMs: Date.parse(data.created_at) };
 }
 
-async function fetchJson(endpoint, label, { fetchImpl, repo, token, deadlineMs }) {
-  const controller = new AbortController();
-  let timer;
-  const deadline = new Promise((_, reject) => {
-    timer = setTimeout(() => {
-      controller.abort();
-      reject(new Error(`${label}: GitHub request timed out`));
-    }, deadlineMs);
-  });
-  const request = (async () => {
-    const headers = { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
-    if (token) headers.Authorization = `Bearer ${token}`;
-    let response;
-    try {
-      response = await fetchImpl(`https://api.github.com/repos/${repo}/actions/runs${endpoint}`, {
-        headers, signal: controller.signal, redirect: "error"
-      });
-    } catch { throw new Error(`${label}: GitHub request failed (network)`); }
-    if (!response?.ok || response.status !== 200) {
-      throw new Error(`${label}: GitHub HTTP ${Number.isInteger(response?.status) ? response.status : "invalid response"}`);
-    }
-    let data;
-    try { data = await response.json(); } catch { throw new Error(`${label}: invalid GitHub JSON`); }
-    return data;
-  })();
-  try { return await Promise.race([request, deadline]); }
-  finally { clearTimeout(timer); }
-}
-
 function pacificDate(time) {
   const parts = PACIFIC_DATE.formatToParts(new Date(time));
   return `${parts.find(part => part.type === "month").value}-${parts.find(part => part.type === "day").value}`;
@@ -152,7 +125,7 @@ function pacificDate(time) {
 // runs. Thus a pair straddling Pacific midnight belongs to the earlier day.
 export async function verifyChangelogTable(markdown, {
   fetchImpl = globalThis.fetch, repo = DEFAULT_REPO, token = "", deadlineMs = 12_000, concurrency = 4,
-  lookup = "direct", maxPages = 10
+  lookup = "direct", maxPages = 10, cache, stats, maxRetries = 2, retryBaseMs = 250, maxRetryWaitMs = 2000
 } = {}) {
   const rows = parseChangelogTable(markdown);
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(repo)) throw new Error("Invalid GitHub repository configuration");
@@ -164,11 +137,11 @@ export async function verifyChangelogTable(markdown, {
   }
   const ids = rows.flatMap(row => row.pairs.flatMap(pair => pair.ids));
   const runs = new Map();
-  const requestOptions = { fetchImpl, repo, token, deadlineMs };
+  const requestOptions = { fetchImpl, repo, token, deadlineMs, cache, stats, maxRetries, retryBaseMs, maxRetryWaitMs };
   if (lookup === "paginated") {
     const wanted = new Set(ids);
     for (let page = 1; page <= maxPages && runs.size < ids.length; page++) {
-      const data = await fetchJson(`?branch=main&event=push&per_page=100&page=${page}`, `Runs page ${page}`, requestOptions);
+      const data = await requestGithubJson(`?branch=main&event=push&per_page=100&page=${page}`, `Runs page ${page}`, requestOptions);
       if (!data || !Number.isSafeInteger(data.total_count) || data.total_count < 0 || !Array.isArray(data.workflow_runs) ||
           data.workflow_runs.some(run => !Number.isSafeInteger(run?.id) || run.id <= 0)) {
         throw new Error(`Runs page ${page}: missing or invalid GitHub list fields`);
@@ -187,7 +160,7 @@ export async function verifyChangelogTable(markdown, {
   await Promise.all(Array.from({ length: Math.min(concurrency, missing.length) }, async () => {
     while (next < missing.length) {
       const id = missing[next++];
-      runs.set(id, parseRun(await fetchJson(`/${id}`, `Run ${id}`, requestOptions), id));
+      runs.set(id, parseRun(await requestGithubJson(`/${id}`, `Run ${id}`, requestOptions), id));
     }
   }));
   if (runs.size !== ids.length || !runs.size) throw new Error("Incomplete or zero GitHub run coverage");
@@ -213,17 +186,100 @@ export async function verifyChangelogTable(markdown, {
   return { rows: rows.length, runs: runs.size };
 }
 
-async function main() {
-  const markdown = await readFile(new URL("../docs/CHANGELOG.md", import.meta.url), "utf8");
-  const result = await verifyChangelogTable(markdown, {
-    repo: process.env.GITHUB_REPOSITORY || DEFAULT_REPO,
-    token: (process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "").trim(),
-    lookup: "paginated"
-  });
-  console.log(`Deployment table verified: ${result.rows} rows, ${result.runs} GitHub runs; dates in America/Los_Angeles (earlier primary run).`);
+const cacheDirectory = fileURLToPath(new URL("../artifacts/", import.meta.url));
+const cacheFile = path.join(cacheDirectory, "changelog-api-cache.json");
+const plainObject = value => value !== null && typeof value === "object" && !Array.isArray(value);
+
+async function regularPath(file, directory = false) {
+  try {
+    const info = await lstat(file);
+    if (info.isSymbolicLink() || !(directory ? info.isDirectory() : info.isFile())) {
+      throw new Error("Unsafe changelog cache path; use --no-cache to check without the cache");
+    }
+    return info;
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  }
 }
 
-if (process.argv[1] && realpathSync(path.resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))) {
+async function loadCache(repo, token) {
+  const empty = { version: 1, repo, responses: {} };
+  if (!await regularPath(cacheDirectory, true) || !await regularPath(cacheFile)) return empty;
+  const source = await open(cacheFile, constants.O_RDONLY | constants.O_NOFOLLOW);
+  try {
+    const info = await source.stat();
+    if (!info.isFile() || info.size > 8 * 1024 * 1024) throw new Error("Invalid cache size");
+    const data = JSON.parse(await source.readFile("utf8"));
+    if (data.version !== 1 || data.repo !== repo || !plainObject(data.responses) ||
+        Object.keys(data.responses).length > 1000 ||
+        (data.cooldownUntil !== undefined && (!Number.isSafeInteger(data.cooldownUntil) || data.cooldownUntil < 0))) {
+      throw new Error("Invalid cache format");
+    }
+    for (const [endpoint, entry] of Object.entries(data.responses)) {
+      if (!/^(?:\/[1-9]\d*|\?branch=main&event=push&per_page=100&page=[1-9]\d*)$/u.test(endpoint) ||
+          !plainObject(entry) || typeof entry.etag !== "string" || !entry.etag || entry.etag.length > 1024 ||
+          /[\r\n]/u.test(entry.etag) || !plainObject(entry.data)) throw new Error("Invalid cached response");
+    }
+    validateGithubCache(data, repo, token);
+    return data;
+  } catch {
+    console.error("Ignoring invalid changelog cache; online verification is required.");
+    return empty;
+  } finally { await source.close(); }
+}
+
+// Persist only the public fields that table validation needs, never credentials
+// or arbitrary response properties. A cached response still requires HTTP 304.
+function cacheSnapshot(cache) {
+  const fields = ["id", "name", "event", "head_branch", "head_sha", "created_at"];
+  const run = data => Object.fromEntries(fields.filter(key => Object.hasOwn(data, key)).map(key => [key, data[key]]));
+  const entries = Object.entries(cache.responses).filter(([endpoint, entry]) => plainObject(entry?.data) &&
+    (!endpoint.startsWith("?") || (Array.isArray(entry.data.workflow_runs) && entry.data.workflow_runs.every(plainObject))));
+  const responses = Object.fromEntries(entries.map(([endpoint, entry]) => [endpoint, {
+    etag: entry.etag,
+    data: endpoint.startsWith("?") ? { total_count: entry.data.total_count, workflow_runs: entry.data.workflow_runs?.map(run) } : run(entry.data)
+  }]));
+  return { version: 1, repo: cache.repo, responses, ...(cache.cooldownUntil ? { cooldownUntil: cache.cooldownUntil } : {}) };
+}
+
+async function saveCache(cache) {
+  if (!await regularPath(cacheDirectory, true)) await mkdir(cacheDirectory, { mode: 0o700 });
+  await regularPath(cacheFile);
+  const temporary = path.join(cacheDirectory, `.changelog-api-cache-${randomUUID()}.tmp`);
+  try {
+    const target = await open(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
+    try { await target.writeFile(JSON.stringify(cacheSnapshot(cache))); } finally { await target.close(); }
+    await regularPath(cacheDirectory, true);
+    await regularPath(cacheFile);
+    await rename(temporary, cacheFile);
+  } finally { await unlink(temporary).catch(error => { if (error.code !== "ENOENT") throw error; }); }
+}
+
+async function main() {
+  const args = process.argv.slice(2);
+  if (args.some(arg => arg !== "--no-cache") || args.length > 1) throw new Error("Usage: npm run check:changelog -- [--no-cache]");
+  const repo = process.env.GITHUB_REPOSITORY || DEFAULT_REPO;
+  const token = (process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "").trim();
+  const cache = args.includes("--no-cache") ? undefined : await loadCache(repo, token);
+  const stats = { networkRequests: 0, revalidatedResponses: 0, retries: 0 };
+  const markdown = await readFile(new URL("../docs/CHANGELOG.md", import.meta.url), "utf8");
+  let result, failure;
+  try { result = await verifyChangelogTable(markdown, { repo, token, lookup: "paginated", cache, stats }); }
+  catch (error) { failure = error; }
+  try { if (cache) await saveCache(cache); }
+  catch (error) {
+    if (!failure) throw error;
+    console.error("Could not save changelog cache; the original verification failure is preserved.");
+  }
+  if (failure) {
+    console.error(`GitHub verification: ${stats.networkRequests} requests, ${stats.revalidatedResponses} HTTP 304 revalidations, ${stats.retries} retries; not completed.`);
+    throw failure;
+  }
+  console.log(`Deployment table verified online: ${result.rows} rows, ${result.runs} GitHub runs; ${stats.networkRequests} requests, ${stats.revalidatedResponses} HTTP 304 revalidations, ${stats.retries} retries; dates in America/Los_Angeles (earlier primary run).`);
+}
+
+if (process.argv[1] && process.argv[1] !== "-" && realpathSync(path.resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))) {
   try { await main(); }
   catch (error) { console.error(`Deployment table check failed: ${error.message}`); process.exitCode = 1; }
 }
