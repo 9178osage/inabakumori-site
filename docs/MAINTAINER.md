@@ -21,9 +21,15 @@ GitHub Pages 提供网页、图片和音乐目录。登录与留言通过 HTTPS 
 
 运行 `npm run check:changelog`，读取 GitHub Actions 的真实运行记录，核对现有表行的提交、工作流、日期、重复项与时间顺序。同一行有多个提交时按先后排列，最后一个对应主 Verify / Publish 运行；括号内的历史运行须注明对应提交。跨日的主运行对取较早创建的运行，以 `America/Los_Angeles` 换算日期。
 
-本地可使用已配置的 `GITHUB_TOKEN` 或 `GH_TOKEN` 提高查询限额，不把令牌写入文件或提交。CI 为该步骤提供 `GITHUB_TOKEN` 和只读 Actions 权限。请求失败、限流、运行记录缺失、空表或零覆盖都必须非零退出；只有实际核对全部所列运行后才能报告通过。
+本地可使用已配置的 `GITHUB_TOKEN` 或 `GH_TOKEN` 提高查询限额，不把令牌写入文件或提交。CI 为该步骤提供 `GITHUB_TOKEN` 和只读 Actions 权限。重试后仍失败、限流未解除、运行记录缺失、空表或零覆盖都必须非零退出；只有实际核对全部所列运行后才能报告通过。
 
-命令行先分页读取运行列表，只有未找到的运行号才逐个补查；表中有 80 个运行号不代表每次都要发 80 次请求。GitHub API 的网络错误、5xx 或限流可能使本地门禁和 `Verify website` 失败，恢复后应重跑，不能跳过记录或改报通过。`Publish public site` 独立运行，不会自动等待这项检查；发布后仍须确认两条工作流都成功。
+命令行以每页 100 条分页读取运行列表，只有未找到的运行号才逐个补查，所列运行数不等于请求数。默认在已忽略的 `artifacts/changelog-api-cache.json` 保存公开响应、ETag 和匿名限流冷却信息，不保存令牌或 Authorization 请求头。每次成功核对都须联网取得 `200`，或由服务器返回 `304` 确认对应缓存仍有效；不能在断网或 API 失败时拿旧缓存改报通过。`npm run check:changelog -- --no-cache` 完全跳过本地缓存读写，仍须联网核对。
+
+GitHub 仅保证携带有效 Authorization 的条件请求在收到 `304` 时不占用主请求额度；匿名请求即使使用 ETag，也不能保证省额度。详见 [GitHub 条件请求说明](https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api#use-conditional-requests)。
+
+默认模式发现匿名请求的 `x-ratelimit-remaining` 为 `0` 时，保存冷却至 `x-ratelimit-reset`；之后在恢复时间前快速失败并提示恢复时间与令牌配置方式，不继续消耗请求。配置令牌后不沿用匿名冷却，但仍受该令牌自己的配额限制。短暂网络故障、5xx 或短 `Retry-After` 仅作有界重试；较长限流直接失败，不能在服务器要求的等待时间内密集重试。无明确恢复时间的二级限流也不能立即重试；GitHub 要求至少等待一分钟，详见 [GitHub 限流处理说明](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api#exceeding-the-rate-limit)。
+
+此前遇到的 `403` 仍是当时真实的校验失败，后续重试成功不改写该历史结果。GitHub API 的故障仍可能使本地门禁和 `Verify website` 失败；恢复后应重跑，不能跳过记录。`Publish public site` 独立运行，不会自动等待这项检查；发布后仍须确认两条工作流都成功。
 
 当前表格仅接受 `main` 分支上由 `push` 触发的 Verify / Publish 运行。若以后要记录 `workflow_dispatch` 手动部署，应先扩展事件校验规则和测试，再填写对应运行号。
 

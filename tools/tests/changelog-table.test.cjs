@@ -165,6 +165,7 @@ test("real CLI runs through path aliases and exits nonzero for empty tables and 
     fs.mkdirSync(path.join(directory, "docs"));
     const script = path.join(directory, "tools/check-changelog-table.mjs");
     fs.copyFileSync(path.join(__dirname, "../check-changelog-table.mjs"), script);
+    fs.copyFileSync(path.join(__dirname, "../github-run-request.mjs"), path.join(directory, "tools/github-run-request.mjs"));
     const alias = path.join(directory, "checker-link.mjs");
     fs.symlinkSync(script, alias);
     const preload = path.join(directory, "mock-fetch.mjs");
