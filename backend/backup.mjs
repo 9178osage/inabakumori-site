@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { DatabaseSync, backup } from "node:sqlite";
 import { mkdir, open, chmod, rm } from "node:fs/promises";
+import { realpathSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveDatabasePath } from "./services.mjs";
@@ -25,7 +26,7 @@ export async function backupDatabase(source, destination) {
     throw error;
   } finally { db?.close(); }
 }
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && process.argv[1] !== "-" && realpathSync(path.resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))) {
   const directory = path.dirname(fileURLToPath(import.meta.url));
   const source = resolveDatabasePath(process.env, directory);
   const filename = `comments-${new Date().toISOString().replace(/[:.]/g, "-")}.db`;
