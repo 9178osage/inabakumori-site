@@ -73,6 +73,14 @@ try {
   assert.equal((await request(`${api}/api/admin/comments/1`, { method: "DELETE", headers: { Origin: previewUrl } })).status, 401);
   const post = body => request(`${api}/api/comments`, { method: "POST", headers: { "Content-Type": "application/json", Origin: previewUrl }, body: JSON.stringify(body) });
   assert.equal((await post({ nickname: "测试", content: "\u200B" })).status, 400);
+  for (const separator of ["\u2028", "\u2029"]) {
+    const tooManyLines = await post({ nickname: "测试", content: Array(17).fill("雨").join(separator) });
+    assert.equal(tooManyLines.status, 400);
+    assert.equal((await tooManyLines.json()).code, "TOO_MANY_LINE_BREAKS");
+    const multilineName = await post({ nickname: `测${separator}试`, content: "合法的测试留言" });
+    assert.equal(multilineName.status, 400);
+    assert.equal((await multilineName.json()).code, "INVALID_COMMENT");
+  }
   const created = await post({ nickname: "测试", content: "稲葉曇的音乐很好听 ☔" });
   assert.equal(created.status, 201, await created.clone().text());
   const { comment } = await created.json();

@@ -50,9 +50,9 @@ export function validateCommentInput(body) {
     return { ok: false, error: "请输入有效的昵称和留言", code: "INVALID_COMMENT" };
   }
   const nickname = body.nickname.normalize("NFC").trim();
-  // Windows-style endings are normalised, runs of blank lines collapsed, and the total number of
-  // breaks capped: the wall renders pre-wrap, so one comment with hundreds of \n would stretch it.
-  const content = body.content.normalize("NFC").replace(/\r\n?/gu, "\n").replace(/\n{3,}/gu, "\n\n").trim();
+  // Normalise both platform and Unicode forced line breaks before collapsing/capping them:
+  // the wall renders pre-wrap, so uncounted separators could stretch one comment into a column.
+  const content = body.content.normalize("NFC").replace(/\r\n?|[\u2028\u2029]/gu, "\n").replace(/\n{3,}/gu, "\n\n").trim();
   if ((content.match(/\n/gu) || []).length > MAX_COMMENT_LINE_BREAKS) {
     return { ok: false, error: `留言换行太多，最多 ${MAX_COMMENT_LINE_BREAKS} 个换行`, code: "TOO_MANY_LINE_BREAKS" };
   }
@@ -62,7 +62,7 @@ export function validateCommentInput(body) {
   const visible = value => value.replace(/[\s\p{Default_Ignorable_Code_Point}\u115F\u1160\u3164\uFFA0\u2800\u{1D159}]/gu, "").length > 0;
   // Preserve emoji joiners and normal line breaks; reject terminal and bidi controls (incl. LRM/RLM/ALM).
   const unsafeControls = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/u;
-  if (!visible(nickname) || !visible(content) || /[\r\n\t]/u.test(nickname) ||
+  if (!visible(nickname) || !visible(content) || /[\r\n\t\u2028\u2029]/u.test(nickname) ||
       unsafeControls.test(nickname) || unsafeControls.test(content)) {
     return { ok: false, error: "请输入有效的昵称和留言", code: "INVALID_COMMENT" };
   }

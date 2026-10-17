@@ -71,20 +71,29 @@ async function fetchStatistics(ids) {
     id: ids.join(",")
   });
   // Send the key as a header so it never appears in request URLs or access logs.
-  const res = await fetch(`${API_BASE}?${params}`, { headers: { "X-Goog-Api-Key": apiKey } });
+  // Native fetch keeps this signal attached while the response body is read too.
+  const signal = AbortSignal.timeout(15_000);
+  let res, data;
+  try {
+    res = await fetch(`${API_BASE}?${params}`, { headers: { "X-Goog-Api-Key": apiKey }, signal });
+  } catch {
+    throw new Error(signal.aborted ? "YouTube API request timed out" : "YouTube API request failed");
+  }
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`YouTube API HTTP ${res.status}: ${body.slice(0, 200)}`);
+    res.body?.cancel().catch(() => {});
+    throw new Error(`YouTube API HTTP ${res.status}`);
   }
-  const data = await res.json();
-  if (data.error) {
-    throw new Error(`YouTube API error: ${data.error.message || JSON.stringify(data.error)}`);
-  }
+  try { data = await res.json(); }
+  catch { throw new Error(signal.aborted ? "YouTube API request timed out" : "YouTube API returned invalid JSON"); }
+  // Never log external error bodies: they may echo a key, URL or other private value.
+  if (data?.error) throw new Error("YouTube API reported an error");
+  if (!Array.isArray(data?.items)) throw new Error("YouTube API returned invalid statistics");
   const map = new Map();
   for (const item of data.items || []) {
     const views = item?.statistics?.viewCount;
-    if (views != null && /^\d+$/.test(String(views))) {
-      map.set(item.id, Number(views));
+    const count = Number(views);
+    if (views != null && /^\d+$/.test(String(views)) && Number.isSafeInteger(count) && count >= 0) {
+      map.set(item.id, count);
     }
   }
   return map;

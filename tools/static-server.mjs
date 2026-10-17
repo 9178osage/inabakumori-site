@@ -1,7 +1,8 @@
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { readFile } from "node:fs/promises";
+import { readFile, lstat } from "node:fs/promises";
+import { assertRepoPath } from "./safe-fs.mjs";
 
 const project = fileURLToPath(new URL("../", import.meta.url));
 const root = process.argv.includes("--dist") ? path.join(project, "dist") : project;
@@ -30,6 +31,14 @@ const SECURITY_HEADERS = {
 };
 
 export function createStaticServer(directory = root) {
+  const base = path.resolve(directory);
+  // Include the serving directory itself in the symlink check, as well as assets
+  // and their parents: URL allowlisting alone cannot keep linked private files out.
+  const readPublicFile = async file => {
+    const target = assertRepoPath(path.dirname(base), path.join(base, file), { mustExist: true });
+    if (!(await lstat(target)).isFile()) throw new Error("Refusing non-regular preview file");
+    return readFile(target);
+  };
   return http.createServer(async (req, res) => {
     for (const [name, value] of Object.entries(SECURITY_HEADERS)) res.setHeader(name, value);
     res.setHeader("Cache-Control", "no-store");
@@ -37,13 +46,13 @@ export function createStaticServer(directory = root) {
     const file = publicPath(req.url);
     if (file) {
       try {
-        const data = await readFile(path.join(directory, file));
+        const data = await readPublicFile(file);
         res.writeHead(200, { "Content-Type": mime[path.extname(file).toLowerCase()] || "application/octet-stream" });
         return res.end(req.method === "HEAD" ? undefined : data);
       } catch { /* Return a neutral 404; never a directory listing or filesystem path. */ }
     }
     try {
-      const data = await readFile(path.join(directory, "404.html"));
+      const data = await readPublicFile("404.html");
       res.writeHead(404, { "Content-Type": "text/html; charset=utf-8" });
       return res.end(req.method === "HEAD" ? undefined : data);
     } catch {

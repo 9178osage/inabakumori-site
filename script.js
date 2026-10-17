@@ -336,9 +336,9 @@ function updateMessageLoadStatus() {
 const MAX_NICKNAME_LENGTH = 30;
 const MAX_COMMENT_LENGTH = 500;
 const MAX_COMMENT_LINE_BREAKS = 15;
-// Same normalisation as the server: CRLF/CR -> LF, 3+ newlines collapse to 2, then trim.
+// Same normalisation as the server: line separators -> LF, 3+ newlines collapse to 2, then trim.
 function countCommentLineBreaks(value) {
-  const text = String(value ?? "").normalize("NFC").replace(/\r\n?/gu, "\n").replace(/\n{3,}/gu, "\n\n").trim();
+  const text = String(value ?? "").normalize("NFC").replace(/\r\n?|[\u2028\u2029]/gu, "\n").replace(/\n{3,}/gu, "\n\n").trim();
   return (text.match(/\n/gu) || []).length;
 }
 // Count like the server: NFC first, then code points (a decomposed "é" is one character, not two).

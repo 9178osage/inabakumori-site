@@ -1,4 +1,4 @@
-import { readFile, readdir, stat } from "node:fs/promises";
+import { readFile, readdir, stat, lstat } from "node:fs/promises";
 import path from "node:path";
 import vm from "node:vm";
 import assert from "node:assert/strict";
@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 import { loopbackCspSources } from "./net-guards.mjs";
 
 const root = fileURLToPath(new URL("../dist/", import.meta.url));
+assert.ok((await lstat(path.resolve(root))).isDirectory(), "Refusing symlink or non-regular build root");
+assert.ok((await lstat(path.join(root, "index.html"))).isFile(), "Refusing symlink or non-regular build entry");
 const html = await readFile(path.join(root, "index.html"), "utf8");
 // A referenced asset must resolve to a file inside dist/, never a sibling or parent path.
 function distFile(reference) {
@@ -20,6 +22,7 @@ let bytes = 0;
 async function checkFolder(folder) {
   for (const entry of await readdir(folder, { withFileTypes: true })) {
     const name = path.relative(root, path.join(folder, entry.name));
+    assert.ok(entry.isDirectory() || entry.isFile(), `Refusing symlink or non-regular build path: ${name}`);
     if (entry.name.startsWith(".") && !(folder === root && entry.isFile() && entry.name === ".nojekyll")) {
       throw new Error(`refusing to publish hidden path: ${name}`);
     }

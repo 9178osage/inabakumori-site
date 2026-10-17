@@ -26,6 +26,13 @@ if (window.top !== window.self) {
       }
     }
   };
+  // A later successful write in another tab supersedes a quota fallback here too.
+  // Read storage again instead of retaining the older in-memory preference forever.
+  window.addEventListener?.("storage", event => {
+    try { if (event.storageArea !== window.localStorage) return; } catch { return; }
+    if (event.key === null) memory.clear();
+    else memory.delete(event.key);
+  });
   const theme = window.siteStorage.getItem("theme");
   const resolved = ["light", "dark"].includes(theme)
     ? theme : window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
