@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { spawnSync } = require("node:child_process");
+const { spawnSync, execFileSync } = require("node:child_process");
 
 const table = rows => `# Changelog\n\n## 上线记录\n\n| 日期 | 提交 | 主要内容 | CI（Verify / Publish） |\n| --- | --- | --- | --- |\n${rows.join("\n")}\n\n## Other\n`;
 const row = (date, commits, ci) => `| ${date} | ${commits.map(sha => `\`${sha}\``).join("、")} | Synthetic release | ${ci} |`;
@@ -170,7 +170,14 @@ test("real CLI runs through path aliases and exits nonzero for empty tables and 
     fs.symlinkSync(script, alias);
     const preload = path.join(directory, "mock-fetch.mjs");
     fs.writeFileSync(preload, "globalThis.fetch = async () => ({ ok: false, status: 429 });\n");
+    const git = args => execFileSync("git", args, { cwd: directory, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+    git(["init", "--quiet", "--initial-branch=main"]);
+    git(["add", "tools/check-changelog-table.mjs", "tools/github-run-request.mjs"]);
+    git(["-c", "user.name=Synthetic test", "-c", "user.email=synthetic@example.invalid", "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null", "commit", "--quiet", "-m", "Synthetic baseline"]);
+    const head = git(["rev-parse", "HEAD"]);
+    fs.writeFileSync(path.join(directory, "tools/changelog-coverage.json"), JSON.stringify({ since: head, baselineRunIds: [101, 102] }));
     const env = { ...process.env, GITHUB_REPOSITORY: "9178osage/inabakumori-site" };
+    env.GITHUB_SHA = head;
     delete env.GITHUB_TOKEN;
     delete env.GH_TOKEN;
     for (const entry of [script, alias]) {

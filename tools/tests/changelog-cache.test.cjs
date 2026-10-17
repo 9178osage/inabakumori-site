@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
-const { spawnSync } = require("node:child_process");
+const { spawnSync, execFileSync } = require("node:child_process");
 
 const repo = "9178osage/inabakumori-site";
 const endpoint = "?branch=main&event=push&per_page=100&page=1";
@@ -16,7 +16,7 @@ const preload = `
 import { appendFileSync } from "node:fs";
 const runs = [101, 102].map((id, index) => ({
   id, name: ["Verify website", "Publish public site"][index], event: "push", head_branch: "main",
-  head_sha: "aaaaaaa".padEnd(40, "0"), created_at: "2026-10-17T06:59:59Z"
+  head_sha: process.env.CACHE_TEST_HEAD, created_at: "2026-10-17T06:59:59Z"
 }));
 globalThis.fetch = async (url, options = {}) => {
   const headers = new Headers(options.headers);
@@ -49,11 +49,18 @@ function fixture() {
     fs.copyFileSync(path.join(__dirname, "..", file), path.join(directory, "tools", file));
   }
   fs.writeFileSync(path.join(directory, "docs/CHANGELOG.md"), markdown);
+  const git = args => execFileSync("git", args, { cwd: directory, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  git(["init", "--quiet", "--initial-branch=main"]);
+  git(["add", "docs/CHANGELOG.md", "tools/check-changelog-table.mjs", "tools/github-run-request.mjs"]);
+  git(["-c", "user.name=Synthetic test", "-c", "user.email=synthetic@example.invalid", "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null", "commit", "--quiet", "-m", "Synthetic baseline"]);
+  const head = git(["rev-parse", "HEAD"]);
+  fs.writeFileSync(path.join(directory, "tools/changelog-coverage.json"), JSON.stringify({ since: head, baselineRunIds: [101, 102] }));
+  fs.writeFileSync(path.join(directory, "docs/CHANGELOG.md"), markdown.replace("`aaaaaaa`", `\`${head.slice(0, 7)}\``));
   const mock = path.join(directory, "mock-fetch.mjs");
   fs.writeFileSync(mock, preload);
   const log = path.join(directory, "requests.jsonl");
   const cache = path.join(directory, "artifacts/changelog-api-cache.json");
-  const env = { ...process.env, GITHUB_REPOSITORY: repo, CACHE_TEST_LOG: log };
+  const env = { ...process.env, GITHUB_REPOSITORY: repo, GITHUB_SHA: head, CACHE_TEST_HEAD: head, CACHE_TEST_LOG: log };
   for (const key of ["GITHUB_TOKEN", "GH_TOKEN", "CI", "GITHUB_ACTIONS"]) delete env[key];
   const script = path.join(directory, "tools/check-changelog-table.mjs");
   return {

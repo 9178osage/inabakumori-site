@@ -6,12 +6,13 @@ const vm = require("node:vm");
 function page() {
   const nodes = new Map(), saved = new Map(), listeners = new Map();
   let refuseWrites = false, requests = 0;
+  let document;
   const node = () => ({
     dataset: {}, value: "", textContent: "", style: { setProperty() {} },
     classList: { toggle() {}, add() {}, remove() {}, contains() { return false; } },
     setAttribute() {}, addEventListener() {}, focus() { document.activeElement = this; }
   });
-  const document = {
+  document = {
     documentElement: node(), body: node(), hidden: false,
     getElementById(id) { if (!nodes.has(id)) nodes.set(id, node()); return nodes.get(id); },
     querySelector() { return null; }, querySelectorAll() { return []; }, addEventListener() {}

@@ -1,6 +1,7 @@
 import { readFile, mkdir, lstat, open, rename, unlink } from "node:fs/promises";
 import { constants, realpathSync } from "node:fs";
 import { randomUUID } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { requestGithubJson, validateGithubCache } from "./github-run-request.mjs";
@@ -8,6 +9,7 @@ import { requestGithubJson, validateGithubCache } from "./github-run-request.mjs
 const DEFAULT_REPO = "9178osage/inabakumori-site";
 const WORKFLOWS = ["Verify website", "Publish public site"];
 const SHA = /^[0-9a-f]{7,40}$/u;
+const FULL_SHA = /^[0-9a-f]{40}$/u;
 const PACIFIC_DATE = new Intl.DateTimeFormat("en-US", {
   timeZone: "America/Los_Angeles", month: "2-digit", day: "2-digit"
 });
@@ -121,13 +123,56 @@ function pacificDate(time) {
   return `${parts.find(part => part.type === "month").value}-${parts.find(part => part.type === "day").value}`;
 }
 
+function coverageScope(coverage) {
+  if (coverage === undefined) return null;
+  if (!coverage || typeof coverage !== "object" || Array.isArray(coverage) ||
+      Object.keys(coverage).some(key => !["since", "through", "ancestorHeads", "baselineRunIds"].includes(key)) ||
+      typeof coverage.since !== "string" || !FULL_SHA.test(coverage.since) ||
+      typeof coverage.through !== "string" || !FULL_SHA.test(coverage.through) ||
+      !Array.isArray(coverage.baselineRunIds) || coverage.baselineRunIds.length !== 2 ||
+      coverage.baselineRunIds.some(id => !["number", "string"].includes(typeof id) || !/^[1-9]\d*$/u.test(String(id)) || !Number.isSafeInteger(Number(id))) ||
+      String(coverage.baselineRunIds[0]) === String(coverage.baselineRunIds[1]) ||
+      !Array.isArray(coverage.ancestorHeads) || coverage.ancestorHeads.some(head => typeof head !== "string" || !FULL_SHA.test(head)) ||
+      new Set(coverage.ancestorHeads).size !== coverage.ancestorHeads.length ||
+      coverage.ancestorHeads.includes(coverage.since) ||
+      (coverage.since === coverage.through ? coverage.ancestorHeads.length !== 0 : !coverage.ancestorHeads.includes(coverage.through))) {
+    throw new Error("Invalid changelog push coverage scope");
+  }
+  return { ...coverage, baselineRunIds: coverage.baselineRunIds.map(String), heads: new Set(coverage.ancestorHeads) };
+}
+
+// Git ancestry bounds the checked checkout, rather than whichever newer push is
+// currently visible on GitHub. Side-branch commits are candidates only: a commit
+// becomes an actual push head only when the Actions list supplies a main/push run.
+export function localChangelogCoverage({ directory, since, baselineRunIds, githubSha = "" }) {
+  if (typeof since !== "string" || !FULL_SHA.test(since) || typeof githubSha !== "string" || githubSha && !FULL_SHA.test(githubSha.toLowerCase())) {
+    throw new Error("Invalid changelog Git coverage configuration");
+  }
+  const git = (...args) => {
+    try {
+      return execFileSync("git", args, { cwd: directory, encoding: "utf8", timeout: 10_000,
+        maxBuffer: 8 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] }).trim();
+    } catch { throw new Error("Cannot establish changelog coverage from Git history; fetch the full checkout history and its configured baseline"); }
+  };
+  const through = git("rev-parse", "--verify", "HEAD^{commit}").toLowerCase();
+  if (!FULL_SHA.test(through)) throw new Error("Invalid Git checkout HEAD for changelog coverage");
+  if (githubSha && githubSha.toLowerCase() !== through) throw new Error("GITHUB_SHA does not match the checked out HEAD for changelog coverage");
+  git("merge-base", "--is-ancestor", since, through);
+  const ancestors = git("log", "--format=%H", `${since}..${through}`);
+  const coverage = { since, through, baselineRunIds, ancestorHeads: ancestors ? ancestors.split("\n") : [] };
+  const validated = coverageScope(coverage);
+  return { ...coverage, baselineRunIds: validated.baselineRunIds };
+}
+
 // A push's date/order is the earlier created_at of its primary Verify and Publish
 // runs. Thus a pair straddling Pacific midnight belongs to the earlier day.
 export async function verifyChangelogTable(markdown, {
   fetchImpl = globalThis.fetch, repo = DEFAULT_REPO, token = "", deadlineMs = 12_000, concurrency = 4,
-  lookup = "direct", maxPages = 10, cache, stats, maxRetries = 2, retryBaseMs = 250, maxRetryWaitMs = 2000
+  lookup = "direct", maxPages = 10, cache, stats, maxRetries = 2, retryBaseMs = 250, maxRetryWaitMs = 2000,
+  coverage
 } = {}) {
   const rows = parseChangelogTable(markdown);
+  const scope = coverageScope(coverage);
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(repo)) throw new Error("Invalid GitHub repository configuration");
   if (typeof token !== "string" || /[\r\n]/u.test(token)) throw new Error("Invalid GitHub token configuration");
   if (typeof fetchImpl !== "function" || !Number.isFinite(deadlineMs) || deadlineMs <= 0 ||
@@ -137,19 +182,51 @@ export async function verifyChangelogTable(markdown, {
   }
   const ids = rows.flatMap(row => row.pairs.flatMap(pair => pair.ids));
   const runs = new Map();
+  const pushHeads = new Set();
+  const baselineAnchors = new Set();
+  let completeScope = false;
   const requestOptions = { fetchImpl, repo, token, deadlineMs, cache, stats, maxRetries, retryBaseMs, maxRetryWaitMs };
-  if (lookup === "paginated") {
+  if (lookup === "paginated" || scope) {
     const wanted = new Set(ids);
-    for (let page = 1; page <= maxPages && runs.size < ids.length; page++) {
+    const listed = new Set();
+    let previousCreated = Infinity;
+    let listedTotal;
+    for (let page = 1; page <= maxPages; page++) {
       const data = await requestGithubJson(`?branch=main&event=push&per_page=100&page=${page}`, `Runs page ${page}`, requestOptions);
       if (!data || !Number.isSafeInteger(data.total_count) || data.total_count < 0 || !Array.isArray(data.workflow_runs) ||
-          data.workflow_runs.some(run => !Number.isSafeInteger(run?.id) || run.id <= 0)) {
+          data.workflow_runs.some(run => !Number.isSafeInteger(run?.id) || run.id <= 0) ||
+          scope && (data.workflow_runs.length > 100 || data.total_count < data.workflow_runs.length)) {
         throw new Error(`Runs page ${page}: missing or invalid GitHub list fields`);
+      }
+      if (scope) {
+        if (listedTotal !== undefined && listedTotal !== data.total_count) throw new Error("GitHub run pagination changed; coverage is incomplete");
+        listedTotal = data.total_count;
+        if (data.workflow_runs.length !== Math.min(100, Math.max(0, listedTotal - (page - 1) * 100))) {
+          throw new Error(`Runs page ${page}: incomplete GitHub pagination data for push coverage`);
+        }
       }
       for (const run of data.workflow_runs) {
         const id = String(run.id);
-        if (wanted.has(id)) runs.set(id, parseRun(run, id));
+        const parsed = scope || wanted.has(id) ? parseRun(run, id) : null;
+        if (scope) {
+          if (listed.has(id) || parsed.createdMs > previousCreated) throw new Error("GitHub run pagination changed or is out of order; coverage is incomplete");
+          listed.add(id);
+          previousCreated = parsed.createdMs;
+          const baselineIndex = scope.baselineRunIds.indexOf(id);
+          if (baselineIndex >= 0) {
+            if (parsed.head_sha !== scope.since) throw new Error(`Run ${id}: baseline anchor commit mismatch`);
+            if (parsed.name !== WORKFLOWS[baselineIndex]) throw new Error(`Run ${id}: baseline anchor must be ${WORKFLOWS[baselineIndex]}`);
+            if (parsed.event !== "push" || parsed.head_branch !== "main") throw new Error(`Run ${id}: baseline anchor must be a push on main`);
+            baselineAnchors.add(id);
+          }
+          if (parsed.event === "push" && parsed.head_branch === "main" && WORKFLOWS.includes(parsed.name)) {
+            if (scope.heads.has(parsed.head_sha)) pushHeads.add(parsed.head_sha);
+          }
+        }
+        if (wanted.has(id)) runs.set(id, parsed);
       }
+      if (scope && baselineAnchors.size === WORKFLOWS.length) completeScope = true;
+      if (runs.size === ids.length && (!scope || completeScope)) break;
       if (!data.workflow_runs.length || page * 100 >= data.total_count) break;
     }
   }
@@ -183,7 +260,20 @@ export async function verifyChangelogTable(markdown, {
     if (primaryTime > previousTime) rowError(row.line, "pushes must be ordered newest to oldest by created_at");
     previousTime = primaryTime;
   }
-  return { rows: rows.length, runs: runs.size };
+  const result = { rows: rows.length, runs: runs.size };
+  if (scope) {
+    if (!completeScope) throw new Error("Incomplete changelog push coverage: both original baseline main/push run anchors must be present before the page limit or list end");
+    const primaryHeads = new Set(rows.map(row => runs.get(row.pairs[0].ids[0]).head_sha));
+    const missingHeads = [...pushHeads].filter(head => head !== scope.through && !primaryHeads.has(head));
+    if (missingHeads.length) throw new Error(`Missing deployment table rows for ${missingHeads.length} main/push head(s) within ${scope.since.slice(0, 7)}..${scope.through.slice(0, 7)}: ${missingHeads.map(head => head.slice(0, 7)).join(", ")}`);
+    if (scope.since !== scope.through && !primaryHeads.has(scope.since)) {
+      throw new Error(`Missing deployment table baseline row for ${scope.since.slice(0, 7)}; only checkout HEAD may be one row behind`);
+    }
+    result.coverage = { since: scope.since, through: scope.through, pushes: pushHeads.size,
+      recorded: [...pushHeads].filter(head => primaryHeads.has(head)).length,
+      currentHeadExempt: pushHeads.has(scope.through) && !primaryHeads.has(scope.through) };
+  }
+  return result;
 }
 
 const cacheDirectory = fileURLToPath(new URL("../artifacts/", import.meta.url));
@@ -264,8 +354,18 @@ async function main() {
   const cache = args.includes("--no-cache") ? undefined : await loadCache(repo, token);
   const stats = { networkRequests: 0, revalidatedResponses: 0, retries: 0 };
   const markdown = await readFile(new URL("../docs/CHANGELOG.md", import.meta.url), "utf8");
+  // Validate the table before trying Git/network, preserving a clear empty-table failure.
+  parseChangelogTable(markdown);
+  const configuration = JSON.parse(await readFile(new URL("./changelog-coverage.json", import.meta.url), "utf8"));
+  if (!configuration || Object.keys(configuration).length !== 2 ||
+      Object.keys(configuration).some(key => !["since", "baselineRunIds"].includes(key)) ||
+      typeof configuration.since !== "string" || !FULL_SHA.test(configuration.since)) {
+    throw new Error("Invalid tracked changelog coverage baseline");
+  }
+  const coverage = localChangelogCoverage({ directory: fileURLToPath(new URL("../", import.meta.url)),
+    since: configuration.since, baselineRunIds: configuration.baselineRunIds, githubSha: process.env.GITHUB_SHA || "" });
   let result, failure;
-  try { result = await verifyChangelogTable(markdown, { repo, token, lookup: "paginated", cache, stats }); }
+  try { result = await verifyChangelogTable(markdown, { repo, token, lookup: "paginated", cache, stats, coverage }); }
   catch (error) { failure = error; }
   try { if (cache) await saveCache(cache); }
   catch (error) {
@@ -277,6 +377,7 @@ async function main() {
     throw failure;
   }
   console.log(`Deployment table verified online: ${result.rows} rows, ${result.runs} GitHub runs; ${stats.networkRequests} requests, ${stats.revalidatedResponses} HTTP 304 revalidations, ${stats.retries} retries; dates in America/Los_Angeles (earlier primary run).`);
+  console.log(`Push coverage since ${result.coverage.since} through ${result.coverage.through}: ${result.coverage.pushes} observed main/push head(s), ${result.coverage.recorded} recorded; only checkout HEAD may be one row behind${result.coverage.currentHeadExempt ? " (current push exempt)" : ""}${result.coverage.pushes ? "." : "; baseline-only: no newer target push observed."}`);
 }
 
 if (process.argv[1] && process.argv[1] !== "-" && realpathSync(path.resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))) {
