@@ -171,3 +171,31 @@ test("transient recovery waits with bounded exponential backoff and cancels each
   assert.ok(signals.every(signal => signal.aborted));
   assert.deepEqual(stats, { networkRequests: 3, revalidatedResponses: 0, retries: 2 });
 });
+
+test("successful online responses clear only expired cooldowns; future limits and failed requests retain them", async () => {
+  const { requestGithubJson } = await load();
+  const time = Date.parse("2026-10-17T10:00:00Z");
+  for (const [status, until] of [[200, time - 1], [304, time]]) {
+    const cache = { ...cacheFor(), cooldownUntil: until };
+    if (status === 304) cache.responses[endpoint] = { etag: '"v1"', data: { current: true } };
+    assert.deepEqual(await requestGithubJson(endpoint, "Run 101", { ...fast, cache, now: () => time,
+      fetchImpl: async () => response(status, { current: true }) }), { current: true });
+    assert.equal(Object.hasOwn(cache, "cooldownUntil"), false, `HTTP ${status} clears expired marker`);
+  }
+  for (const status of [200, 304]) {
+    const cache = { ...cacheFor(), cooldownUntil: time + 60_000 };
+    if (status === 304) cache.responses[endpoint] = { etag: '"v1"', data: { current: true } };
+    await requestGithubJson(endpoint, "Run 101", { ...fast, cache, token: "synthetic-token", now: () => time,
+      fetchImpl: async () => response(status, { current: true }) });
+    assert.equal(cache.cooldownUntil, time + 60_000, "authenticated success cannot clear a future anonymous limit");
+  }
+  const newlyLimited = { ...cacheFor(), cooldownUntil: time - 1 };
+  await requestGithubJson(endpoint, "Run 101", { ...fast, cache: newlyLimited, now: () => time,
+    fetchImpl: async () => response(200, { current: true }, { "X-RateLimit-Remaining": "0", "X-RateLimit-Reset": String((time + 60_000) / 1000) }) });
+  assert.equal(newlyLimited.cooldownUntil, time + 60_000, "the successful response's new future limit survives");
+  for (const fetchImpl of [async () => response(503), async () => { throw new Error("synthetic network failure"); }, async () => new Promise(() => {})]) {
+    const cache = { ...cacheFor(), cooldownUntil: time };
+    await assert.rejects(requestGithubJson(endpoint, "Run 101", { ...fast, cache, maxRetries: 0, deadlineMs: 10, now: () => time, fetchImpl }));
+    assert.equal(cache.cooldownUntil, time, "failed and timed-out requests preserve the existing marker");
+  }
+});

@@ -186,7 +186,11 @@ export async function requestGithubJson(endpoint, label, {
   }
   const options = { fetchImpl, repo, token, deadlineMs, cache, stats, now };
   for (let retries = 0; ; retries++) {
-    try { return await attempt(endpoint, label, options); }
+    try {
+      const data = await attempt(endpoint, label, options);
+      if (cache?.cooldownUntil !== undefined && cache.cooldownUntil <= now()) delete cache.cooldownUntil;
+      return data;
+    }
     catch (error) {
       const transient = ["network", "timeout"].includes(error.kind) || error.kind === "http" && error.status >= 500 && error.status <= 599;
       const rateLimited = error.kind === "http" && [403, 429].includes(error.status) && error.rate.retryAt !== null;
