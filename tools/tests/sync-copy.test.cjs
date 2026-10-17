@@ -8,7 +8,7 @@ const { spawnSync } = require("node:child_process");
 const repo = path.resolve(__dirname, "../..");
 const OUT = "inabakumori-site-all-code";
 const GUIDE = "0-使用说明.txt";
-const CAP = 150000;
+const CAP = 130000;
 const exclusions = ["js/auth.js", "package-lock.json", "backend/package-lock.json", ".env.fixture",
   "backend/comments.db", "keys/private-key.pem", "dist/generated.js", "images/picture.png", "binary.dat"];
 
@@ -94,7 +94,8 @@ test("tracked generator creates the ignored output, exports itself and preserves
     assert.match(fs.readFileSync(path.join(box.output, GUIDE), "utf8"), new RegExp(`对应提交：${head}`));
     assert.match(fs.readFileSync(path.join(box.output, GUIDE), "utf8"), /python3 tools\/sync-copy\.py/u);
     for (const name of textFiles(box)) assert.ok(fs.statSync(path.join(box.output, name)).size <= CAP, name);
-    assert.ok(textFiles(box).length <= 10);
+    assert.match(fs.readFileSync(path.join(box.output, GUIDE), "utf8"), /每个 txt 不超过 130,000 字节/u);
+    assert.doesNotMatch(fs.readFileSync(path.join(box.output, GUIDE), "utf8"), /150,000|优先控制在 10/u);
     assert.equal(fs.existsSync(path.join(box.output, ".review-base")), false, "default fallback does not invent a saved baseline");
   } finally { box.close(); }
 });
@@ -126,31 +127,36 @@ test("tampered copy bytes and uncommitted source changes fail without rewriting 
   } finally { box.close(); }
 });
 
-test("whole-source packing keeps each volume below 150000 bytes and rejects oversize sources and diffs", () => {
+test("whole-source packing keeps each volume below 130000 bytes and rejects oversize sources and diffs", () => {
   const packed = fixture({ "js/one.js": "x".repeat(90000), "js/two.js": "y".repeat(90000) });
   try {
     passed(packed.run()); const sections = copySections(packed);
     assert.notEqual(sections.get("js/one.js"), sections.get("js/two.js"));
   } finally { packed.close(); }
-  const source = fixture({ "js/large.js": "x".repeat(CAP) });
-  try { failed(source.run(), /单个文件就超过 150 KB/u); } finally { source.close(); }
+  const source = fixture({ "js/large.js": "x".repeat(131000) });
+  try { failed(source.run(), /单个文件就超过 130,000 字节/u); } finally { source.close(); }
   const diff = fixture();
   try {
-    diff.write("js/one.js", "x".repeat(90000)); diff.write("js/two.js", "y".repeat(90000)); diff.commit();
-    failed(diff.run([diff.base]), /changes\.txt.*超过 150 KB/u);
+    diff.write("js/one.js", "x".repeat(65000)); diff.write("js/two.js", "y".repeat(65000)); diff.commit();
+    const bytes = Buffer.byteLength(diff.git("diff", "--no-ext-diff", diff.base, "HEAD"));
+    assert.ok(bytes > CAP && bytes < 150000, "the diff fits the old cap but exceeds the new one");
+    fs.mkdirSync(diff.output); fs.writeFileSync(path.join(diff.output, ".review-base"), diff.base + "\n");
+    failed(diff.run(), /changes\.txt.*超过 130,000 字节/u);
+    assert.equal(fs.readFileSync(path.join(diff.output, ".review-base"), "utf8"), diff.base + "\n", "oversize diff never advances the saved base");
   } finally { diff.close(); }
 });
 
-test("TXT count prefers ten, permits up to fifteen and refuses larger exports", () => {
+test("TXT count follows capacity beyond fifteen with complete unique source sections", () => {
   for (const count of [8, 12]) {
     const extra = Object.fromEntries(Array.from({ length: count }, (_, i) => [`js/part-${i}.js`, "x".repeat(80000)]));
     const box = fixture(extra);
     try {
       const result = box.run();
-      if (count === 8) {
-        passed(result); assert.match(result.stdout, /超过首选的 10 个/u);
-        assert.ok(textFiles(box).length > 10 && textFiles(box).length <= 15);
-      } else failed(result, /超过 15 个/u);
+      passed(result); passed(box.run(["--check"]));
+      assert.doesNotMatch(result.stdout, /首选|超过.*个 txt/u);
+      assert.equal(copySections(box).size, box.sources.size - exclusions.length);
+      assert.ok(textFiles(box).length > (count === 8 ? 10 : 15));
+      for (const name of textFiles(box)) assert.ok(fs.statSync(path.join(box.output, name)).size <= CAP, name);
     } finally { box.close(); }
   }
 });
@@ -258,3 +264,28 @@ for (const kind of ["symlink", "fifo"]) {
     } finally { box.close(); }
   });
 }
+
+
+test("a whole source section may exactly fill 130000 bytes without splitting", () => {
+  const file = "js/boundary.js";
+  const framing = Buffer.byteLength(`===== ${file} =====\n\n\n`);
+  const box = fixture({ [file]: "x".repeat(CAP - framing) });
+  try {
+    passed(box.run()); passed(box.run(["--check"]));
+    const volume = copySections(box).get(file);
+    assert.equal(fs.statSync(path.join(box.output, volume)).size, CAP);
+  } finally { box.close(); }
+});
+
+test("check rejects an otherwise intact 130-to-150KB volume from the former cap", () => {
+  const box = fixture({ "js/one.js": "x".repeat(70000), "js/two.js": "y".repeat(70000) });
+  try {
+    passed(box.run());
+    const volumes = textFiles(box).filter(name => name.startsWith("1-app-code-")).sort();
+    const combined = Buffer.concat(volumes.map(name => fs.readFileSync(path.join(box.output, name))));
+    assert.ok(combined.length > CAP && combined.length < 150000);
+    fs.writeFileSync(path.join(box.output, volumes[0]), combined);
+    for (const name of volumes.slice(1)) fs.unlinkSync(path.join(box.output, name));
+    failed(box.run(["--check"]), /1-app-code-1\.txt 超过 130,000 字节/u);
+  } finally { box.close(); }
+});
