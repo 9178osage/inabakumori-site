@@ -3,9 +3,9 @@
 
 规则（用户 2026-10-13/15 定）：
   1. 每段以 `===== 文件路径 =====` 开头，内容与 `git show HEAD:<路径>` 逐字节相同。
-  2. 按文件拆分，单个文件绝不切开；每个 txt ≤150 KB（读取方约 180–200 KB 会截断）。
+  2. 按文件拆分，单个文件绝不切开；每个 txt 的字节上限统一由下方 CAP 定义。
   3. 三组互不重叠：1-app-code / 2-tools-tests / 3-docs；另有 changes.txt（git diff）。
-  4. txt 文件数优先控制在 10 个以内，必要时不超过 15 个（包含使用说明和 changes.txt）。
+  4. txt 文件数量按完整源文件体积自动调整，包含使用说明和 changes.txt。
   5. 只读 git 跟踪的文件，排除 js/auth.js（源码是 tools/auth-src.js）、两个 package-lock.json、
      二进制文件，以及 dist/、.env*、数据库、密钥和本地私有文件。
   6. 输出文件夹已被 .gitignore 忽略，永不提交、不上线；生成器在 tools/ 中受版本控制。
@@ -20,7 +20,7 @@ import os, re, stat, subprocess, sys, tempfile
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(REPO, "inabakumori-site-all-code")
 BASE_FILE = os.path.join(OUT, ".review-base")
-CAP, PREFERRED_FILES, MAX_FILES = 150_000, 10, 15
+CAP = 130_000
 GUIDE = "0-使用说明.txt"
 EXCLUDE = {"js/auth.js", "package-lock.json", "backend/package-lock.json"}
 BINARY = re.compile(r"\.(png|jpe?g|webp|gif|ico|avif|bmp|tiff?|svgz|eot|woff2?|ttf|otf|mp[34]|ogg|m4a|wav|flac|webm|mov|zip|gz|7z|pdf|dmp|ai|db|sqlite3?)(?:-(?:wal|shm|journal))?$", re.I)
@@ -146,7 +146,7 @@ def build():
         g = group(p)
         piece = section(p, data)
         if len(piece) > CAP:
-            sys.exit(f"{p} 单个文件就超过 150 KB，无法放进副本")
+            sys.exit(f"{p} 单个文件就超过 {CAP:,} 字节，无法放进副本")
         parts = vols.setdefault(g, [[]])
         if sum(map(len, parts[-1])) + len(piece) > CAP:
             parts.append([])
@@ -208,7 +208,7 @@ def guide(base, names):
 标记后的源码逐字节保留，包括缩进、空格、换行及是否有末尾换行。
 文件之间额外的两个换行属于分隔框架，不属于源码。
 不要手动重排或改写分卷。粘贴到聊天时可另加代码围栏，并保留文件名和缩进。
-每个 txt 不超过 150,000 字节，优先控制在 10 个以内，必要时不超过 15 个。
+每个 txt 不超过 {CAP:,} 字节；数量按完整源文件体积自动调整。
 
 三、附上背景和诉求
 
@@ -250,7 +250,7 @@ def check():
     for n in names:
         blob = open(output_file(n), "rb").read()
         if len(blob) > CAP:
-            ok = False; print(f"  ❌ {n} 超过 150 KB")
+            ok = False; print(f"  ❌ {n} 超过 {CAP:,} 字节")
         if n == "changes.txt":
             header = re.match(rb"# changes (\S+)\.\.([0-9a-f]+)[^\n]*\n", blob)
             if not header or blob != changes(header.group(1).decode()):
@@ -279,10 +279,8 @@ def check():
         with open(guide_path, "rb") as source:
             actual_guide = source.read()
         if actual_guide != guide(base, names) or len(actual_guide) > CAP:
-            ok = False; print("  ❌ 使用说明未同步或超过 150 KB")
+            ok = False; print(f"  ❌ 使用说明未同步或超过 {CAP:,} 字节")
     total = len(text_names)
-    if MAX_FILES and total > MAX_FILES:
-        ok = False; print(f"  ❌ 共 {total} 个 txt，超过 {MAX_FILES} 个")
     if "changes.txt" not in names:
         ok = False; print("  ❌ 缺少 changes.txt")
     head = git("rev-parse", "--short", "HEAD").decode().strip()
@@ -294,7 +292,7 @@ def check():
 def main():
     args = sys.argv[1:]
     if len(args) > 1 or args and args[0].startswith("-") and args not in (["--check"], ["--mark-reviewed"]):
-        sys.exit("用法: python3 tools/sync-copy.py [base | --check | --mark-reviewed]")
+        sys.exit(f"用法: python3 tools/sync-copy.py [base | --check | --mark-reviewed]（每个 txt ≤{CAP:,} 字节）")
     output_directory(create=args != ["--check"])
     output_file(".review-base")
     for name in os.listdir(OUT):
@@ -322,14 +320,10 @@ def main():
     if len(diff) <= CAP:
         vols["changes.txt"] = diff
     else:
-        sys.exit(f"changes.txt 有 {len(diff)} B，超过 150 KB；请换一个更近的 base")
+        sys.exit(f"changes.txt 有 {len(diff)} B，超过 {CAP:,} 字节；请换一个更近的 base")
     vols[GUIDE] = guide(base, vols)
     if len(vols[GUIDE]) > CAP:
-        sys.exit("使用说明超过 150 KB，未写入")
-    if MAX_FILES and len(vols) > MAX_FILES:
-        sys.exit(f"会生成 {len(vols)} 个 txt，超过 {MAX_FILES} 个，未写入")
-    if PREFERRED_FILES and len(vols) > PREFERRED_FILES:
-        print(f"  提示：共 {len(vols)} 个 txt，超过首选的 10 个，仍在 15 个以内")
+        sys.exit(f"使用说明超过 {CAP:,} 字节，未写入")
     metadata = os.path.join(OUT, ".DS_Store")
     if os.path.lexists(metadata):
         if os.path.islink(metadata) or not os.path.isfile(metadata):
