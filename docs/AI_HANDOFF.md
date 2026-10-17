@@ -47,7 +47,6 @@
 | `NKNK/` | NKNK 画廊原图（`npm run generate:nknk` 生成 `images/optimized/nknk/`，不发布） |
 | `docs/OPTIMIZATION.md` | 优化与运维说明 |
 | `docs/AI_HANDOFF.md` | 本文（AI 交接说明） |
-| `docs/AI_FOLLOWUPS.md` | 待办与已知问题（本文的补充，接手前先读） |
 
 ## 本地运行与检查
 
