@@ -8,7 +8,7 @@ GitHub Pages 提供网页、图片和音乐目录。登录与留言通过 HTTPS 
 
 ## 每次改完看什么
 
-1. 本地运行 `npm test`、`npm run check`、`npm run test:integration`，都成功再提交。测试失败时先找原因，不要删除安全检查来通过测试。
+1. 本地运行 `npm test`、`npm run check`、`npm run test:integration`、`npm run check:changelog`，都成功再提交。最后一项单独联网核对上线记录；`npm run check` 本身不查询 GitHub API。测试失败时先找原因，不要删除安全检查来通过测试。
 2. 在 GitHub Actions 查看对应提交的 `Verify website` 和 `Publish public site`，两项都应成功。
 3. 打开网站确认页面正常，再检查后端 `/healthz`：`ok` 应为 `true`，`version` 应与部署提交前七位一致。健康检查成功不等于所有登录、留言功能都验证过。
 4. 记录提交号、两项工作流的运行编号和后端版本。没有核实就写“待确认”，不要写“已上线”。
@@ -22,6 +22,10 @@ GitHub Pages 提供网页、图片和音乐目录。登录与留言通过 HTTPS 
 运行 `npm run check:changelog`，读取 GitHub Actions 的真实运行记录，核对现有表行的提交、工作流、日期、重复项与时间顺序。同一行有多个提交时按先后排列，最后一个对应主 Verify / Publish 运行；括号内的历史运行须注明对应提交。跨日的主运行对取较早创建的运行，以 `America/Los_Angeles` 换算日期。
 
 本地可使用已配置的 `GITHUB_TOKEN` 或 `GH_TOKEN` 提高查询限额，不把令牌写入文件或提交。CI 为该步骤提供 `GITHUB_TOKEN` 和只读 Actions 权限。请求失败、限流、运行记录缺失、空表或零覆盖都必须非零退出；只有实际核对全部所列运行后才能报告通过。
+
+命令行先分页读取运行列表，只有未找到的运行号才逐个补查；表中有 80 个运行号不代表每次都要发 80 次请求。GitHub API 的网络错误、5xx 或限流可能使本地门禁和 `Verify website` 失败，恢复后应重跑，不能跳过记录或改报通过。`Publish public site` 独立运行，不会自动等待这项检查；发布后仍须确认两条工作流都成功。
+
+当前表格仅接受 `main` 分支上由 `push` 触发的 Verify / Publish 运行。若以后要记录 `workflow_dispatch` 手动部署，应先扩展事件校验规则和测试，再填写对应运行号。
 
 此检查验证已记录的行，不自动追加新行。写表提交自身遵循表中的「晚一行」约定。
 
