@@ -21,6 +21,8 @@ GitHub Pages 提供网页、图片和音乐目录。登录与留言通过 HTTPS 
 
 运行 `npm run check:changelog`，读取 GitHub Actions 的真实运行记录，核对现有表行的提交、工作流、日期、重复项与时间顺序。同一行有多个提交时按先后排列，最后一个对应主 Verify / Publish 运行；括号内的历史运行须注明对应提交。跨日的主运行对取较早创建的运行，以 `America/Los_Angeles` 换算日期。
 
+`npm run check:changelog:structure` 只读取本地的真实更新日志，检查表头、行格式、提交和运行号格式、重复项，以及表格非空；坏表非零退出。它不读取 Git 历史、覆盖配置或 API 缓存，不联网核实运行号归属、日期或推送覆盖。该命令已接入 `npm run check`，因此 PR、功能分支和手动运行都会实际执行表格结构校验。报告时应区分「本地结构通过」与「GitHub 记录在线核对通过」。
+
 正常本地维护的前置准备是通过当前终端或凭证管理器配置只读 `GITHUB_TOKEN` 或 `GH_TOKEN`，不要把令牌写入项目文件、提交或聊天。脚本不会从系统钥匙串提取凭证。无令牌时仍可作匿名诊断，但共享的 60 次/小时配额可能耗尽并阻止提交，这种 `403` 不代表代码错误。CI 为该步骤提供 `GITHUB_TOKEN` 和只读 Actions 权限。重试后仍失败、限流未解除、运行记录缺失、空表或零运行核对都必须非零退出；只有实际核对全部所列运行后才能报告通过。
 
 命令行以每页 100 条分页读取运行列表，只有未找到的运行号才逐个补查，所列运行数不等于请求数。默认在已忽略的 `artifacts/changelog-api-cache.json` 保存公开响应、ETag 和匿名限流冷却信息，不保存令牌或 Authorization 请求头。每次成功核对都须联网取得 `200`，或由服务器返回 `304` 确认对应缓存仍有效；不能在断网或 API 失败时拿旧缓存改报通过。`npm run check:changelog -- --no-cache` 完全跳过本地缓存读写，仍须联网核对。
@@ -33,7 +35,7 @@ GitHub 仅保证携带有效 Authorization 的条件请求在收到 `304` 时不
 
 当前表格仅接受 `main` 分支上由 `push` 触发的 Verify / Publish 运行。若以后要记录 `workflow_dispatch` 手动部署，应先扩展事件校验规则和测试，再填写对应运行号。
 
-CI 的联网记录校验只在 `push` 到 `refs/heads/main` 时执行。PR、其他分支或标签的推送、手动运行均跳过这一步，继续执行 `npm run check`、认证构建产物一致性检查和集成测试。PR 默认检出合成的 merge commit，其 HEAD 与 main 的最后推送头不同，不能套用发布记录的当前 HEAD 例外，详见 [GitHub 的 PR 事件说明](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request)。报告这些运行时应写「联网步骤跳过」，不能写「线上记录校验通过」；本地发布前仍须执行并通过四项门禁。
+CI 的联网记录校验只在 `push` 到 `refs/heads/main` 时执行。PR、其他分支或标签的推送、手动运行均跳过这一步，继续执行包含本地表格结构校验的 `npm run check`、认证构建产物一致性检查和集成测试。PR 默认检出合成的 merge commit，其 HEAD 与 main 的最后推送头不同，不能套用发布记录的当前 HEAD 例外，详见 [GitHub 的 PR 事件说明](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request)。报告这些运行时应写「联网步骤跳过」，不能写「线上记录校验通过」；本地发布前仍须执行并通过四项门禁。
 
 覆盖门禁使用受版本控制的 `tools/changelog-coverage.json` 中的完整提交 `since` 作基线，固定到当前检出的完整 `HEAD`，并用完整 Git 历史限定祖先范围。基线之后、这个范围内 GitHub 列表实际出现的 `main/push` Verify / Publish 提交必须出现在表行的最后一个提交位置；基线本身也必须保留主表行，除非它就是当前 HEAD。不能把仅随同推送的中间提交误当成单独推送。CI 因此必须检出完整历史，`GITHUB_SHA` 如存在也必须与检出提交相同。
 
