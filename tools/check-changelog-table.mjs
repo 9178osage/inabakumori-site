@@ -348,14 +348,21 @@ async function saveCache(cache) {
 
 async function main() {
   const args = process.argv.slice(2);
-  if (args.some(arg => arg !== "--no-cache") || args.length > 1) throw new Error("Usage: npm run check:changelog -- [--no-cache]");
+  if (args.some(arg => !["--no-cache", "--structure-only"].includes(arg)) || args.length > 1) {
+    throw new Error("Usage: npm run check:changelog -- [--no-cache | --structure-only]");
+  }
+  const markdown = await readFile(new URL("../docs/CHANGELOG.md", import.meta.url), "utf8");
+  // Structural checks work in PR/branch checkouts without credentials, Git or cache.
+  const rows = parseChangelogTable(markdown);
+  if (args[0] === "--structure-only") {
+    const references = rows.reduce((count, row) => count + row.pairs.reduce((sum, pair) => sum + pair.ids.length, 0), 0);
+    console.log(`Deployment table structure verified offline: ${rows.length} rows, ${references} run ID references; GitHub metadata and push coverage were not checked.`);
+    return;
+  }
   const repo = process.env.GITHUB_REPOSITORY || DEFAULT_REPO;
   const token = (process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "").trim();
   const cache = args.includes("--no-cache") ? undefined : await loadCache(repo, token);
   const stats = { networkRequests: 0, revalidatedResponses: 0, retries: 0 };
-  const markdown = await readFile(new URL("../docs/CHANGELOG.md", import.meta.url), "utf8");
-  // Validate the table before trying Git/network, preserving a clear empty-table failure.
-  parseChangelogTable(markdown);
   const configuration = JSON.parse(await readFile(new URL("./changelog-coverage.json", import.meta.url), "utf8"));
   if (!configuration || Object.keys(configuration).length !== 2 ||
       Object.keys(configuration).some(key => !["since", "baselineRunIds"].includes(key)) ||
