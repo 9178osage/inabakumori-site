@@ -24,6 +24,7 @@ jobs:
       - run: npm ci
       - run: npm --prefix backend ci
       - name: Check deployment record table against GitHub Actions
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: npm run check:changelog
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
