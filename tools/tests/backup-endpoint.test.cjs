@@ -9,6 +9,33 @@ const express = require("../../backend/node_modules/express");
 
 const TOKEN = "a".repeat(16) + "0123456789abcdef0123456789abcdef";
 
+function listenOnLoopback(app) {
+  return new Promise((resolve, reject) => {
+    const server = app.listen(0, "127.0.0.1", error => {
+      if (error) return reject(error);
+      resolve(server);
+    });
+  });
+}
+
+test("a failed listener preserves the original error before reading its address", async () => {
+  const failure = Object.assign(new Error("Synthetic listener permission denied"), { code: "EPERM" });
+  let addressReads = 0;
+  const app = {
+    listen(port, host, callback) {
+      assert.equal(port, 0);
+      assert.equal(host, "127.0.0.1");
+      queueMicrotask(() => callback(failure));
+      return { address() { addressReads++; return null; } };
+    }
+  };
+  await assert.rejects(async () => {
+    const server = await listenOnLoopback(app);
+    return server.address().port;
+  }, error => error === failure, "the caller receives the original Error, not an address TypeError");
+  assert.equal(addressReads, 0, "an unsuccessful listener has no address to inspect");
+});
+
 async function serve(token) {
   const { registerBackupEndpoint } = await import("../../backend/backup-endpoint.mjs");
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "backup-test-"));
@@ -21,7 +48,7 @@ async function serve(token) {
   const app = express();
   registerBackupEndpoint(app, { databasePath, token, limiter: (_req, _res, next) => next(), log });
   app.use((_req, res) => res.status(404).json({ code: "NOT_FOUND" }));
-  const server = await new Promise(resolve => { const s = app.listen(0, "127.0.0.1", () => resolve(s)); });
+  const server = await listenOnLoopback(app);
   const url = `http://127.0.0.1:${server.address().port}/api/admin/backup`;
   return { url, logs, dir, close: () => new Promise(resolve => server.close(resolve)) };
 }
@@ -90,7 +117,7 @@ async function serveBackup() {
   const log = { log: (...a) => logs.push(["log", ...a]), warn: (...a) => logs.push(["warn", ...a]) };
   const app = express();
   registerBackupEndpoint(app, { databasePath, token: ABORT_TOKEN, limiter: (_req, _res, next) => next(), log });
-  const server = await new Promise(resolve => { const s = app.listen(0, "127.0.0.1", () => resolve(s)); });
+  const server = await listenOnLoopback(app);
   return { port: server.address().port, logs, close: () => new Promise(r => server.close(r)), dir };
 }
 const waitFor = async (predicate, ms = 5000) => {
