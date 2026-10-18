@@ -85,5 +85,21 @@ for (const item of nknk) {
 assert.ok(html.includes('id="nknk-gallery"'), "NKNK gallery mount missing");
 assert.ok(html.includes('id="nknk-lightbox"'), "NKNK lightbox missing");
 assert.ok(!html.includes('id="nknk-gallery-more"'), "NKNK load-more should be removed");
+const updatesHtml = await readFile(path.join(root, "updates.html"), "utf8");
+assert.match(updatesHtml, /<link rel="canonical" href="https:\/\/osagechan\.top\/updates\.html"\/>/u);
+assert.doesNotMatch(updatesHtml, /<!-- UPDATES:(?:STATUS|ITEMS) -->/u, "Updates must be pre-rendered");
+assert.equal([...updatesHtml.matchAll(/class="source-status"/gu)].length, 3, "Each updates source needs a visible check status");
+const updatesCsp = updatesHtml.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)"/)?.[1];
+assert.ok(updatesCsp && /script-src 'self';/u.test(updatesCsp) && /connect-src 'self';/u.test(updatesCsp), "Updates must use local scripts and a local snapshot");
+assert.doesNotMatch(updatesCsp, /unsafe-inline|unsafe-eval|localhost|127\.0\.0\.1/iu);
+const updatesIds = [...updatesHtml.matchAll(/\bid="([^"]+)"/gu)].map(match => match[1]);
+assert.equal(updatesIds.length, new Set(updatesIds).size, "Duplicate updates HTML IDs");
+for (const match of updatesHtml.matchAll(/(?:src|href)="([^"]+)"/gu)) {
+  const value = match[1];
+  if (value.startsWith("#")) assert.ok(updatesIds.includes(value.slice(1)), `Missing updates anchor: ${value}`);
+  else if (!/^(https?:|mailto:)/u.test(value)) {
+    assert.ok((await stat(distFile(value.split(/[?#]/u)[0]))).isFile(), `Missing updates asset: ${value}`);
+  }
+}
 assert.ok(bytes < 12 * 1024 * 1024, `Public build exceeds 12 MiB: ${bytes}`);
 console.log(`Public build verified: references, anchors, JS syntax, metadata, pre-rendering, privacy allowlist; ${(bytes / 1024 / 1024).toFixed(2)} MiB.`);

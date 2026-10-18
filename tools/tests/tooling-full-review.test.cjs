@@ -62,6 +62,9 @@ function publicBuild(box) {
 <script type="application/ld+json">{"@type":"WebSite"}</script>
 <div id="nknk-gallery"></div><div id="nknk-lightbox"></div>`);
   box.write("dist/CNAME", "osagechan.top\n"); box.write("dist/site.webmanifest", '{"icons":[]}');
+  box.write("dist/updates.html", `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self';"/>
+<link rel="canonical" href="https://osagechan.top/updates.html"/>
+<article class="source-status"></article><article class="source-status"></article><article class="source-status"></article>`);
   box.write("dist/js/songs.js", "const SONGS = [];\n");
   box.write("dist/js/nknk-gallery.js", 'const NKNK_GALLERY = [{id:1,thumb:"images/picture.webp",full:"images/picture.webp"}];\n');
   box.write("dist/images/picture.webp", "PUBLIC_IMAGE");
