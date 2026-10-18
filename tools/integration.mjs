@@ -43,7 +43,13 @@ try {
   assert.ok(ready, `Test API did not start: ${output}`);
   const page = await request(`${previewUrl}/`);
   assert.equal(page.status, 200);
-  assert.match(await page.text(), /data-song-title=/);
+  const homeHtml = await page.text();
+  assert.match(homeHtml, /data-song-title=/);
+  assert.match(homeHtml, /id="updates"/u);
+  assert.match(homeHtml, /href="#updates"/u);
+  assert.match(homeHtml, /class="update-item"/u);
+  assert.doesNotMatch(homeHtml, /<!-- HOME-UPDATES:/u);
+  assert.equal((await request(`${previewUrl}/js/home-updates.js`)).status, 200);
   const updatesPage = await request(`${previewUrl}/updates.html`);
   assert.equal(updatesPage.status, 200);
   const updatesHtml = await updatesPage.text();

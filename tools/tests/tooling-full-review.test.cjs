@@ -60,7 +60,7 @@ function publicBuild(box) {
   box.write("dist/index.html", `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://inabakumori-site-production.up.railway.app"/>
 <link rel="canonical" href="https://osagechan.top/"/>
 <script type="application/ld+json">{"@type":"WebSite"}</script>
-<div id="nknk-gallery"></div><div id="nknk-lightbox"></div>`);
+<div id="nknk-gallery"></div><div id="nknk-lightbox"></div><section id="updates"></section><a href="#updates">Updates</a>`);
   box.write("dist/CNAME", "osagechan.top\n"); box.write("dist/site.webmanifest", '{"icons":[]}');
   box.write("dist/updates.html", `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self';"/>
 <link rel="canonical" href="https://osagechan.top/updates.html"/>
