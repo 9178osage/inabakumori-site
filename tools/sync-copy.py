@@ -7,7 +7,8 @@
   3. 三组互不重叠：1-app-code / 2-tools-tests / 3-docs；另有 changes.txt（git diff）。
   4. txt 文件数量按完整源文件体积自动调整，包含使用说明和 changes.txt。
   5. 只读 git 跟踪的文件，排除 js/auth.js（源码是 tools/auth-src.js）、两个 package-lock.json、
-     二进制文件，以及 dist/、.env*、数据库、密钥和本地私有文件。
+     X 帖子档案分片 data/x-posts/posts-<sha256>.json（导入生成的帖子数据，由 manifest.json 的哈希校验；
+     manifest.json 仍导出）、二进制文件，以及 dist/、.env*、数据库、密钥和本地私有文件。
   6. 输出文件夹已被 .gitignore 忽略，永不提交、不上线；生成器在 tools/ 中受版本控制。
 
 用法
@@ -23,6 +24,8 @@ BASE_FILE = os.path.join(OUT, ".review-base")
 CAP = 130_000
 GUIDE = "0-使用说明.txt"
 EXCLUDE = {"js/auth.js", "package-lock.json", "backend/package-lock.json"}
+# Imported X post shards are content, not code: ~1 MB of post text verified by hash in manifest.json.
+GENERATED_DATA = re.compile(r"^data/x-posts/posts-[0-9a-f]{64}\.json$")
 BINARY = re.compile(r"\.(png|jpe?g|webp|gif|ico|avif|bmp|tiff?|svgz|eot|woff2?|ttf|otf|mp[34]|ogg|m4a|wav|flac|webm|mov|zip|gz|7z|pdf|dmp|ai|db|sqlite3?)(?:-(?:wal|shm|journal))?$", re.I)
 PRIVATE = re.compile(r"(?:^|[/_.-])(?:secrets?|credentials?|private[-_]?key|id_rsa|id_ed25519)(?:$|[/_.-])|\.(?:pem|key|p12|pfx|jks|keystore|sql|dump|bak)$", re.I)
 GENERATED = re.compile(r"^(?:(?:1-app-code|2-tools-tests|3-docs)-\d+|changes(?:-\d+)?)\.txt$")
@@ -88,7 +91,7 @@ def git(*args):
 def allowed(p):
     parts = p.split("/")
     return not (
-        p in EXCLUDE or BINARY.search(p) or PRIVATE.search(p)
+        p in EXCLUDE or GENERATED_DATA.match(p) or BINARY.search(p) or PRIVATE.search(p)
         or any(s.lower() in {"dist", "node_modules", ".git", ".local-notes", ".backups", "inabakumori-site-all-code"}
                or s.lower().startswith(".env") for s in parts)
         or parts[-1].startswith("SECURITY_AUDIT_")
@@ -221,7 +224,8 @@ def guide(base, names):
 副本不附历史运行日志。如遇报错，请附本次完整 Error / Traceback、命令、步骤和环境。
 保持日志的顺序、换行和缩进，只将真实密码、API 密钥或私人链接替换为 YOUR_KEY 或 xxx。
 不导出 .env*、数据库、密钥、凭证、dist/、依赖、本地私有文件、图片和字体等二进制。
-不导出生成的 js/auth.js（真实源码为 tools/auth-src.js）及两个 package-lock.json。
+不导出生成的 js/auth.js（真实源码为 tools/auth-src.js）、两个 package-lock.json，
+以及 X 帖子档案分片 data/x-posts/posts-*.json（帖子数据，由 data/x-posts/manifest.json 的哈希校验）。
 公开域名、公开代码链接和合成测试凭证不自动视为私人信息。
 若源码中确有敏感值，应排除该文件或另制脱敏摘录，不把改写内容称作逐字节副本。
 

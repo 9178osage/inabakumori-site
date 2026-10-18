@@ -105,7 +105,7 @@ CI 的联网记录校验只在 `push` 到 `refs/heads/main` 时执行。PR、其
 
 首页「最新动态」先展示两位创作者各最近 6 条 X 公开帖子原文（`js/x-posts-home.js` 只切换已预渲染条目的 `hidden`，按创作者筛选），`updates.html` 及 `updates-<creator>[-page-N].html` 每页 30 条分页展示全部已收录帖子，构建时追加进 `dist/sitemap.xml`。数据在 `data/x-posts/`（`manifest.json` 加按内容哈希命名、单个不超过 120,000 字节的分片），只收原创帖与引用帖，不含回复、转发和自回复串；正文保持原文，图片和视频只提示「请到原帖查看」，不嵌入 X 内容，CSP 不变。
 
-导入：把扫描结果写成 `tools/x-posts-data.mjs` 定义的格式（`{version: 1, coverage, items}`，完整正文、`translated: false`），放在不提交的位置（如 `artifacts/`），运行 `node tools/import-x-posts.mjs <scan.json>`。同一 ID 的正文、作者或时间不一致会保留旧值并列为冲突、命令非零退出，需人工核对。原始扫描文件不提交。覆盖范围始终标为 partial，并记录扫描区间与中断原因。档案页单独计入 20 MiB 预算，其余公开文件仍受 12 MiB 限制。
+导入：把扫描结果写成 `tools/x-posts-data.mjs` 定义的格式（`{version: 1, coverage, items}`，完整正文、`translated: false`），放在不提交的位置（如 `artifacts/`），运行 `node tools/import-x-posts.mjs <scan.json>`。同一 ID 的正文、作者或时间不一致会保留旧值并列为冲突、命令非零退出，需人工核对。原始扫描文件不提交。覆盖范围始终标为 partial，并记录扫描区间与中断原因。档案页单独计入 20 MiB 预算，其余公开文件仍受 12 MiB 限制。本机文本副本（`tools/sync-copy.py`）不导出 `posts-*.json` 分片，只导出 `manifest.json`。
 
 
 `npm run check` 包含最小 ESLint 门禁：检查未定义名称和变量/类的提前引用；允许普通函数声明提前调用。它覆盖前端、后端、工具与测试，排除生成的认证包和本地副本。
