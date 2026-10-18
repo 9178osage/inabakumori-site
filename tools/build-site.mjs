@@ -7,6 +7,8 @@ import vm from "node:vm";
 import { assertRepoPath } from "./safe-fs.mjs";
 import { stripLoopbackCspSources } from "./net-guards.mjs";
 import { renderCreatorUpdates } from "./render-creator-updates.mjs";
+import { readXPostsArchive } from "./x-posts-data.mjs";
+import { renderXPostsHome, renderXPostsArchive } from "./render-x-posts.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const out = path.join(root, "dist");
@@ -25,7 +27,7 @@ await build({ entryPoints: [source("tools/auth-src.js")], bundle: true, platform
 // dist is generated exclusively by this script. Only explicitly public assets are copied.
 await rm(output("dist"), { recursive: true, force: true });
 await mkdir(out, { recursive: true });
-const scripts = ["script.js", ...["preferences", "config", "network", "i18n", "auth", "songs", "nknk-gallery", "nknk-gallery-ui", "experience", "comments", "updates", "home-updates"].map(name => `js/${name}.js`)];
+const scripts = ["script.js", ...["preferences", "config", "network", "i18n", "auth", "songs", "nknk-gallery", "nknk-gallery-ui", "experience", "comments", "updates", "home-updates", "x-posts-home"].map(name => `js/${name}.js`)];
 const css = ["style.css", "updates.css", "fonts/fonts.css"];
 const hashes = new Map();
 for (const file of [...scripts, ...css]) {
@@ -53,7 +55,7 @@ await copyPublicFolder("fonts", /\.(woff2|txt)$/i);
 for (const entry of await readdir(source("images"), { withFileTypes: true })) {
   if (entry.isFile() && !entry.name.startsWith(".") && /\.(png|jpe?g|webp)$/i.test(entry.name)) await copyFile(source(`images/${entry.name}`), output(`dist/images/${entry.name}`));
 }
-for (const file of ["favicon.ico", "site.webmanifest", "robots.txt", "sitemap.xml", "404.html", "CNAME"]) await copyFile(source(file), output(`dist/${file}`));
+for (const file of ["favicon.ico", "site.webmanifest", "robots.txt", "404.html", "CNAME"]) await copyFile(source(file), output(`dist/${file}`));
 await writeFile(output("dist/.nojekyll"), "");
 
 // dist starts clean, but Finder/editor leftovers can appear while it is being built.
@@ -75,6 +77,14 @@ const escape = value => String(value).replace(/[&<>"']/g, c => ({ "&": "&amp;", 
 const updatesSource = await readFile(source("data/creator-updates.json"), "utf8");
 const updatesVersion = createHash("sha256").update(updatesSource).digest("hex");
 const updates = renderCreatorUpdates(JSON.parse(updatesSource));
+const xPosts = await readXPostsArchive(root);
+const xPostsVersion = createHash("sha256").update(JSON.stringify(xPosts)).digest("hex");
+function fillOnce(template, marker, content) {
+  const placeholder = `<!-- ${marker} -->`;
+  if (template.split(placeholder).length !== 2) throw new Error(`Expected one ${marker} placeholder`);
+  return template.replace(placeholder, () => content);
+}
+const fingerprintXPosts = template => template.replace("</head>", `<meta name="x-posts-version" content="${xPostsVersion}"/>\n</head>`);
 function fillUpdates(template, prefix) {
   for (const [marker, content] of [["STATUS", updates.status], ["ITEMS", updates.items]]) {
     const placeholder = `<!-- ${prefix}:${marker} -->`;
@@ -85,6 +95,7 @@ function fillUpdates(template, prefix) {
 }
 let html = await readFile(source("index.html"), "utf8");
 html = fillUpdates(html, "HOME-UPDATES");
+html = fingerprintXPosts(fillOnce(html, "X-POSTS:HOME", renderXPostsHome(xPosts)));
 // Share-tracking parameters (?si=...) identify who shared a link; published links never carry them.
 const cleanSongUrl = value => {
   const url = new URL(value);
@@ -101,9 +112,32 @@ if (!keepLocalApiCsp) {
 }
 html = html.replace(/(src|href)="([^"?]+)(?:\?[^"\s]*)?"/g, (match, attribute, file) => hashes.has(file) ? `${attribute}="${file}?v=${hashes.get(file)}"` : match);
 await writeFile(output("dist/index.html"), html);
-let updatesHtml = fillUpdates(await readFile(source("updates.html"), "utf8"), "UPDATES");
-updatesHtml = updatesHtml.replace(/(src|href)="([^"?]+)(?:\?[^"\s]*)?"/g, (match, attribute, file) => hashes.has(file) ? `${attribute}="${file}?v=${hashes.get(file)}"` : match);
-await writeFile(output("dist/updates.html"), updatesHtml);
+const updatesTemplate = fillUpdates(await readFile(source("updates.html"), "utf8"), "UPDATES");
+let archivePages = 0;
+const archivePageNames = [];
+for (const creator of ["all", "inabakumori", "nknk"]) {
+  const firstPage = renderXPostsArchive(xPosts, { creator, page: 1, pageSize: 30 });
+  if (!Number.isSafeInteger(firstPage.pageCount) || firstPage.pageCount < 1 || firstPage.pageCount > 10000) throw new Error("Invalid X archive page count");
+  for (let page = 1; page <= firstPage.pageCount; page++) {
+    const rendered = page === 1 ? firstPage : renderXPostsArchive(xPosts, { creator, page, pageSize: 30 });
+    const name = `updates${creator === "all" ? "" : `-${creator}`}${page === 1 ? "" : `-page-${page}`}.html`;
+    let updatesHtml = updatesTemplate;
+    for (const marker of ["ITEMS", "STATUS", "PAGINATION"]) updatesHtml = fillOnce(updatesHtml, `X-POSTS:${marker}`, rendered[marker.toLowerCase()]);
+    updatesHtml = fingerprintXPosts(updatesHtml).replace('<link rel="canonical" href="https://osagechan.top/updates.html"/>', `<link rel="canonical" href="https://osagechan.top/${name}"/>`);
+    updatesHtml = updatesHtml.replace(/(src|href)="([^"?]+)(?:\?[^"\s]*)?"/g, (match, attribute, file) => hashes.has(file) ? `${attribute}="${file}?v=${hashes.get(file)}"` : match);
+    await writeFile(output(`dist/${name}`), updatesHtml);
+    archivePageNames.push(name);
+    archivePages++;
+  }
+}
+// The source sitemap lists the hand-maintained pages; every generated archive page is appended
+// with the date its newest post was collected, so search engines can find the paginated history.
+const sitemapSource = await readFile(source("sitemap.xml"), "utf8");
+if (sitemapSource.split("</urlset>").length !== 2) throw new Error("Expected one </urlset> in sitemap.xml");
+const archiveLastmod = (xPosts.items.map(item => item.collectedAt).sort().at(-1) ?? "").slice(0, 10);
+const sitemapEntries = archivePageNames.filter(name => !sitemapSource.includes(`<loc>https://osagechan.top/${name}</loc>`)).map(name =>
+  `  <url>\n    <loc>https://osagechan.top/${name}</loc>\n${archiveLastmod ? `    <lastmod>${archiveLastmod}</lastmod>\n` : ""}    <changefreq>weekly</changefreq>\n    <priority>${/-page-/u.test(name) ? "0.3" : "0.6"}</priority>\n  </url>\n`).join("");
+await writeFile(output("dist/sitemap.xml"), sitemapSource.replace("</urlset>", () => `${sitemapEntries}</urlset>`));
 let bytes = 0, files = 0;
 async function measure(folder) {
   for (const entry of await readdir(folder, { withFileTypes: true })) {
@@ -112,5 +146,5 @@ async function measure(folder) {
   }
 }
 await measure(out);
-console.log(`Built dist: ${files} public files, ${(bytes / 1024 / 1024).toFixed(2)} MiB, ${songs.length} pre-rendered songs.`);
+console.log(`Built dist: ${files} public files, ${(bytes / 1024 / 1024).toFixed(2)} MiB, ${songs.length} pre-rendered songs, ${xPosts.items.length} X posts across ${archivePages} archive pages.`);
 if (keepLocalApiCsp) console.log("Local build: CSP keeps http://127.0.0.1:3001 and http://localhost:3001 — do not deploy this dist.");

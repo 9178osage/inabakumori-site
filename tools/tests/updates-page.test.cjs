@@ -21,7 +21,11 @@ test("the supplied X accounts are prominent original-post links with an explicit
   const html = fs.readFileSync("updates.html", "utf8");
   const primary = html.slice(html.indexOf('<section class="x-accounts"'), html.indexOf('<div class="updates-layout"'));
   for (const account of ["inabakumori", "NKNK_NGRMS"]) assert.ok(primary.includes(`href="https://x.com/${account}"`));
-  assert.match(primary, /X 帖子暂未自动收录/u);
+  assert.match(primary, /不含回复与转发/u);
+  assert.match(primary, /图片和视频请到原帖查看/u);
+  assert.doesNotMatch(html, /暂未自动收录|not automatically collected|自動収録していません/u);
+  const archive = html.slice(html.indexOf('<section class="x-posts-archive"'), html.indexOf('<div class="updates-layout"'));
+  for (const marker of ["STATUS", "ITEMS", "PAGINATION"]) assert.equal(archive.split(`<!-- X-POSTS:${marker} -->`).length, 2);
   assert.match(primary, /noopener noreferrer/u);
 });
 

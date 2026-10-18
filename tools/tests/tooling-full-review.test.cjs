@@ -55,15 +55,20 @@ test("preview refuses allowlisted symlink files, parent directories and linked 4
   } finally { box.close(); }
 });
 
+const emptyXPostsMeta = `<meta name="x-posts-version" content="${require("node:crypto").createHash("sha256").update(JSON.stringify({ version: 1, coverage: [], items: [] })).digest("hex")}"/>`;
 function publicBuild(box) {
-  for (const file of ["tools/check-build.mjs", "tools/net-guards.mjs"]) box.copy(file);
+  for (const file of ["tools/check-build.mjs", "tools/net-guards.mjs", "tools/x-posts-data.mjs", "tools/safe-fs.mjs"]) box.copy(file);
   box.write("dist/index.html", `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://inabakumori-site-production.up.railway.app"/>
 <link rel="canonical" href="https://osagechan.top/"/>
 <script type="application/ld+json">{"@type":"WebSite"}</script>
-<div id="nknk-gallery"></div><div id="nknk-lightbox"></div><section id="updates"></section><a href="#updates">Updates</a>`);
+<div id="nknk-gallery"></div><div id="nknk-lightbox"></div><section id="updates"></section><a href="#updates">Updates</a>
+${emptyXPostsMeta}`);
   box.write("dist/CNAME", "osagechan.top\n"); box.write("dist/site.webmanifest", '{"icons":[]}');
-  box.write("dist/updates.html", `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self';"/>
-<link rel="canonical" href="https://osagechan.top/updates.html"/>
+  box.write("dist/sitemap.xml", `<urlset>${["", "updates.html", "updates-inabakumori.html", "updates-nknk.html"].map(name => `<url><loc>https://osagechan.top/${name}</loc></url>`).join("")}</urlset>\n`);
+  // An empty X archive (no data/x-posts) still yields one archive page per author filter.
+  for (const name of ["updates.html", "updates-inabakumori.html", "updates-nknk.html"]) box.write(`dist/${name}`, `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self';"/>
+<link rel="canonical" href="https://osagechan.top/${name}"/>
+${emptyXPostsMeta}
 <article class="source-status"></article><article class="source-status"></article><article class="source-status"></article>`);
   box.write("dist/js/songs.js", "const SONGS = [];\n");
   box.write("dist/js/nknk-gallery.js", 'const NKNK_GALLERY = [{id:1,thumb:"images/picture.webp",full:"images/picture.webp"}];\n');
