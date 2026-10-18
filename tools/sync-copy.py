@@ -26,7 +26,7 @@ EXCLUDE = {"js/auth.js", "package-lock.json", "backend/package-lock.json"}
 BINARY = re.compile(r"\.(png|jpe?g|webp|gif|ico|avif|bmp|tiff?|svgz|eot|woff2?|ttf|otf|mp[34]|ogg|m4a|wav|flac|webm|mov|zip|gz|7z|pdf|dmp|ai|db|sqlite3?)(?:-(?:wal|shm|journal))?$", re.I)
 PRIVATE = re.compile(r"(?:^|[/_.-])(?:secrets?|credentials?|private[-_]?key|id_rsa|id_ed25519)(?:$|[/_.-])|\.(?:pem|key|p12|pfx|jks|keystore|sql|dump|bak)$", re.I)
 GENERATED = re.compile(r"^(?:(?:1-app-code|2-tools-tests|3-docs)-\d+|changes(?:-\d+)?)\.txt$")
-APP_ROOT = {"index.html", "404.html", "style.css", "script.js", "site.webmanifest", "robots.txt",
+APP_ROOT = {"index.html", "updates.html", "404.html", "style.css", "updates.css", "script.js", "site.webmanifest", "robots.txt",
             "sitemap.xml", "package.json", "CNAME", ".nojekyll", "tools/auth-src.js"}
 
 
@@ -73,7 +73,7 @@ def write_output(name, data):
 def group(p):
     if p.endswith(".md") or p.startswith("docs/"):
         return "3-docs"
-    if p in APP_ROOT or p.startswith(("js/", "backend/", "fonts/")):
+    if p in APP_ROOT or p.startswith(("js/", "backend/", "fonts/", "data/")):
         return "1-app-code"
     return "2-tools-tests"  # tools/、.github/、.gitignore、.npmrc 以及其余配置
 

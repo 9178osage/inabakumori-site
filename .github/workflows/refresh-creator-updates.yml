@@ -1,0 +1,144 @@
+name: Refresh creator updates
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: refresh-creator-updates
+  cancel-in-progress: false
+jobs:
+  refresh:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      source-outcome: ${{ steps.sources.outcome }}
+      snapshot: ${{ steps.snapshot.outputs.hash }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+      - run: npm ci
+      - run: npm --prefix backend ci
+      - name: Record the previous completed main push
+        run: node tools/record-current-deployment.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Read public creator sources
+        id: sources
+        # Publish the explicit failure status while keeping the previous entries.
+        # The final report job still fails when any source could not be checked.
+        continue-on-error: true
+        run: node tools/refresh-creator-updates.mjs
+      - run: npm test
+      - run: npm run check
+      - run: npm run test:integration
+      - run: npm run check:changelog
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Identify checked snapshot
+        id: snapshot
+        run: echo "hash=$(sha256sum data/creator-updates.json | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: creator-updates-snapshot
+          path: |
+            data/creator-updates.json
+            docs/CHANGELOG.md
+          if-no-files-found: error
+          retention-days: 3
+  commit:
+    needs: refresh
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
+      sha: ${{ steps.commit.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: creator-updates-snapshot
+          path: checked-snapshot
+      - name: Commit checked snapshot
+        id: commit
+        run: |
+          cp checked-snapshot/data/creator-updates.json data/creator-updates.json
+          cp checked-snapshot/docs/CHANGELOG.md docs/CHANGELOG.md
+          if git diff --quiet -- data/creator-updates.json docs/CHANGELOG.md; then
+            echo "No snapshot changes."
+            exit 0
+          fi
+          # Refuse to overwrite work pushed while the read-only refresh job ran.
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/creator-updates.json docs/CHANGELOG.md
+          git commit -m "chore: refresh public creator updates"
+          git push origin HEAD:refs/heads/main
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+  publish:
+    needs: [refresh, commit]
+    if: needs.commit.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Verify and publish updated snapshot
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          UPDATE_SHA: ${{ needs.commit.outputs.sha }}
+          SNAPSHOT_HASH: ${{ needs.refresh.outputs.snapshot }}
+        # Token-created commits do not trigger push workflows automatically.
+        run: |
+          gh workflow run check.yml --ref main
+          gh workflow run pages.yml --ref main
+          for attempt in $(seq 1 12); do
+            gh api --method GET "repos/$GH_REPO/actions/runs" -f head_sha="$UPDATE_SHA" -f event=workflow_dispatch -f per_page=30 > /tmp/creator-update-runs.json
+            VERIFY_RUN=$(jq -r '.workflow_runs | map(select(.name == "Verify website")) | max_by(.id) | .id // empty' /tmp/creator-update-runs.json)
+            PUBLISH_RUN=$(jq -r '.workflow_runs | map(select(.name == "Publish public site")) | max_by(.id) | .id // empty' /tmp/creator-update-runs.json)
+            if [ -n "$VERIFY_RUN" ] && [ -n "$PUBLISH_RUN" ]; then break; fi
+            sleep 10
+          done
+          test -n "$VERIFY_RUN" && test -n "$PUBLISH_RUN"
+          gh run watch "$VERIFY_RUN" --exit-status --interval 15
+          gh run watch "$PUBLISH_RUN" --exit-status --interval 15
+          for attempt in $(seq 1 12); do
+            if curl --fail --silent --show-error --max-time 20 "https://osagechan.top/updates.html?check=$UPDATE_SHA" -o /tmp/published-creator-updates.html && grep -q "name=\"creator-updates-version\" content=\"$SNAPSHOT_HASH\"" /tmp/published-creator-updates.html; then
+              echo "Verified published creator snapshot $UPDATE_SHA"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::Published page does not contain the checked creator snapshot."
+          exit 1
+  report:
+    needs: [refresh, commit, publish]
+    if: always() && needs.refresh.outputs.source-outcome == 'failure'
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - run: |
+          echo "::error::One or more official sources could not be read. Previous entries were retained; see source status on the updates page."
+          exit 1

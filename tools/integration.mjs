@@ -44,6 +44,14 @@ try {
   const page = await request(`${previewUrl}/`);
   assert.equal(page.status, 200);
   assert.match(await page.text(), /data-song-title=/);
+  const updatesPage = await request(`${previewUrl}/updates.html`);
+  assert.equal(updatesPage.status, 200);
+  const updatesHtml = await updatesPage.text();
+  assert.match(updatesHtml, /class="update-item"/u);
+  assert.match(updatesHtml, /data-creator="inabakumori"/u);
+  assert.match(updatesHtml, /data-creator="nknk"/u);
+  for (const asset of ["updates.css", "js/updates.js"]) assert.equal((await request(`${previewUrl}/${asset}`)).status, 200);
+  assert.equal((await request(`${previewUrl}/data/creator-updates.json`)).status, 404, "Only rendered public content is served");
   for (const file of ["/backend/.env", "/backend/server.mjs", "/AI_HANDOFF.md", "/docs/AI_HANDOFF.md", "/docs/OPTIMIZATION.md", "/.git/config"]) assert.equal((await request(previewUrl + file)).status, 404);
   assert.deepEqual(await (await request(`${api}/healthz`)).json(), { ok: true, version: "dev" });
   assert.deepEqual(await (await request(`${api}/`)).json(), { ok: true });

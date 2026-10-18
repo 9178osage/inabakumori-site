@@ -6,6 +6,7 @@ import path from "node:path";
 import vm from "node:vm";
 import { assertRepoPath } from "./safe-fs.mjs";
 import { stripLoopbackCspSources } from "./net-guards.mjs";
+import { renderCreatorUpdates } from "./render-creator-updates.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const out = path.join(root, "dist");
@@ -24,8 +25,8 @@ await build({ entryPoints: [source("tools/auth-src.js")], bundle: true, platform
 // dist is generated exclusively by this script. Only explicitly public assets are copied.
 await rm(output("dist"), { recursive: true, force: true });
 await mkdir(out, { recursive: true });
-const scripts = ["script.js", ...["preferences", "config", "network", "i18n", "auth", "songs", "nknk-gallery", "nknk-gallery-ui", "experience", "comments"].map(name => `js/${name}.js`)];
-const css = ["style.css", "fonts/fonts.css"];
+const scripts = ["script.js", ...["preferences", "config", "network", "i18n", "auth", "songs", "nknk-gallery", "nknk-gallery-ui", "experience", "comments", "updates"].map(name => `js/${name}.js`)];
+const css = ["style.css", "updates.css", "fonts/fonts.css"];
 const hashes = new Map();
 for (const file of [...scripts, ...css]) {
   const text = await readFile(source(file), "utf8");
@@ -88,6 +89,18 @@ if (!keepLocalApiCsp) {
 }
 html = html.replace(/(src|href)="([^"?]+)(?:\?[^"\s]*)?"/g, (match, attribute, file) => hashes.has(file) ? `${attribute}="${file}?v=${hashes.get(file)}"` : match);
 await writeFile(output("dist/index.html"), html);
+const updatesSource = await readFile(source("data/creator-updates.json"), "utf8");
+const updatesVersion = createHash("sha256").update(updatesSource).digest("hex");
+const updates = renderCreatorUpdates(JSON.parse(updatesSource));
+let updatesHtml = await readFile(source("updates.html"), "utf8");
+updatesHtml = updatesHtml.replace("</head>", `<meta name="creator-updates-version" content="${updatesVersion}"/>\n</head>`);
+for (const [marker, content] of [["STATUS", updates.status], ["ITEMS", updates.items]]) {
+  const placeholder = `<!-- UPDATES:${marker} -->`;
+  if (updatesHtml.split(placeholder).length !== 2) throw new Error(`Expected one updates ${marker} placeholder`);
+  updatesHtml = updatesHtml.replace(placeholder, () => content);
+}
+updatesHtml = updatesHtml.replace(/(src|href)="([^"?]+)(?:\?[^"\s]*)?"/g, (match, attribute, file) => hashes.has(file) ? `${attribute}="${file}?v=${hashes.get(file)}"` : match);
+await writeFile(output("dist/updates.html"), updatesHtml);
 let bytes = 0, files = 0;
 async function measure(folder) {
   for (const entry of await readdir(folder, { withFileTypes: true })) {

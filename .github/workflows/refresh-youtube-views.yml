@@ -83,8 +83,10 @@ jobs:
       contents: read
       actions: write
     steps:
-      - name: Publish updated view counts
+      - name: Verify and publish updated view counts
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
-        run: gh workflow run pages.yml --ref main
+        run: |
+          gh workflow run check.yml --ref main
+          gh workflow run pages.yml --ref main
