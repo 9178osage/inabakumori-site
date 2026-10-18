@@ -25,7 +25,7 @@ await build({ entryPoints: [source("tools/auth-src.js")], bundle: true, platform
 // dist is generated exclusively by this script. Only explicitly public assets are copied.
 await rm(output("dist"), { recursive: true, force: true });
 await mkdir(out, { recursive: true });
-const scripts = ["script.js", ...["preferences", "config", "network", "i18n", "auth", "songs", "nknk-gallery", "nknk-gallery-ui", "experience", "comments", "updates"].map(name => `js/${name}.js`)];
+const scripts = ["script.js", ...["preferences", "config", "network", "i18n", "auth", "songs", "nknk-gallery", "nknk-gallery-ui", "experience", "comments", "updates", "home-updates"].map(name => `js/${name}.js`)];
 const css = ["style.css", "updates.css", "fonts/fonts.css"];
 const hashes = new Map();
 for (const file of [...scripts, ...css]) {
@@ -72,7 +72,19 @@ const context = vm.createContext({});
 vm.runInContext(await readFile(source("js/songs.js"), "utf8"), context);
 const songs = vm.runInContext("SONGS", context);
 const escape = value => String(value).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const updatesSource = await readFile(source("data/creator-updates.json"), "utf8");
+const updatesVersion = createHash("sha256").update(updatesSource).digest("hex");
+const updates = renderCreatorUpdates(JSON.parse(updatesSource));
+function fillUpdates(template, prefix) {
+  for (const [marker, content] of [["STATUS", updates.status], ["ITEMS", updates.items]]) {
+    const placeholder = `<!-- ${prefix}:${marker} -->`;
+    if (template.split(placeholder).length !== 2) throw new Error(`Expected one ${prefix} ${marker} placeholder`);
+    template = template.replace(placeholder, () => content);
+  }
+  return template.replace("</head>", `<meta name="creator-updates-version" content="${updatesVersion}"/>\n</head>`);
+}
 let html = await readFile(source("index.html"), "utf8");
+html = fillUpdates(html, "HOME-UPDATES");
 // Share-tracking parameters (?si=...) identify who shared a link; published links never carry them.
 const cleanSongUrl = value => {
   const url = new URL(value);
@@ -89,16 +101,7 @@ if (!keepLocalApiCsp) {
 }
 html = html.replace(/(src|href)="([^"?]+)(?:\?[^"\s]*)?"/g, (match, attribute, file) => hashes.has(file) ? `${attribute}="${file}?v=${hashes.get(file)}"` : match);
 await writeFile(output("dist/index.html"), html);
-const updatesSource = await readFile(source("data/creator-updates.json"), "utf8");
-const updatesVersion = createHash("sha256").update(updatesSource).digest("hex");
-const updates = renderCreatorUpdates(JSON.parse(updatesSource));
-let updatesHtml = await readFile(source("updates.html"), "utf8");
-updatesHtml = updatesHtml.replace("</head>", `<meta name="creator-updates-version" content="${updatesVersion}"/>\n</head>`);
-for (const [marker, content] of [["STATUS", updates.status], ["ITEMS", updates.items]]) {
-  const placeholder = `<!-- UPDATES:${marker} -->`;
-  if (updatesHtml.split(placeholder).length !== 2) throw new Error(`Expected one updates ${marker} placeholder`);
-  updatesHtml = updatesHtml.replace(placeholder, () => content);
-}
+let updatesHtml = fillUpdates(await readFile(source("updates.html"), "utf8"), "UPDATES");
 updatesHtml = updatesHtml.replace(/(src|href)="([^"?]+)(?:\?[^"\s]*)?"/g, (match, attribute, file) => hashes.has(file) ? `${attribute}="${file}?v=${hashes.get(file)}"` : match);
 await writeFile(output("dist/updates.html"), updatesHtml);
 let bytes = 0, files = 0;

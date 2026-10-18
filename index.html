@@ -130,7 +130,7 @@
 <p class="hero-description" data-zh="在声音与雨之间，停留一会儿。" data-en="Stay a while, between sound and rain." data-ja="音と雨のあいだで、ひと休み。">在声音与雨之间，停留一会儿。</p>
 <a class="hero-cta" href="#songs"><span data-zh="探索歌曲" data-en="Explore the music" data-ja="楽曲を探す">探索歌曲</span><span aria-hidden="true">↗</span></a>
 <nav aria-label="主导航 / Main navigation">
-<a href="updates.html" data-zh="最新动态" data-en="Latest updates" data-ja="最新情報">最新动态</a>
+<a href="#updates" data-zh="最新动态" data-en="Latest updates" data-ja="最新情報">最新动态</a>
 <a data-en="Intro" data-zh="简介" data-ja="紹介" href="#intro">
                     简介
                 </a>
@@ -143,10 +143,10 @@
 </a>
 </nav>
 </div>
-<div class="hero-bottom"><a href="#intro" aria-label="向下浏览" data-aria-zh="向下浏览" data-aria-en="Scroll down" data-aria-ja="下へスクロール">↓</a></div>
+<div class="hero-bottom"><a href="#updates" aria-label="向下浏览" data-aria-zh="向下浏览" data-aria-en="Scroll down" data-aria-ja="下へスクロール">↓</a></div>
 </header>
 <nav class="section-nav" aria-label="章节导航 / Section navigation">
-<a href="updates.html" data-zh="动态" data-en="Updates" data-ja="最新情報">动态</a>
+<a href="#updates" data-zh="动态" data-en="Updates" data-ja="最新情報">动态</a>
 <a href="#intro" data-zh="简介" data-en="Intro" data-ja="紹介">简介</a>
 <a href="#artwork" data-zh="插画" data-en="Artwork" data-ja="イラスト">插画</a>
 <a href="#songs" data-zh="歌曲" data-en="Songs" data-ja="楽曲">歌曲</a>
@@ -156,6 +156,34 @@
 
 <main id="main-content" tabindex="-1">
 <p id="site-status" class="site-status" role="status" aria-live="polite" hidden></p>
+
+<section id="updates" class="home-updates" aria-labelledby="home-updates-title">
+<div class="home-updates-header">
+<p class="section-kicker">00 / LATEST OBSERVATIONS</p>
+<h2 id="home-updates-title" data-zh="最新动态" data-en="LATEST UPDATES" data-ja="最新情報">最新动态</h2>
+<p data-zh="稲葉曇与 NKNK 的作品和消息，在这里接着看。每条记录都保留原始标题、发布时间与来源。" data-en="Work and news from Inabakumori and NKNK, right here. Each entry keeps its original title, publication date and source." data-ja="稲葉曇さんとNKNKさんの作品とお知らせを、ここで。原題、公開日時、取得元をそれぞれ掲載しています。">稲葉曇与 NKNK 的作品和消息，在这里接着看。每条记录都保留原始标题、发布时间与来源。</p>
+</div>
+<div class="home-updates-accounts">
+<a href="https://x.com/inabakumori" target="_blank" rel="noopener noreferrer"><strong>稲葉曇</strong><span>@inabakumori</span><span data-zh="本人 X 账号 ↗" data-en="Official X account ↗" data-ja="ご本人のX ↗">本人 X 账号 ↗</span></a>
+<a href="https://x.com/NKNK_NGRMS" target="_blank" rel="noopener noreferrer"><strong>NKNK</strong><span>@NKNK_NGRMS</span><span data-zh="本人 X 账号 ↗" data-en="Official X account ↗" data-ja="ご本人のX ↗">本人 X 账号 ↗</span></a>
+</div>
+<p class="home-updates-note" data-zh="下方收录官方 YouTube 视频、pixiv 插画与合作项目公告；X 帖子暂未自动收录，日常近况可从本人账号查看。" data-en="Collected below: official YouTube videos, pixiv illustrations and collaboration announcements. X posts are not automatically collected; visit their accounts for daily news." data-ja="公式YouTubeの動画、pixivのイラスト、コラボ企画のお知らせを掲載しています。Xの投稿は現在自動収録していません。日々の近況はご本人のアカウントをご覧ください。">下方收录官方 YouTube 视频、pixiv 插画与合作项目公告；X 帖子暂未自动收录，日常近况可从本人账号查看。</p>
+<div class="home-updates-toolbar" role="group" aria-label="按创作者筛选动态" data-aria-zh="按创作者筛选动态" data-aria-en="Filter updates by creator" data-aria-ja="クリエイター別の最新情報" hidden>
+<button type="button" data-home-creator="all" aria-pressed="true" data-zh="全部动态" data-en="All updates" data-ja="すべて">全部动态</button>
+<button type="button" data-home-creator="inabakumori" aria-pressed="false">稲葉曇</button>
+<button type="button" data-home-creator="nknk" aria-pressed="false">NKNK</button>
+</div>
+<p id="home-updates-count" class="home-updates-count" role="status" aria-live="polite" hidden></p>
+<div id="home-updates-feed" class="home-updates-feed">
+<!-- HOME-UPDATES:ITEMS -->
+</div>
+<p id="home-updates-empty" class="home-updates-note" data-zh="暂未收录这位创作者的动态，请先查看上方本人账号。" data-en="No collected updates from this creator yet. Visit their account above." data-ja="このクリエイターの更新はまだ収録されていません。上の公式アカウントをご覧ください。" hidden>暂未收录这位创作者的动态，请先查看上方本人账号。</p>
+<button id="home-updates-more" type="button" aria-controls="home-updates-feed" hidden>查看更多动态</button>
+<noscript><p class="home-updates-note">已展示全部收录内容，启用 JavaScript 后可筛选创作者和分批浏览。 / All collected entries are shown. Enable JavaScript to filter creators and show entries in batches. / 収録済みの内容をすべて表示しています。クリエイター別の絞り込みや分割表示には JavaScript を有効にしてください。</p></noscript>
+<details class="home-updates-sources"><summary data-zh="来源与核对时间" data-en="Sources and check times" data-ja="取得元と確認日時">来源与核对时间</summary><div class="home-updates-status">
+<!-- HOME-UPDATES:STATUS -->
+</div></details>
+</section>
 
 <section id="about" aria-labelledby="intro-title">
 <div class="artist-profile" id="intro">
@@ -436,5 +464,6 @@
 <script src="js/nknk-gallery-ui.js?v=20261011domain" defer></script>
 <script src="js/experience.js?v=20261011domain" defer></script>
 <script src="js/comments.js?v=20261011domain" defer></script>
+<script src="js/home-updates.js" defer></script>
 </body>
 </html>
