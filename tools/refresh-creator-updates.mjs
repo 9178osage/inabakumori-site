@@ -290,13 +290,36 @@ export async function writeUpdatesSnapshot(root, data, { renameImpl = rename } =
   }
 }
 
+// A successful check only advances checkedAt; committing that alone every run would create a
+// bot commit (and a publish) per schedule. Rewrite the snapshot when items, statuses or messages
+// change, or as a heartbeat once the stored successful check is older than HEARTBEAT_MS, so the
+// public "last successful check" stays inside STALE_MS without a daily timestamp-only commit.
+export const HEARTBEAT_MS = 36 * 60 * 60 * 1000;
+export const STALE_MS = 72 * 60 * 60 * 1000;
+const withoutTimes = data => JSON.stringify({ ...data, sources: data.sources.map(({ checkedAt: _checked, lastAttemptAt: _attempt, ...rest }) => rest) });
+export function snapshotNeedsWrite(previous, next, { now = new Date().toISOString(), heartbeatMs = HEARTBEAT_MS } = {}) {
+  if (!previous) return true;
+  let before;
+  try { before = normalizeUpdates(previous); } catch { return true; }
+  const after = normalizeUpdates(next);
+  if (withoutTimes(before) !== withoutTimes(after)) return true;
+  const current = Date.parse(timestamp(now));
+  return after.sources.some(source => {
+    if (source.status !== "ok") return false;
+    const stored = before.sources.find(entry => entry.id === source.id)?.checkedAt;
+    return !stored || current - Date.parse(stored) >= heartbeatMs;
+  });
+}
+
 async function main() {
   const snapshot = assertRepoPath(ROOT, "data/creator-updates.json");
   let previous;
   try { previous = JSON.parse(await readFile(snapshot, "utf8")); }
   catch (error) { if (error.code !== "ENOENT") throw error; }
-  const { data, errors } = await refreshCreatorUpdates(previous);
-  await writeUpdatesSnapshot(ROOT, data);
+  const now = new Date().toISOString();
+  const { data, errors } = await refreshCreatorUpdates(previous, { now });
+  if (snapshotNeedsWrite(previous, data, { now })) await writeUpdatesSnapshot(ROOT, data);
+  else console.log("No update, status or heartbeat change; snapshot left untouched.");
   for (const source of data.sources) console.log(`${source.label}: ${source.status}, ${data.items.filter(item => item.source === source.id).length} retained updates; last successful check ${source.checkedAt || "never"}.`);
   for (const error of errors) console.error(`${error.source}: ${error.message}`);
   if (errors.length) process.exitCode = 1;

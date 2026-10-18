@@ -93,7 +93,7 @@
     function updateStaleness() {
       document.querySelectorAll(".source-status").forEach(element => {
         const stamp = Date.parse(element.dataset.checkedAt);
-        const stale = !Number.isFinite(stamp) || Date.now() - stamp > 48 * 60 * 60 * 1000;
+        const stale = !Number.isFinite(stamp) || Date.now() - stamp > 72 * 60 * 60 * 1000;
         const notice = element.querySelector(".source-stale");
         if (notice) notice.hidden = !stale;
       });
