@@ -226,3 +226,18 @@ test("the real default CLI detects five missing pushes and reports the exact Git
     assert.match(complete.stdout, /current push exempt/u);
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 });
+
+test("a push whose Publish workflow was disabled can be recorded as Verify / — but never when Publish did run", async () => {
+  const { verifyChangelogTable, parseChangelogTable } = await load();
+  const verifyOnly = sha("bbbbbbb");
+  const runs = [...pair(800, through), pair(200, verifyOnly)[0], ...baseline()];
+  const markdown = table([`| 10-17 | \`${verifyOnly.slice(0, 7)}\` | Publish disabled | 200 / — |`, row(since, 101, "10-16")]);
+  const result = await verifyChangelogTable(markdown, { coverage: scope([verifyOnly]), fetchImpl: api([runs]) });
+  assert.deepEqual(result.coverage, { since, through, pushes: 2, recorded: 1, currentHeadExempt: true });
+  const published = [...pair(800, through), ...pair(200, verifyOnly), ...baseline()];
+  await assert.rejects(verifyChangelogTable(markdown, { coverage: scope([verifyOnly]), fetchImpl: api([published]) }), /record its run ID instead of —/u);
+  const wrong = [...pair(800, through), { ...pair(200, verifyOnly)[0], name: "Publish public site" }, ...baseline()];
+  await assert.rejects(verifyChangelogTable(markdown, { coverage: scope([verifyOnly]), fetchImpl: api([wrong]) }), /must be Verify website/u);
+  assert.throws(() => parseChangelogTable(table([`| 10-17 | \`${verifyOnly.slice(0, 7)}\` | x | — / 201 |`])), /Verify \/ Publish run ID pair|primary/u);
+  assert.throws(() => parseChangelogTable(table([`| 10-17 | \`aaaaaaa\`、\`${verifyOnly.slice(0, 7)}\` | x | 200 / 201（\`aaaaaaa\` 的推送：300 / —） |`])), /Verify \/ Publish run ID pair|unparsed/u);
+});

@@ -33,7 +33,7 @@ GitHub 仅保证携带有效 Authorization 的条件请求在收到 `304` 时不
 
 此前遇到的 `403` 仍是当时真实的校验失败，后续重试成功不改写该历史结果。GitHub API 的故障仍可能使本地门禁和 `Verify website` 失败；恢复后应重跑，不能跳过记录。`Publish public site` 独立运行，不会自动等待这项检查；发布后仍须确认两条工作流都成功。
 
-当前表格仅接受 `main` 分支上由 `push` 触发的 Verify / Publish 运行。若以后要记录 `workflow_dispatch` 手动部署，应先扩展事件校验规则和测试，再填写对应运行号。
+当前表格仅接受 `main` 分支上由 `push` 触发的 Verify / Publish 运行。若某次 main 推送时 `Publish public site` 已停用、确实没有产生 Publish 运行，该行主运行对写作 `Verify 运行号 / —`；Verify 照常联网核对，覆盖核对若在运行列表中发现该提交有 Publish push 运行则失败，`—` 不能用于括号内的历史运行或掩盖失败的发布。若以后要记录 `workflow_dispatch` 手动部署，应先扩展事件校验规则和测试，再填写对应运行号。
 
 CI 的联网记录校验只在 `push` 到 `refs/heads/main` 时执行。PR、其他分支或标签的推送、手动运行均跳过这一步，继续执行包含本地表格结构校验的 `npm run check`、认证构建产物一致性检查和集成测试。PR 默认检出合成的 merge commit，其 HEAD 与 main 的最后推送头不同，不能套用发布记录的当前 HEAD 例外，详见 [GitHub 的 PR 事件说明](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request)。报告这些运行时应写「联网步骤跳过」，不能写「线上记录校验通过」；本地发布前仍须执行并通过四项门禁。
 
