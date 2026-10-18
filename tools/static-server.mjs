@@ -7,7 +7,7 @@ import { assertRepoPath } from "./safe-fs.mjs";
 const project = fileURLToPath(new URL("../", import.meta.url));
 const root = process.argv.includes("--dist") ? path.join(project, "dist") : project;
 const entrypoints = new Set(["index.html", "updates.html", "404.html", "style.css", "updates.css", "favicon.ico", "site.webmanifest", "robots.txt", "sitemap.xml"]);
-const scripts = new Set(["script.js", ...["preferences", "config", "network", "i18n", "auth", "songs", "nknk-gallery", "nknk-gallery-ui", "experience", "comments", "updates", "home-updates"].map(name => `js/${name}.js`)]);
+const scripts = new Set(["script.js", ...["preferences", "config", "network", "i18n", "auth", "songs", "nknk-gallery", "nknk-gallery-ui", "experience", "comments", "updates", "home-updates", "x-posts-home"].map(name => `js/${name}.js`)]);
 const mime = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".json": "application/json", ".webmanifest": "application/manifest+json", ".xml": "application/xml", ".txt": "text/plain; charset=utf-8", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".ico": "image/x-icon", ".woff2": "font/woff2" };
 export function publicPath(url) {
   let pathname;
@@ -16,6 +16,8 @@ export function publicPath(url) {
   if (!pathname) return "index.html";
   if (pathname.split("/").some(part => part.startsWith(".") || !part) || pathname.includes("\\")) return null;
   if (entrypoints.has(pathname) || scripts.has(pathname)) return pathname;
+  // Only the archive's generated HTML naming scheme is public; its JSON stays local.
+  if (/^updates(?:-(?:inabakumori|nknk))?(?:-page-(?:[2-9]|[1-9][0-9]{1,4}))?\.html$/u.test(pathname)) return pathname;
   if (/^images\/[\w/-]+\.(png|jpe?g|webp|ico)$/iu.test(pathname)) return pathname;
   if (/^fonts\/[\w-]+\.(woff2|css|txt)$/iu.test(pathname)) return pathname;
   return null;
