@@ -47,7 +47,7 @@
       section.querySelectorAll(".source-status").forEach(source => {
         const checked = Date.parse(source.dataset.checkedAt);
         const warning = source.querySelector(".source-stale");
-        if (warning) warning.hidden = Number.isFinite(checked) && Date.now() - checked <= 48 * 60 * 60 * 1000;
+        if (warning) warning.hidden = Number.isFinite(checked) && Date.now() - checked <= 72 * 60 * 60 * 1000;
       });
     }
     let timer = null;

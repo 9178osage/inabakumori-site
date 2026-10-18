@@ -1,7 +1,7 @@
 name: Refresh creator updates
 on:
   schedule:
-    - cron: "17 */6 * * *"
+    - cron: "17 11 * * *" # Daily at 11:17 UTC (04:17 PDT / 03:17 PST).
   workflow_dispatch:
 permissions:
   contents: read

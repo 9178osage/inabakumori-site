@@ -176,3 +176,43 @@ test("snapshot writer refuses a symlinked destination before touching the target
     assert.equal(await fs.readFile(victim, "utf8"), "KEEP");
   } finally { await fs.rm(directory, { recursive: true, force: true }); }
 });
+
+test("an unchanged successful refresh does not rewrite the snapshot until the check-time heartbeat is due", async () => {
+  const { refreshCreatorUpdates, snapshotNeedsWrite, HEARTBEAT_MS, STALE_MS } = await load();
+  assert.ok(HEARTBEAT_MS + 24 * 60 * 60 * 1000 < STALE_MS, "a skipped daily run must still leave the published check inside the stale window");
+  const { data: first } = await refreshCreatorUpdates(undefined, { now: BEFORE, fetchImpl: async url => fakeFetch(url) });
+  const { data: second } = await refreshCreatorUpdates(first, { now: NOW, fetchImpl: async url => fakeFetch(url) });
+  assert.notEqual(second.sources[0].checkedAt, first.sources[0].checkedAt, "check times still advance in memory");
+  assert.equal(snapshotNeedsWrite(first, second, { now: NOW }), false, "timestamp-only changes must not produce a commit");
+  const later = new Date(Date.parse(BEFORE) + HEARTBEAT_MS).toISOString();
+  const { data: third } = await refreshCreatorUpdates(first, { now: later, fetchImpl: async url => fakeFetch(url) });
+  assert.equal(snapshotNeedsWrite(first, third, { now: later }), true, "heartbeat keeps the public check time fresh");
+  assert.equal(snapshotNeedsWrite(undefined, first, { now: BEFORE }), true);
+  assert.equal(snapshotNeedsWrite({ broken: true }, first, { now: BEFORE }), true);
+});
+
+test("new items, changed titles and source failures still rewrite the snapshot immediately", async () => {
+  const { refreshCreatorUpdates, snapshotNeedsWrite } = await load();
+  const { data: first } = await refreshCreatorUpdates(undefined, { now: BEFORE, fetchImpl: async url => fakeFetch(url) });
+  const renamed = await refreshCreatorUpdates(first, { now: NOW, fetchImpl: async url => url.includes("/feeds/") ? response(feed({ title: "新しい題" })) : fakeFetch(url) });
+  assert.equal(snapshotNeedsWrite(first, renamed.data, { now: NOW }), true);
+  const failed = await refreshCreatorUpdates(first, { now: NOW, sleep: async () => {}, fetchImpl: async url => url.includes("camp-fire.jp") ? response("down", 403) : fakeFetch(url) });
+  assert.equal(snapshotNeedsWrite(first, failed.data, { now: NOW }), true, "ok -> error must be published");
+  const stillFailed = await refreshCreatorUpdates(failed.data, { now: "2026-10-18T07:00:00.000Z", sleep: async () => {}, fetchImpl: async url => url.includes("camp-fire.jp") ? response("down", 403) : fakeFetch(url) });
+  assert.equal(snapshotNeedsWrite(failed.data, stillFailed.data, { now: "2026-10-18T07:00:00.000Z" }), false, "a repeated failure only moves the attempt time");
+});
+
+test("creator refresh runs once a day and both pages warn after the shared stale window", async () => {
+  const root = path.join(__dirname, "..", "..");
+  const workflow = await fs.readFile(path.join(root, ".github/workflows/refresh-creator-updates.yml"), "utf8");
+  const crons = [...workflow.matchAll(/cron:\s*"([^"]+)"/gu)].map(match => match[1]);
+  assert.deepEqual(crons, ["17 11 * * *"]);
+  for (const file of ["js/updates.js", "js/home-updates.js"]) {
+    const source = await fs.readFile(path.join(root, file), "utf8");
+    assert.match(source, /72 \* 60 \* 60 \* 1000/u, file);
+    assert.doesNotMatch(source, /48 \* 60 \* 60 \* 1000/u, file);
+  }
+  const render = await fs.readFile(path.join(root, "tools/render-creator-updates.mjs"), "utf8");
+  assert.match(render, /超过 72 小时/u);
+  assert.doesNotMatch(render, /48/u);
+});
