@@ -23,12 +23,15 @@ function cells(line) {
   return line.trim().slice(1, -1).split(/(?<!\\)\|/u).map(cell => cell.trim());
 }
 
-function runPair(text, line) {
-  const match = /^(\d+)\s*\/\s*(\d+)$/u.exec(text.trim());
-  if (!match || match.slice(1).some(id => !/^[1-9]\d*$/u.test(id) || !Number.isSafeInteger(Number(id)))) {
+// A primary pair may write "—" for Publish only when that push really produced no Publish run
+// (e.g. the workflow was disabled); the Verify run is still checked online like any other.
+function runPair(text, line, { allowMissingPublish = false } = {}) {
+  const match = /^(\d+)\s*\/\s*(\d+|—)$/u.exec(text.trim());
+  const ids = match ? [match[1], match[2] === "—" ? null : match[2]] : [];
+  if (!match || (ids[1] === null && !allowMissingPublish) || ids.some(id => id !== null && (!/^[1-9]\d*$/u.test(id) || !Number.isSafeInteger(Number(id))))) {
     rowError(line, "expected a Verify / Publish run ID pair");
   }
-  return match.slice(1);
+  return ids;
 }
 
 // Each row has one primary pair for its last commit, plus explicitly attributed
@@ -82,9 +85,9 @@ export function parseChangelogTable(markdown) {
       }
       seenCommits.set(commit, line);
     }
-    const primary = /^(\d+\s*\/\s*\d+)(.*)$/u.exec(ci);
+    const primary = /^(\d+\s*\/\s*(?:\d+|—))(.*)$/u.exec(ci);
     if (!primary) rowError(line, "missing primary Verify / Publish pair");
-    const pairs = [{ commit: commits.at(-1), ids: runPair(primary[1], line), primary: true }];
+    const pairs = [{ commit: commits.at(-1), ids: runPair(primary[1], line, { allowMissingPublish: true }), primary: true }];
     let tail = primary[2].trim();
     while (tail) {
       const annotation = /^[（(]`([0-9a-f]{7,40})`\s*的(?:运行失败|推送|运行)[：:]\s*(\d+\s*\/\s*\d+)([^（）()]*)[）)]/iu.exec(tail);
@@ -95,7 +98,7 @@ export function parseChangelogTable(markdown) {
       tail = tail.slice(annotation[0].length).trim();
     }
     for (const pair of pairs) {
-      for (const id of pair.ids) {
+      for (const id of pair.ids.filter(Boolean)) {
         if (seenRuns.has(id)) rowError(line, `run ${id} repeats line ${seenRuns.get(id)}`);
         seenRuns.set(id, line);
       }
@@ -180,9 +183,10 @@ export async function verifyChangelogTable(markdown, {
       !["direct", "paginated"].includes(lookup) || !Number.isInteger(maxPages) || maxPages < 1 || maxPages > 100) {
     throw new Error("Invalid GitHub request configuration");
   }
-  const ids = rows.flatMap(row => row.pairs.flatMap(pair => pair.ids));
+  const ids = rows.flatMap(row => row.pairs.flatMap(pair => pair.ids.filter(Boolean)));
   const runs = new Map();
   const pushHeads = new Set();
+  const publishHeads = new Set();
   const baselineAnchors = new Set();
   let completeScope = false;
   const requestOptions = { fetchImpl, repo, token, deadlineMs, cache, stats, maxRetries, retryBaseMs, maxRetryWaitMs };
@@ -221,6 +225,7 @@ export async function verifyChangelogTable(markdown, {
           }
           if (parsed.event === "push" && parsed.head_branch === "main" && WORKFLOWS.includes(parsed.name)) {
             if (scope.heads.has(parsed.head_sha)) pushHeads.add(parsed.head_sha);
+            if (parsed.name === WORKFLOWS[1]) publishHeads.add(parsed.head_sha);
           }
         }
         if (wanted.has(id)) runs.set(id, parsed);
@@ -245,14 +250,15 @@ export async function verifyChangelogTable(markdown, {
   for (const row of rows) {
     let primaryTime;
     for (const pair of row.pairs) {
-      const pairRuns = pair.ids.map(id => runs.get(id));
+      const pairRuns = pair.ids.map(id => id && runs.get(id));
       pairRuns.forEach((run, i) => {
+        if (!run) return;
         if (run.name !== WORKFLOWS[i]) rowError(row.line, `run ${pair.ids[i]} must be ${WORKFLOWS[i]}`);
         if (run.event !== "push" || run.head_branch !== "main") rowError(row.line, `run ${pair.ids[i]} must be a push on main`);
         if (!SHA.test(pair.commit) || !run.head_sha.startsWith(pair.commit)) rowError(row.line, `run ${pair.ids[i]} commit mismatch`);
       });
-      if (pairRuns[0].head_sha !== pairRuns[1].head_sha) rowError(row.line, "Verify / Publish runs have different commits");
-      const time = Math.min(...pairRuns.map(run => run.createdMs));
+      if (pairRuns[1] && pairRuns[0].head_sha !== pairRuns[1].head_sha) rowError(row.line, "Verify / Publish runs have different commits");
+      const time = Math.min(...pairRuns.filter(Boolean).map(run => run.createdMs));
       if (pair.primary) primaryTime = time;
       else if (time > primaryTime) rowError(row.line, "historical runs are newer than the primary push");
     }
@@ -264,6 +270,11 @@ export async function verifyChangelogTable(markdown, {
   if (scope) {
     if (!completeScope) throw new Error("Incomplete changelog push coverage: both original baseline main/push run anchors must be present before the page limit or list end");
     const primaryHeads = new Set(rows.map(row => runs.get(row.pairs[0].ids[0]).head_sha));
+    for (const row of rows) {
+      if (row.pairs[0].ids[1] === null && publishHeads.has(runs.get(row.pairs[0].ids[0]).head_sha)) {
+        rowError(row.line, "a Publish push run exists for this commit; record its run ID instead of —");
+      }
+    }
     const missingHeads = [...pushHeads].filter(head => head !== scope.through && !primaryHeads.has(head));
     if (missingHeads.length) throw new Error(`Missing deployment table rows for ${missingHeads.length} main/push head(s) within ${scope.since.slice(0, 7)}..${scope.through.slice(0, 7)}: ${missingHeads.map(head => head.slice(0, 7)).join(", ")}`);
     if (scope.since !== scope.through && !primaryHeads.has(scope.since)) {
@@ -355,7 +366,7 @@ async function main() {
   // Structural checks work in PR/branch checkouts without credentials, Git or cache.
   const rows = parseChangelogTable(markdown);
   if (args[0] === "--structure-only") {
-    const references = rows.reduce((count, row) => count + row.pairs.reduce((sum, pair) => sum + pair.ids.length, 0), 0);
+    const references = rows.reduce((count, row) => count + row.pairs.reduce((sum, pair) => sum + pair.ids.filter(Boolean).length, 0), 0);
     console.log(`Deployment table structure verified offline: ${rows.length} rows, ${references} run ID references; GitHub metadata and push coverage were not checked.`);
     return;
   }
