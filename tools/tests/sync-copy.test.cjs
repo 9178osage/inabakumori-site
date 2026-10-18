@@ -10,7 +10,8 @@ const OUT = "inabakumori-site-all-code";
 const GUIDE = "0-使用说明.txt";
 const CAP = 130000;
 const exclusions = ["js/auth.js", "package-lock.json", "backend/package-lock.json", ".env.fixture",
-  "backend/comments.db", "keys/private-key.pem", "dist/generated.js", "images/picture.png", "binary.dat"];
+  "backend/comments.db", "keys/private-key.pem", "dist/generated.js", "images/picture.png", "binary.dat",
+  `data/x-posts/posts-${"a".repeat(64)}.json`];
 
 function fixture(extra = {}) {
   const directory = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "station-copy-tool-")));
