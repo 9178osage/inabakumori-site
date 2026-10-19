@@ -120,7 +120,9 @@ for (const creator of ["all", "inabakumori", "nknk"]) {
     assert.ok(pageHtml.includes(`<meta name="x-posts-version" content="${xVersion}"/>`), `Stale X snapshot fingerprint: ${name}`);
     assert.doesNotMatch(pageHtml, /<!-- (?:UPDATES|X-POSTS):/u, `Unrendered archive placeholder: ${name}`);
     assert.equal([...pageHtml.matchAll(/class="source-status"/gu)].length, 3, `Each works source needs a visible check status: ${name}`);
-    assert.equal([...pageHtml.matchAll(/class="update-item"/gu)].length, legacyCount, `Works snapshot missing from archive: ${name}`);
+    // Page 1 carries the works snapshot; later pages link back to it instead of repeating it.
+    assert.equal([...pageHtml.matchAll(/class="update-item"/gu)].length, page === 1 ? legacyCount : 0, `Works snapshot must appear only on archive page 1: ${name}`);
+    if (page > 1) assert.ok(pageHtml.includes('data-works-list-link><a href="updates.html#feed-title"'), `Later archive pages must link to the works list: ${name}`);
     const updatesCsp = pageHtml.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)"/)?.[1];
     assert.ok(updatesCsp && /script-src 'self';/u.test(updatesCsp) && /connect-src 'self';/u.test(updatesCsp), `Archive must use local scripts and a local snapshot: ${name}`);
     assert.doesNotMatch(updatesCsp, /unsafe-inline|unsafe-eval|localhost|127\.0\.0\.1/iu);
