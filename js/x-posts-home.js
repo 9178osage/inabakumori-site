@@ -45,7 +45,8 @@
 
     buttons.forEach(button => button.addEventListener("click", () => {
       const next = button.dataset.xHomeCreator;
-      if (!Object.hasOwn(ARCHIVE_PAGES, next)) return;
+      // Object.hasOwn is newer than the oldest Safari the site supports; use the ES5 form here.
+      if (!Object.prototype.hasOwnProperty.call(ARCHIVE_PAGES, next)) return;
       creator = next;
       render();
     }));

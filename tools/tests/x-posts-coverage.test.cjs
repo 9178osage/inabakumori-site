@@ -20,10 +20,10 @@ test("home and archive show each creator's saved count and date range in JST", a
   const { renderXPostsHome, renderXPostsArchive } = await import("../render-x-posts.mjs");
   const archive = snapshot();
   for (const html of [renderXPostsHome(archive), renderXPostsArchive(archive).status]) {
-    assert.match(html, /稲葉曇：已收录 2 条 · 实际收录范围 2026-02-22 至 2026-03-08（JST）/u);
-    assert.match(html, /NKNK：已收录 1 条 · 实际收录范围 2026-08-20 至 2026-08-20（JST）/u);
-    assert.match(html, /data-en="稲葉曇: 2 collected · Collected dates 2026-02-22 to 2026-03-08 \(JST\)"/u);
-    assert.match(html, /data-ja="NKNK：収録1件 · 収録範囲 2026-08-20〜2026-08-20（JST）"/u);
+    assert.match(html, /稲葉曇：已收录 2 条 · 发布日期范围 2026-02-22 至 2026-03-08（JST）/u);
+    assert.match(html, /NKNK：已收录 1 条 · 发布日期范围 2026-08-20 至 2026-08-20（JST）/u);
+    assert.match(html, /data-en="稲葉曇: 2 collected · Post date range 2026-02-22 to 2026-03-08 \(JST\)"/u);
+    assert.match(html, /data-ja="NKNK：収録1件 · 投稿日の範囲 2026-08-20〜2026-08-20（JST）"/u);
     assert.match(html, /全量历史、回复与转发仍未完整收录/u);
     assert.match(html, /不代表区间内每条都已收录/u);
   }
@@ -33,15 +33,15 @@ test("stale scan summaries cannot inflate the saved count or extend its dates", 
   const { renderXPostsArchive } = await import("../render-x-posts.mjs");
   const archive = snapshot([{ creator: "inabakumori", count: 999, oldestAt: "2014-01-01T00:00:00.000Z", newestAt: "2026-10-18T18:36:00.000Z", note: '<img src=x onerror="alert(1)">' }]);
   const html = renderXPostsArchive(archive, { creator: "inabakumori" }).status;
-  assert.match(html, /稲葉曇：已收录 2 条 · 实际收录范围 2026-02-22 至 2026-03-08/u);
+  assert.match(html, /稲葉曇：已收录 2 条 · 发布日期范围 2026-02-22 至 2026-03-08/u);
   assert.doesNotMatch(html, /999|2014-01-01|<img|onerror/u);
 });
 
 test("empty archives keep both creators and an explicit unknown date range", async () => {
   const { renderXPostsHome, renderXPostsArchive } = await import("../render-x-posts.mjs");
   for (const html of [renderXPostsHome({ version: 1, coverage: [], items: [] }), renderXPostsArchive({ version: 1, coverage: [], items: [] }).status]) {
-    assert.match(html, /稲葉曇：已收录 0 条 · 尚无可确认的收录日期范围/u);
-    assert.match(html, /NKNK：已收录 0 条 · 尚无可确认的收录日期范围/u);
+    assert.match(html, /稲葉曇：已收录 0 条 · 尚无可确认的发布日期范围/u);
+    assert.match(html, /NKNK：已收录 0 条 · 尚无可确认的发布日期范围/u);
     assert.doesNotMatch(html, /Invalid Date|undefined|null/u);
   }
 });

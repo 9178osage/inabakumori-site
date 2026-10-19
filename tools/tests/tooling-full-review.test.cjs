@@ -68,6 +68,7 @@ ${emptyXPostsMeta}`);
   // An empty X archive (no data/x-posts) still yields one archive page per author filter.
   for (const name of ["updates.html", "updates-inabakumori.html", "updates-nknk.html"]) box.write(`dist/${name}`, `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self';"/>
 <link rel="canonical" href="https://osagechan.top/${name}"/>
+<meta property="og:url" content="https://osagechan.top/${name}"/>
 ${emptyXPostsMeta}
 <article class="source-status"></article><article class="source-status"></article><article class="source-status"></article>`);
   box.write("dist/js/songs.js", "const SONGS = [];\n");

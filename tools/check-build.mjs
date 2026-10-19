@@ -116,6 +116,7 @@ for (const creator of ["all", "inabakumori", "nknk"]) {
     expectedPages.add(name);
     const pageHtml = await readFile(path.join(root, name), "utf8");
     assert.ok(pageHtml.includes(`<link rel="canonical" href="https://osagechan.top/${name}"/>`), `Archive canonical must identify its page: ${name}`);
+    assert.ok(pageHtml.includes(`<meta property="og:url" content="https://osagechan.top/${name}"/>`), `Archive og:url must identify its page: ${name}`);
     assert.ok(pageHtml.includes(`<meta name="x-posts-version" content="${xVersion}"/>`), `Stale X snapshot fingerprint: ${name}`);
     assert.doesNotMatch(pageHtml, /<!-- (?:UPDATES|X-POSTS):/u, `Unrendered archive placeholder: ${name}`);
     assert.equal([...pageHtml.matchAll(/class="source-status"/gu)].length, 3, `Each works source needs a visible check status: ${name}`);

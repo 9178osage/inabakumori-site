@@ -27,3 +27,7 @@ SECURITY_AUDIT_*.md
 
 # Text export handed to a text-only AI reader (local tool, never published).
 inabakumori-site-all-code/
+
+# Transient X archive import state; never commit a lock that would block builds.
+/data/x-posts/.import-lock
+/data/x-posts/.write-*.tmp
