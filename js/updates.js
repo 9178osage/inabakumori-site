@@ -11,6 +11,8 @@
     const text = (zh, en, ja) => ({ zh, en, ja })[language];
 
     function applyFilter() {
+      // Archive page 2+ links to the works list on page 1 instead of repeating it; no count or empty notice there.
+      if (document.querySelector("[data-works-list-link]")) return;
       const entries = [...document.querySelectorAll(".update-item[data-creator]")];
       let count = 0;
       entries.forEach(entry => {
@@ -114,7 +116,7 @@
     window.addEventListener("pageshow", resumePage);
     resumePage();
     document.querySelector(".page-controls")?.removeAttribute("hidden");
-    document.querySelector(".updates-filters")?.removeAttribute("hidden");
+    if (!document.querySelector("[data-works-list-link]")) document.querySelector(".updates-filters")?.removeAttribute("hidden");
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initializeUpdates, { once: true });
   else initializeUpdates();

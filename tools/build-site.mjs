@@ -85,8 +85,8 @@ function fillOnce(template, marker, content) {
   return template.replace(placeholder, () => content);
 }
 const fingerprintXPosts = template => template.replace("</head>", `<meta name="x-posts-version" content="${xPostsVersion}"/>\n</head>`);
-function fillUpdates(template, prefix) {
-  for (const [marker, content] of [["STATUS", updates.status], ["ITEMS", updates.items]]) {
+function fillUpdates(template, prefix, items = updates.items) {
+  for (const [marker, content] of [["STATUS", updates.status], ["ITEMS", items]]) {
     const placeholder = `<!-- ${prefix}:${marker} -->`;
     if (template.split(placeholder).length !== 2) throw new Error(`Expected one ${prefix} ${marker} placeholder`);
     template = template.replace(placeholder, () => content);
@@ -112,7 +112,12 @@ if (!keepLocalApiCsp) {
 }
 html = html.replace(/(src|href)="([^"?]+)(?:\?[^"\s]*)?"/g, (match, attribute, file) => hashes.has(file) ? `${attribute}="${file}?v=${hashes.get(file)}"` : match);
 await writeFile(output("dist/index.html"), html);
-const updatesTemplate = fillUpdates(await readFile(source("updates.html"), "utf8"), "UPDATES");
+const updatesSourceHtml = await readFile(source("updates.html"), "utf8");
+const updatesTemplate = fillUpdates(updatesSourceHtml, "UPDATES");
+// Archive page 2+ would repeat the full works list on every page; link to it once instead so the
+// paginated X history stays within the archive size budget.
+const worksListLink = '<p class="updates-note" data-works-list-link><a href="updates.html#feed-title" data-zh="作品与消息列表请见第 1 页" data-en="See page 1 for the works list" data-ja="作品とお知らせの一覧は1ページ目へ">作品与消息列表请见第 1 页</a></p>';
+const updatesTemplateLater = fillUpdates(updatesSourceHtml, "UPDATES", worksListLink);
 let archivePages = 0;
 const archivePageNames = [];
 for (const creator of ["all", "inabakumori", "nknk"]) {
@@ -121,7 +126,7 @@ for (const creator of ["all", "inabakumori", "nknk"]) {
   for (let page = 1; page <= firstPage.pageCount; page++) {
     const rendered = page === 1 ? firstPage : renderXPostsArchive(xPosts, { creator, page, pageSize: 30 });
     const name = `updates${creator === "all" ? "" : `-${creator}`}${page === 1 ? "" : `-page-${page}`}.html`;
-    let updatesHtml = updatesTemplate;
+    let updatesHtml = page === 1 ? updatesTemplate : updatesTemplateLater;
     for (const marker of ["ITEMS", "STATUS", "PAGINATION"]) updatesHtml = fillOnce(updatesHtml, `X-POSTS:${marker}`, rendered[marker.toLowerCase()]);
     updatesHtml = fingerprintXPosts(updatesHtml).replace('<link rel="canonical" href="https://osagechan.top/updates.html"/>', `<link rel="canonical" href="https://osagechan.top/${name}"/>`)
       .replace('<meta property="og:url" content="https://osagechan.top/updates.html"/>', `<meta property="og:url" content="https://osagechan.top/${name}"/>`);
