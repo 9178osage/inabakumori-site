@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
 
-function setup(creators = [...Array(6).fill("inabakumori"), ...Array(6).fill("nknk")], totals = { xTotal: "1852", xTotalInabakumori: "1120", xTotalNknk: "732" }) {
+function setup(creators = [...Array(6).fill("inabakumori"), ...Array(6).fill("nknk")], totals = { xTotal: "1852", xTotalInabakumori: "1120", xTotalNknk: "732" }, { legacyObject = false } = {}) {
   const events = new Map();
   const element = (dataset = {}) => ({
     dataset, hidden: true, textContent: "", attributes: {}, listeners: {},
@@ -23,7 +23,7 @@ function setup(creators = [...Array(6).fill("inabakumori"), ...Array(6).fill("nk
     querySelectorAll: selector => selector === ".x-post[data-creator]" ? posts : selector === "[data-x-home-creator]" ? buttons : []
   };
   const document = { readyState: "complete", querySelector: selector => selector === "[data-x-posts-home]" ? section : null };
-  const context = vm.createContext({ document, currentLanguage: "zh", Number, Object, String, window: { addEventListener(type, handler) { events.set(type, handler); } } });
+  const context = vm.createContext({ document, currentLanguage: "zh", Number, Object: legacyObject ? { prototype: Object.prototype } : Object, String, window: { addEventListener(type, handler) { events.set(type, handler); } } });
   vm.runInContext(fs.readFileSync("js/x-posts-home.js", "utf8"), context);
   return { context, posts, buttons, filters, count, archiveLink, events, visible: () => posts.filter(post => !post.hidden) };
 }
@@ -72,6 +72,14 @@ test("unknown filter values and malformed totals are ignored safely", () => {
   app.buttons[0].listeners.click();
   assert.equal(app.visible().length, 12);
   assert.equal(app.archiveLink.attributes.href, "updates.html");
+});
+
+test("a browser without Object.hasOwn can still switch the X post filter", () => {
+  const app = setup(undefined, undefined, { legacyObject: true });
+  assert.doesNotThrow(() => app.buttons[1].listeners.click());
+  assert.equal(app.visible().length, 6);
+  assert.ok(app.visible().every(post => post.dataset.creator === "inabakumori"));
+  assert.equal(app.archiveLink.attributes.href, "updates-inabakumori.html");
 });
 
 test("the homepage loads the filter as an external script and keeps its controls hidden without JavaScript", async () => {

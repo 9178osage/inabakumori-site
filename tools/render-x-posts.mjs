@@ -77,10 +77,10 @@ function renderCoverage(archive, posts) {
     // A scan's metadata can be older than a merged archive. Show its summary only when
     // it agrees with the saved posts; the displayed range must never imply gap-free history.
     const coverage = recorded?.count === actual.count && recorded.oldestAt === actual.oldestAt && recorded.newestAt === actual.newestAt ? recorded : actual;
-    if (!coverage.count) return text("li", [`${creator.name}：已收录 0 条 · 尚无可确认的收录日期范围`, `${creator.name}: 0 collected · No collected date range yet`, `${creator.name}：収録0件 · 収録日の範囲はまだありません`]);
+    if (!coverage.count) return text("li", [`${creator.name}：已收录 0 条 · 尚无可确认的发布日期范围`, `${creator.name}: 0 collected · No publication date range yet`, `${creator.name}：収録0件 · 投稿日の範囲はまだありません`]);
     const date = value => new Date(stamp(value)).toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
     const from = date(coverage.oldestAt), to = date(coverage.newestAt);
-    return text("li", [`${creator.name}：已收录 ${coverage.count} 条 · 实际收录范围 ${from} 至 ${to}（JST）`, `${creator.name}: ${coverage.count} collected · Collected dates ${from} to ${to} (JST)`, `${creator.name}：収録${coverage.count}件 · 収録範囲 ${from}〜${to}（JST）`]);
+    return text("li", [`${creator.name}：已收录 ${coverage.count} 条 · 发布日期范围 ${from} 至 ${to}（JST）`, `${creator.name}: ${coverage.count} collected · Post date range ${from} to ${to} (JST)`, `${creator.name}：収録${coverage.count}件 · 投稿日の範囲 ${from}〜${to}（JST）`]);
   }).join("")}</ul>`;
 }
 
