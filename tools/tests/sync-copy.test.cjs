@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const { createHash } = require("node:crypto");
 const { spawnSync } = require("node:child_process");
 
 const repo = path.resolve(__dirname, "../..");
@@ -10,8 +11,7 @@ const OUT = "inabakumori-site-all-code";
 const GUIDE = "0-使用说明.txt";
 const CAP = 130000;
 const exclusions = ["js/auth.js", "package-lock.json", "backend/package-lock.json", ".env.fixture",
-  "backend/comments.db", "keys/private-key.pem", "dist/generated.js", "images/picture.png", "binary.dat",
-  `data/x-posts/posts-${"a".repeat(64)}.json`];
+  "backend/comments.db", "keys/private-key.pem", "dist/generated.js", "images/picture.png", "binary.dat"];
 
 function fixture(extra = {}) {
   const directory = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "station-copy-tool-")));
@@ -76,7 +76,7 @@ function copySections(box) {
       assert.deepEqual(blob.subarray(offset, offset + original.length), original, file);
       offset += original.length;
       assert.deepEqual(blob.subarray(offset, offset + 2), Buffer.from("\n\n"), file); offset += 2;
-      const group = file.endsWith(".md") ? "3-docs" : file === "index.html" || file.startsWith("js/") ? "1-app-code" : "2-tools-tests";
+      const group = file.endsWith(".md") ? "3-docs" : file === "index.html" || file.startsWith("js/") || file.startsWith("data/") ? "1-app-code" : "2-tools-tests";
       assert.ok(name.startsWith(group), `${file} in ${group}`); found.set(file, name);
     }
   }
@@ -109,6 +109,48 @@ test("existing review base is retained, including when an explicit alternate bas
     assert.ok(fs.readFileSync(path.join(box.output, "changes.txt"), "utf8").startsWith(`# changes ${box.base}..`));
     assert.equal(fs.readFileSync(path.join(box.output, ".review-base"), "utf8"), box.base + "\n");
     passed(box.run(["HEAD~1"])); passed(box.run(["--check"]));
+    assert.equal(fs.readFileSync(path.join(box.output, ".review-base"), "utf8"), box.base + "\n");
+  } finally { box.close(); }
+});
+
+function postShard(character, newline = "\n") {
+  const source = Buffer.from(JSON.stringify({ version: 1, items: [{ id: "2073256048929148966", text: `\t${character.repeat(30000)}\r\n原文の末尾 ` }] }, null, 2).replace(/\n/g, newline));
+  const hash = createHash("sha256").update(source).digest("hex");
+  return { file: `data/x-posts/posts-${hash}.json`, source, hash };
+}
+
+test("committed X post shards and their manifest are exported whole with exact UTF-8 bytes", () => {
+  const first = postShard("雨", "\r\n"), second = postShard("雪");
+  const manifest = Buffer.from(JSON.stringify({ version: 1, shards: [first, second].map(value => ({ file: path.basename(value.file), sha256: value.hash })) }, null, 2) + "\n");
+  const box = fixture({ [first.file]: first.source, [second.file]: second.source, "data/x-posts/manifest.json": manifest });
+  try {
+    for (const item of [first, second]) assert.ok(item.source.length <= 120000);
+    passed(box.run()); passed(box.run(["--check"]));
+    const sections = copySections(box);
+    for (const item of [first, second]) {
+      const volume = sections.get(item.file);
+      assert.ok(volume?.startsWith("1-app-code-"), `${item.file} must remain in the complete site copy`);
+      const expected = Buffer.concat([Buffer.from(`===== ${item.file} =====\n`), item.source, Buffer.from("\n\n")]);
+      assert.ok(fs.readFileSync(path.join(box.output, volume)).includes(expected), `${item.file} preserves every source byte in one section`);
+    }
+    assert.notEqual(sections.get(first.file), sections.get(second.file), "whole shards are packed into separate volumes when necessary");
+    assert.ok(sections.has("data/x-posts/manifest.json"));
+    assert.equal(sections.size, box.sources.size - exclusions.length);
+    for (const name of textFiles(box)) assert.ok(fs.statSync(path.join(box.output, name)).size <= CAP, name);
+  } finally { box.close(); }
+});
+
+test("an oversized X post diff fails without dropping shards, splitting changes or advancing the baseline", () => {
+  const box = fixture();
+  try {
+    fs.mkdirSync(box.output); fs.writeFileSync(path.join(box.output, ".review-base"), box.base + "\n");
+    passed(box.run());
+    const before = new Map(textFiles(box).map(name => [name, fs.readFileSync(path.join(box.output, name))]));
+    for (const item of [postShard("雨"), postShard("雪")]) box.write(item.file, item.source);
+    box.commit();
+    failed(box.run(), /changes\.txt.*超过 130,000 字节/u);
+    assert.deepEqual(textFiles(box).sort(), [...before.keys()].sort(), "oversized changes remain a failure instead of extra diff volumes");
+    for (const [name, source] of before) assert.deepEqual(fs.readFileSync(path.join(box.output, name)), source, name);
     assert.equal(fs.readFileSync(path.join(box.output, ".review-base"), "utf8"), box.base + "\n");
   } finally { box.close(); }
 });

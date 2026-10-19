@@ -15,12 +15,24 @@ test("the committed X archive is readable from the repository root and stays hon
     const coverage = archive.coverage.find(entry => entry.creator === creator);
     assert.equal(coverage.completeness, "partial");
     assert.equal(coverage.count, posts.length);
-    assert.deepEqual(coverage.scannedTabs, ["posts"], "only original posts were scanned");
+    assert.ok(coverage.scannedTabs.includes("posts"), "the recorded posts scan remains represented");
   }
   for (const item of archive.items) {
     assert.equal(item.translated, false);
     assert.ok(Date.parse(item.collectedAt) >= Date.parse(item.publishedAt));
     assert.doesNotMatch(item.text, /&(?:amp|lt|gt);/u, `X API entities must be decoded: ${item.id}`);
+  }
+});
+
+test("previously collected replies and self-replies remain in the committed archive", async () => {
+  const { readXPostsArchive } = await import("../x-posts-data.mjs");
+  const archive = await readXPostsArchive(repo);
+  for (const id of ["2030585186002633100", "1711938508083114447"]) {
+    const post = archive.items.find(item => item.id === id);
+    assert.ok(post, `previously collected reply ${id} must not be dropped`);
+    assert.equal(post.creator, "inabakumori");
+    assert.equal(post.translated, false);
+    assert.ok(post.text.trim());
   }
 });
 

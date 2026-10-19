@@ -1,13 +1,13 @@
 {
   "version": 1,
-  "count": 1852,
+  "count": 1995,
   "coverage": [
     {
       "creator": "inabakumori",
       "handle": "inabakumori",
       "completeness": "partial",
-      "note": "仅收录原创帖与引用帖（不含回复、转发及自回复串）。Original posts and quote posts only; replies, reposts and self-reply threads are excluded.",
-      "interruptedReason": "本次免费扫描配额用完，较早的帖子尚未收录 / Scan stopped at the free API call budget; older posts are not yet collected.",
+      "note": "已收录原创帖、引用帖及部分回复和自回复串；全部历史、回复与转发尚未完成核对。 Original posts, quotes and some replies/self-replies are collected; full history, replies and reposts remain incomplete.",
+      "interruptedReason": "更早历史与回复/转发仍需继续扫描；本次浏览器历史查询要求重新登录。 More history, replies and reposts still require scanning; the current browser history query requires sign-in.",
       "profilePostCount": 4045,
       "scannedTabs": [
         "posts"
@@ -19,7 +19,7 @@
           "status": "scanned"
         }
       ],
-      "count": 1120,
+      "count": 1263,
       "oldestAt": "2018-03-30T05:31:06.000Z",
       "newestAt": "2026-07-04T04:02:15.000Z",
       "lastCollectedAt": "2026-10-18T18:36:00.000Z"
@@ -28,8 +28,8 @@
       "creator": "nknk",
       "handle": "NKNK_NGRMS",
       "completeness": "partial",
-      "note": "仅收录原创帖与引用帖（不含回复、转发及自回复串）。Original posts and quote posts only; replies, reposts and self-reply threads are excluded.",
-      "interruptedReason": "本次免费扫描配额用完，较早的帖子尚未收录 / Scan stopped at the free API call budget; older posts are not yet collected.",
+      "note": "已收录部分原创帖与引用帖；全部历史、回复与转发尚未完成核对。 Some original and quote posts are collected; full history, replies and reposts remain incomplete.",
+      "interruptedReason": "更早历史与回复/转发仍需继续扫描；本次浏览器历史查询要求重新登录。 More history, replies and reposts still require scanning; the current browser history query requires sign-in.",
       "profilePostCount": 5957,
       "scannedTabs": [
         "posts"
@@ -49,49 +49,54 @@
   ],
   "shards": [
     {
-      "file": "posts-e53f191ab641d9e3a5033c75e8163bbee39147b87626a12fa7d0eb6a0922a4b6.json",
-      "count": 205,
-      "sha256": "e53f191ab641d9e3a5033c75e8163bbee39147b87626a12fa7d0eb6a0922a4b6"
+      "file": "posts-2c8548ce66ca5482ee8047e82fe8fc0eee9733aba750445bfc8168c6dd635f56.json",
+      "count": 203,
+      "sha256": "2c8548ce66ca5482ee8047e82fe8fc0eee9733aba750445bfc8168c6dd635f56"
     },
     {
-      "file": "posts-fa5fec11ebdcb5322972afec47684eff181f27d152b0d9af0895630cf3b9279d.json",
-      "count": 219,
-      "sha256": "fa5fec11ebdcb5322972afec47684eff181f27d152b0d9af0895630cf3b9279d"
+      "file": "posts-41bf577a15fce8ecb9cd6c3f75454a8553be6cabf34ad40eaac6c9c05d1189e8.json",
+      "count": 212,
+      "sha256": "41bf577a15fce8ecb9cd6c3f75454a8553be6cabf34ad40eaac6c9c05d1189e8"
     },
     {
-      "file": "posts-c5b6dda56aae979bc94fe976473d608f12fdd2f293a7e5de0599159e080099cb.json",
-      "count": 216,
-      "sha256": "c5b6dda56aae979bc94fe976473d608f12fdd2f293a7e5de0599159e080099cb"
+      "file": "posts-436553e8195b11a0b67ca9ff7b16e583e85f822301271d659413213e96271625.json",
+      "count": 221,
+      "sha256": "436553e8195b11a0b67ca9ff7b16e583e85f822301271d659413213e96271625"
     },
     {
-      "file": "posts-1a7ad12a639e90f17866d36b49d3901fedfe44141d2c1f169e212f917dc09a13.json",
-      "count": 219,
-      "sha256": "1a7ad12a639e90f17866d36b49d3901fedfe44141d2c1f169e212f917dc09a13"
+      "file": "posts-ce23975d8332112630a4fdf01d28d9c1b1b7ec5e13f23648b1fac9fe65b4ec99.json",
+      "count": 217,
+      "sha256": "ce23975d8332112630a4fdf01d28d9c1b1b7ec5e13f23648b1fac9fe65b4ec99"
     },
     {
-      "file": "posts-79509dcf6974a547f6826256b51c57a9dc6b770519d751fab5c62d2b16a52579.json",
+      "file": "posts-484e590e92779b9dddc9a649a67e7a71b70020efd1ab3d3c04751e4f3f741929.json",
       "count": 227,
-      "sha256": "79509dcf6974a547f6826256b51c57a9dc6b770519d751fab5c62d2b16a52579"
+      "sha256": "484e590e92779b9dddc9a649a67e7a71b70020efd1ab3d3c04751e4f3f741929"
     },
     {
-      "file": "posts-ad50e76f09c39518fd9ccc293196b954615cebe72c823641d6feb32d1b18289a.json",
+      "file": "posts-c820f47fb9013cbe8582f04375a42fba368c3c59219d997442f20991274279a9.json",
+      "count": 227,
+      "sha256": "c820f47fb9013cbe8582f04375a42fba368c3c59219d997442f20991274279a9"
+    },
+    {
+      "file": "posts-1777432a3a7597097ef99b5e6fb425c2884205cf8a796351ccc687fe3089872c.json",
+      "count": 199,
+      "sha256": "1777432a3a7597097ef99b5e6fb425c2884205cf8a796351ccc687fe3089872c"
+    },
+    {
+      "file": "posts-5b973bd0451d5e4910c776c734279e4f23ae8be94445d44900529872dc106e29.json",
       "count": 210,
-      "sha256": "ad50e76f09c39518fd9ccc293196b954615cebe72c823641d6feb32d1b18289a"
+      "sha256": "5b973bd0451d5e4910c776c734279e4f23ae8be94445d44900529872dc106e29"
     },
     {
-      "file": "posts-d1e1c695a67c09e75e845f6aaf6470929fa5e00d92c71f3ecd09d9baccc8c20f.json",
-      "count": 201,
-      "sha256": "d1e1c695a67c09e75e845f6aaf6470929fa5e00d92c71f3ecd09d9baccc8c20f"
+      "file": "posts-f70ac8d9743ba78e62943f1314ffe77597772b3874af4d1d12449b4dda9eb700.json",
+      "count": 212,
+      "sha256": "f70ac8d9743ba78e62943f1314ffe77597772b3874af4d1d12449b4dda9eb700"
     },
     {
-      "file": "posts-3a74d0623b323ddad3cef227e45900d1b11a0a585ab86fc47912fe543612f445.json",
-      "count": 204,
-      "sha256": "3a74d0623b323ddad3cef227e45900d1b11a0a585ab86fc47912fe543612f445"
-    },
-    {
-      "file": "posts-34697cf35bfcba7b2c0f23d32d7c1caa9c3a6968ce84316c819ae725968d5c2d.json",
-      "count": 151,
-      "sha256": "34697cf35bfcba7b2c0f23d32d7c1caa9c3a6968ce84316c819ae725968d5c2d"
+      "file": "posts-a235674136467e511a1d75ac7cf1c2d29d7a36e0e8ef7526e643262041a52f4f.json",
+      "count": 67,
+      "sha256": "a235674136467e511a1d75ac7cf1c2d29d7a36e0e8ef7526e643262041a52f4f"
     }
   ]
 }

@@ -2452,7 +2452,7 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
   color: var(--ui-text);
   font-size: 14px;
   line-height: 1.95;
-  white-space: pre-line;
+  white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-wrap: break-word;
 }
@@ -2502,6 +2502,14 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
   color: var(--ui-muted);
   font-size: 12px;
   line-height: 1.85;
+}
+.home-updates .x-posts-coverage {
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+}
+.home-updates .x-posts-coverage li + li {
+  margin-top: 3px;
 }
 .home-updates .home-works-log {
   border: 1px solid var(--ui-border);
