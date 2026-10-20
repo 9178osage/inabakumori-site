@@ -9,6 +9,7 @@ node_modules/
 backend/.backups/
 
 dist/
+/dist [0-9]*/
 artifacts/
 trusted-read-*/
 

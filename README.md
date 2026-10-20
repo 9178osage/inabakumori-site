@@ -4,6 +4,8 @@
 >
 > 生产环境只发布 `dist/`，不要直接把仓库根目录作为静态网站目录。优化记录、验证结果与运维说明见 [docs/OPTIMIZATION.md](docs/OPTIMIZATION.md)。
 
+维护入口 / Maintenance / メンテナンス：[文档导航](docs/README.md) · [工具与命令](tools/README.md) · [站长手册](docs/MAINTAINER.md)。
+
 <a id="readme-en"></a>
 
 # 🌧️ Weather Observation Station · 稲葉曇
@@ -144,15 +146,16 @@ Authentication is powered by **SuperTokens**:
 ```text
 inabakumori-site/
 ├── index.html              # Frontend entry (keep at repo root)
-├── style.css
-├── script.js
+├── updates.html / updates.css
+├── style.css / script.js
 ├── site.webmanifest
 ├── robots.txt / sitemap.xml / 404.html
-├── package.json
-├── README.md
-├── SECURITY.md             # How to report vulnerabilities
+├── package.json / README.md / SECURITY.md
 │
 ├── js/                     # Frontend modules
+├── data/                   # Validated publication data
+│   ├── creator-updates.json
+│   └── x-posts/            # Manifest + complete collected post shards
 ├── images/
 │   ├── hero/               # Original desktop hero art (source)
 │   ├── hero-mobile/        # Original mobile hero art (source)
@@ -162,15 +165,19 @@ inabakumori-site/
 ├── NKNK/                   # NKNK gallery originals (source, not published)
 ├── fonts/
 │
-├── docs/                   # Project docs (not published to Pages)
-│   ├── SECURITY.md         # Current security & ops reference
-│   ├── OPTIMIZATION.md
-│   ├── AI_HANDOFF.md
+├── docs/                   # Start with docs/README.md (not published)
+│   ├── MAINTAINER.md       # Release, verification and copy rules
+│   ├── CHANGELOG.md
+│   ├── SECURITY.md / OPTIMIZATION.md / AI_HANDOFF.md
 │   └── history/            # Archived audit / review reports
-│
 ├── backend/                # Railway service root
-├── tools/                  # Build, preview, tests, image optimize
-└── .github/workflows/      # CI + Pages publish from dist/
+├── tools/                  # Commands: tools/README.md; regressions: tests/
+├── .github/workflows/      # CI + Pages publish from dist/
+│
+├── dist/                   # Generated public build (ignored)
+├── artifacts/              # Local reports, logs, scans, checks (ignored)
+├── .local-notes/           # Private maintenance notes (ignored)
+└── inabakumori-site-all-code/ # Committed-text exports (ignored)
 ```
 
 ---
@@ -513,15 +520,16 @@ I like Inabakumori, so I made a “Weather Observation Station” — a nod to t
 ```text
 inabakumori-site/
 ├── index.html              # Frontend entry (keep at repo root)
-├── style.css
-├── script.js
+├── updates.html / updates.css
+├── style.css / script.js
 ├── site.webmanifest
 ├── robots.txt / sitemap.xml / 404.html
-├── package.json
-├── README.md
-├── SECURITY.md             # How to report vulnerabilities
+├── package.json / README.md / SECURITY.md
 │
 ├── js/                     # Frontend modules
+├── data/                   # Validated publication data
+│   ├── creator-updates.json
+│   └── x-posts/            # Manifest + complete collected post shards
 ├── images/
 │   ├── hero/               # Original desktop hero art (source)
 │   ├── hero-mobile/        # Original mobile hero art (source)
@@ -531,15 +539,19 @@ inabakumori-site/
 ├── NKNK/                   # NKNK gallery originals (source, not published)
 ├── fonts/
 │
-├── docs/                   # Project docs (not published to Pages)
-│   ├── SECURITY.md         # Current security & ops reference
-│   ├── OPTIMIZATION.md
-│   ├── AI_HANDOFF.md
+├── docs/                   # Start with docs/README.md (not published)
+│   ├── MAINTAINER.md       # Release, verification and copy rules
+│   ├── CHANGELOG.md
+│   ├── SECURITY.md / OPTIMIZATION.md / AI_HANDOFF.md
 │   └── history/            # Archived audit / review reports
-│
 ├── backend/                # Railway service root
-├── tools/                  # Build, preview, tests, image optimize
-└── .github/workflows/      # CI + Pages publish from dist/
+├── tools/                  # Commands: tools/README.md; regressions: tests/
+├── .github/workflows/      # CI + Pages publish from dist/
+│
+├── dist/                   # Generated public build (ignored)
+├── artifacts/              # Local reports, logs, scans, checks (ignored)
+├── .local-notes/           # Private maintenance notes (ignored)
+└── inabakumori-site-all-code/ # Committed-text exports (ignored)
 ```
 
 ---
@@ -879,15 +891,16 @@ npm run check:links:strict
 ```text
 inabakumori-site/
 ├── index.html              # Frontend entry (keep at repo root)
-├── style.css
-├── script.js
+├── updates.html / updates.css
+├── style.css / script.js
 ├── site.webmanifest
 ├── robots.txt / sitemap.xml / 404.html
-├── package.json
-├── README.md
-├── SECURITY.md             # How to report vulnerabilities
+├── package.json / README.md / SECURITY.md
 │
 ├── js/                     # Frontend modules
+├── data/                   # Validated publication data
+│   ├── creator-updates.json
+│   └── x-posts/            # Manifest + complete collected post shards
 ├── images/
 │   ├── hero/               # Original desktop hero art (source)
 │   ├── hero-mobile/        # Original mobile hero art (source)
@@ -897,15 +910,19 @@ inabakumori-site/
 ├── NKNK/                   # NKNK gallery originals (source, not published)
 ├── fonts/
 │
-├── docs/                   # Project docs (not published to Pages)
-│   ├── SECURITY.md         # Current security & ops reference
-│   ├── OPTIMIZATION.md
-│   ├── AI_HANDOFF.md
+├── docs/                   # Start with docs/README.md (not published)
+│   ├── MAINTAINER.md       # Release, verification and copy rules
+│   ├── CHANGELOG.md
+│   ├── SECURITY.md / OPTIMIZATION.md / AI_HANDOFF.md
 │   └── history/            # Archived audit / review reports
-│
 ├── backend/                # Railway service root
-├── tools/                  # Build, preview, tests, image optimize
-└── .github/workflows/      # CI + Pages publish from dist/
+├── tools/                  # Commands: tools/README.md; regressions: tests/
+├── .github/workflows/      # CI + Pages publish from dist/
+│
+├── dist/                   # Generated public build (ignored)
+├── artifacts/              # Local reports, logs, scans, checks (ignored)
+├── .local-notes/           # Private maintenance notes (ignored)
+└── inabakumori-site-all-code/ # Committed-text exports (ignored)
 ```
 
 ---
