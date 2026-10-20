@@ -95,28 +95,52 @@ function renderAuthorLinks(creator) {
   return `<nav class="x-posts-author-links" aria-label="按创作者浏览帖子" data-aria-zh="按创作者浏览帖子" data-aria-en="Browse posts by creator" data-aria-ja="クリエイター別の投稿">${text("a", ["全部帖子", "All posts", "すべての投稿"], ` href="${xPostsPageUrl("all")}"${creator === "all" ? ' aria-current="true"' : ""}`)}${Object.entries(creators).map(([id, author]) => `<a href="${xPostsPageUrl(id)}"${creator === id ? ' aria-current="true"' : ""}>${escape(author.name)}</a>`).join("")}</nav>`;
 }
 
-export function renderXPostsHome(archive) {
-  const posts = orderedPosts(archive);
-  const latest = new Set(Object.keys(creators).flatMap(creator => posts.filter(post => post.creator === creator).slice(0, 6)).map(post => post.id));
+function renderHome(posts, groups, status, renderItem) {
+  const latest = new Set(Object.keys(creators).flatMap(creator => groups.get(creator).slice(0, 6)).map(post => post.id));
   const selected = posts.filter(post => latest.has(post.id));
-  const count = creator => posts.filter(post => post.creator === creator).length;
+  const count = creator => groups.get(creator).length;
   const filters = `<div class="x-home-filters" role="group" aria-label="按创作者筛选帖子" data-aria-zh="按创作者筛选帖子" data-aria-en="Filter posts by creator" data-aria-ja="クリエイター別の投稿" hidden>${text("button", ["全部帖子", "All posts", "すべて"], ' type="button" data-x-home-creator="all" aria-pressed="true"')}<button type="button" data-x-home-creator="inabakumori" aria-pressed="false">稲葉曇</button><button type="button" data-x-home-creator="nknk" aria-pressed="false">NKNK</button></div>`;
-  return `<section class="x-posts-home" data-x-posts-home data-x-total="${posts.length}" data-x-total-inabakumori="${count("inabakumori")}" data-x-total-nknk="${count("nknk")}" aria-labelledby="home-x-posts-title"><h3 id="home-x-posts-title" class="x-posts-title" data-zh="X 帖子原文" data-en="Original X posts" data-ja="Xの投稿・原文">X 帖子原文</h3><div class="x-posts-status">${renderStatus(archive, posts)}</div>${filters}<p class="x-home-count" data-x-home-count role="status" aria-live="polite" hidden></p><div class="x-posts-feed">${selected.map(renderPost).join("\n") || text("p", ["公开帖子正在补录中。", "Public posts are being collected.", "公開投稿を収録しています。"], ' class="x-posts-empty"')}</div>${text("a", ["在本站浏览已收录的全部帖子 →", "Browse all collected posts on this site →", "サイト内で収録済みの投稿をすべて見る →"], ' class="x-posts-archive-link" data-x-archive-link href="updates.html"')}<noscript>${text("p", ["这里展示近期收录。完整帖子正文可通过上方站内档案分页阅读。", "Recent collected posts are shown here. Read the complete collected text through the archive pages above.", "ここには最近の収録分を表示しています。収録済みの全文は上のリンク先でページごとに読めます。"], ' class="x-posts-coverage-note"')}</noscript></section>`;
+  return `<section class="x-posts-home" data-x-posts-home data-x-total="${posts.length}" data-x-total-inabakumori="${count("inabakumori")}" data-x-total-nknk="${count("nknk")}" aria-labelledby="home-x-posts-title"><h3 id="home-x-posts-title" class="x-posts-title" data-zh="X 帖子原文" data-en="Original X posts" data-ja="Xの投稿・原文">X 帖子原文</h3><div class="x-posts-status">${status}</div>${filters}<p class="x-home-count" data-x-home-count role="status" aria-live="polite" hidden></p><div class="x-posts-feed">${selected.map(renderItem).join("\n") || text("p", ["公开帖子正在补录中。", "Public posts are being collected.", "公開投稿を収録しています。"], ' class="x-posts-empty"')}</div>${text("a", ["在本站浏览已收录的全部帖子 →", "Browse all collected posts on this site →", "サイト内で収録済みの投稿をすべて見る →"], ' class="x-posts-archive-link" data-x-archive-link href="updates.html"')}<noscript>${text("p", ["这里展示近期收录。完整帖子正文可通过上方站内档案分页阅读。", "Recent collected posts are shown here. Read the complete collected text through the archive pages above.", "ここには最近の収録分を表示しています。収録済みの全文は上のリンク先でページごとに読めます。"], ' class="x-posts-coverage-note"')}</noscript></section>`;
 }
 
-export function renderXPostsArchive(archive, { page = 1, creator = "all", pageSize = 30 } = {}) {
-  const all = orderedPosts(archive);
+function renderArchive(groups, status, renderItem, { page = 1, creator = "all", pageSize = 30 } = {}) {
   xPostsPageUrl(creator, page);
   assert.ok(Number.isSafeInteger(pageSize) && pageSize >= 1 && pageSize <= 100, "Invalid X post page size");
-  const posts = all.filter(post => creator === "all" || post.creator === creator);
+  const posts = groups.get(creator);
   const pageCount = Math.max(1, Math.ceil(posts.length / pageSize));
   assert.ok(page <= pageCount, "X post page does not exist");
-  const items = posts.slice((page - 1) * pageSize, page * pageSize).map(renderPost).join("\n") || text("p", ["这个分类尚未收录帖子。", "No posts have been collected in this category yet.", "この分類の投稿はまだ収録されていません。"], ' class="x-posts-empty"');
+  const items = posts.slice((page - 1) * pageSize, page * pageSize).map(renderItem).join("\n") || text("p", ["这个分类尚未收录帖子。", "No posts have been collected in this category yet.", "この分類の投稿はまだ収録されていません。"], ' class="x-posts-empty"');
   const prev = page > 1 ? text("a", ["← 上一页", "← Previous", "← 前のページ"], ` href="${xPostsPageUrl(creator, page - 1)}" rel="prev"`) : "";
   const next = page < pageCount ? text("a", ["下一页 →", "Next →", "次のページ →"], ` href="${xPostsPageUrl(creator, page + 1)}" rel="next"`) : "";
   const first = page > 2 ? text("a", ["第一页", "First page", "最初のページ"], ` href="${xPostsPageUrl(creator)}"`) : "";
   const last = page < pageCount - 1 ? text("a", ["最后一页", "Last page", "最後のページ"], ` href="${xPostsPageUrl(creator, pageCount)}"`) : "";
   const position = text("span", [`第 ${page} / ${pageCount} 页 · ${posts.length} 条帖子`, `Page ${page} of ${pageCount} · ${posts.length} posts`, `${pageCount}ページ中${page}ページ · 投稿${posts.length}件`], ' class="x-posts-page-position" aria-current="page"');
   const pagination = `<nav class="x-posts-pagination" aria-label="帖子分页" data-aria-zh="帖子分页" data-aria-en="Post pages" data-aria-ja="投稿のページ">${first}${prev}${position}${next}${last}</nav>`;
-  return { items, status: `<div class="x-posts-status">${renderStatus(archive, all)}</div>${renderAuthorLinks(creator)}`, pagination, total: posts.length, pageCount, page, creator };
+  return { items, status: `<div class="x-posts-status">${status}</div>${renderAuthorLinks(creator)}`, pagination, total: posts.length, pageCount, page, creator };
+}
+
+// One renderer belongs to one build snapshot. Keep it detached from the caller's
+// mutable objects, and reuse validation, ordering and escaped markup across pages.
+export function createXPostsRenderer(archive) {
+  const snapshot = structuredClone(archive);
+  const posts = orderedPosts(snapshot);
+  const groups = new Map([["all", posts], ...Object.keys(creators).map(creator => [creator, posts.filter(post => post.creator === creator)])]);
+  const status = renderStatus(snapshot, posts);
+  const markup = new Map();
+  const renderItem = post => {
+    if (!markup.has(post.id)) markup.set(post.id, renderPost(post));
+    return markup.get(post.id);
+  };
+  return Object.freeze({
+    renderHome: () => renderHome(posts, groups, status, renderItem),
+    renderArchive: options => renderArchive(groups, status, renderItem, options)
+  });
+}
+
+export function renderXPostsHome(archive) {
+  return createXPostsRenderer(archive).renderHome();
+}
+
+export function renderXPostsArchive(archive, options) {
+  return createXPostsRenderer(archive).renderArchive(options);
 }

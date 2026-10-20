@@ -8,7 +8,7 @@ import { assertRepoPath } from "./safe-fs.mjs";
 import { stripLoopbackCspSources } from "./net-guards.mjs";
 import { renderCreatorUpdates } from "./render-creator-updates.mjs";
 import { readXPostsArchive } from "./x-posts-data.mjs";
-import { renderXPostsHome, renderXPostsArchive } from "./render-x-posts.mjs";
+import { createXPostsRenderer, xPostsPageUrl } from "./render-x-posts.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const out = path.join(root, "dist");
@@ -79,6 +79,7 @@ const updatesVersion = createHash("sha256").update(updatesSource).digest("hex");
 const updates = renderCreatorUpdates(JSON.parse(updatesSource));
 const xPosts = await readXPostsArchive(root);
 const xPostsVersion = createHash("sha256").update(JSON.stringify(xPosts)).digest("hex");
+const xPostsRenderer = createXPostsRenderer(xPosts);
 function fillOnce(template, marker, content) {
   const placeholder = `<!-- ${marker} -->`;
   if (template.split(placeholder).length !== 2) throw new Error(`Expected one ${marker} placeholder`);
@@ -95,7 +96,7 @@ function fillUpdates(template, prefix, items = updates.items) {
 }
 let html = await readFile(source("index.html"), "utf8");
 html = fillUpdates(html, "HOME-UPDATES");
-html = fingerprintXPosts(fillOnce(html, "X-POSTS:HOME", renderXPostsHome(xPosts)));
+html = fingerprintXPosts(fillOnce(html, "X-POSTS:HOME", xPostsRenderer.renderHome()));
 // Share-tracking parameters (?si=...) identify who shared a link; published links never carry them.
 const cleanSongUrl = value => {
   const url = new URL(value);
@@ -121,11 +122,11 @@ const updatesTemplateLater = fillUpdates(updatesSourceHtml, "UPDATES", worksList
 let archivePages = 0;
 const archivePageNames = [];
 for (const creator of ["all", "inabakumori", "nknk"]) {
-  const firstPage = renderXPostsArchive(xPosts, { creator, page: 1, pageSize: 30 });
+  const firstPage = xPostsRenderer.renderArchive({ creator, page: 1, pageSize: 30 });
   if (!Number.isSafeInteger(firstPage.pageCount) || firstPage.pageCount < 1 || firstPage.pageCount > 10000) throw new Error("Invalid X archive page count");
   for (let page = 1; page <= firstPage.pageCount; page++) {
-    const rendered = page === 1 ? firstPage : renderXPostsArchive(xPosts, { creator, page, pageSize: 30 });
-    const name = `updates${creator === "all" ? "" : `-${creator}`}${page === 1 ? "" : `-page-${page}`}.html`;
+    const rendered = page === 1 ? firstPage : xPostsRenderer.renderArchive({ creator, page, pageSize: 30 });
+    const name = xPostsPageUrl(creator, page);
     let updatesHtml = page === 1 ? updatesTemplate : updatesTemplateLater;
     for (const marker of ["ITEMS", "STATUS", "PAGINATION"]) updatesHtml = fillOnce(updatesHtml, `X-POSTS:${marker}`, rendered[marker.toLowerCase()]);
     updatesHtml = fingerprintXPosts(updatesHtml).replace('<link rel="canonical" href="https://osagechan.top/updates.html"/>', `<link rel="canonical" href="https://osagechan.top/${name}"/>`)

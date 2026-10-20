@@ -59,3 +59,69 @@ test("original text keeps whitespace and is escaped before insertion", async () 
   assert.match(homeCss, /\.home-updates \.x-post-text \{[^}]*white-space: pre-wrap;/u);
   assert.match(archiveCss, /\.x-post-text\{[^}]*white-space:pre-wrap;/u);
 });
+
+test("one build snapshot keeps ordering, author filters and pagination independent", async () => {
+  const { createXPostsRenderer } = await import("../render-x-posts.mjs");
+  const archive = { version: 1, items: [
+    post("101", "inabakumori", "2026-03-01T00:00:00.000Z"),
+    post("103", "nknk", "2026-03-02T00:00:00.000Z"),
+    post("104", "inabakumori", "2026-03-02T00:00:00.000Z"),
+    post("102", "nknk", "2026-03-01T00:00:00.000Z"),
+    post("105", "inabakumori", "2026-03-03T00:00:00.000Z")
+  ] };
+  const renderer = createXPostsRenderer(archive);
+  const ids = html => [...html.matchAll(/data-x-post-id="(\d+)"/gu)].map(match => match[1]);
+  const first = renderer.renderArchive({ pageSize: 2 });
+  assert.deepEqual(ids(first.items), ["105", "104"]);
+  assert.equal(first.pageCount, 3);
+  assert.match(first.pagination, /href="updates-page-2.html" rel="next"/u);
+  const author = renderer.renderArchive({ creator: "inabakumori", pageSize: 2, page: 2 });
+  assert.deepEqual(ids(author.items), ["101"]);
+  assert.equal(author.total, 3);
+  assert.match(author.pagination, /href="updates-inabakumori.html" rel="prev"/u);
+  assert.deepEqual(ids(renderer.renderArchive({ pageSize: 2, page: 2 }).items), ["103", "102"]);
+  assert.deepEqual(ids(renderer.renderHome()), ["105", "104", "103", "102", "101"]);
+  first.items = "caller changed its result";
+  assert.deepEqual(ids(renderer.renderArchive({ pageSize: 2 }).items), ["105", "104"]);
+  assert.throws(() => renderer.renderArchive({ creator: "toString" }), /author filter/u);
+  assert.throws(() => renderer.renderArchive({ page: 0 }), /Invalid X post page/u);
+  assert.throws(() => renderer.renderArchive({ page: 4, pageSize: 2 }), /does not exist/u);
+  assert.throws(() => renderer.renderArchive({ pageSize: 101 }), /page size/u);
+});
+
+test("cached markup cannot be changed by caller mutations or another build", async () => {
+  const { createXPostsRenderer } = await import("../render-x-posts.mjs");
+  const archive = snapshot();
+  archive.items[0].links.push({ url: "https://example.com/original", label: "Original & safe" });
+  const renderer = createXPostsRenderer(archive);
+  archive.items[0].text = "<script>changed</script>";
+  archive.items[0].links[0].url = "javascript:alert(1)";
+  archive.items[0].links[0].label = "changed";
+  archive.items[0].publishedAt = "not a date";
+  archive.items.length = 1;
+  const saved = renderer.renderArchive();
+  assert.equal(saved.total, 3);
+  assert.match(saved.items, /href="https:\/\/example.com\/original"/u);
+  assert.match(saved.items, /Original &amp; safe/u);
+  assert.doesNotMatch(saved.items, /javascript:|changed|Invalid Date/u);
+  assert.match(saved.status, /稲葉曇：已收录 2 条/u);
+  const other = snapshot();
+  other.items[0].text = "a fresh build";
+  assert.match(createXPostsRenderer(other).renderArchive().items, /a fresh build/u);
+  assert.doesNotMatch(renderer.renderHome(), /a fresh build/u);
+});
+
+test("snapshot validation still rejects unsafe posts outside the visible home preview", async () => {
+  const { createXPostsRenderer } = await import("../render-x-posts.mjs");
+  const items = Array.from({ length: 8 }, (_, index) => post(String(100 + index), "inabakumori", `2026-03-${String(index + 1).padStart(2, "0")}T00:00:00.000Z`));
+  for (const [change, message] of [
+    [entry => { entry.links.push({ url: "javascript:alert(1)", label: "unsafe" }); }, /Invalid X post link/u],
+    [entry => { entry.media.push({ url: "https://example.com/media/image.png" }); }, /Invalid X post image/u],
+    [entry => { entry.translated = true; }, /must be the original/u],
+    [entry => { entry.id = items[1].id; entry.url = items[1].url; }, /duplicate X post ID/u]
+  ]) {
+    const archive = { version: 1, items: structuredClone(items) };
+    change(archive.items[0]);
+    assert.throws(() => createXPostsRenderer(archive), message);
+  }
+});

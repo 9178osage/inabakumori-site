@@ -6,6 +6,8 @@ GitHub Pages 提供网页、图片和音乐目录。登录与留言通过 HTTPS 
 
 推送到 main 后，GitHub Actions 会运行检查并发布网站。Railway 的部署需要单独确认。每周播放量刷新任务会直接更新 main，不要随意禁止直接推送；如需改成必须审核，应先调整自动更新流程。
 
+目录与命令入口见[文档导航](README.md)和[工具导航](../tools/README.md)。`data/` 保存经过校验的发布数据；本地报告、日志、采集原件与测量结果按用途归入被忽略的 `artifacts/` 子目录。该目录根下的 `changelog-api-cache.json` 是联网门禁的现用缓存，应保留原路径。整理时保留原始图片、字体、环境配置、数据库及备份；确认无文件的旧构建目录才可用 `rmdir` 移除。
+
 ## 每次改完看什么
 
 1. 本地运行 `npm test`、`npm run check`、`npm run test:integration`、`npm run check:changelog`，都成功再提交。最后一项单独联网核对上线记录；`npm run check` 本身不查询 GitHub API。测试失败时先找原因，不要删除安全检查来通过测试。
