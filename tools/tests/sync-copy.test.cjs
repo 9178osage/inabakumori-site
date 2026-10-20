@@ -9,11 +9,14 @@ const { spawnSync } = require("node:child_process");
 const repo = path.resolve(__dirname, "../..");
 const OUT = "inabakumori-site-all-code";
 const GUIDE = "0-使用说明.txt";
-const CAP = 130000;
+const PRODUCTION_CAP = 140_000_000;
+// Exercise packing and overflow with a small limit so boundary tests do not need
+// hundreds of MB. A separate test below runs the unchanged production generator.
+const CAP = 130_000;
 const exclusions = ["js/auth.js", "package-lock.json", "backend/package-lock.json", ".env.fixture",
   "backend/comments.db", "keys/private-key.pem", "dist/generated.js", "images/picture.png", "binary.dat"];
 
-function fixture(extra = {}) {
+function fixture(extra = {}, { scaled = true } = {}) {
   const directory = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "station-copy-tool-")));
   const root = path.join(directory, "repo");
   fs.mkdirSync(root);
@@ -35,7 +38,10 @@ function fixture(extra = {}) {
   };
   git("init", "-q", "-b", "main"); git("config", "core.autocrlf", "false");
   write(".gitignore", OUT + "/\n");
-  write("tools/sync-copy.py", fs.readFileSync(path.join(repo, "tools/sync-copy.py")));
+  let generator = fs.readFileSync(path.join(repo, "tools/sync-copy.py"), "utf8");
+  assert.match(generator, /^CAP = 140_000_000\b/mu);
+  if (scaled) generator = generator.replace(/^CAP = [\d_]+/mu, `CAP = ${CAP}`);
+  write("tools/sync-copy.py", generator);
   write("index.html", Buffer.from("  <p>原始缩进</p>\r\n\t<p>无末尾换行</p>"));
   write("tools/example.py", "if True:\n    print('keep four spaces')\n");
   write("docs/note.md", "# Synthetic documentation\n");
@@ -43,7 +49,7 @@ function fixture(extra = {}) {
   for (const [name, value] of Object.entries(extra)) write(name, value);
   const base = commit();
   write("docs/note.md", "# Synthetic documentation\nA committed change.\n"); commit();
-  return { root, directory, base, sources, write, commit, git,
+  return { root, directory, base, sources, write, commit, git, cap: scaled ? CAP : PRODUCTION_CAP,
     output: path.join(root, OUT),
     close() { fs.rmSync(directory, { recursive: true, force: true }); },
     run(args = [], legacy = false, timeout = 10000) {
@@ -63,7 +69,7 @@ function copySections(box) {
   const found = new Map();
   for (const name of textFiles(box).filter(name => /^[123]-/.test(name))) {
     const blob = fs.readFileSync(path.join(box.output, name));
-    assert.ok(blob.length <= CAP, name);
+    assert.ok(blob.length <= box.cap, name);
     let offset = 0;
     while (offset < blob.length) {
       const header = /^===== ([^\n]+) =====\n/u.exec(blob.subarray(offset).toString("utf8"));
@@ -110,6 +116,28 @@ test("existing review base is retained, including when an explicit alternate bas
     assert.equal(fs.readFileSync(path.join(box.output, ".review-base"), "utf8"), box.base + "\n");
     passed(box.run(["HEAD~1"])); passed(box.run(["--check"]));
     assert.equal(fs.readFileSync(path.join(box.output, ".review-base"), "utf8"), box.base + "\n");
+  } finally { box.close(); }
+});
+
+test("140 MB production limit combines the old volumes and allows larger sources and diffs", () => {
+  const box = fixture({ "js/one.js": "x".repeat(90000), "js/two.js": "y".repeat(90000) }, { scaled: false });
+  try {
+    fs.mkdirSync(box.output);
+    fs.writeFileSync(path.join(box.output, ".review-base"), box.base + "\n");
+    fs.writeFileSync(path.join(box.output, "1-app-code-2.txt"), "STALE_OLD_VOLUME\n");
+    box.write("js/larger.js", "z".repeat(200000)); box.commit();
+    passed(box.run()); passed(box.run(["--check"]));
+    const sections = copySections(box);
+    assert.equal(sections.size, box.sources.size - exclusions.length);
+    assert.equal(new Set(["js/one.js", "js/two.js", "js/larger.js"].map(file => sections.get(file))).size, 1);
+    assert.equal(fs.existsSync(path.join(box.output, "1-app-code-2.txt")), false, "obsolete small volumes are removed");
+    assert.equal(textFiles(box).length, 5, "three complete groups plus the guide and changes");
+    const changes = fs.readFileSync(path.join(box.output, "changes.txt"));
+    assert.ok(changes.length > CAP && changes.length < PRODUCTION_CAP);
+    assert.ok(changes.includes(Buffer.from("diff --git a/js/larger.js b/js/larger.js")));
+    assert.equal(fs.readFileSync(path.join(box.output, ".review-base"), "utf8"), box.base + "\n");
+    assert.match(fs.readFileSync(path.join(box.output, GUIDE), "utf8"), /140,000,000 字节（140 MB）/u);
+    for (const name of textFiles(box)) assert.ok(fs.statSync(path.join(box.output, name)).size <= PRODUCTION_CAP);
   } finally { box.close(); }
 });
 
@@ -320,7 +348,7 @@ test("a whole source section may exactly fill 130000 bytes without splitting", (
   } finally { box.close(); }
 });
 
-test("check rejects an otherwise intact 130-to-150KB volume from the former cap", () => {
+test("check rejects an otherwise intact volume over the scaled fixture limit", () => {
   const box = fixture({ "js/one.js": "x".repeat(70000), "js/two.js": "y".repeat(70000) });
   try {
     passed(box.run());

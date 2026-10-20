@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """稻网（inabakumori-site）源码文本副本。副本 = git HEAD 的逐字节拷贝，不做任何替换。
 
-规则（用户 2026-10-13/15 定）：
+规则（用户 2026-10-13/15 定，2026-10-20 将上限改为 140 MB）：
   1. 每段以 `===== 文件路径 =====` 开头，内容与 `git show HEAD:<路径>` 逐字节相同。
   2. 按文件拆分，单个文件绝不切开；每个 txt 的字节上限统一由下方 CAP 定义。
   3. 三组互不重叠：1-app-code / 2-tools-tests / 3-docs；另有 changes.txt（git diff）。
@@ -20,7 +20,7 @@ import os, re, stat, subprocess, sys, tempfile
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(REPO, "inabakumori-site-all-code")
 BASE_FILE = os.path.join(OUT, ".review-base")
-CAP = 130_000
+CAP = 140_000_000  # 140 MB，按十进制字节计。
 GUIDE = "0-使用说明.txt"
 EXCLUDE = {"js/auth.js", "package-lock.json", "backend/package-lock.json"}
 BINARY = re.compile(r"\.(png|jpe?g|webp|gif|ico|avif|bmp|tiff?|svgz|eot|woff2?|ttf|otf|mp[34]|ogg|m4a|wav|flac|webm|mov|zip|gz|7z|pdf|dmp|ai|db|sqlite3?)(?:-(?:wal|shm|journal))?$", re.I)
@@ -208,7 +208,7 @@ def guide(base, names):
 标记后的源码逐字节保留，包括缩进、空格、换行及是否有末尾换行。
 文件之间额外的两个换行属于分隔框架，不属于源码。
 不要手动重排或改写分卷。粘贴到聊天时可另加代码围栏，并保留文件名和缩进。
-每个 txt 不超过 {CAP:,} 字节；数量按完整源文件体积自动调整。
+每个 txt 不超过 {CAP:,} 字节（{CAP / 1_000_000:g} MB）；数量按完整源文件体积自动调整。
 
 三、附上背景和诉求
 
