@@ -49,6 +49,15 @@ test("creator feed rejects wrong authors, incomplete/empty XML and bad dates wit
   for (const xml of [feed({ channel: "OTHER" }), feed({ video: "bad" }), feed({ published: "2026-02-30T00:00:00Z" }), "<feed></feed>", feed().replace("</entry>", ""), feed({ title: "&unknown;" }), '<!DOCTYPE feed [<!ENTITY x SYSTEM "file:///private">]>' + feed()]) assert.throws(() => parseYouTubeFeed(xml));
 });
 
+test("YouTube feed accepts the official shortened header ID while verifying every full entry author", async () => {
+  const { parseYouTubeFeed } = await load();
+  const original = feed();
+  const shortened = original.replace(`<yt:channelId>${CHANNEL}</yt:channelId>`, `<yt:channelId>${CHANNEL.slice(2)}</yt:channelId>`);
+  assert.deepEqual(parseYouTubeFeed(shortened), parseYouTubeFeed(original));
+  assert.throws(() => parseYouTubeFeed(shortened.replace(`<yt:channelId>${CHANNEL}</yt:channelId>`, "<yt:channelId>UCwrong</yt:channelId>")), /Unexpected video author/);
+  assert.throws(() => parseYouTubeFeed(shortened.replace(CHANNEL.slice(2), "wrong")), /Unexpected YouTube channel/);
+});
+
 test("YouTube HTML fallback reads JSON without executing scripts and supports both official list variants", async () => {
   const { parseYouTubeChannelPage, parseYouTubeWatchPage } = await load();
   assert.deepEqual(parseYouTubeChannelPage(channelPage()), [VIDEO]);
