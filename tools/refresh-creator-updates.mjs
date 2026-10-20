@@ -53,7 +53,10 @@ export function parseYouTubeFeed(xml) {
   const blocks = [...xml.matchAll(/<entry(?:\s[^>]*)?>([\s\S]*?)<\/entry>/gu)].map(match => match[1]);
   if (!blocks.length || blocks.length !== (xml.match(/<entry(?:\s|>)/gu) || []).length) throw new Error("Empty or incomplete YouTube feed");
   const header = xml.slice(0, xml.indexOf("<entry"));
-  if (xmlField(header, "yt:channelId") !== CHANNEL_ID) throw new Error("Unexpected YouTube channel");
+  // The feed header also uses the channel ID without its UC prefix; entry authors
+  // still need to match the full, fixed channel ID below.
+  const feedChannel = xmlField(header, "yt:channelId");
+  if (feedChannel !== CHANNEL_ID && feedChannel !== CHANNEL_ID.slice(2)) throw new Error("Unexpected YouTube channel");
   return blocks.map(block => {
     if (xmlField(block, "yt:channelId") !== CHANNEL_ID) throw new Error("Unexpected video author");
     const video = xmlField(block, "yt:videoId");
