@@ -168,7 +168,7 @@ test("every GitHub Action is pinned to a commit SHA, workflows avoid pull_reques
 // holds the local ADMIN_EMAILS line.
 function publishedTextFiles() {
   const skip = new Set(["node_modules", ".git", "dist", "artifacts", ".backups", ".vscode"]);
-  const files = ["index.html", "404.html", "script.js", "style.css", "README.md", "SECURITY.md", "site.webmanifest", "robots.txt", "sitemap.xml", "backend/.env.example"];
+  const files = ["index.html", "404.html", "updates.html", "updates.css", "script.js", "style.css", "AGENTS.md", "README.md", "SECURITY.md", "site.webmanifest", "robots.txt", "sitemap.xml", "backend/.env.example"];
   const walk = (directory, filter) => {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
       if (skip.has(entry.name)) continue;
@@ -177,7 +177,7 @@ function publishedTextFiles() {
       else if (filter.test(entry.name)) files.push(file);
     }
   };
-  for (const [directory, filter] of Object.entries({ docs: /\.md$/i, js: /\.js$/i, tools: /\.(?:mjs|cjs|js)$/i, backend: /\.mjs$/i, ".github": /\.ya?ml$/i })) walk(directory, filter);
+  for (const [directory, filter] of Object.entries({ docs: /\.md$/i, js: /\.js$/i, tools: /\.(?:mjs|cjs|js|py)$/i, backend: /\.mjs$/i, data: /\.json$/i, ".github": /\.ya?ml$/i })) walk(directory, filter);
   return files.filter(file => fs.existsSync(file));
 }
 
@@ -190,6 +190,11 @@ test("the published contact address never becomes an admin login identifier", ()
   const files = publishedTextFiles();
   assert.ok(files.length > 25, `expected the public file scan to cover the repository, got ${files.length}`);
   assert.ok(files.includes("docs/SECURITY.md") && files.includes("backend/.env.example"));
+  for (const file of ["updates.html", "updates.css", "AGENTS.md", "data/creator-updates.json", "data/x-posts/manifest.json", "tools/sync-copy.py"]) {
+    assert.ok(files.includes(file), `${file}: the contact/admin guard must cover newer repository text`);
+  }
+  const manifest = JSON.parse(read("data/x-posts/manifest.json"));
+  for (const shard of manifest.shards) assert.ok(files.includes(`data/x-posts/${shard.file}`), "the contact/admin guard must cover every X post shard");
   for (const file of files) {
     const source = read(file);
     // The address may only appear where it is published as a contact route.

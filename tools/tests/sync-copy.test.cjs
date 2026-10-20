@@ -44,7 +44,7 @@ function fixture(extra = {}) {
   for (const [name, value] of Object.entries(extra)) write(name, value);
   const base = commit();
   write("docs/note.md", "# Synthetic documentation\nA committed change.\n"); commit();
-  return { root, directory, base, sources, write, commit, git,
+  return { root, directory, base, sources, write, commit, git, env,
     output: path.join(root, OUT),
     close() { fs.rmSync(directory, { recursive: true, force: true }); },
     run(args = [], legacy = false, timeout = 10000) {
@@ -254,6 +254,11 @@ test("TXT count follows capacity beyond fifteen with complete unique source sect
       assert.equal(copySections(box).size, box.sources.size - exclusions.length);
       assert.ok(textFiles(box).length > (count === 8 ? 10 : 15));
       for (const name of textFiles(box)) assert.ok(fs.statSync(path.join(box.output, name)).size <= CAP, name);
+      const numeric = names => [...names].sort((a, b) => Number(a.match(/-(\d+)\.txt$/u)[1]) - Number(b.match(/-(\d+)\.txt$/u)[1]));
+      const listed = [...fs.readFileSync(path.join(box.output, GUIDE), "utf8").matchAll(/^  (1-app-code-\d+\.txt)$/gmu)].map(match => match[1]);
+      const printed = [...result.stdout.matchAll(/^  (1-app-code-\d+\.txt)\s+\d+ B$/gmu)].map(match => match[1]);
+      assert.deepEqual(listed, numeric(listed), "the guide orders volumes 2 before 10");
+      assert.deepEqual(printed, numeric(printed), "the console uses the same numeric volume order");
     } finally { box.close(); }
   }
 });
@@ -267,6 +272,34 @@ test("Finder metadata is detected then removed on sync, while unknown TXT attach
     fs.writeFileSync(path.join(box.output, "unknown.txt"), "KEEP");
     failed(box.run(), /额外 txt/u);
     assert.equal(fs.readFileSync(path.join(box.output, "unknown.txt"), "utf8"), "KEEP");
+  } finally { box.close(); }
+});
+
+test("numbered changes files are rejected without silently deleting or rewriting them", () => {
+  const box = fixture();
+  try {
+    passed(box.run());
+    const before = fs.readFileSync(path.join(box.output, "changes.txt"));
+    for (const content of ["", "LEGACY_DIFF\n"]) {
+      const extra = path.join(box.output, "changes-1.txt");
+      fs.writeFileSync(extra, content);
+      failed(box.run(["--check"]), /额外 txt.*changes-1\.txt/u);
+      failed(box.run(), /额外 txt.*changes-1\.txt/u);
+      assert.equal(fs.readFileSync(extra, "utf8"), content);
+      assert.deepEqual(fs.readFileSync(path.join(box.output, "changes.txt")), before);
+    }
+  } finally { box.close(); }
+});
+
+test("empty volumes fail explicitly in every group and a sync regenerates valid output", () => {
+  const box = fixture();
+  try {
+    passed(box.run());
+    for (const name of ["1-app-code-1.txt", "2-tools-tests-99.txt", "3-docs-99.txt", "4-x-posts-99.txt"]) {
+      fs.writeFileSync(path.join(box.output, name), "");
+      failed(box.run(["--check"]), new RegExp(`空分卷: ${name.replace(/\./gu, "\\.")}`, "u"));
+      passed(box.run()); passed(box.run(["--check"]));
+    }
   } finally { box.close(); }
 });
 
@@ -289,8 +322,14 @@ test("the short legacy launcher forwards arguments to the tracked generator with
   const box = fixture();
   try {
     fs.mkdirSync(box.output);
-    fs.writeFileSync(path.join(box.output, "sync.py"), 'import os, runpy\nrunpy.run_path(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tools", "sync-copy.py"), run_name="__main__")\n');
+    fs.writeFileSync(path.join(box.output, "sync.py"), 'import os, runpy\nrunpy.run_path(os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "tools", "sync-copy.py"), run_name="__main__")\n');
     passed(box.run([], true)); passed(box.run(["--check"], true));
+    if (process.platform !== "win32") {
+      const link = path.join(box.directory, "linked-sync.py");
+      fs.symlinkSync(path.join(box.output, "sync.py"), link);
+      const linked = spawnSync("python3", [link, "--check"], { cwd: box.directory, env: box.env, encoding: "utf8", timeout: 10000 });
+      assert.ifError(linked.error); passed(linked);
+    }
     assert.ok(copySections(box).has("tools/sync-copy.py"));
     assert.equal(fs.existsSync(path.join(box.root, "tools", OUT)), false);
   } finally { box.close(); }
