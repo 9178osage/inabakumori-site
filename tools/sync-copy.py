@@ -26,7 +26,7 @@ GUIDE = "0-使用说明.txt"
 EXCLUDE = {"js/auth.js", "package-lock.json", "backend/package-lock.json"}
 BINARY = re.compile(r"\.(png|jpe?g|webp|gif|ico|avif|bmp|tiff?|svgz|eot|woff2?|ttf|otf|mp[34]|ogg|m4a|wav|flac|webm|mov|zip|gz|7z|pdf|dmp|ai|db|sqlite3?)(?:-(?:wal|shm|journal))?$", re.I)
 PRIVATE = re.compile(r"(?:^|[/_.-])(?:secrets?|credentials?|private[-_]?key|id_rsa|id_ed25519)(?:$|[/_.-])|\.(?:pem|key|p12|pfx|jks|keystore|sql|dump|bak)$", re.I)
-GENERATED = re.compile(r"^(?:(?:1-app-code|2-tools-tests|3-docs|4-x-posts)-\d+|changes(?:-\d+)?)\.txt$")
+GENERATED = re.compile(r"^(?:(?:1-app-code|2-tools-tests|3-docs|4-x-posts)-\d+|changes)\.txt$")
 X_POSTS_FILE = re.compile(r"^data/x-posts/posts-[^/]+\.json$")
 APP_ROOT = {"index.html", "updates.html", "404.html", "style.css", "updates.css", "script.js", "site.webmanifest", "robots.txt",
             "sitemap.xml", "package.json", "CNAME", ".nojekyll", "tools/auth-src.js"}
@@ -84,6 +84,11 @@ def group(p):
 
 def limit(name):
     return X_POSTS_CAP if name == "4-x-posts" or name.startswith("4-x-posts-") else CAP
+
+
+def volume_order(name):
+    match = re.fullmatch(r"(.+)-(\d+)\.txt", name)
+    return (match.group(1), int(match.group(2)), name) if match else (name, 0, name)
 
 
 def git(*args):
@@ -197,8 +202,9 @@ def changes(base):
 
 def guide(base, names):
     head = git("rev-parse", "--short", "HEAD").decode().strip()
-    volumes = "\n".join("  " + n for n in sorted(names) if n.startswith(("1-app-code-", "2-tools-tests-", "3-docs-")))
-    posts = "\n".join("  " + n for n in sorted(names) if n.startswith("4-x-posts-")) or "  （本次没有帖子正文分卷）"
+    ordered = sorted(names, key=volume_order)
+    volumes = "\n".join("  " + n for n in ordered if n.startswith(("1-app-code-", "2-tools-tests-", "3-docs-")))
+    posts = "\n".join("  " + n for n in ordered if n.startswith("4-x-posts-")) or "  （本次没有帖子正文分卷）"
     return f"""稻网源码文本副本 · 使用说明
 
 对应提交：{head}（main）
@@ -258,13 +264,15 @@ def check():
     seen, ok, base = {}, True, None
     if os.path.lexists(os.path.join(OUT, ".DS_Store")):
         ok = False; print("  ❌ 副本目录含 .DS_Store，请重新同步以清理")
-    text_names = sorted(n for n in os.listdir(OUT) if n.lower().endswith(".txt"))
+    text_names = sorted((n for n in os.listdir(OUT) if n.lower().endswith(".txt")), key=volume_order)
     for n in text_names:
         if n != GUIDE and not GENERATED.match(n):
             ok = False; print(f"  ❌ 发现额外 txt，请维护者确认: {n}")
-    names = sorted(n for n in os.listdir(OUT) if GENERATED.match(n))
+    names = sorted((n for n in os.listdir(OUT) if GENERATED.match(n)), key=volume_order)
     for n in names:
         blob = open(output_file(n), "rb").read()
+        if not blob:
+            ok = False; print(f"  ❌ 空分卷: {n}"); continue
         cap = limit(n)
         if len(blob) > cap:
             ok = False; print(f"  ❌ {n} 超过 {cap:,} 字节")
@@ -351,7 +359,7 @@ def main():
             os.remove(output_file(n))
     for n, data in vols.items():
         write_output(n, data)
-    for n in sorted(vols):
+    for n in sorted(vols, key=volume_order):
         print(f"  {n:24} {len(vols[n]):>7} B")
     sys.exit(0 if check() else 1)
 
