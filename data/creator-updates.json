@@ -7,7 +7,7 @@
       "label": "YouTube",
       "url": "https://www.youtube.com/@inabakumori",
       "checkedAt": "2026-10-18T05:41:15.076Z",
-      "lastAttemptAt": "2026-10-18T14:37:05.568Z",
+      "lastAttemptAt": "2026-10-20T15:40:18.251Z",
       "status": "error",
       "message": "Official source could not be checked. Previous entries are retained."
     },
@@ -16,8 +16,8 @@
       "creator": "nknk",
       "label": "pixiv",
       "url": "https://www.pixiv.net/users/27327959",
-      "checkedAt": "2026-10-18T14:37:05.568Z",
-      "lastAttemptAt": "2026-10-18T14:37:05.568Z",
+      "checkedAt": "2026-10-20T15:40:18.251Z",
+      "lastAttemptAt": "2026-10-20T15:40:18.251Z",
       "status": "ok"
     },
     {
@@ -25,8 +25,8 @@
       "creator": "nknk",
       "label": "CAMPFIRE Creation",
       "url": "https://camp-fire.jp/projects/970332/view/activities",
-      "checkedAt": "2026-10-18T14:37:05.568Z",
-      "lastAttemptAt": "2026-10-18T14:37:05.568Z",
+      "checkedAt": "2026-10-20T15:40:18.251Z",
+      "lastAttemptAt": "2026-10-20T15:40:18.251Z",
       "status": "ok"
     }
   ],
