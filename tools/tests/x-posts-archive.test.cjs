@@ -36,6 +36,17 @@ test("previously collected replies and self-replies remain in the committed arch
   }
 });
 
+test("older verified replies are imported with their original collection time", async () => {
+  const { readXPostsArchive } = await import("../x-posts-data.mjs");
+  const archive = await readXPostsArchive(repo);
+  const post = archive.items.find(item => item.id === "979981016549941248");
+  assert.ok(post, "the saved early reply must be present in the website archive");
+  assert.equal(post.creator, "inabakumori");
+  assert.equal(post.text, "yes 左に強い川島");
+  assert.equal(post.publishedAt, "2018-03-31T07:17:36.000Z");
+  assert.equal(post.collectedAt, "2026-10-18T23:20:43.752Z");
+});
+
 test("build and check-build read the archive from the repository root, not a doubled data/x-posts path", () => {
   const build = fs.readFileSync(path.join(repo, "tools/build-site.mjs"), "utf8");
   const check = fs.readFileSync(path.join(repo, "tools/check-build.mjs"), "utf8");

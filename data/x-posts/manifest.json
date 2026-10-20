@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "count": 5873,
+  "count": 6109,
   "coverage": [
     {
       "creator": "inabakumori",
@@ -24,7 +24,7 @@
           "status": "scanned"
         }
       ],
-      "count": 2334,
+      "count": 2570,
       "oldestAt": "2015-12-16T07:54:05.000Z",
       "newestAt": "2026-07-04T04:02:15.000Z",
       "lastCollectedAt": "2026-10-19T17:08:00.000Z"
@@ -149,44 +149,49 @@
       "sha256": "66b8afabfb41ef8e7cd4a41c90878bdb662fac2a774feffff1873b6cfaa81d42"
     },
     {
-      "file": "posts-bfc61e45418e033130d60b4b602415e42cf13d1d68721eb243d6e45f86a4273c.json",
-      "count": 241,
-      "sha256": "bfc61e45418e033130d60b4b602415e42cf13d1d68721eb243d6e45f86a4273c"
+      "file": "posts-48b6817866697604192d8840a7d6f8ad2ffa4ae556f9cb3e00a96287f55f1737.json",
+      "count": 242,
+      "sha256": "48b6817866697604192d8840a7d6f8ad2ffa4ae556f9cb3e00a96287f55f1737"
     },
     {
-      "file": "posts-93f70f5680aff329cc28f7a5a35e0d7e5d5e1b09c1638e5df6d9c05af93ab15d.json",
-      "count": 236,
-      "sha256": "93f70f5680aff329cc28f7a5a35e0d7e5d5e1b09c1638e5df6d9c05af93ab15d"
+      "file": "posts-40752bc3c3ae3d82c8e63d379dbe49683b970dc832da48b47817ec5af6ea3f7d.json",
+      "count": 239,
+      "sha256": "40752bc3c3ae3d82c8e63d379dbe49683b970dc832da48b47817ec5af6ea3f7d"
     },
     {
-      "file": "posts-21951776b59a082448eab644397bb5b894d581cb0035aa443654a62ed78e404d.json",
-      "count": 218,
-      "sha256": "21951776b59a082448eab644397bb5b894d581cb0035aa443654a62ed78e404d"
+      "file": "posts-1333a5aa6f0f83688e5e6ffc8d7430545289ab50942c61543a8d87747bcf0247.json",
+      "count": 219,
+      "sha256": "1333a5aa6f0f83688e5e6ffc8d7430545289ab50942c61543a8d87747bcf0247"
     },
     {
-      "file": "posts-5e8199118371cd105cfb5278ee2fd09957ab017445e3d8330df1ccdfb72b8c3e.json",
-      "count": 240,
-      "sha256": "5e8199118371cd105cfb5278ee2fd09957ab017445e3d8330df1ccdfb72b8c3e"
+      "file": "posts-b330cfee5a9d3c3e0ced5f14d5ad4a774487e00825f06a6b4c8bdcaf8ea813c1.json",
+      "count": 237,
+      "sha256": "b330cfee5a9d3c3e0ced5f14d5ad4a774487e00825f06a6b4c8bdcaf8ea813c1"
     },
     {
-      "file": "posts-4562997cc8ee741327ab19e17d163e58d2b944d2e0fc8a443c5a18473180aa67.json",
-      "count": 215,
-      "sha256": "4562997cc8ee741327ab19e17d163e58d2b944d2e0fc8a443c5a18473180aa67"
+      "file": "posts-4a92badd2fb1e0a48d913343cd05b209911a908752af685dd612fc56d8152b15.json",
+      "count": 237,
+      "sha256": "4a92badd2fb1e0a48d913343cd05b209911a908752af685dd612fc56d8152b15"
     },
     {
-      "file": "posts-86ea3867e47ac70a92bcfde41a75184aacc5baf57608091ef2584b112cff7ecf.json",
+      "file": "posts-4438a758ea974827ee17d7815977179f8a860a5e140057c8a3720b8698b94761.json",
+      "count": 219,
+      "sha256": "4438a758ea974827ee17d7815977179f8a860a5e140057c8a3720b8698b94761"
+    },
+    {
+      "file": "posts-2c61006524afb5a45892f425887872d02b495dae207f3798369912b142703b00.json",
       "count": 213,
-      "sha256": "86ea3867e47ac70a92bcfde41a75184aacc5baf57608091ef2584b112cff7ecf"
+      "sha256": "2c61006524afb5a45892f425887872d02b495dae207f3798369912b142703b00"
     },
     {
-      "file": "posts-f9627b169d46da5f6abc81770daa520b994c5aa5ab8b84122bc292cc3b7b1a15.json",
-      "count": 224,
-      "sha256": "f9627b169d46da5f6abc81770daa520b994c5aa5ab8b84122bc292cc3b7b1a15"
+      "file": "posts-145017ae076c1f58ed3fd65420aff063e981a540c075149bf3738ff4dd78b852.json",
+      "count": 225,
+      "sha256": "145017ae076c1f58ed3fd65420aff063e981a540c075149bf3738ff4dd78b852"
     },
     {
-      "file": "posts-a23f643fca4c7e135f3e580ef60f4310e8f33c76015c3f088cd0acaa755383fb.json",
-      "count": 45,
-      "sha256": "a23f643fca4c7e135f3e580ef60f4310e8f33c76015c3f088cd0acaa755383fb"
+      "file": "posts-0802a994cabe2730c0a6b2425f19e99acbc0fd15bcebc5843b10d5c81ac0d389.json",
+      "count": 37,
+      "sha256": "0802a994cabe2730c0a6b2425f19e99acbc0fd15bcebc5843b10d5c81ac0d389"
     }
   ]
 }
