@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """稻网（inabakumori-site）源码文本副本。副本 = git HEAD 的逐字节拷贝，不做任何替换。
 
-规则（用户 2026-10-13/15 定，2026-10-20 将上限改为 140 MB）：
+规则（用户 2026-10-20 将代码上限恢复为 130,000 字节，帖子正文单独归档）：
   1. 每段以 `===== 文件路径 =====` 开头，内容与 `git show HEAD:<路径>` 逐字节相同。
-  2. 按文件拆分，单个文件绝不切开；每个 txt 的字节上限统一由下方 CAP 定义。
-  3. 三组互不重叠：1-app-code / 2-tools-tests / 3-docs；另有 changes.txt（git diff）。
+  2. 按文件拆分，单个文件绝不切开；代码、说明和差异每个 txt 不超过 CAP 字节。
+  3. 四组互不重叠：1-app-code / 2-tools-tests / 3-docs / 4-x-posts；帖子正文上限为 X_POSTS_CAP。
   4. txt 文件数量按完整源文件体积自动调整，包含使用说明和 changes.txt。
   5. 只读 git 跟踪的文件，排除 js/auth.js（源码是 tools/auth-src.js）、两个 package-lock.json、
      二进制文件，以及 dist/、.env*、数据库、密钥和本地私有文件。
@@ -20,12 +20,14 @@ import os, re, stat, subprocess, sys, tempfile
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(REPO, "inabakumori-site-all-code")
 BASE_FILE = os.path.join(OUT, ".review-base")
-CAP = 140_000_000  # 140 MB，按十进制字节计。
+CAP = 130_000
+X_POSTS_CAP = 140_000_000  # 第 4 组数据单独打包，按十进制字节计。
 GUIDE = "0-使用说明.txt"
 EXCLUDE = {"js/auth.js", "package-lock.json", "backend/package-lock.json"}
 BINARY = re.compile(r"\.(png|jpe?g|webp|gif|ico|avif|bmp|tiff?|svgz|eot|woff2?|ttf|otf|mp[34]|ogg|m4a|wav|flac|webm|mov|zip|gz|7z|pdf|dmp|ai|db|sqlite3?)(?:-(?:wal|shm|journal))?$", re.I)
 PRIVATE = re.compile(r"(?:^|[/_.-])(?:secrets?|credentials?|private[-_]?key|id_rsa|id_ed25519)(?:$|[/_.-])|\.(?:pem|key|p12|pfx|jks|keystore|sql|dump|bak)$", re.I)
-GENERATED = re.compile(r"^(?:(?:1-app-code|2-tools-tests|3-docs)-\d+|changes(?:-\d+)?)\.txt$")
+GENERATED = re.compile(r"^(?:(?:1-app-code|2-tools-tests|3-docs|4-x-posts)-\d+|changes(?:-\d+)?)\.txt$")
+X_POSTS_FILE = re.compile(r"^data/x-posts/posts-[^/]+\.json$")
 APP_ROOT = {"index.html", "updates.html", "404.html", "style.css", "updates.css", "script.js", "site.webmanifest", "robots.txt",
             "sitemap.xml", "package.json", "CNAME", ".nojekyll", "tools/auth-src.js"}
 
@@ -71,11 +73,17 @@ def write_output(name, data):
 
 
 def group(p):
+    if X_POSTS_FILE.fullmatch(p):
+        return "4-x-posts"
     if p.endswith(".md") or p.startswith("docs/"):
         return "3-docs"
     if p in APP_ROOT or p.startswith(("js/", "backend/", "fonts/", "data/")):
         return "1-app-code"
     return "2-tools-tests"  # tools/、.github/、.gitignore、.npmrc 以及其余配置
+
+
+def limit(name):
+    return X_POSTS_CAP if name == "4-x-posts" or name.startswith("4-x-posts-") else CAP
 
 
 def git(*args):
@@ -145,10 +153,11 @@ def build():
     for p, data in files():
         g = group(p)
         piece = section(p, data)
-        if len(piece) > CAP:
-            sys.exit(f"{p} 单个文件就超过 {CAP:,} 字节，无法放进副本")
+        cap = limit(g)
+        if len(piece) > cap:
+            sys.exit(f"{p} 单个文件就超过 {cap:,} 字节，无法放进副本")
         parts = vols.setdefault(g, [[]])
-        if sum(map(len, parts[-1])) + len(piece) > CAP:
+        if sum(map(len, parts[-1])) + len(piece) > cap:
             parts.append([])
         parts[-1].append(piece)
     result = {}
@@ -189,6 +198,7 @@ def changes(base):
 def guide(base, names):
     head = git("rev-parse", "--short", "HEAD").decode().strip()
     volumes = "\n".join("  " + n for n in sorted(names) if n.startswith(("1-app-code-", "2-tools-tests-", "3-docs-")))
+    posts = "\n".join("  " + n for n in sorted(names) if n.startswith("4-x-posts-")) or "  （本次没有帖子正文分卷）"
     return f"""稻网源码文本副本 · 使用说明
 
 对应提交：{head}（main）
@@ -197,8 +207,12 @@ def guide(base, names):
 一、选择附件
 
 只核对改动：只提供 changes.txt。
-全站体检：只提供以下互不重叠的三组分卷，不同时提供 changes.txt：
+日常前后端源码、测试与文档体检：提供以下互不重叠的前三组，不同时提供 changes.txt：
 {volumes}
+
+前三组保留 data/x-posts/manifest.json；X 帖子正文是独立数据，不在日常代码附件中。
+需要复核帖子正文或提供全部文本时，再按需附上第 4 组，不同时附 changes.txt：
+{posts}
 
 同一次提问不要重复提供相同内容。本说明无源码，按需提供即可。
 
@@ -208,7 +222,9 @@ def guide(base, names):
 标记后的源码逐字节保留，包括缩进、空格、换行及是否有末尾换行。
 文件之间额外的两个换行属于分隔框架，不属于源码。
 不要手动重排或改写分卷。粘贴到聊天时可另加代码围栏，并保留文件名和缩进。
-每个 txt 不超过 {CAP:,} 字节（{CAP / 1_000_000:g} MB）；数量按完整源文件体积自动调整。
+前三组、说明和 changes.txt 每个 txt 不超过 {CAP:,} 字节。
+第 4 组帖子正文每个 txt 不超过 {X_POSTS_CAP:,} 字节（{X_POSTS_CAP / 1_000_000:g} MB）。
+数量按完整源文件体积自动调整，不丢弃已提交帖子正文。
 
 三、附上背景和诉求
 
@@ -249,8 +265,9 @@ def check():
     names = sorted(n for n in os.listdir(OUT) if GENERATED.match(n))
     for n in names:
         blob = open(output_file(n), "rb").read()
-        if len(blob) > CAP:
-            ok = False; print(f"  ❌ {n} 超过 {CAP:,} 字节")
+        cap = limit(n)
+        if len(blob) > cap:
+            ok = False; print(f"  ❌ {n} 超过 {cap:,} 字节")
         if n == "changes.txt":
             header = re.match(rb"# changes (\S+)\.\.([0-9a-f]+)[^\n]*\n", blob)
             if not header or blob != changes(header.group(1).decode()):
@@ -292,7 +309,7 @@ def check():
 def main():
     args = sys.argv[1:]
     if len(args) > 1 or args and args[0].startswith("-") and args not in (["--check"], ["--mark-reviewed"]):
-        sys.exit(f"用法: python3 tools/sync-copy.py [base | --check | --mark-reviewed]（每个 txt ≤{CAP:,} 字节）")
+        sys.exit(f"用法: python3 tools/sync-copy.py [base | --check | --mark-reviewed]（前三组及差异 ≤{CAP:,} 字节；帖子正文 ≤{X_POSTS_CAP:,} 字节）")
     output_directory(create=args != ["--check"])
     output_file(".review-base")
     for name in os.listdir(OUT):

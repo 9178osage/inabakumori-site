@@ -9,14 +9,12 @@ const { spawnSync } = require("node:child_process");
 const repo = path.resolve(__dirname, "../..");
 const OUT = "inabakumori-site-all-code";
 const GUIDE = "0-使用说明.txt";
-const PRODUCTION_CAP = 140_000_000;
-// Exercise packing and overflow with a small limit so boundary tests do not need
-// hundreds of MB. A separate test below runs the unchanged production generator.
+const X_POSTS_CAP = 140_000_000;
 const CAP = 130_000;
 const exclusions = ["js/auth.js", "package-lock.json", "backend/package-lock.json", ".env.fixture",
   "backend/comments.db", "keys/private-key.pem", "dist/generated.js", "images/picture.png", "binary.dat"];
 
-function fixture(extra = {}, { scaled = true } = {}) {
+function fixture(extra = {}) {
   const directory = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "station-copy-tool-")));
   const root = path.join(directory, "repo");
   fs.mkdirSync(root);
@@ -38,10 +36,7 @@ function fixture(extra = {}, { scaled = true } = {}) {
   };
   git("init", "-q", "-b", "main"); git("config", "core.autocrlf", "false");
   write(".gitignore", OUT + "/\n");
-  let generator = fs.readFileSync(path.join(repo, "tools/sync-copy.py"), "utf8");
-  assert.match(generator, /^CAP = 140_000_000\b/mu);
-  if (scaled) generator = generator.replace(/^CAP = [\d_]+/mu, `CAP = ${CAP}`);
-  write("tools/sync-copy.py", generator);
+  write("tools/sync-copy.py", fs.readFileSync(path.join(repo, "tools/sync-copy.py")));
   write("index.html", Buffer.from("  <p>原始缩进</p>\r\n\t<p>无末尾换行</p>"));
   write("tools/example.py", "if True:\n    print('keep four spaces')\n");
   write("docs/note.md", "# Synthetic documentation\n");
@@ -49,7 +44,7 @@ function fixture(extra = {}, { scaled = true } = {}) {
   for (const [name, value] of Object.entries(extra)) write(name, value);
   const base = commit();
   write("docs/note.md", "# Synthetic documentation\nA committed change.\n"); commit();
-  return { root, directory, base, sources, write, commit, git, cap: scaled ? CAP : PRODUCTION_CAP,
+  return { root, directory, base, sources, write, commit, git,
     output: path.join(root, OUT),
     close() { fs.rmSync(directory, { recursive: true, force: true }); },
     run(args = [], legacy = false, timeout = 10000) {
@@ -67,9 +62,9 @@ function failed(result, message) {
 function textFiles(box) { return fs.readdirSync(box.output).filter(name => name.endsWith(".txt")); }
 function copySections(box) {
   const found = new Map();
-  for (const name of textFiles(box).filter(name => /^[123]-/.test(name))) {
+  for (const name of textFiles(box).filter(name => /^[1-4]-/.test(name))) {
     const blob = fs.readFileSync(path.join(box.output, name));
-    assert.ok(blob.length <= box.cap, name);
+    assert.ok(blob.length <= (name.startsWith("4-x-posts-") ? X_POSTS_CAP : CAP), name);
     let offset = 0;
     while (offset < blob.length) {
       const header = /^===== ([^\n]+) =====\n/u.exec(blob.subarray(offset).toString("utf8"));
@@ -82,7 +77,7 @@ function copySections(box) {
       assert.deepEqual(blob.subarray(offset, offset + original.length), original, file);
       offset += original.length;
       assert.deepEqual(blob.subarray(offset, offset + 2), Buffer.from("\n\n"), file); offset += 2;
-      const group = file.endsWith(".md") ? "3-docs" : file === "index.html" || file.startsWith("js/") || file.startsWith("data/") ? "1-app-code" : "2-tools-tests";
+      const group = /^data\/x-posts\/posts-[^/]+\.json$/u.test(file) ? "4-x-posts" : file.endsWith(".md") ? "3-docs" : file === "index.html" || file.startsWith("js/") || file.startsWith("backend/") || file.startsWith("data/") ? "1-app-code" : "2-tools-tests";
       assert.ok(name.startsWith(group), `${file} in ${group}`); found.set(file, name);
     }
   }
@@ -119,25 +114,56 @@ test("existing review base is retained, including when an explicit alternate bas
   } finally { box.close(); }
 });
 
-test("140 MB production limit combines the old volumes and allows larger sources and diffs", () => {
-  const box = fixture({ "js/one.js": "x".repeat(90000), "js/two.js": "y".repeat(90000) }, { scaled: false });
+test("restored code limit repacks an old large volume and removes obsolete data volumes", () => {
+  const box = fixture({ "js/one.js": "x".repeat(90000), "js/two.js": "y".repeat(90000) });
+  try {
+    passed(box.run());
+    const volumes = textFiles(box).filter(name => name.startsWith("1-app-code-"));
+    const combined = Buffer.concat(volumes.map(name => fs.readFileSync(path.join(box.output, name))));
+    assert.ok(combined.length > CAP);
+    fs.writeFileSync(path.join(box.output, volumes[0]), combined);
+    for (const name of volumes.slice(1)) fs.unlinkSync(path.join(box.output, name));
+    fs.writeFileSync(path.join(box.output, "4-x-posts-2.txt"), "STALE_OLD_VOLUME\n");
+    failed(box.run(["--check"]));
+    passed(box.run()); passed(box.run(["--check"]));
+    const sections = copySections(box);
+    assert.notEqual(sections.get("js/one.js"), sections.get("js/two.js"));
+    assert.equal(fs.existsSync(path.join(box.output, "4-x-posts-2.txt")), false);
+    assert.equal(sections.size, box.sources.size - exclusions.length);
+  } finally { box.close(); }
+});
+
+test("X shards stay separate from complete code and tests; their manifest stays in group one", () => {
+  const first = postShard("雨", "\r\n"), second = postShard("雪");
+  const manifest = Buffer.from(JSON.stringify({ version: 1, shards: [first, second].map(value => ({ file: path.basename(value.file), sha256: value.hash })) }, null, 2) + "\n");
+  const box = fixture({ [first.file]: first.source, [second.file]: second.source, "data/x-posts/manifest.json": manifest,
+    "backend/server.mjs": "export const alive = true;\n", "tools/tests/example.test.cjs": "// Test source must be included.\n" });
   try {
     fs.mkdirSync(box.output);
     fs.writeFileSync(path.join(box.output, ".review-base"), box.base + "\n");
-    fs.writeFileSync(path.join(box.output, "1-app-code-2.txt"), "STALE_OLD_VOLUME\n");
-    box.write("js/larger.js", "z".repeat(200000)); box.commit();
     passed(box.run()); passed(box.run(["--check"]));
     const sections = copySections(box);
     assert.equal(sections.size, box.sources.size - exclusions.length);
-    assert.equal(new Set(["js/one.js", "js/two.js", "js/larger.js"].map(file => sections.get(file))).size, 1);
-    assert.equal(fs.existsSync(path.join(box.output, "1-app-code-2.txt")), false, "obsolete small volumes are removed");
-    assert.equal(textFiles(box).length, 5, "three complete groups plus the guide and changes");
-    const changes = fs.readFileSync(path.join(box.output, "changes.txt"));
-    assert.ok(changes.length > CAP && changes.length < PRODUCTION_CAP);
-    assert.ok(changes.includes(Buffer.from("diff --git a/js/larger.js b/js/larger.js")));
+    assert.ok(sections.get("backend/server.mjs").startsWith("1-app-code-"));
+    assert.ok(sections.get("tools/tests/example.test.cjs").startsWith("2-tools-tests-"));
+    assert.ok(sections.get("data/x-posts/manifest.json").startsWith("1-app-code-"));
+    assert.equal(sections.get(first.file), "4-x-posts-1.txt");
+    assert.equal(sections.get(second.file), "4-x-posts-1.txt");
+    assert.ok(fs.statSync(path.join(box.output, "4-x-posts-1.txt")).size > CAP);
     assert.equal(fs.readFileSync(path.join(box.output, ".review-base"), "utf8"), box.base + "\n");
-    assert.match(fs.readFileSync(path.join(box.output, GUIDE), "utf8"), /140,000,000 字节（140 MB）/u);
-    for (const name of textFiles(box)) assert.ok(fs.statSync(path.join(box.output, name)).size <= PRODUCTION_CAP);
+    const guide = fs.readFileSync(path.join(box.output, GUIDE), "utf8");
+    assert.match(guide, /日常前后端源码、测试与文档体检/u);
+    assert.match(guide, /第 4 组帖子正文每个 txt 不超过 140,000,000 字节（140 MB）/u);
+    assert.ok(guide.indexOf("4-x-posts-1.txt") > guide.indexOf("需要复核帖子正文或提供全部文本时"));
+    for (const name of textFiles(box).filter(name => !name.startsWith("4-x-posts-"))) assert.ok(fs.statSync(path.join(box.output, name)).size <= CAP);
+    const dataVolume = path.join(box.output, "4-x-posts-1.txt");
+    fs.appendFileSync(dataVolume, "TAMPERED");
+    failed(box.run(["--check"]), /不一致/u);
+    passed(box.run());
+    const codeVolume = path.join(box.output, sections.get("data/x-posts/manifest.json"));
+    fs.appendFileSync(codeVolume, fs.readFileSync(dataVolume));
+    fs.unlinkSync(dataVolume);
+    failed(box.run(["--check"]), /分组错误/u);
   } finally { box.close(); }
 });
 
@@ -157,14 +183,14 @@ test("committed X post shards and their manifest are exported whole with exact U
     const sections = copySections(box);
     for (const item of [first, second]) {
       const volume = sections.get(item.file);
-      assert.ok(volume?.startsWith("1-app-code-"), `${item.file} must remain in the complete site copy`);
+      assert.ok(volume?.startsWith("4-x-posts-"), `${item.file} must remain in the complete data copy`);
       const expected = Buffer.concat([Buffer.from(`===== ${item.file} =====\n`), item.source, Buffer.from("\n\n")]);
       assert.ok(fs.readFileSync(path.join(box.output, volume)).includes(expected), `${item.file} preserves every source byte in one section`);
     }
-    assert.notEqual(sections.get(first.file), sections.get(second.file), "whole shards are packed into separate volumes when necessary");
+    assert.equal(sections.get(first.file), sections.get(second.file), "small X shards are combined in the separate data group");
     assert.ok(sections.has("data/x-posts/manifest.json"));
     assert.equal(sections.size, box.sources.size - exclusions.length);
-    for (const name of textFiles(box)) assert.ok(fs.statSync(path.join(box.output, name)).size <= CAP, name);
+    for (const name of textFiles(box)) assert.ok(fs.statSync(path.join(box.output, name)).size <= (name.startsWith("4-x-posts-") ? X_POSTS_CAP : CAP), name);
   } finally { box.close(); }
 });
 
@@ -245,7 +271,7 @@ test("Finder metadata is detected then removed on sync, while unknown TXT attach
 });
 
 test("output directory, generated files and saved baseline cannot redirect writes through symlinks", { skip: process.platform === "win32" }, () => {
-  for (const target of ["directory", "changes.txt", ".review-base"]) {
+  for (const target of ["directory", "changes.txt", ".review-base", "4-x-posts-1.txt"]) {
     const box = fixture();
     try {
       const outside = path.join(box.directory, "outside"); fs.mkdirSync(outside);
@@ -348,7 +374,7 @@ test("a whole source section may exactly fill 130000 bytes without splitting", (
   } finally { box.close(); }
 });
 
-test("check rejects an otherwise intact volume over the scaled fixture limit", () => {
+test("check rejects an otherwise intact code volume over 130000 bytes", () => {
   const box = fixture({ "js/one.js": "x".repeat(70000), "js/two.js": "y".repeat(70000) });
   try {
     passed(box.run());
