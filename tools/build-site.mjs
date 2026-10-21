@@ -95,7 +95,7 @@ function fillUpdates(template, prefix, items = updates.items) {
   return template.replace("</head>", `<meta name="creator-updates-version" content="${updatesVersion}"/>\n</head>`);
 }
 let html = await readFile(source("index.html"), "utf8");
-html = fillUpdates(html, "HOME-UPDATES");
+html = fillUpdates(html, "HOME-UPDATES", updates.homeItems);
 html = fingerprintXPosts(fillOnce(html, "X-POSTS:HOME", xPostsRenderer.renderHome()));
 // Share-tracking parameters (?si=...) identify who shared a link; published links never carry them.
 const cleanSongUrl = value => {

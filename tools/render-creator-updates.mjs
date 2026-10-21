@@ -45,6 +45,7 @@ export function renderCreatorUpdates(snapshot) {
     assert.ok(valid, "Invalid update destination");
     const description = item.source === "youtube" ? ["稲葉曇官方频道发布的视频。标题保留原文，详情请查看原始发布。", "A video from Inabakumori’s official channel. Original title; follow the source for details.", "稲葉曇さんの公式チャンネルの動画です。原題を掲載しています。詳細は公開元をご覧ください。"] : item.source === "pixiv" ? ["NKNK 本人在 pixiv 发布的插画。此日期为作品发布时间，更多近况请查看作者的 X。", "An illustration published by NKNK on pixiv. This is the work’s publication date; visit X for other news.", "NKNKさんがpixivに投稿した作品です。作品の公開日を掲載しています。その他の近況はXをご覧ください。"] : ["NKNK 合作项目主办方的公告，并非作者本人发帖。本轮众筹已于 2026 年 9 月 23 日结束。", "An announcement from the organizer of NKNK’s collaboration, rather than a personal post. This campaign ended on September 23, 2026.", "NKNKさんのコラボ企画の主催者によるお知らせです。ご本人の投稿ではありません。この募集は2026年9月23日に終了しました。"];
     return `<article class="update-item" data-creator="${item.creator}"><span class="update-index" aria-hidden="true">${String(index + 1).padStart(2, "0")}</span><div class="update-content"><div class="update-meta">${time(item.publishedAt, item.datePrecision)}<span class="update-source">${creators[item.creator]} / ${known.label}</span></div><h3><a href="${escape(url.href)}" target="_blank" rel="noopener noreferrer" lang="ja">${escape(item.title)}</a></h3>${text("p", description, ' class="update-summary"')}</div>${text("a", ["查看原文 ↗", "View original ↗", "公開元を見る ↗"], ` class="update-link" href="${escape(url.href)}" target="_blank" rel="noopener noreferrer"`)}</article>`;
-  }).join("\n");
-  return { status, items };
+  });
+  const homeItems = items.map((item, index) => index < 3 ? item : item.replace('<article class="update-item"', '<article class="update-item" hidden')).join("\n");
+  return { status, items: items.join("\n"), homeItems };
 }

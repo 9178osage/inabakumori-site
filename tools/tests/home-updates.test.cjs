@@ -42,39 +42,35 @@ function setup(creators = [...Array(12).fill("inabakumori"), ...Array(17).fill("
   return { context, entries, buttons, more, count, empty, toolbar, document, click, events, timers, visible: () => entries.filter(entry => !entry.hidden) };
 }
 
-test("homepage updates initially show six entries and paginate within the page", () => {
+test("homepage work updates show three entries and link to the complete archive", () => {
   const app = setup();
-  assert.equal(app.visible().length, 6);
+  assert.equal(app.visible().length, 3);
   assert.equal(app.toolbar.hidden, false);
-  assert.equal(app.count.textContent, "显示 6 / 29 条动态");
-  app.click(app.more);
-  assert.equal(app.visible().length, 12);
-  assert.equal(app.document.activeElement, app.more);
+  assert.equal(app.count.textContent, "显示 3 / 29 条动态");
   assert.equal(app.more.hidden, false);
+  assert.equal(app.more.textContent, "浏览全部作品动态 →");
+  assert.equal(app.more.listeners.click, undefined, "the archive link must keep native navigation");
 });
 
-test("creator filtering resets the batch while language changes preserve filter and expansion", () => {
+test("creator and language changes preserve the three-entry limit", () => {
   const app = setup();
   app.click(app.buttons[2]);
   assert.ok(app.visible().every(entry => entry.dataset.creator === "nknk"));
-  app.click(app.more);
-  assert.equal(app.visible().length, 12);
+  assert.equal(app.visible().length, 3);
   app.context.currentLanguage = "ja";
   app.events.get("languagechange")();
-  assert.equal(app.visible().length, 12);
-  assert.equal(app.count.textContent, "17件中12件を表示");
+  assert.equal(app.visible().length, 3);
+  assert.equal(app.count.textContent, "17件中3件を表示");
   assert.equal(app.buttons[2].attributes["aria-pressed"], "true");
   app.click(app.buttons[1]);
-  assert.equal(app.visible().length, 6);
+  assert.equal(app.visible().length, 3);
   assert.ok(app.visible().every(entry => entry.dataset.creator === "inabakumori"));
 });
 
-test("loading the final batch moves focus from the hidden button to the first new title", () => {
-  const app = setup(Array(8).fill("nknk"));
-  app.click(app.more);
+test("a short work list hides the unnecessary archive control", () => {
+  const app = setup(Array(2).fill("nknk"));
   assert.equal(app.more.hidden, true);
-  assert.equal(app.visible().length, 8);
-  assert.equal(app.document.activeElement, app.entries[6].querySelector("h3 a"));
+  assert.equal(app.visible().length, 2);
 });
 
 test("an empty creator result shows an explicit empty state without an unusable more button", () => {
@@ -86,16 +82,15 @@ test("an empty creator result shows an explicit empty state without an unusable 
   assert.equal(app.count.textContent, "显示 0 / 0 条动态");
 });
 
-test("bfcache restores the existing filter and a single staleness timer", () => {
+test("bfcache restores the existing creator filter, preview limit and a single staleness timer", () => {
   const app = setup();
   app.click(app.buttons[2]);
-  app.click(app.more);
   assert.equal(app.timers.size, 1);
   app.events.get("pagehide")();
   assert.equal(app.timers.size, 0);
   app.events.get("pageshow")();
   assert.equal(app.timers.size, 1);
-  assert.equal(app.visible().length, 12);
+  assert.equal(app.visible().length, 3);
   assert.ok(app.visible().every(entry => entry.dataset.creator === "nknk"));
 });
 
@@ -103,9 +98,9 @@ test("homepage links lead to the integrated section and its progressive controls
   const html = fs.readFileSync("index.html", "utf8");
   const beforeContent = html.slice(0, html.indexOf('<main id="main-content"'));
   assert.doesNotMatch(beforeContent, /href="updates\.html"/u);
-  assert.equal([...beforeContent.matchAll(/href="#updates"/gu)].length, 3);
+  assert.equal([...beforeContent.matchAll(/href="#updates"/gu)].length, 2);
   assert.match(html, /id="updates" class="home-updates"/u);
   assert.match(html, /id="home-updates-feed"/u);
-  assert.match(html, /aria-controls="home-updates-feed" hidden/u);
+  assert.match(html, /<a id="home-updates-more" href="updates\.html#feed-title"/u);
   assert.match(html, /<!-- HOME-UPDATES:ITEMS -->/u);
 });

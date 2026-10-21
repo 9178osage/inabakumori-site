@@ -28,12 +28,12 @@ function setup(creators = [...Array(6).fill("inabakumori"), ...Array(6).fill("nk
   return { context, posts, buttons, filters, count, archiveLink, events, visible: () => posts.filter(post => !post.hidden) };
 }
 
-test("homepage X filters appear only after the script runs and start with every pre-rendered post", () => {
+test("homepage X filters appear only after the script runs and show at most three recent posts", () => {
   const app = setup();
   assert.equal(app.filters.hidden, false);
-  assert.equal(app.visible().length, 12);
+  assert.equal(app.visible().length, 3);
   assert.equal(app.count.hidden, false);
-  assert.equal(app.count.textContent, "显示最近 12 条 · 已收录 1852 条");
+  assert.equal(app.count.textContent, "显示最近 3 条 · 已收录 1852 条");
   assert.equal(app.buttons[0].attributes["aria-pressed"], "true");
   assert.equal(app.archiveLink.attributes.href, "updates.html");
 });
@@ -41,10 +41,10 @@ test("homepage X filters appear only after the script runs and start with every 
 test("choosing a creator shows only their posts and points the archive link at their pages", () => {
   const app = setup();
   app.buttons[2].listeners.click();
-  assert.ok(app.visible().length === 6 && app.visible().every(post => post.dataset.creator === "nknk"));
+  assert.ok(app.visible().length === 3 && app.visible().every(post => post.dataset.creator === "nknk"));
   assert.equal(app.buttons[2].attributes["aria-pressed"], "true");
   assert.equal(app.buttons[0].attributes["aria-pressed"], "false");
-  assert.equal(app.count.textContent, "显示最近 6 条 · 已收录 732 条");
+  assert.equal(app.count.textContent, "显示最近 3 条 · 已收录 732 条");
   assert.equal(app.archiveLink.attributes.href, "updates-nknk.html");
   assert.equal(app.archiveLink.textContent, "在本站浏览 NKNK 的全部帖子 →");
   app.buttons[1].listeners.click();
@@ -57,27 +57,27 @@ test("language changes keep the selected creator and relabel the count and archi
   app.buttons[1].listeners.click();
   app.context.currentLanguage = "ja";
   app.events.get("languagechange")();
-  assert.equal(app.count.textContent, "最新6件を表示 · 収録1120件");
+  assert.equal(app.count.textContent, "最新3件を表示 · 収録1120件");
   assert.equal(app.archiveLink.textContent, "稲葉曇の投稿をすべて見る →");
   app.context.currentLanguage = "en";
   app.events.get("languagechange")();
-  assert.equal(app.count.textContent, "Showing the latest 6 · 1120 collected");
+  assert.equal(app.count.textContent, "Showing the latest 3 · 1120 collected");
   assert.ok(app.visible().every(post => post.dataset.creator === "inabakumori"));
 });
 
 test("unknown filter values and malformed totals are ignored safely", () => {
   const app = setup(undefined, { xTotal: "nope" });
-  assert.equal(app.count.textContent, "显示最近 12 条 · 已收录 0 条");
+  assert.equal(app.count.textContent, "显示最近 3 条 · 已收录 0 条");
   app.buttons[0].dataset.xHomeCreator = "__proto__";
   app.buttons[0].listeners.click();
-  assert.equal(app.visible().length, 12);
+  assert.equal(app.visible().length, 3);
   assert.equal(app.archiveLink.attributes.href, "updates.html");
 });
 
 test("a browser without Object.hasOwn can still switch the X post filter", () => {
   const app = setup(undefined, undefined, { legacyObject: true });
   assert.doesNotThrow(() => app.buttons[1].listeners.click());
-  assert.equal(app.visible().length, 6);
+  assert.equal(app.visible().length, 3);
   assert.ok(app.visible().every(post => post.dataset.creator === "inabakumori"));
   assert.equal(app.archiveLink.attributes.href, "updates-inabakumori.html");
 });

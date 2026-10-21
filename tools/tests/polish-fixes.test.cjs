@@ -94,7 +94,8 @@ test("4: the back-to-top label follows the language through data-aria-*", () => 
 });
 
 test("5: the noscript notice includes Japanese", () => {
-  const notice = html.match(/<noscript>([\s\S]*?)<\/noscript>/)[1];
+  const notice = [...html.matchAll(/<noscript>([\s\S]*?)<\/noscript>/g)].map(match => match[1]).find(content => content.includes("Enable JavaScript for search, favorites and accounts"));
+  assert.ok(notice, "the search, favorites and accounts fallback notice must remain present");
   assert.match(notice, /JavaScript を有効にしてください/);
   assert.match(notice, /Enable JavaScript/);
 });
