@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { FORBIDDEN_TITLE_CHARACTERS } from "./text-guards.mjs";
 // Mark text as Japanese only when it contains kana; Han-only or Latin titles are left to the page language.
 const KANA = /[\u3040-\u30ff\u31f0-\u31ff\uff66-\uff9f]/u;
 
@@ -39,7 +40,7 @@ export function renderCreatorUpdates(snapshot) {
     assert.ok(known && known.creator === item.creator && seenSources.has(item.source), "Update source/creator mismatch");
     assert.ok(typeof item.title === "string" && item.title.trim().length > 0 && item.title.length <= 2000, "Invalid update title");
     // C0/C1 controls and bidi overrides could hide or reorder text in the rendered title.
-    assert.doesNotMatch(item.title, /[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/u, "Invalid update title");
+    assert.doesNotMatch(item.title, FORBIDDEN_TITLE_CHARACTERS, "Invalid update title");
     assert.ok(!seenItems.has(item.id), "Duplicate update item");
     seenItems.add(item.id);
     const url = new URL(item.url);

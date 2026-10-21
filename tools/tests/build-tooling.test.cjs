@@ -24,7 +24,7 @@ function run(root, script, args = [], env = {}) {
   delete clean.CI; delete clean.GITHUB_ACTIONS; delete clean.KEEP_LOCAL_API_CSP;
   return spawnSync(process.execPath, [path.join(root, script), ...args], { cwd: root, env: { ...clean, ...env }, encoding: "utf8", timeout: 30_000 });
 }
-const buildFiles = ["tools/build-site.mjs", "tools/safe-fs.mjs", "tools/net-guards.mjs", "tools/render-creator-updates.mjs", "tools/x-posts-data.mjs", "tools/render-x-posts.mjs", "tools/auth-src.js"];
+const buildFiles = ["tools/build-site.mjs", "tools/safe-fs.mjs", "tools/net-guards.mjs", "tools/render-creator-updates.mjs", "tools/x-posts-data.mjs", "tools/render-x-posts.mjs", "tools/text-guards.mjs", "tools/auth-src.js"];
 
 test("assertRepoPath refuses escapes, symlinked files and symlinked parent folders", async () => {
   const { assertRepoPath } = await import("../safe-fs.mjs");

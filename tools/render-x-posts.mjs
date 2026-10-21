@@ -157,13 +157,16 @@ export function xPostsPageTitle(creator = "all", page = 1) {
   const base = { zh: "最新动态 · 稲葉曇与 NKNK", en: "Latest updates · Inabakumori & NKNK", ja: "最新情報 · 稲葉曇・ぬくぬくにぎりめし" };
   const who = { inabakumori: { zh: "稲葉曇的 X 帖子", en: "Inabakumori’s X posts", ja: "稲葉曇のX投稿" }, nknk: { zh: "NKNK 的 X 帖子", en: "NKNK’s X posts", ja: "NKNKのX投稿" } }[creator];
   const where = page > 1 ? { zh: `第 ${page} 页`, en: `Page ${page}`, ja: `${page}ページ目` } : null;
-  const title = {}, description = {};
+  const title = {}, description = {}, ogDescription = {};
+  const baseOgDescription = { zh: "来自官方频道的作品记录。在声音与线条之间，记录新的消息。", en: "A record of work from the official channels, noting new releases between sound and line.", ja: "公式チャンネルからの作品記録。音と線のあいだで、新しい知らせを記録します。" };
   const baseDescription = { zh: "稲葉曇与ぬくぬくにぎりめし（NKNK）的作品动态，附官方来源与核对时间。", en: "New work from Inabakumori and Nukunuku Nigirimeshi (NKNK), with official sources and check times.", ja: "稲葉曇さんとぬくぬくにぎりめしさんの作品情報。公式の取得元と確認日時を掲載。" };
   for (const language of ["zh", "en", "ja"]) {
     const parts = [who?.[language], where?.[language]].filter(Boolean);
     title[language] = [...parts, base[language]].join(" · ");
     const slice = parts.join(" · ");
-    description[language] = slice ? `${slice}：${baseDescription[language]}`.replace("：New", ": New") : baseDescription[language];
+    const separator = language === "en" ? ": " : "：";
+    description[language] = slice ? `${slice}${separator}${baseDescription[language]}` : baseDescription[language];
+    ogDescription[language] = slice ? `${slice}${separator}${baseOgDescription[language]}` : baseOgDescription[language];
   }
-  return { title, description };
+  return { title, description, ogDescription };
 }

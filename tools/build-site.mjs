@@ -142,7 +142,7 @@ for (const creator of ["all", "inabakumori", "nknk"]) {
     updatesHtml = fingerprintXPosts(updatesHtml).replace('<link rel="canonical" href="https://osagechan.top/updates.html"/>', `<link rel="canonical" href="https://osagechan.top/${name}"/>`)
       .replace('<meta property="og:url" content="https://osagechan.top/updates.html"/>', `<meta property="og:url" content="https://osagechan.top/${name}"/>`);
     if (creator !== "all" || page > 1) {
-      const { title, description } = xPostsPageTitle(creator, page);
+      const { title, description, ogDescription } = xPostsPageTitle(creator, page);
       const swap = (from, to) => {
         if (!updatesHtml.includes(from)) throw new Error(`Missing updates.html metadata: ${from}`);
         updatesHtml = updatesHtml.replace(from, () => to);
@@ -150,6 +150,7 @@ for (const creator of ["all", "inabakumori", "nknk"]) {
       swap("<title>最新动态 · 稲葉曇与 NKNK</title>", `<title>${metaEscape(title.zh)}</title>`);
       swap('<meta property="og:title" content="最新动态 · 稲葉曇与 NKNK"/>', `<meta property="og:title" content="${metaEscape(title.zh)}"/>`);
       swap('<meta name="description" content="稲葉曇与ぬくぬくにぎりめし（NKNK）的作品动态，附官方来源与核对时间。"/>', `<meta name="description" content="${metaEscape(description.zh)}"/>`);
+      swap('<meta property="og:description" content="来自官方频道的作品记录。在声音与线条之间，记录新的消息。"/>', `<meta property="og:description" content="${metaEscape(ogDescription.zh)}"/>`);
       // updates.js re-titles the page per language; it reads the slice from these whitelisted attributes.
       swap('<html lang="zh-CN">', `<html lang="zh-CN" data-archive-creator="${creator}" data-archive-page="${page}">`);
     }

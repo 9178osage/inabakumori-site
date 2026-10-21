@@ -231,3 +231,36 @@ test("work titles reject C0/C1 control characters from entities or CDATA", async
   for (const title of ["雨&#1;", "雨&#x7f;", "雨&#x85;", "<![CDATA[雨\u0007]]>"]) assert.throws(() => parseYouTubeFeed(feed({ title })), /Invalid work title/u, title);
   assert.equal(parseYouTubeFeed(feed({ title: "雨&#10;雪" }))[0].title, "雨\n雪");
 });
+
+test("refresh and render reject exactly the same title characters (shared text guard)", async () => {
+  const { FORBIDDEN_TITLE_CHARACTERS } = await import("../text-guards.mjs");
+  const refresh = await fs.readFile(path.join(__dirname, "../refresh-creator-updates.mjs"), "utf8");
+  const render = await fs.readFile(path.join(__dirname, "../render-creator-updates.mjs"), "utf8");
+  for (const source of [refresh, render]) {
+    assert.match(source, /import \{ FORBIDDEN_TITLE_CHARACTERS \} from "\.\/text-guards\.mjs";/u);
+    assert.doesNotMatch(source, /\\u202a|\\u009f/u, "no private copy of the character class");
+  }
+  for (const character of ["\r", "\u0085", "\u202e", "\u2067", "\u0000", "\u007f"]) assert.ok(FORBIDDEN_TITLE_CHARACTERS.test(`雨${character}雪`), JSON.stringify(character));
+  for (const allowed of ["雨\t雪", "雨\n雪", "雨\u200d雪", "100M views!"]) assert.ok(!FORBIDDEN_TITLE_CHARACTERS.test(allowed), JSON.stringify(allowed));
+  const { parseYouTubeFeed } = await load();
+  for (const title of ["雨&#13;雪", "雨&#x202e;雪", "<![CDATA[雨\u2067雪]]>"]) assert.throws(() => parseYouTubeFeed(feed({ title })), /Invalid work title/u, title);
+});
+
+test("a bad title only marks its own source as error and keeps that source's previous entries", async () => {
+  const { refreshCreatorUpdates } = await load();
+  const { renderCreatorUpdates } = await import("../render-creator-updates.mjs");
+  const { data: previous } = await refreshCreatorUpdates(undefined, { now: BEFORE, fetchImpl: async url => fakeFetch(url) });
+  const before = previous.items.filter(item => item.source === "youtube");
+  assert.ok(before.length > 0);
+  const { data, errors } = await refreshCreatorUpdates(previous, { now: NOW, sleep: async () => {}, fetchImpl: async url => {
+    if (url.includes("/feeds/")) return response(feed({ title: "新曲&#x202e;evil" }));
+    if (url.includes("youtube.com/watch")) return response(watchPage({ title: "新曲\u202eevil" }));
+    return fakeFetch(url);
+  } });
+  assert.deepEqual(errors.map(error => error.source), ["youtube"]);
+  assert.deepEqual(Object.fromEntries(data.sources.map(source => [source.id, source.status])), { youtube: "error", pixiv: "ok", campfire: "ok" });
+  assert.equal(data.sources.find(source => source.id === "youtube").checkedAt, previous.sources.find(source => source.id === "youtube").checkedAt);
+  assert.deepEqual(data.items.filter(item => item.source === "youtube"), before);
+  assert.ok(!JSON.stringify(data).includes("\u202e"));
+  assert.doesNotThrow(() => renderCreatorUpdates(data), "the snapshot the refresh writes still builds");
+});

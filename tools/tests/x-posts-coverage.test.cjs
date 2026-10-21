@@ -166,3 +166,13 @@ test("the homepage carries a hidden empty note for creators without posts", asyn
   const html = createXPostsRenderer(snapshot()).renderHome();
   assert.match(html, /<p class="x-posts-empty" data-x-home-empty hidden data-zh="这位创作者暂无已收录的帖子。"/u);
 });
+
+test("archive og:description names the slice in zh, en and ja and stays unchanged on the main page", async () => {
+  const { xPostsPageTitle } = await import("../render-x-posts.mjs");
+  assert.deepEqual(xPostsPageTitle("all", 1).ogDescription, { zh: "来自官方频道的作品记录。在声音与线条之间，记录新的消息。", en: "A record of work from the official channels, noting new releases between sound and line.", ja: "公式チャンネルからの作品記録。音と線のあいだで、新しい知らせを記録します。" });
+  const page2 = xPostsPageTitle("all", 2).ogDescription;
+  assert.equal(page2.zh, "第 2 页：来自官方频道的作品记录。在声音与线条之间，记录新的消息。");
+  assert.match(page2.en, /^Page 2: A record/u);
+  assert.match(xPostsPageTitle("nknk", 3).ogDescription.ja, /^NKNKのX投稿 · 3ページ目：公式チャンネル/u);
+  assert.equal(fs.readFileSync("updates.html", "utf8").split('<meta property="og:description" content="来自官方频道的作品记录。在声音与线条之间，记录新的消息。"/>').length, 2, "the build swap needs this exact source tag");
+});
