@@ -20,13 +20,15 @@ function load(search) {
     querySelector: () => null,
     querySelectorAll: selector => selector.startsWith(".update-item") ? entries : selector === "[data-filter]" ? buttons : []
   };
+  const replaced = [];
   const window = {
-    location: { search }, siteStorage: { getItem: () => null, setItem() {} },
+    location: { search, pathname: "/updates.html", hash: "#feed-title" },
+    history: { replaceState(state, title, url) { replaced.push(url); } }, siteStorage: { getItem: () => null, setItem() {} },
     matchMedia: () => ({ matches: false, addEventListener() {} }),
     addEventListener() {}, setInterval: () => 1, clearInterval() {}, localStorage: {}
   };
   vm.runInContext(fs.readFileSync("js/updates.js", "utf8"), vm.createContext({ window, document, Intl, Date }));
-  return { entries, buttons, count, empty, shown: () => entries.filter(entry => !entry.hidden).map(entry => Object.values(entry.dataset).join("/")) };
+  return { entries, buttons, count, empty, replaced, shown: () => entries.filter(entry => !entry.hidden).map(entry => Object.values(entry.dataset).join("/")) };
 }
 
 test("updates page applies whitelisted creator, source and year from the homepage link", () => {
@@ -62,4 +64,20 @@ test("choosing a creator on the updates page clears linked source and year", () 
   assert.deepEqual(app.shown(), ["inabakumori/youtube/2026"]);
   app.buttons[2].listeners.click();
   assert.equal(app.shown().length, 3);
+});
+
+test("choosing a creator removes the linked query so a refresh keeps the cleared filters", () => {
+  const app = load("?source=youtube&year=2026");
+  app.buttons[1].listeners.click();
+  assert.deepEqual(app.replaced, ["/updates.html#feed-title"]);
+  assert.equal(load("").replaced.length, 0);
+  const plain = load("");
+  plain.buttons[2].listeners.click();
+  assert.deepEqual(plain.replaced, [], "no history write without a linked query");
+});
+
+test("only the first occurrence of a filter key counts, even when it is malformed", () => {
+  assert.equal(load("?year=%E0%A4%A&year=2025").shown().length, 5);
+  assert.equal(load("?year=1999&year=2025").shown().length, 5);
+  assert.deepEqual(load("?year=2025&year=%E0%A4%A").shown(), ["inabakumori/youtube/2025", "nknk/pixiv/2025"]);
 });

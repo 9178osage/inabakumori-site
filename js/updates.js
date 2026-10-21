@@ -14,6 +14,8 @@
       const key = separator < 0 ? pair : pair.slice(0, separator);
       const value = separator < 0 ? "" : pair.slice(separator + 1);
       if (!["creator", "source", "year"].includes(key) || key in linked) continue;
+      // Only the first occurrence of a key counts, even when its value is malformed.
+      linked[key] = "";
       try { linked[key] = decodeURIComponent(value.replace(/\+/gu, " ")); }
       catch { /* Ignore this malformed value while keeping the other filters. */ }
     }
@@ -101,6 +103,8 @@
       // Choosing a creator here starts over from all sources and years.
       source = "all";
       year = "all";
+      // Drop the linked query so a refresh does not bring the old source/year back.
+      try { if (window.location?.search) window.history?.replaceState?.(null, "", window.location.pathname + window.location.hash); } catch { /* history unavailable: in-memory state still applies */ }
       applyFilter();
     }));
     window.addEventListener("storage", event => {

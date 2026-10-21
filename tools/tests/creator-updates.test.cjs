@@ -225,3 +225,9 @@ test("creator refresh runs once a day and both pages warn after the shared stale
   assert.match(render, /超过 72 小时/u);
   assert.doesNotMatch(render, /48/u);
 });
+
+test("work titles reject C0/C1 control characters from entities or CDATA", async () => {
+  const { parseYouTubeFeed } = await load();
+  for (const title of ["雨&#1;", "雨&#x7f;", "雨&#x85;", "<![CDATA[雨\u0007]]>"]) assert.throws(() => parseYouTubeFeed(feed({ title })), /Invalid work title/u, title);
+  assert.equal(parseYouTubeFeed(feed({ title: "雨&#10;雪" }))[0].title, "雨\n雪");
+});

@@ -497,6 +497,18 @@ test("unknown comment errors fall back to localized generic text", () => {
   assert.equal(run("commentErrorMessage(result, response)"), "メッセージを投稿できませんでした。");
 });
 
+test("a 429 without a known code gets a rate-limit message in every language", () => {
+  const { run, context } = setup();
+  context.result = null;
+  context.response = { status: 429 };
+  run('currentLanguage="en"');
+  assert.equal(run("commentErrorMessage(result, response)"), "Too many requests. Please try again later.");
+  run('currentLanguage="ja"');
+  assert.equal(run("commentErrorMessage(result, response)"), "投稿が多すぎます。しばらくしてから再試行してください。");
+  run('currentLanguage="zh"');
+  assert.equal(run("commentErrorMessage(result, response)"), "留言发布失败。");
+});
+
 test("submission never surfaces a raw Error message", async () => {
   const { elements, context, run, events } = setup();
   elements["message-name"] = { value: "tester" };
