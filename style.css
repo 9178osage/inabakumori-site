@@ -1698,8 +1698,7 @@ main > section + section { border-top: 1px solid var(--link-border); }
 .site-about { margin-top: 0; }
 .site-about > h2 { font-size: 24px; margin: 6px 0 0; }
 .site-about > p { line-height: 1.9; max-width: 75ch; }
-#about > #related-links-title { grid-column: 1 / -1; margin: 68px 0 0; font-size: 26px; }
-#about > .links-intro, #about > .artist-links { grid-column: 1 / -1; }
+.related-directory > h2 { margin: 0 0 18px; font-size: 26px; }
 .links-intro { font-family: var(--font-body); font-size: 14px; color: var(--ui-muted); max-width: 75ch; }
 .artist-links { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .artist-links a { padding: 16px 18px; border-radius: 6px; font-size: 15px; background: var(--link-bg); }
@@ -1766,7 +1765,7 @@ body.modal-open { overflow: hidden; }
   .section-nav .back-top { margin: 0; }
   html { scroll-padding-top: calc(140px + env(safe-area-inset-top)); }
   .site-about { margin-top: 0; }
-  #about > #related-links-title { margin-top: 44px; }
+  .related-directory { margin-top: 36px; }
   main > section:not(#songs), main > section#messages, #songs { width: calc(100% - 36px - env(safe-area-inset-left) - env(safe-area-inset-right)); }
   h2 { font-size: 30px; letter-spacing: 2px; }
   .section-kicker { font-size: 10px; margin-bottom: 18px; }
@@ -2412,6 +2411,18 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
   color: var(--ui-text);
   font-size: 13px;
 }
+.home-updates .x-collection-details { margin-top: 4px; }
+.home-updates .x-collection-details > summary {
+  width: fit-content;
+  min-height: 44px;
+  padding-block: 10px;
+  color: var(--ui-muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+.home-updates .x-collection-details > summary:focus-visible { outline: 2px solid var(--ui-text); outline-offset: 2px; }
+.home-updates .x-collection-details-content { padding: 12px 16px; border-left: 2px solid var(--ui-border-strong); background: var(--link-bg); }
+.home-updates .x-collection-details-content .x-posts-coverage-note { margin-bottom: 0; }
 .home-updates .x-home-filters {
   display: flex;
   flex-wrap: wrap;
@@ -2599,4 +2610,41 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
   .home-updates .x-post-footer a {
     overflow-wrap: break-word;
   }
+}
+
+/* Homepage columns share a reading edge; narrow screens retain document order. */
+#intro { padding-block: 56px; }
+.artist-profile-copy > .artist-intro { margin-top: 0; }
+.artist-profile-copy > .unofficial-note { margin-bottom: 0; }
+#about, .home-updates { padding-block: 64px; }
+.related-directory, .home-updates-overview, .home-updates-content { min-width: 0; }
+.related-directory { margin-top: 36px; }
+.related-directory .links-intro { margin-top: 0; }
+.site-about > p { margin-bottom: 0; }
+@media (min-width: 1001px) {
+  #intro, #about, .home-updates {
+    display: grid;
+    grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
+    gap: 56px;
+    align-items: start;
+  }
+  #intro .section-heading h2 { margin-bottom: 0; }
+  #about .related-directory { margin-top: 0; }
+  .home-updates .home-updates-header h2 { font-size: 36px; letter-spacing: .04em; }
+  .home-updates .home-updates-accounts { grid-template-columns: minmax(0, 1fr); margin: 26px 0 0; }
+  .home-updates .home-updates-accounts a { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 14px; }
+  .home-updates .home-updates-accounts strong,
+  .home-updates .home-updates-accounts a > span:first-of-type { grid-column: 1; }
+  .home-updates .home-updates-accounts a > span:last-child { grid-column: 2; grid-row: 1 / span 2; max-width: 14ch; font-size: 11px; }
+}
+@media (max-width: 1000px) {
+  .home-updates-overview { margin-bottom: 30px; }
+}
+@media (max-width: 700px), (pointer: coarse) and (max-width: 1000px) {
+  #intro { padding-block: 36px; }
+  #about, .home-updates { padding-block: 40px; }
+  #intro, #about, .home-updates { display: block; }
+  .home-updates-overview { margin-bottom: 28px; }
+  .home-updates .home-updates-accounts { margin-block: 22px 0; }
+  .related-directory { margin-top: 32px; }
 }

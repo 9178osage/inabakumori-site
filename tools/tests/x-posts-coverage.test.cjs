@@ -29,6 +29,19 @@ test("home and archive show each creator's saved count and date range in JST", a
   }
 });
 
+test("home collection notes can be expanded while archive coverage stays visible", async () => {
+  const { renderXPostsHome, renderXPostsArchive } = await import("../render-x-posts.mjs");
+  const archive = snapshot();
+  const home = renderXPostsHome(archive);
+  const notes = home.match(/<details class="x-collection-details">([\s\S]*?)<\/details>/u);
+  assert.ok(notes, "home notes start collapsed using a native disclosure");
+  assert.match(notes[1], /<summary data-zh="收录范围与说明" data-en="Collection details" data-ja="収録範囲と説明">/u);
+  assert.match(notes[1], /最近收录/u);
+  assert.match(notes[1], /不代表区间内每条都已收录/u);
+  assert.match(home.slice(0, notes.index), /已收录 3 条公开帖子 · 历史仍在补全/u);
+  assert.doesNotMatch(renderXPostsArchive(archive).status, /<details/u);
+});
+
 test("stale scan summaries cannot inflate the saved count or extend its dates", async () => {
   const { renderXPostsArchive } = await import("../render-x-posts.mjs");
   const archive = snapshot([{ creator: "inabakumori", count: 999, oldestAt: "2014-01-01T00:00:00.000Z", newestAt: "2026-10-18T18:36:00.000Z", note: '<img src=x onerror="alert(1)">' }]);
