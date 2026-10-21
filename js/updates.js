@@ -9,12 +9,14 @@
     let source = "all";
     let year = "all";
     const linked = {};
-    try {
-      for (const pair of String(window.location?.search || "").replace(/^\?/u, "").split("&")) {
-        const [key, value = ""] = pair.split("=");
-        if (["creator", "source", "year"].includes(key) && !(key in linked)) linked[key] = decodeURIComponent(value.replace(/\+/gu, " "));
-      }
-    } catch { /* malformed query: keep the defaults */ }
+    for (const pair of String(window.location?.search || "").replace(/^\?/u, "").split("&")) {
+      const separator = pair.indexOf("=");
+      const key = separator < 0 ? pair : pair.slice(0, separator);
+      const value = separator < 0 ? "" : pair.slice(separator + 1);
+      if (!["creator", "source", "year"].includes(key) || key in linked) continue;
+      try { linked[key] = decodeURIComponent(value.replace(/\+/gu, " ")); }
+      catch { /* Ignore this malformed value while keeping the other filters. */ }
+    }
     const knownYears = new Set([...document.querySelectorAll(".update-item[data-year]")].map(entry => entry.dataset.year));
     if (["inabakumori", "nknk"].includes(linked.creator)) filter = linked.creator;
     if (["youtube", "pixiv", "campfire"].includes(linked.source)) source = linked.source;
