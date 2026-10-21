@@ -142,3 +142,13 @@ test("coverage preserves observed scan intervals and recomputes counts instead o
   assert.equal(result.coverage[0].completeness, "partial");
   assert.equal(mergeXPostsArchives(result, scan()).archive.coverage[0].interruptedReason, "UI stopped loading");
 });
+
+test("post text rejects C1 controls and bidi overrides; the committed archive passes", async () => {
+  const { normalizeXPost, readXPostsArchive } = await load();
+  for (const character of ["\u0085", "\u009b", "\u202e", "\u202a", "\u2066", "\u2069"]) {
+    assert.throws(() => normalizeXPost(post({ text: `雨${character}雪` })), /control character/u, JSON.stringify(character));
+  }
+  assert.equal(normalizeXPost(post({ text: "雨\u200d雪 · 改行\n" })).text, "雨\u200d雪 · 改行\n");
+  const archive = await readXPostsArchive(path.resolve(__dirname, "../.."));
+  assert.ok(archive.items.length > 6000);
+});

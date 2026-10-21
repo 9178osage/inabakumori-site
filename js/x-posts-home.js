@@ -10,6 +10,7 @@
     const filters = section.querySelector(".x-home-filters");
     const count = section.querySelector("[data-x-home-count]");
     const archiveLink = section.querySelector("[data-x-archive-link]");
+    const empty = section.querySelector("[data-x-home-empty]");
     if (!filters || !count || !posts.length) return;
     let creator = "all";
     const language = () => (typeof currentLanguage === "string" ? currentLanguage : document.documentElement.lang || "zh");
@@ -29,6 +30,7 @@
         post.hidden = !selected.has(post);
       });
       const visible = selected.size;
+      if (empty) empty.hidden = visible > 0;
       buttons.forEach(button => button.setAttribute("aria-pressed", String(button.dataset.xHomeCreator === creator)));
       const all = total(creator);
       count.hidden = false;

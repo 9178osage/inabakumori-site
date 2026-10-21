@@ -215,6 +215,24 @@ test("large X post shard changes stay out of changes.txt, are listed by name, an
   } finally { box.close(); }
 });
 
+test("the changed-shard note lists at most 10 names and counts the rest", () => {
+  const box = fixture();
+  try {
+    fs.mkdirSync(box.output); fs.writeFileSync(path.join(box.output, ".review-base"), box.base + "\n");
+    passed(box.run());
+    const shards = [..."一二三四五六七八九十百千万"].map(character => postShard(character));
+    for (const item of shards) box.write(item.file, item.source);
+    box.commit();
+    passed(box.run());
+    const changes = fs.readFileSync(path.join(box.output, "changes.txt"), "utf8");
+    const listed = changes.split("\n").filter(line => line.startsWith("# 帖子正文分片有变化（未列入差异，见第 4 组）: "));
+    assert.equal(listed.length, 10);
+    assert.deepEqual(listed.map(line => line.split(": ")[1]), shards.map(item => item.file).sort().slice(0, 10));
+    assert.ok(changes.includes("# 另有 3 个帖子正文分片有变化（未逐一列出）\n"));
+    passed(box.run(["--check"]));
+  } finally { box.close(); }
+});
+
 test("tampered copy bytes and uncommitted source changes fail without rewriting existing copies", () => {
   const box = fixture();
   try {

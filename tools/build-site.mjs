@@ -8,7 +8,7 @@ import { assertRepoPath } from "./safe-fs.mjs";
 import { stripLoopbackCspSources } from "./net-guards.mjs";
 import { renderCreatorUpdates } from "./render-creator-updates.mjs";
 import { readXPostsArchive } from "./x-posts-data.mjs";
-import { createXPostsRenderer, xPostsPageUrl } from "./render-x-posts.mjs";
+import { createXPostsRenderer, xPostsPageUrl, xPostsPageTitle } from "./render-x-posts.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const out = path.join(root, "dist");
@@ -119,7 +119,16 @@ const updatesTemplate = fillUpdates(updatesSourceHtml, "UPDATES");
 // Archive page 2+ would repeat the full works list on every page; link to it once instead so the
 // paginated X history stays within the archive size budget.
 const worksListLink = '<p class="updates-note" data-works-list-link><a href="updates.html#feed-title" data-zh="作品与消息列表请见第 1 页" data-en="See page 1 for the works list" data-ja="作品とお知らせの一覧は1ページ目へ">作品与消息列表请见第 1 页</a></p>';
-const updatesTemplateLater = fillUpdates(updatesSourceHtml, "UPDATES", worksListLink);
+// Page 2+ also drops the collection notes and source-check panel; both stay on page 1.
+const dropOnce = (html, pattern, label) => {
+  const matches = html.match(new RegExp(pattern.source, "gu")) || [];
+  if (matches.length !== 1) throw new Error(`Expected one ${label} section in updates.html`);
+  return html.replace(pattern, "");
+};
+const updatesTemplateLater = dropOnce(dropOnce(fillUpdates(updatesSourceHtml, "UPDATES", worksListLink),
+  /<section class="collection-info"[\s\S]*?<\/section>\n?/u, "collection-info"),
+  /<section class="verification-section"[\s\S]*?<\/div><\/section>\n?/u, "verification-section");
+const metaEscape = value => String(value).replace(/[&<>"']/gu, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 let archivePages = 0;
 const archivePageNames = [];
 for (const creator of ["all", "inabakumori", "nknk"]) {
@@ -132,6 +141,18 @@ for (const creator of ["all", "inabakumori", "nknk"]) {
     for (const marker of ["ITEMS", "STATUS", "PAGINATION"]) updatesHtml = fillOnce(updatesHtml, `X-POSTS:${marker}`, rendered[marker.toLowerCase()]);
     updatesHtml = fingerprintXPosts(updatesHtml).replace('<link rel="canonical" href="https://osagechan.top/updates.html"/>', `<link rel="canonical" href="https://osagechan.top/${name}"/>`)
       .replace('<meta property="og:url" content="https://osagechan.top/updates.html"/>', `<meta property="og:url" content="https://osagechan.top/${name}"/>`);
+    if (creator !== "all" || page > 1) {
+      const { title, description } = xPostsPageTitle(creator, page);
+      const swap = (from, to) => {
+        if (!updatesHtml.includes(from)) throw new Error(`Missing updates.html metadata: ${from}`);
+        updatesHtml = updatesHtml.replace(from, () => to);
+      };
+      swap("<title>最新动态 · 稲葉曇与 NKNK</title>", `<title>${metaEscape(title.zh)}</title>`);
+      swap('<meta property="og:title" content="最新动态 · 稲葉曇与 NKNK"/>', `<meta property="og:title" content="${metaEscape(title.zh)}"/>`);
+      swap('<meta name="description" content="稲葉曇与ぬくぬくにぎりめし（NKNK）的作品动态，附官方来源与核对时间。"/>', `<meta name="description" content="${metaEscape(description.zh)}"/>`);
+      // updates.js re-titles the page per language; it reads the slice from these whitelisted attributes.
+      swap('<html lang="zh-CN">', `<html lang="zh-CN" data-archive-creator="${creator}" data-archive-page="${page}">`);
+    }
     updatesHtml = updatesHtml.replace(/(src|href)="([^"?]+)(?:\?[^"\s]*)?"/g, (match, attribute, file) => hashes.has(file) ? `${attribute}="${file}?v=${hashes.get(file)}"` : match);
     await writeFile(output(`dist/${name}`), updatesHtml);
     archivePageNames.push(name);

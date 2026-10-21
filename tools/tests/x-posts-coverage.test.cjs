@@ -125,3 +125,44 @@ test("snapshot validation still rejects unsafe posts outside the visible home pr
     assert.throws(() => createXPostsRenderer(archive), message);
   }
 });
+
+test("page 2+ status keeps the summary and links coverage details to page 1", async () => {
+  const { createXPostsRenderer } = await import("../render-x-posts.mjs");
+  const items = Array.from({ length: 31 }, (_, index) => post(String(2030297425525854218n - BigInt(index)), "inabakumori", new Date(Date.UTC(2026, 2, 7) - index * 3600_000).toISOString()));
+  const renderer = createXPostsRenderer({ version: 1, coverage: [], items });
+  const first = renderer.renderArchive({ page: 1 }).status, second = renderer.renderArchive({ page: 2 }).status;
+  assert.match(first, /x-posts-coverage-note/u);
+  assert.match(first, /class="x-posts-coverage"/u);
+  assert.match(second, /已收录 31 条公开帖子/u);
+  assert.doesNotMatch(second, /x-posts-coverage/u);
+  assert.match(second, /data-en="See page 1 for collection ranges and notes"/u);
+  assert.ok(Buffer.byteLength(second) < Buffer.byteLength(first) / 2);
+});
+
+test("archive titles name the creator and page in zh, en and ja", async () => {
+  const { xPostsPageTitle } = await import("../render-x-posts.mjs");
+  assert.deepEqual(xPostsPageTitle("all", 1).title, { zh: "最新动态 · 稲葉曇与 NKNK", en: "Latest updates · Inabakumori & NKNK", ja: "最新情報 · 稲葉曇・ぬくぬくにぎりめし" });
+  assert.deepEqual(xPostsPageTitle("nknk", 4).title, { zh: "NKNK 的 X 帖子 · 第 4 页 · 最新动态 · 稲葉曇与 NKNK", en: "NKNK’s X posts · Page 4 · Latest updates · Inabakumori & NKNK", ja: "NKNKのX投稿 · 4ページ目 · 最新情報 · 稲葉曇・ぬくぬくにぎりめし" });
+  assert.match(xPostsPageTitle("all", 2).description.zh, /^第 2 页：稲葉曇与/u);
+  assert.match(xPostsPageTitle("inabakumori", 1).description.en, /^Inabakumori’s X posts: New work/u);
+  assert.throws(() => xPostsPageTitle("other", 1));
+  assert.throws(() => xPostsPageTitle("all", 0));
+});
+
+test("post text is marked lang=ja only when it contains kana", async () => {
+  const { createXPostsRenderer } = await import("../render-x-posts.mjs");
+  const items = [
+    post("2030297425525854218", "inabakumori", "2026-03-07T15:00:02.000Z", "新しい曲"),
+    post("2030297425525854217", "inabakumori", "2026-03-07T14:00:02.000Z", "100M views!"),
+    post("2030297425525854216", "inabakumori", "2026-03-07T13:00:02.000Z", "雨天")
+  ];
+  const html = createXPostsRenderer({ version: 1, coverage: [], items }).renderArchive({ page: 1 }).items;
+  const texts = [...html.matchAll(/<p class="x-post-text"([^>]*)>([^<]*)<\/p>/gu)].map(match => [match[2], match[1]]);
+  assert.deepEqual(texts, [["新しい曲", ' lang="ja" dir="auto"'], ["100M views!", ' dir="auto"'], ["雨天", ' dir="auto"']]);
+});
+
+test("the homepage carries a hidden empty note for creators without posts", async () => {
+  const { createXPostsRenderer } = await import("../render-x-posts.mjs");
+  const html = createXPostsRenderer(snapshot()).renderHome();
+  assert.match(html, /<p class="x-posts-empty" data-x-home-empty hidden data-zh="这位创作者暂无已收录的帖子。"/u);
+});

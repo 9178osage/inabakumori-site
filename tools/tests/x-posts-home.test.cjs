@@ -16,16 +16,17 @@ function setup(creators = [...Array(6).fill("inabakumori"), ...Array(6).fill("nk
   const filters = element();
   const count = element();
   const archiveLink = element();
+  const empty = element();
   archiveLink.textContent = "在本站浏览已收录的全部帖子 →";
   const section = {
     dataset: totals,
-    querySelector: selector => ({ ".x-home-filters": filters, "[data-x-home-count]": count, "[data-x-archive-link]": archiveLink })[selector] ?? null,
+    querySelector: selector => ({ ".x-home-filters": filters, "[data-x-home-count]": count, "[data-x-archive-link]": archiveLink, "[data-x-home-empty]": empty })[selector] ?? null,
     querySelectorAll: selector => selector === ".x-post[data-creator]" ? posts : selector === "[data-x-home-creator]" ? buttons : []
   };
   const document = { readyState: "complete", querySelector: selector => selector === "[data-x-posts-home]" ? section : null };
   const context = vm.createContext({ document, currentLanguage: "zh", Number, Object: legacyObject ? { prototype: Object.prototype } : Object, String, window: { addEventListener(type, handler) { events.set(type, handler); } } });
   vm.runInContext(fs.readFileSync("js/x-posts-home.js", "utf8"), context);
-  return { context, posts, buttons, filters, count, archiveLink, events, visible: () => posts.filter(post => !post.hidden) };
+  return { context, posts, buttons, filters, count, archiveLink, empty, events, visible: () => posts.filter(post => !post.hidden) };
 }
 
 test("homepage X filters appear only after the script runs and show at most three recent posts", () => {
@@ -93,4 +94,14 @@ test("the homepage loads the filter as an external script and keeps its controls
   assert.match(rendered, /class="x-home-filters"[^>]*hidden>/u);
   assert.match(rendered, /data-x-home-count role="status" aria-live="polite" hidden>/u);
   assert.match(rendered, /data-x-archive-link href="updates\.html"/u);
+});
+
+test("a creator with no collected posts shows the empty note instead of a blank list", () => {
+  const app = setup(Array(6).fill("inabakumori"), { xTotal: "6", xTotalInabakumori: "6", xTotalNknk: "0" });
+  assert.equal(app.empty.hidden, true);
+  app.buttons[2].listeners.click();
+  assert.equal(app.visible().length, 0);
+  assert.equal(app.empty.hidden, false);
+  app.buttons[1].listeners.click();
+  assert.equal(app.empty.hidden, true);
 });

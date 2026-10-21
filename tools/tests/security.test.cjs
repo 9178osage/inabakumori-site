@@ -224,3 +224,18 @@ test("server.mjs mounts the shared final error handler last and has no inline co
   const firstStatement = handler.split("\n").slice(2).find(line => line.trim() && !line.trim().startsWith("//"));
   assert.match(firstStatement, /if \(res\.headersSent\)/u);
 });
+
+test("server.mjs uses every name it imports from services.mjs", () => {
+  const server = read("backend/server.mjs");
+  const names = server.match(/import \{([^}]+)\} from "\.\/services\.mjs";/u)[1].split(",").map(name => name.trim()).filter(Boolean);
+  const body = server.replace(/import \{[^}]+\} from "\.\/services\.mjs";/u, "");
+  for (const name of names) assert.match(body, new RegExp(`\\b${name}\\b`, "u"), `unused import ${name}`);
+});
+
+test("backend lockfile pins follow-redirects at or above the patched 1.16.1", () => {
+  const lock = JSON.parse(read("backend/package-lock.json"));
+  const entry = lock.packages["node_modules/follow-redirects"];
+  if (!entry) return;
+  const [major, minor, patch] = entry.version.split(".").map(Number);
+  assert.ok(major > 1 || (major === 1 && (minor > 16 || (minor === 16 && patch >= 1))), entry.version);
+});

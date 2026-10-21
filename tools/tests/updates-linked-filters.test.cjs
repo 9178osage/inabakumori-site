@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 
 // Runs js/updates.js against a minimal DOM with a given ?query string.
-function load(search) {
+function load(search, archiveDataset = {}, language = null) {
   const element = (dataset = {}) => ({ dataset, hidden: false, textContent: "", attributes: {}, listeners: {},
     setAttribute(name, value) { this.attributes[name] = value; }, removeAttribute(name) { delete this.attributes[name]; this.hidden = false; },
     addEventListener(type, handler) { this.listeners[type] = handler; }, querySelector: () => null });
@@ -15,7 +15,7 @@ function load(search) {
   const buttons = ["all", "inabakumori", "nknk"].map(filter => element({ filter }));
   const count = element(), empty = element();
   const document = {
-    readyState: "complete", documentElement: { dataset: {} }, title: "",
+    readyState: "complete", documentElement: { dataset: archiveDataset }, title: "",
     getElementById: id => ({ "updates-count": count, "updates-empty": empty })[id] || null,
     querySelector: () => null,
     querySelectorAll: selector => selector.startsWith(".update-item") ? entries : selector === "[data-filter]" ? buttons : []
@@ -23,12 +23,12 @@ function load(search) {
   const replaced = [];
   const window = {
     location: { search, pathname: "/updates.html", hash: "#feed-title" },
-    history: { replaceState(state, title, url) { replaced.push(url); } }, siteStorage: { getItem: () => null, setItem() {} },
+    history: { replaceState(state, title, url) { replaced.push(url); } }, siteStorage: { getItem: key => key === "language" ? language : null, setItem() {} },
     matchMedia: () => ({ matches: false, addEventListener() {} }),
     addEventListener() {}, setInterval: () => 1, clearInterval() {}, localStorage: {}
   };
   vm.runInContext(fs.readFileSync("js/updates.js", "utf8"), vm.createContext({ window, document, Intl, Date }));
-  return { entries, buttons, count, empty, replaced, shown: () => entries.filter(entry => !entry.hidden).map(entry => Object.values(entry.dataset).join("/")) };
+  return { entries, buttons, count, empty, replaced, document, shown: () => entries.filter(entry => !entry.hidden).map(entry => Object.values(entry.dataset).join("/")) };
 }
 
 test("updates page applies whitelisted creator, source and year from the homepage link", () => {
@@ -94,4 +94,22 @@ test("only the first occurrence of a filter key counts, even when it is malforme
   assert.equal(load("?year=%E0%A4%A&year=2025").shown().length, 5);
   assert.equal(load("?year=1999&year=2025").shown().length, 5);
   assert.deepEqual(load("?year=2025&year=%E0%A4%A").shown(), ["inabakumori/youtube/2025", "nknk/pixiv/2025"]);
+});
+
+test("creator archives and page 2+ keep their slice in the localized title", () => {
+  for (const [dataset, expected] of [
+    [{}, "最新动态 · 稲葉曇与 NKNK"],
+    [{ archiveCreator: "nknk", archivePage: "1" }, "NKNK 的 X 帖子 · 最新动态 · 稲葉曇与 NKNK"],
+    [{ archiveCreator: "all", archivePage: "3" }, "第 3 页 · 最新动态 · 稲葉曇与 NKNK"],
+    [{ archiveCreator: "inabakumori", archivePage: "12" }, "稲葉曇的 X 帖子 · 第 12 页 · 最新动态 · 稲葉曇与 NKNK"],
+    [{ archiveCreator: "<script>", archivePage: "0x1" }, "最新动态 · 稲葉曇与 NKNK"]
+  ]) assert.equal(load("", dataset).document.title, expected, JSON.stringify(dataset));
+});
+
+test("the client title mirrors the build-time title for every language", async () => {
+  const { xPostsPageTitle } = await import("../render-x-posts.mjs");
+  for (const language of ["zh", "en", "ja"]) for (const [creator, page] of [["all", 1], ["all", 2], ["nknk", 1], ["inabakumori", 7]]) {
+    const app = load("", { archiveCreator: creator, archivePage: String(page) }, language);
+    assert.equal(app.document.title, xPostsPageTitle(creator, page).title[language], `${language} ${creator} ${page}`);
+  }
 });

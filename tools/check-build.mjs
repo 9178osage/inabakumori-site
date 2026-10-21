@@ -133,7 +133,19 @@ for (const creator of ["all", "inabakumori", "nknk"]) {
     assert.ok(pageHtml.includes(`<meta property="og:url" content="https://osagechan.top/${name}"/>`), `Archive og:url must identify its page: ${name}`);
     assert.ok(pageHtml.includes(`<meta name="x-posts-version" content="${xVersion}"/>`), `Stale X snapshot fingerprint: ${name}`);
     assert.doesNotMatch(pageHtml, /<!-- (?:UPDATES|X-POSTS):/u, `Unrendered archive placeholder: ${name}`);
-    assert.equal([...pageHtml.matchAll(/class="source-status"/gu)].length, 3, `Each works source needs a visible check status: ${name}`);
+    // Page 1 carries the source checks, collection notes and coverage; page 2+ links back instead.
+    assert.equal([...pageHtml.matchAll(/class="source-status"/gu)].length, page === 1 ? 3 : 0, `Each works source needs a visible check status on page 1 only: ${name}`);
+    for (const marker of ['class="collection-info"', 'class="verification-section"', 'class="x-posts-coverage"', 'class="x-posts-coverage-note"']) {
+      if (page > 1) assert.ok(!pageHtml.includes(marker), `${marker} must appear only on archive page 1: ${name}`);
+    }
+    const title = pageHtml.match(/<title>([^<]*)<\/title>/u)?.[1] ?? "";
+    const ogTitle = pageHtml.match(/<meta property="og:title" content="([^"]*)"\/>/u)?.[1];
+    const metaDescription = pageHtml.match(/<meta name="description" content="([^"]*)"\/>/u)?.[1] ?? "";
+    const slice = [creator === "inabakumori" ? "稲葉曇的 X 帖子" : creator === "nknk" ? "NKNK 的 X 帖子" : "", page > 1 ? `第 ${page} 页` : ""].filter(Boolean).join(" · ");
+    assert.equal(title, [slice, "最新动态 · 稲葉曇与 NKNK"].filter(Boolean).join(" · "), `Archive title must name its slice: ${name}`);
+    assert.equal(ogTitle, title, `Archive og:title must match the title: ${name}`);
+    assert.ok(slice ? metaDescription.startsWith(`${slice}：`) : !metaDescription.includes("："), `Archive description must name its slice: ${name}`);
+    assert.ok(pageHtml.includes(slice ? `data-archive-creator="${creator}" data-archive-page="${page}"` : '<html lang="zh-CN">'), `Archive slice attributes: ${name}`);
     // Page 1 carries the works snapshot; later pages link back to it instead of repeating it.
     assert.equal([...pageHtml.matchAll(/class="update-item"/gu)].length, page === 1 ? legacyCount : 0, `Works snapshot must appear only on archive page 1: ${name}`);
     if (page > 1) assert.ok(pageHtml.includes('data-works-list-link><a href="updates.html#feed-title"'), `Later archive pages must link to the works list: ${name}`);

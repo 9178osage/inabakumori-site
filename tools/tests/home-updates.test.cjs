@@ -170,3 +170,15 @@ test("the works-list link carries the selected creator, source and year to updat
   app.yearSelect.value = "all"; app.yearSelect.listeners.change();
   assert.equal(app.more.attributes.href, "updates.html#feed-title");
 });
+
+test("the works link says 'filtered results' while any filter is active and 'all' otherwise", () => {
+  const app = setup();
+  assert.equal(app.more.textContent, "浏览全部作品动态 →");
+  app.click(app.buttons[2]);
+  assert.equal(app.more.textContent, "在动态页查看筛选结果 →");
+  app.click(app.buttons[0]);
+  assert.equal(app.more.textContent, "浏览全部作品动态 →");
+  app.yearSelect.value = "2025";
+  app.yearSelect.listeners.change();
+  assert.match(app.more.textContent, /^在动态页查看筛选结果 →$/u);
+});
