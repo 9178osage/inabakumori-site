@@ -37,11 +37,24 @@ test("updates page applies whitelisted creator, source and year from the homepag
 });
 
 test("unknown, malformed or injected filter values are ignored", () => {
-  for (const search of ["?creator=<img%20src=x>&source=evil&year=1999", "?year=%E0%A4%A", "?source=__proto__&creator=constructor", ""]) {
+  for (const search of ["?creator=<img%20src=x>&source=evil&year=1999", "?year=%E0%A4%A", "?source=__proto__&creator=constructor", "?creator=nknk=invalid", "?source=youtube=invalid", "?year=2025=invalid", "?source=youtube%3Dinvalid", ""]) {
     const app = load(search);
     assert.equal(app.shown().length, 5, search);
     assert.doesNotMatch(app.count.textContent, /img|evil|1999|proto/u, search);
   }
+});
+
+test("a malformed filter does not discard valid filters later in the query", () => {
+  for (const search of ["?source=%E0%A4%A&creator=nknk&year=2025", "?creator=nknk&year=2025&source=%E0%A4%A"]) {
+    assert.deepEqual(load(search).shown(), ["nknk/pixiv/2025"], search);
+  }
+});
+
+test("a valid combination without work updates shows the empty state", () => {
+  const app = load("?creator=nknk&source=youtube&year=2026");
+  assert.deepEqual(app.shown(), []);
+  assert.equal(app.empty.hidden, false);
+  assert.match(app.count.textContent, /^YouTube · 2026 · 已收录 0 条/u);
 });
 
 test("choosing a creator on the updates page clears linked source and year", () => {
