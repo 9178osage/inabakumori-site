@@ -4,18 +4,21 @@
     if (!section) return;
     const entries = [...section.querySelectorAll(".update-item[data-creator]")];
     const buttons = [...section.querySelectorAll("[data-home-creator]")];
+    const sourceButtons = [...section.querySelectorAll("[data-home-source]")];
     const more = document.getElementById("home-updates-more");
     const count = document.getElementById("home-updates-count");
     const empty = document.getElementById("home-updates-empty");
     let creator = "all";
+    let source = "all";
     const text = (zh, en, ja) => ({ zh, en, ja })[currentLanguage] || zh;
-    const matching = () => entries.filter(entry => creator === "all" || entry.dataset.creator === creator);
+    const matching = () => entries.filter(entry => (creator === "all" || entry.dataset.creator === creator) && (source === "all" || entry.dataset.source === source));
 
     function render() {
       const selected = matching();
       const visible = new Set(selected.slice(0, 3));
       entries.forEach(entry => { entry.hidden = !visible.has(entry); });
       buttons.forEach(button => button.setAttribute("aria-pressed", String(button.dataset.homeCreator === creator)));
+      sourceButtons.forEach(button => button.setAttribute("aria-pressed", String(button.dataset.homeSource === source)));
       count.hidden = false;
       count.textContent = text(`显示 ${visible.size} / ${selected.length} 条动态`, `Showing ${visible.size} / ${selected.length} updates`, `${selected.length}件中${visible.size}件を表示`);
       empty.hidden = selected.length > 0;
@@ -24,7 +27,13 @@
     }
 
     buttons.forEach(button => button.addEventListener("click", () => {
+      if (!["all", "inabakumori", "nknk"].includes(button.dataset.homeCreator)) return;
       creator = button.dataset.homeCreator;
+      render();
+    }));
+    sourceButtons.forEach(button => button.addEventListener("click", () => {
+      if (!["all", "youtube", "pixiv", "campfire"].includes(button.dataset.homeSource)) return;
+      source = button.dataset.homeSource;
       render();
     }));
     window.addEventListener("languagechange", render);
@@ -48,7 +57,7 @@
       timer = null;
     });
     window.addEventListener("pageshow", resume);
-    section.querySelector(".home-updates-toolbar").hidden = false;
+    section.querySelectorAll(".home-updates-toolbar").forEach(toolbar => { toolbar.hidden = false; });
     resume();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initializeHomeUpdates, { once: true });
