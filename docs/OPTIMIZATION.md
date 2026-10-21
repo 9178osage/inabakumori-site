@@ -134,6 +134,7 @@
 ## 后端与安全
 
 - Nodemailer 升级到 **10.0.13**，ip-address 升级到 **10.7.2**，已同步锁文件；前后端 npm audit 无已知漏洞。
+- 2026-10-21：后端补丁/小版本升级 dotenv 18.0.8、Express 5.3.0（随附 content-disposition 2.0.1、content-type 2.1.0）、supertokens-node 24.0.4；覆盖版本同步为 Nodemailer **10.1.7**（supertokens-node 24.0.4 自身要求 ^10.1.7）与 ip-address **10.7.4**；npm audit 0。
 - 请求体限制统一在认证路由之前执行；严格验证游标、昵称、留言长度、不可见内容与控制字符，保留正常 emoji 和多语言输入。
 - API 读取限流、统一 no-store、随机请求标识、通用服务错误；不在生产错误日志记录用户输入。
 - SQLite 增加个人分页与短期去重索引；后台清理异常不会直接中断服务；设置 HTTP 超时和 10 秒关停上限，正常关停执行 WAL checkpoint。
