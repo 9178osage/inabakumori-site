@@ -66,7 +66,12 @@ ${emptyXPostsMeta}`);
   box.write("dist/CNAME", "osagechan.top\n"); box.write("dist/site.webmanifest", '{"icons":[]}');
   box.write("dist/sitemap.xml", `<urlset>${["", "updates.html", "updates-inabakumori.html", "updates-nknk.html"].map(name => `<url><loc>https://osagechan.top/${name}</loc></url>`).join("")}</urlset>\n`);
   // An empty X archive (no data/x-posts) still yields one archive page per author filter.
-  for (const name of ["updates.html", "updates-inabakumori.html", "updates-nknk.html"]) box.write(`dist/${name}`, `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self';"/>
+  const slices = { "updates.html": "", "updates-inabakumori.html": "稲葉曇的 X 帖子", "updates-nknk.html": "NKNK 的 X 帖子" };
+  for (const name of ["updates.html", "updates-inabakumori.html", "updates-nknk.html"]) box.write(`dist/${name}`, `${slices[name] ? `<html lang="zh-CN" data-archive-creator="${name.slice(8, -5)}" data-archive-page="1">` : '<html lang="zh-CN">'}
+<title>${[slices[name], "最新动态 · 稲葉曇与 NKNK"].filter(Boolean).join(" · ")}</title>
+<meta property="og:title" content="${[slices[name], "最新动态 · 稲葉曇与 NKNK"].filter(Boolean).join(" · ")}"/>
+<meta name="description" content="${slices[name] ? `${slices[name]}：` : ""}作品动态。"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self';"/>
 <link rel="canonical" href="https://osagechan.top/${name}"/>
 <meta property="og:url" content="https://osagechan.top/${name}"/>
 ${emptyXPostsMeta}

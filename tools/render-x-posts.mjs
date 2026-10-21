@@ -4,6 +4,8 @@ const creators = {
   inabakumori: { name: "稲葉曇", handle: "inabakumori" },
   nknk: { name: "NKNK", handle: "NKNK_NGRMS" }
 };
+// Mark post text as Japanese only when it contains kana; otherwise the page language applies.
+const KANA = /[\u3040-\u30ff\u31f0-\u31ff\uff66-\uff9f]/u;
 const escape = value => String(value).replace(/[&<>"']/gu, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 const text = (tag, values, attributes = "") => `<${tag}${attributes} data-zh="${escape(values[0])}" data-en="${escape(values[1])}" data-ja="${escape(values[2])}">${escape(values[0])}</${tag}>`;
 const stamp = value => {
@@ -65,7 +67,7 @@ function renderPost(post, hidden = false) {
   const references = [...new Set(post.relatedUrls)].map(url => text("a", ["引用原帖 ↗", "Quoted post ↗", "引用元の投稿 ↗"], ` href="${escape(https(url))}" target="_blank" rel="noopener noreferrer"`)).join("");
   const media = post.media.length ? text("span", [`附 ${post.media.length} 张图片 · 请到原帖查看`, `${post.media.length} image${post.media.length === 1 ? "" : "s"} · View in the original post`, `画像${post.media.length}枚 · 元の投稿で見る`]) : "";
   const video = post.hasVideo ? text("span", ["视频 · 请到原帖播放", "Video · Play in the original post", "動画 · 元の投稿で再生"]) : "";
-  const body = post.text ? `<p class="x-post-text" lang="ja" dir="auto">${escape(post.text)}</p>` : text("p", ["这条帖子以媒体为主，请查看原帖。", "This post contains media. View the original post.", "メディアを中心とした投稿です。元の投稿をご覧ください。"], ' class="x-post-text x-post-media-only"');
+  const body = post.text ? `<p class="x-post-text"${KANA.test(post.text) ? ' lang="ja"' : ""} dir="auto">${escape(post.text)}</p>` : text("p", ["这条帖子以媒体为主，请查看原帖。", "This post contains media. View the original post.", "メディアを中心とした投稿です。元の投稿をご覧ください。"], ' class="x-post-text x-post-media-only"');
   return `<article class="x-post"${hidden ? " hidden" : ""} data-x-post-id="${post.id}" data-creator="${post.creator}"><header class="x-post-header"><h3>${escape(creator.name)} <span>@${creator.handle}</span></h3>${time(post.publishedAt)}</header>${body}${links ? `<div class="x-post-links">${links}</div>` : ""}${media || video ? `<p class="x-post-media-note">${media}${media && video ? " · " : ""}${video}</p>` : ""}<footer class="x-post-footer">${text("a", ["查看原帖 ↗", "View original ↗", "元の投稿を見る ↗"], ` class="x-post-source" href="${escape(post.url)}" target="_blank" rel="noopener noreferrer"`)}${references}</footer></article>`;
 }
 
@@ -88,7 +90,7 @@ function renderStatus(archive, posts) {
   const last = posts.reduce((latest, post) => latest > post.collectedAt ? latest : post.collectedAt, "");
   const summary = text("p", [`已收录 ${posts.length} 条公开帖子 · 历史仍在补全`, `${posts.length} public posts collected · Historical posts are still being added`, `公開投稿${posts.length}件を収録 · 過去の投稿を引き続き追加中`], ' class="x-posts-summary"');
   const checked = last ? `<p>${text("span", ["最近收录", "Last collected", "最終収録"])} ${time(last)}</p>` : text("p", ["尚未收录帖子，稍后会在本站补充。", "No posts have been collected yet. They will be added here.", "投稿はまだ収録されていません。今後ここに追加します。"]);
-  return `${summary}${checked}${renderCoverage(archive, posts)}${text("p", ["全量历史、回复与转发仍未完整收录。日期范围只表示已保存的最早与最新帖子，不代表区间内每条都已收录。正文保留原语言；图片和视频请到原帖查看。", "The full history, replies and reposts are not fully collected. The dates show the earliest and latest saved posts, not complete coverage of every post between them. Text stays in its original language; view images and videos in the original posts.", "過去の全投稿・返信・リポストの収録はまだ完了していません。日付は保存済み投稿の最古と最新を示し、期間内の全投稿の収録を保証するものではありません。本文は原文のまま、画像・動画は元の投稿をご覧ください。"], ' class="x-posts-coverage-note"')}`;
+  return { summary, full: `${summary}${checked}${renderCoverage(archive, posts)}${text("p", ["全量历史、回复与转发仍未完整收录。日期范围只表示已保存的最早与最新帖子，不代表区间内每条都已收录。正文保留原语言；图片和视频请到原帖查看。", "The full history, replies and reposts are not fully collected. The dates show the earliest and latest saved posts, not complete coverage of every post between them. Text stays in its original language; view images and videos in the original posts.", "過去の全投稿・返信・リポストの収録はまだ完了していません。日付は保存済み投稿の最古と最新を示し、期間内の全投稿の収録を保証するものではありません。本文は原文のまま、画像・動画は元の投稿をご覧ください。"], ' class="x-posts-coverage-note"')}` };
 }
 
 function renderAuthorLinks(creator) {
@@ -102,7 +104,7 @@ function renderHome(posts, groups, status, renderItem) {
   const renderPreview = post => visible.has(post.id) ? renderItem(post) : renderPost(post, true);
   const count = creator => groups.get(creator).length;
   const filters = `<div class="x-home-filters" role="group" aria-label="按创作者筛选帖子" data-aria-zh="按创作者筛选帖子" data-aria-en="Filter posts by creator" data-aria-ja="クリエイター別の投稿" hidden>${text("button", ["全部帖子", "All posts", "すべて"], ' type="button" data-x-home-creator="all" aria-pressed="true"')}<button type="button" data-x-home-creator="inabakumori" aria-pressed="false">稲葉曇</button><button type="button" data-x-home-creator="nknk" aria-pressed="false">NKNK</button></div>`;
-  return `<section class="x-posts-home" data-x-posts-home data-x-total="${posts.length}" data-x-total-inabakumori="${count("inabakumori")}" data-x-total-nknk="${count("nknk")}" aria-labelledby="home-x-posts-title"><h3 id="home-x-posts-title" class="x-posts-title" data-zh="X 帖子原文" data-en="Original X posts" data-ja="Xの投稿・原文">X 帖子原文</h3><div class="x-posts-status">${status}</div>${filters}<p class="x-home-count" data-x-home-count role="status" aria-live="polite" hidden></p><div class="x-posts-feed">${selected.map(renderPreview).join("\n") || text("p", ["公开帖子正在补录中。", "Public posts are being collected.", "公開投稿を収録しています。"], ' class="x-posts-empty"')}</div>${text("a", ["在本站浏览已收录的全部帖子 →", "Browse all collected posts on this site →", "サイト内で収録済みの投稿をすべて見る →"], ' class="x-posts-archive-link" data-x-archive-link href="updates.html"')}<noscript>${text("p", ["这里展示最近 3 条。完整帖子正文可通过上方站内档案分页阅读。", "The latest 3 posts are shown here. Read all collected posts through the archive link above.", "ここには最新3件を表示しています。収録済みの全文は上のリンク先で読めます。"], ' class="x-posts-coverage-note"')}</noscript></section>`;
+  return `<section class="x-posts-home" data-x-posts-home data-x-total="${posts.length}" data-x-total-inabakumori="${count("inabakumori")}" data-x-total-nknk="${count("nknk")}" aria-labelledby="home-x-posts-title"><h3 id="home-x-posts-title" class="x-posts-title" data-zh="X 帖子原文" data-en="Original X posts" data-ja="Xの投稿・原文">X 帖子原文</h3><div class="x-posts-status">${status.full}</div>${filters}<p class="x-home-count" data-x-home-count role="status" aria-live="polite" hidden></p>${text("p", ["这位创作者暂无已收录的帖子。", "No posts have been collected for this creator yet.", "このクリエイターの投稿はまだ収録されていません。"], ' class="x-posts-empty" data-x-home-empty hidden')}<div class="x-posts-feed">${selected.map(renderPreview).join("\n") || text("p", ["公开帖子正在补录中。", "Public posts are being collected.", "公開投稿を収録しています。"], ' class="x-posts-empty"')}</div>${text("a", ["在本站浏览已收录的全部帖子 →", "Browse all collected posts on this site →", "サイト内で収録済みの投稿をすべて見る →"], ' class="x-posts-archive-link" data-x-archive-link href="updates.html"')}<noscript>${text("p", ["这里展示最近 3 条。完整帖子正文可通过上方站内档案分页阅读。", "The latest 3 posts are shown here. Read all collected posts through the archive link above.", "ここには最新3件を表示しています。収録済みの全文は上のリンク先で読めます。"], ' class="x-posts-coverage-note"')}</noscript></section>`;
 }
 
 function renderArchive(groups, status, renderItem, { page = 1, creator = "all", pageSize = 30 } = {}) {
@@ -118,7 +120,9 @@ function renderArchive(groups, status, renderItem, { page = 1, creator = "all", 
   const last = page < pageCount - 1 ? text("a", ["最后一页", "Last page", "最後のページ"], ` href="${xPostsPageUrl(creator, pageCount)}"`) : "";
   const position = text("span", [`第 ${page} / ${pageCount} 页 · ${posts.length} 条帖子`, `Page ${page} of ${pageCount} · ${posts.length} posts`, `${pageCount}ページ中${page}ページ · 投稿${posts.length}件`], ' class="x-posts-page-position" aria-current="page"');
   const pagination = `<nav class="x-posts-pagination" aria-label="帖子分页" data-aria-zh="帖子分页" data-aria-en="Post pages" data-aria-ja="投稿のページ">${first}${prev}${position}${next}${last}</nav>`;
-  return { items, status: `<div class="x-posts-status">${status}</div>${renderAuthorLinks(creator)}`, pagination, total: posts.length, pageCount, page, creator };
+  // Page 2+ keeps the summary and links back to page 1 for coverage details instead of repeating them.
+  const pageStatus = page === 1 ? status.full : `${status.summary}${text("p", ["各账号收录范围与说明见第 1 页", "See page 1 for collection ranges and notes", "収録範囲と説明は1ページ目へ"], "")}`;
+  return { items, status: `<div class="x-posts-status">${pageStatus}</div>${renderAuthorLinks(creator)}`, pagination, total: posts.length, pageCount, page, creator };
 }
 
 // One renderer belongs to one build snapshot. Keep it detached from the caller's
@@ -145,4 +149,21 @@ export function renderXPostsHome(archive) {
 
 export function renderXPostsArchive(archive, options) {
   return createXPostsRenderer(archive).renderArchive(options);
+}
+
+// Archive page titles: creator pages and page 2+ say which slice they are, in all three languages.
+export function xPostsPageTitle(creator = "all", page = 1) {
+  xPostsPageUrl(creator, page);
+  const base = { zh: "最新动态 · 稲葉曇与 NKNK", en: "Latest updates · Inabakumori & NKNK", ja: "最新情報 · 稲葉曇・ぬくぬくにぎりめし" };
+  const who = { inabakumori: { zh: "稲葉曇的 X 帖子", en: "Inabakumori’s X posts", ja: "稲葉曇のX投稿" }, nknk: { zh: "NKNK 的 X 帖子", en: "NKNK’s X posts", ja: "NKNKのX投稿" } }[creator];
+  const where = page > 1 ? { zh: `第 ${page} 页`, en: `Page ${page}`, ja: `${page}ページ目` } : null;
+  const title = {}, description = {};
+  const baseDescription = { zh: "稲葉曇与ぬくぬくにぎりめし（NKNK）的作品动态，附官方来源与核对时间。", en: "New work from Inabakumori and Nukunuku Nigirimeshi (NKNK), with official sources and check times.", ja: "稲葉曇さんとぬくぬくにぎりめしさんの作品情報。公式の取得元と確認日時を掲載。" };
+  for (const language of ["zh", "en", "ja"]) {
+    const parts = [who?.[language], where?.[language]].filter(Boolean);
+    title[language] = [...parts, base[language]].join(" · ");
+    const slice = parts.join(" · ");
+    description[language] = slice ? `${slice}：${baseDescription[language]}`.replace("：New", ": New") : baseDescription[language];
+  }
+  return { title, description };
 }

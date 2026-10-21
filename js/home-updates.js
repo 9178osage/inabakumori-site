@@ -27,7 +27,11 @@
       count.textContent = text(`显示 ${visible.size} / ${selected.length} 条动态`, `Showing ${visible.size} / ${selected.length} updates`, `${selected.length}件中${visible.size}件を表示`);
       empty.hidden = selected.length > 0;
       more.hidden = visible.size >= selected.length;
-      more.textContent = text("浏览全部作品动态 →", "Browse all work updates →", "作品の更新をすべて見る →");
+      // With filters the link opens the same filtered list, so say so instead of "all".
+      const filtered = creator !== "all" || source !== "all" || year !== "all";
+      more.textContent = filtered
+        ? text("在动态页查看筛选结果 →", "View filtered results on the updates page →", "更新ページで絞り込み結果を見る →")
+        : text("浏览全部作品动态 →", "Browse all work updates →", "作品の更新をすべて見る →");
       // Carry the whitelisted filters to the works list; updates.js validates them again on load.
       const query = [["creator", creator], ["source", source], ["year", year]].filter(([, value]) => value !== "all").map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join("&");
       more.setAttribute("href", `updates.html${query ? `?${query}` : ""}#feed-title`);

@@ -23,7 +23,7 @@ function record(value, label) {
 
 function string(value, label, maximum, { empty = false } = {}) {
   assert.ok(typeof value === "string" && (empty || value.trim()) && value.length <= maximum, `Invalid ${label}`);
-  assert.doesNotMatch(value, /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u, `Invalid control character in ${label}`);
+  assert.doesNotMatch(value, /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/u, `Invalid control character in ${label}`);
   return value.replace(/\r\n?/gu, "\n");
 }
 

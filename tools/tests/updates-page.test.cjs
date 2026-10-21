@@ -102,3 +102,16 @@ test("year options include hidden older works and match JST or day-precision dis
   assert.equal(result.years, '<option value="2026">2026</option><option value="2025">2025</option><option value="2023">2023</option>');
   assert.equal(renderCreatorUpdates({ ...data, items: [] }).years, "");
 });
+
+test("work titles with C1 controls or bidi overrides fail the build; lang=ja only with kana", async () => {
+  const { renderCreatorUpdates } = await import("../render-creator-updates.mjs");
+  for (const bad of ["雨\u202e", "雨\u0085", "\u2067雨"]) {
+    const data = snapshot(); data.items[0].title = bad;
+    assert.throws(() => renderCreatorUpdates(data), /Invalid update title/u, JSON.stringify(bad));
+  }
+  const result = renderCreatorUpdates(snapshot());
+  assert.match(result.items, /rel="noopener noreferrer" lang="ja">\$&amp; 新しい曲</u);
+  assert.match(result.items, /rel="noopener noreferrer">&lt;img/u);
+  const committed = JSON.parse(fs.readFileSync("data/creator-updates.json", "utf8"));
+  assert.ok(renderCreatorUpdates(committed).items.length > 0, "the committed works snapshot still renders");
+});

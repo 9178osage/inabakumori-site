@@ -66,9 +66,17 @@
 
     function applyLanguage() {
       document.documentElement.lang = { zh: "zh-CN", en: "en", ja: "ja" }[language];
-      document.title = text("最新动态 · 稲葉曇与 NKNK", "Latest updates · Inabakumori & NKNK", "最新情報 · 稲葉曇・ぬくぬくにぎりめし");
+      // Creator archives and page 2+ name their slice; mirrors xPostsPageTitle in tools/render-x-posts.mjs.
+      const archiveCreator = ["inabakumori", "nknk"].includes(document.documentElement.dataset?.archiveCreator) ? document.documentElement.dataset.archiveCreator : "all";
+      const archivePage = /^[1-9]\d{0,4}$/u.test(document.documentElement.dataset?.archivePage || "") ? Number(document.documentElement.dataset.archivePage) : 1;
+      const slice = [
+        archiveCreator === "inabakumori" ? text("稲葉曇的 X 帖子", "Inabakumori’s X posts", "稲葉曇のX投稿") : archiveCreator === "nknk" ? text("NKNK 的 X 帖子", "NKNK’s X posts", "NKNKのX投稿") : "",
+        archivePage > 1 ? text(`第 ${archivePage} 页`, `Page ${archivePage}`, `${archivePage}ページ目`) : ""
+      ].filter(Boolean).join(" · ");
+      document.title = [slice, text("最新动态 · 稲葉曇与 NKNK", "Latest updates · Inabakumori & NKNK", "最新情報 · 稲葉曇・ぬくぬくにぎりめし")].filter(Boolean).join(" · ");
       const description = document.querySelector('meta[name="description"]');
-      if (description) description.content = text("稲葉曇与ぬくぬくにぎりめし（NKNK）的作品动态，附官方来源与核对时间。", "New work from Inabakumori and Nukunuku Nigirimeshi (NKNK), with official sources and check times.", "稲葉曇さんとぬくぬくにぎりめしさんの作品情報。公式の取得元と確認日時を掲載。");
+      const baseDescription = text("稲葉曇与ぬくぬくにぎりめし（NKNK）的作品动态，附官方来源与核对时间。", "New work from Inabakumori and Nukunuku Nigirimeshi (NKNK), with official sources and check times.", "稲葉曇さんとぬくぬくにぎりめしさんの作品情報。公式の取得元と確認日時を掲載。");
+      if (description) description.content = slice ? `${slice}${language === "en" ? ": " : "："}${baseDescription}` : baseDescription;
       document.querySelectorAll("[data-zh][data-en][data-ja]").forEach(element => {
         element.textContent = element.dataset[language];
       });

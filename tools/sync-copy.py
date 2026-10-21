@@ -3,7 +3,7 @@
 
 规则（用户 2026-10-20 将代码上限恢复为 130,000 字节，帖子正文单独归档）：
   1. 每段以 `===== 文件路径 =====` 开头，内容与 `git show HEAD:<路径>` 逐字节相同。
-  2. 按文件拆分，单个文件绝不切开；代码、说明和差异每个 txt 不超过 CAP 字节。changes.txt 不含帖子正文分片的差异，只逐行列出变化的分片名。
+  2. 按文件拆分，单个文件绝不切开；代码、说明和差异每个 txt 不超过 CAP 字节。changes.txt 不含帖子正文分片的差异，只列出最多 10 个变化的分片名，其余计数。
   3. 四组互不重叠：1-app-code / 2-tools-tests / 3-docs / 4-x-posts；帖子正文上限为 X_POSTS_CAP。
   4. txt 文件数量按完整源文件体积自动调整，包含使用说明和 changes.txt。
   5. 只读 git 跟踪的文件，排除 js/auth.js（源码是 tools/auth-src.js）、两个 package-lock.json、
@@ -21,6 +21,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(REPO, "inabakumori-site-all-code")
 BASE_FILE = os.path.join(OUT, ".review-base")
 CAP = 130_000
+SHARD_NOTE_NAMES = 10
 X_POSTS_CAP = 140_000_000  # 第 4 组数据单独打包，按十进制字节计。
 GUIDE = "0-使用说明.txt"
 EXCLUDE = {"js/auth.js", "package-lock.json", "backend/package-lock.json"}
@@ -201,7 +202,11 @@ def changes(base):
     diff = git("--literal-pathspecs", "diff", "--no-ext-diff", "--no-textconv", "--no-color", "--no-renames",
                f"{base}..HEAD", "--", *paths) if paths else b""
     head = git("rev-parse", "--short", "HEAD").decode().strip()
-    note = "".join(f"# 帖子正文分片有变化（未列入差异，见第 4 组）: {p}\n" for p in sorted(shards))
+    # 分片名单最多列 SHARD_NOTE_NAMES 个，其余只计数，保证说明行本身不会挤占 changes.txt 的上限。
+    listed = sorted(shards)[:SHARD_NOTE_NAMES]
+    note = "".join(f"# 帖子正文分片有变化（未列入差异，见第 4 组）: {p}\n" for p in listed)
+    if len(shards) > len(listed):
+        note += f"# 另有 {len(shards) - len(listed)} 个帖子正文分片有变化（未逐一列出）\n"
     return f"# changes {base}..{head}（仅含符合导出规则的文本文件）\n".encode() + note.encode() + diff
 
 
