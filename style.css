@@ -2137,6 +2137,15 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
   flex-wrap: wrap;
   gap: 8px;
 }
+.home-updates .home-source-filters { margin-top: 12px; }
+.home-updates .home-updates-filter-label {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  margin-right: 4px;
+  font-size: 12px;
+  color: var(--ui-muted);
+}
 .home-updates .home-updates-toolbar button,
 .home-updates #home-updates-more {
   min-width: 44px;

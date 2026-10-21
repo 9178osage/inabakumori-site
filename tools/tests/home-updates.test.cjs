@@ -11,20 +11,22 @@ function setup(creators = [...Array(12).fill("inabakumori"), ...Array(17).fill("
     addEventListener(type, handler) { this.listeners[type] = handler; }
   });
   const document = { readyState: "complete", activeElement: null };
-  const entries = creators.map(creator => {
-    const entry = element({ creator });
+  const entries = creators.map((creator, index) => {
+    const entry = element({ creator, source: creator === "inabakumori" ? "youtube" : index % 2 ? "pixiv" : "campfire" });
     const link = { focus() { document.activeElement = link; } };
     entry.querySelector = selector => selector === "h3 a" ? link : null;
     return entry;
   });
   const buttons = ["all", "inabakumori", "nknk"].map(homeCreator => element({ homeCreator }));
+  const sourceButtons = ["all", "youtube", "pixiv", "campfire"].map(homeSource => element({ homeSource }));
+  const sourceToolbar = element();
   const more = element();
   const count = element();
   const empty = element();
   const toolbar = element();
   const section = {
     querySelector: () => toolbar,
-    querySelectorAll: selector => selector === ".update-item[data-creator]" ? entries : selector === "[data-home-creator]" ? buttons : []
+    querySelectorAll: selector => selector === ".update-item[data-creator]" ? entries : selector === "[data-home-creator]" ? buttons : selector === "[data-home-source]" ? sourceButtons : selector === ".home-updates-toolbar" ? [toolbar, sourceToolbar] : []
   };
   document.getElementById = id => ({ updates: section, "home-updates-more": more, "home-updates-count": count, "home-updates-empty": empty })[id];
   let nextTimer = 0;
@@ -39,13 +41,14 @@ function setup(creators = [...Array(12).fill("inabakumori"), ...Array(17).fill("
   });
   vm.runInContext(fs.readFileSync("js/home-updates.js", "utf8"), context);
   const click = item => { document.activeElement = item; item.listeners.click(); };
-  return { context, entries, buttons, more, count, empty, toolbar, document, click, events, timers, visible: () => entries.filter(entry => !entry.hidden) };
+  return { context, entries, buttons, sourceButtons, sourceToolbar, more, count, empty, toolbar, document, click, events, timers, visible: () => entries.filter(entry => !entry.hidden) };
 }
 
 test("homepage work updates show three entries and link to the complete archive", () => {
   const app = setup();
   assert.equal(app.visible().length, 3);
   assert.equal(app.toolbar.hidden, false);
+  assert.equal(app.sourceToolbar.hidden, false);
   assert.equal(app.count.textContent, "显示 3 / 29 条动态");
   assert.equal(app.more.hidden, false);
   assert.equal(app.more.textContent, "浏览全部作品动态 →");
@@ -67,6 +70,29 @@ test("creator and language changes preserve the three-entry limit", () => {
   assert.ok(app.visible().every(entry => entry.dataset.creator === "inabakumori"));
 });
 
+test("source and creator filters combine, handle empty results and survive language changes", () => {
+  const app = setup();
+  app.click(app.sourceButtons[1]);
+  assert.ok(app.visible().every(entry => entry.dataset.source === "youtube"));
+  assert.equal(app.visible().length, 3);
+  app.click(app.buttons[2]);
+  assert.equal(app.visible().length, 0, "NKNK and YouTube have no matching works");
+  assert.equal(app.empty.hidden, false);
+  app.click(app.sourceButtons[2]);
+  assert.equal(app.visible().length, 3);
+  assert.ok(app.visible().every(entry => entry.dataset.creator === "nknk" && entry.dataset.source === "pixiv"));
+  assert.equal(app.empty.hidden, true);
+  assert.equal(app.sourceButtons[2].attributes["aria-pressed"], "true");
+  assert.equal(app.sourceButtons[1].attributes["aria-pressed"], "false");
+  app.context.currentLanguage = "ja";
+  app.events.get("languagechange")();
+  assert.equal(app.count.textContent, "8件中3件を表示");
+  assert.equal(app.visible().length, 3);
+  app.sourceButtons[2].dataset.homeSource = "unknown";
+  app.click(app.sourceButtons[2]);
+  assert.ok(app.visible().every(entry => entry.dataset.source === "pixiv"));
+});
+
 test("a short work list hides the unnecessary archive control", () => {
   const app = setup(Array(2).fill("nknk"));
   assert.equal(app.more.hidden, true);
@@ -85,13 +111,14 @@ test("an empty creator result shows an explicit empty state without an unusable 
 test("bfcache restores the existing creator filter, preview limit and a single staleness timer", () => {
   const app = setup();
   app.click(app.buttons[2]);
+  app.click(app.sourceButtons[2]);
   assert.equal(app.timers.size, 1);
   app.events.get("pagehide")();
   assert.equal(app.timers.size, 0);
   app.events.get("pageshow")();
   assert.equal(app.timers.size, 1);
   assert.equal(app.visible().length, 3);
-  assert.ok(app.visible().every(entry => entry.dataset.creator === "nknk"));
+  assert.ok(app.visible().every(entry => entry.dataset.creator === "nknk" && entry.dataset.source === "pixiv"));
 });
 
 test("homepage links lead to the integrated section and its progressive controls are initially hidden", () => {

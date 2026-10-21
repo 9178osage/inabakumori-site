@@ -176,15 +176,23 @@
 <details class="home-works-log"><summary data-zh="作品来源动态" data-en="Updates from work channels" data-ja="作品の公開元からの更新">作品来源动态</summary>
 <p class="home-updates-note" data-zh="这里单独记录官方 YouTube 视频、pixiv 插画与合作项目公告；合作项目公告由主办方发布。" data-en="Official YouTube videos, pixiv illustrations and collaboration announcements are recorded separately here. Collaboration notices come from the organizer." data-ja="公式YouTubeの動画、pixivのイラスト、コラボ企画のお知らせを別に記録しています。コラボ企画のお知らせは主催者によるものです。">这里单独记录官方 YouTube 视频、pixiv 插画与合作项目公告；合作项目公告由主办方发布。</p>
 <div class="home-updates-toolbar" role="group" aria-label="按创作者筛选动态" data-aria-zh="按创作者筛选动态" data-aria-en="Filter updates by creator" data-aria-ja="クリエイター別の最新情報" hidden>
-<button type="button" data-home-creator="all" aria-pressed="true" data-zh="全部动态" data-en="All updates" data-ja="すべて">全部动态</button>
+<span class="home-updates-filter-label" data-zh="创作者" data-en="Creator" data-ja="作者">创作者</span>
+<button type="button" data-home-creator="all" aria-pressed="true" data-zh="全部创作者" data-en="All creators" data-ja="すべての作者">全部创作者</button>
 <button type="button" data-home-creator="inabakumori" aria-pressed="false">稲葉曇</button>
 <button type="button" data-home-creator="nknk" aria-pressed="false">NKNK</button>
+</div>
+<div class="home-updates-toolbar home-source-filters" role="group" aria-label="按来源筛选动态" data-aria-zh="按来源筛选动态" data-aria-en="Filter updates by source" data-aria-ja="公開元で更新を絞り込む" hidden>
+<span class="home-updates-filter-label" data-zh="来源" data-en="Source" data-ja="公開元">来源</span>
+<button type="button" data-home-source="all" aria-pressed="true" data-zh="全部来源" data-en="All sources" data-ja="すべての公開元">全部来源</button>
+<button type="button" data-home-source="youtube" aria-pressed="false">YouTube</button>
+<button type="button" data-home-source="pixiv" aria-pressed="false">pixiv</button>
+<button type="button" data-home-source="campfire" aria-pressed="false">CAMPFIRE</button>
 </div>
 <p id="home-updates-count" class="home-updates-count" role="status" aria-live="polite" hidden></p>
 <div id="home-updates-feed" class="home-updates-feed">
 <!-- HOME-UPDATES:ITEMS -->
 </div>
-<p id="home-updates-empty" class="home-updates-note" data-zh="暂未收录这位创作者的动态，请先查看上方本人账号。" data-en="No collected updates from this creator yet. Visit their account above." data-ja="このクリエイターの更新はまだ収録されていません。上の公式アカウントをご覧ください。" hidden>暂未收录这位创作者的动态，请先查看上方本人账号。</p>
+<p id="home-updates-empty" class="home-updates-note" data-zh="没有符合筛选条件的动态，试试其他创作者或来源。" data-en="No updates match these filters. Try another creator or source." data-ja="条件に合う更新はありません。作者や公開元を変えてみてください。" hidden>没有符合筛选条件的动态，试试其他创作者或来源。</p>
 <a id="home-updates-more" href="updates.html#feed-title" data-zh="浏览全部作品动态 →" data-en="Browse all work updates →" data-ja="作品の更新をすべて見る →">浏览全部作品动态 →</a>
 <noscript><p class="home-updates-note">这里只展示最近 3 条，全部作品动态可通过上方链接在本站查看。 / Only the latest 3 are shown here. Follow the link above for all work updates. / ここには最新3件を表示しています。すべての更新は上のリンクからご覧ください。</p></noscript>
 <details class="home-updates-sources"><summary data-zh="来源与核对时间" data-en="Sources and check times" data-ja="取得元と確認日時">来源与核对时间</summary><div class="home-updates-status">
