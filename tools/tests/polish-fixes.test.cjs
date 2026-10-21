@@ -43,7 +43,8 @@ test("1: only 400-499 statuses are passed through; everything else stays a 500",
   for (const err of [new Error("boom"), { status: 500 }, { status: 302 }, { status: "400x" }, { statusCode: 499.5 }, null, undefined]) {
     assert.equal(clientErrorResponse(err), null, JSON.stringify(err));
   }
-  const server = read("backend/server.mjs");
+  // The final error handler now lives in services.mjs (createFinalErrorHandler).
+  const server = read("backend/services.mjs");
   assert.match(server, /const clientError = clientErrorResponse\(err\);\n\s*if \(clientError\) return res\.status\(clientError\.status\)\.json\(clientError\.body\);/);
   assert.ok(server.indexOf("clientErrorResponse(err)") < server.indexOf('console.error("Internal server error"'), "checked before the 500 path");
 });

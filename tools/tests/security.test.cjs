@@ -215,10 +215,12 @@ test("the published contact address never becomes an admin login identifier", ()
   assert.match(securityDoc, /当前已接受偏差/, "the accepted deviation must stay documented");
 });
 
-test("the final error handler hands started responses to Express before any JSON reply", () => {
+test("server.mjs mounts the shared final error handler last and has no inline copy", () => {
   const server = read("backend/server.mjs");
-  const handler = server.slice(server.indexOf("app.use((err, req, res, next) => {"));
-  const firstStatement = handler.split("\n").slice(1).find(line => line.trim() && !line.trim().startsWith("//"));
+  assert.match(server, /app\.use\(createFinalErrorHandler\(\{ isProduction: IS_PRODUCTION \}\)\);\s*const server = app\.listen/u);
+  assert.doesNotMatch(server, /app\.use\(\(err, req, res, next\)/u);
+  const services = read("backend/services.mjs");
+  const handler = services.slice(services.indexOf("export function createFinalErrorHandler"));
+  const firstStatement = handler.split("\n").slice(2).find(line => line.trim() && !line.trim().startsWith("//"));
   assert.match(firstStatement, /if \(res\.headersSent\)/u);
-  assert.equal((server.match(/res\.headersSent/gu) || []).length, 1);
 });
