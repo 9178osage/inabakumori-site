@@ -1750,17 +1750,19 @@ body.modal-open { overflow: hidden; }
   .section-nav { gap: 24px; padding-right: 320px; }
 }
 @media (max-width: 700px), (pointer: coarse) and (max-width: 1000px) {
-  .hero { min-height: 580px; min-height: min(580px, 100svh); }
-  .station-mark { top: 84px; left: 22px; font-size: 11px; }
+  /* Let short/landscape screens grow around the translated title and navigation. */
+  .hero { height: auto; min-height: 100vh; min-height: 100svh; padding: calc(148px + env(safe-area-inset-top)) 0 calc(76px + env(safe-area-inset-bottom)); }
+  .station-mark { top: calc(84px + env(safe-area-inset-top)); left: max(22px, env(safe-area-inset-left)); font-size: 11px; }
   .station-mark-small { font-size: 8px; }
-  .hero-content { padding-top: 48px; }
+  .hero-content { width: calc(100% - 32px - env(safe-area-inset-left) - env(safe-area-inset-right)); padding-top: 0; }
   .hero-eyebrow { font-size: 10px; margin-bottom: 20px; }
   .hero-description { font-size: 13px; letter-spacing: .06em; }
   .hero-content nav { gap: 2px; margin-top: 20px; }
   .hero-content nav a { margin: 0; padding: 8px 10px; font-size: 12px; }
-  .hero-bottom { left: 22px; right: 22px; bottom: max(20px, env(safe-area-inset-bottom)); }
-  .section-nav { top: calc(66px + env(safe-area-inset-top)); gap: 0; justify-content: space-around; padding: 6px 12px; min-height: 52px; }
-  .section-nav a { padding: 8px 12px; font-size: 12px; }
+  .hero-bottom { left: max(22px, env(safe-area-inset-left)); right: max(22px, env(safe-area-inset-right)); bottom: max(20px, env(safe-area-inset-bottom)); }
+  .hero-bottom a { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
+  .section-nav { top: calc(66px + env(safe-area-inset-top)); gap: 0; justify-content: space-around; padding: 4px max(12px, env(safe-area-inset-right)) 4px max(12px, env(safe-area-inset-left)); min-height: 52px; }
+  .section-nav a { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 8px 12px; font-size: 12px; }
   .section-nav .back-top { margin: 0; }
   html { scroll-padding-top: calc(140px + env(safe-area-inset-top)); }
   .site-about { margin-top: 0; }
@@ -1768,11 +1770,14 @@ body.modal-open { overflow: hidden; }
   main > section:not(#songs), main > section#messages, #songs { width: calc(100% - 36px - env(safe-area-inset-left) - env(safe-area-inset-right)); }
   h2 { font-size: 30px; letter-spacing: 2px; }
   .section-kicker { font-size: 10px; margin-bottom: 18px; }
+  .artist-intro, .artwork-intro { font-size: 17px; line-height: 1.85; }
   .artist-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .artist-links a { padding: 14px 10px; gap: 8px; font-size: 13px; }
   .artist-links img, .artist-links .knowledge-link img { width: 24px; height: 24px; }
   .tag-filter-panel { padding: 14px; }
-  .song-list { max-height: 880px; overflow-y: auto; overscroll-behavior-y: auto; }
+  .songs-heading { flex-wrap: nowrap; gap: 12px; margin-bottom: 22px; }
+  #random-song-button { width: auto; max-width: 60%; flex-shrink: 0; font-size: 13px; }
+  .song-list { max-height: none; overflow: visible; overscroll-behavior-y: auto; scrollbar-gutter: auto; }
   .song-row a.tag-ready { padding: 12px 10px; gap: 10px; }
   .song-thumbnail { flex-basis: 76px; width: 76px; }
   .song-title-text { font-size: 16px; }
@@ -1791,7 +1796,7 @@ body.modal-open { overflow: hidden; }
   .section-nav a { padding-inline: 8px; }
 }
 /* Long (ja/en) labels must never widen the page: the sticky nav scrolls on its own instead. */
-@media (max-width: 480px) {
+@media (max-width: 700px), (pointer: coarse) and (max-width: 1000px) {
   .section-nav { justify-content: flex-start; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
   .section-nav::-webkit-scrollbar { display: none; }
   .section-nav a { flex: 0 0 auto; padding-inline: 8px; }
@@ -2343,6 +2348,7 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
   .home-updates .home-updates-toolbar button {
     padding: 10px 16px;
   }
+  .home-updates #home-updates-year { font-size: 16px; }
   .home-updates .update-item {
     grid-template-columns: 23px minmax(0, 1fr);
     gap: 5px 12px;
@@ -2566,7 +2572,7 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
     padding: 20px 0;
   }
   .home-updates .x-post-text {
-    font-size: 14px;
+    font-size: 15px;
     line-height: 1.9;
   }
   .home-updates .home-works-log[open] {
@@ -2575,6 +2581,17 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
   .home-updates .home-works-log[open] > summary {
     margin: 0 -14px 16px;
   }
+}
+@media (max-width: 430px) {
+  .home-updates .update-item { grid-template-columns: minmax(0, 1fr); }
+  .home-updates .update-index { display: none; }
+  .home-updates .update-link { grid-column: 1; }
+  .home-updates .home-updates-filter-label { flex-basis: 100%; min-height: auto; }
+  .home-updates .home-updates-toolbar { gap: 6px; }
+  .home-updates .home-updates-toolbar button { flex: 1 1 auto; padding-inline: 12px; }
+}
+@media (pointer: coarse) {
+  .home-updates #home-updates-year { font-size: 16px; }
 }
 @supports not (overflow-wrap: anywhere) {
   .home-updates .x-post-text,
