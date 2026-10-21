@@ -157,3 +157,16 @@ test("homepage links lead to the integrated section and its progressive controls
   assert.match(html, /<a id="home-updates-more" href="updates\.html#feed-title"/u);
   assert.match(html, /<!-- HOME-UPDATES:ITEMS -->/u);
 });
+
+test("the works-list link carries the selected creator, source and year to updates.html", () => {
+  const app = setup();
+  assert.equal(app.more.attributes.href, "updates.html#feed-title");
+  app.click(app.buttons[2]);
+  app.click(app.sourceButtons[2]);
+  app.yearSelect.value = "2025";
+  app.yearSelect.listeners.change();
+  assert.equal(app.more.attributes.href, "updates.html?creator=nknk&source=pixiv&year=2025#feed-title");
+  app.click(app.buttons[0]); app.click(app.sourceButtons[0]);
+  app.yearSelect.value = "all"; app.yearSelect.listeners.change();
+  assert.equal(app.more.attributes.href, "updates.html#feed-title");
+});

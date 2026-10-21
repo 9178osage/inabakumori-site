@@ -3,7 +3,7 @@
 
 规则（用户 2026-10-20 将代码上限恢复为 130,000 字节，帖子正文单独归档）：
   1. 每段以 `===== 文件路径 =====` 开头，内容与 `git show HEAD:<路径>` 逐字节相同。
-  2. 按文件拆分，单个文件绝不切开；代码、说明和差异每个 txt 不超过 CAP 字节。
+  2. 按文件拆分，单个文件绝不切开；代码、说明和差异每个 txt 不超过 CAP 字节。changes.txt 不含帖子正文分片的差异，只逐行列出变化的分片名。
   3. 四组互不重叠：1-app-code / 2-tools-tests / 3-docs / 4-x-posts；帖子正文上限为 X_POSTS_CAP。
   4. txt 文件数量按完整源文件体积自动调整，包含使用说明和 changes.txt。
   5. 只读 git 跟踪的文件，排除 js/auth.js（源码是 tools/auth-src.js）、两个 package-lock.json、
@@ -180,12 +180,16 @@ def validate_base(base):
 
 def changes(base):
     validate_base(base)
-    paths = []
+    paths, shards = [], []
     for raw in git("diff", "--no-renames", "--name-only", "-z", f"{base}..HEAD").split(b"\0"):
         if not raw:
             continue
         p = raw.decode("utf-8")
         if not allowed(p):
+            continue
+        # 帖子正文分片属于第 4 组数据，不进入改动复核；只列出变化的分片名。
+        if X_POSTS_FILE.fullmatch(p):
+            shards.append(p)
             continue
         # 删除或修改的文件也检查旧版本，防止二进制/敏感文件混进 diff。
         for ref in (base, "HEAD"):
@@ -197,7 +201,8 @@ def changes(base):
     diff = git("--literal-pathspecs", "diff", "--no-ext-diff", "--no-textconv", "--no-color", "--no-renames",
                f"{base}..HEAD", "--", *paths) if paths else b""
     head = git("rev-parse", "--short", "HEAD").decode().strip()
-    return f"# changes {base}..{head}（仅含符合导出规则的文本文件）\n".encode() + diff
+    note = "".join(f"# 帖子正文分片有变化（未列入差异，见第 4 组）: {p}\n" for p in sorted(shards))
+    return f"# changes {base}..{head}（仅含符合导出规则的文本文件）\n".encode() + note.encode() + diff
 
 
 def guide(base, names):

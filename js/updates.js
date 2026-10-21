@@ -5,6 +5,20 @@
     const readLanguage = () => languages.includes(storage.getItem("language")) ? storage.getItem("language") : "zh";
     let language = readLanguage();
     let filter = "all";
+    // Filters linked from the homepage (?creator=&source=&year=). Unknown values are ignored.
+    let source = "all";
+    let year = "all";
+    const linked = {};
+    try {
+      for (const pair of String(window.location?.search || "").replace(/^\?/u, "").split("&")) {
+        const [key, value = ""] = pair.split("=");
+        if (["creator", "source", "year"].includes(key) && !(key in linked)) linked[key] = decodeURIComponent(value.replace(/\+/gu, " "));
+      }
+    } catch { /* malformed query: keep the defaults */ }
+    const knownYears = new Set([...document.querySelectorAll(".update-item[data-year]")].map(entry => entry.dataset.year));
+    if (["inabakumori", "nknk"].includes(linked.creator)) filter = linked.creator;
+    if (["youtube", "pixiv", "campfire"].includes(linked.source)) source = linked.source;
+    if (/^\d{4}$/u.test(linked.year || "") && knownYears.has(linked.year)) year = linked.year;
     const langButton = document.getElementById("updates-lang-btn");
     const themeButton = document.getElementById("updates-theme-btn");
     const systemTheme = window.matchMedia?.("(prefers-color-scheme: dark)");
@@ -16,7 +30,7 @@
       const entries = [...document.querySelectorAll(".update-item[data-creator]")];
       let count = 0;
       entries.forEach(entry => {
-        const shown = filter === "all" || entry.dataset.creator === filter;
+        const shown = (filter === "all" || entry.dataset.creator === filter) && (source === "all" || entry.dataset.source === source) && (year === "all" || entry.dataset.year === year);
         entry.hidden = !shown;
         if (shown) count++;
       });
@@ -26,7 +40,9 @@
       const result = document.getElementById("updates-count");
       if (result) {
         result.hidden = false;
-        result.textContent = text(`已收录 ${count} 条 · 点击标题查看原始发布`, `${count} collected · Open a title for the original post`, `${count}件収録 · タイトルから元の投稿へ`);
+        const sourceLabel = { youtube: "YouTube", pixiv: "pixiv", campfire: "CAMPFIRE" }[source];
+        const scope = [sourceLabel, year === "all" ? "" : year].filter(Boolean).join(" · ");
+        result.textContent = (scope ? `${scope} · ` : "") + text(`已收录 ${count} 条 · 点击标题查看原始发布`, `${count} collected · Open a title for the original post`, `${count}件収録 · タイトルから元の投稿へ`);
       }
       const empty = document.getElementById("updates-empty");
       if (empty) empty.hidden = count > 0;
@@ -78,7 +94,11 @@
       applyTheme();
     });
     document.querySelectorAll("[data-filter]").forEach(button => button.addEventListener("click", () => {
+      if (!["all", "inabakumori", "nknk"].includes(button.dataset.filter)) return;
       filter = button.dataset.filter;
+      // Choosing a creator here starts over from all sources and years.
+      source = "all";
+      year = "all";
       applyFilter();
     }));
     window.addEventListener("storage", event => {
