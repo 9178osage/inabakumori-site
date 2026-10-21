@@ -7,9 +7,9 @@ import { randomUUID } from "node:crypto";
 import { assertRepoPath } from "./safe-fs.mjs";
 import { FORBIDDEN_TITLE_CHARACTERS } from "./text-guards.mjs";
 
-export const CHANNEL_ID = "UCNElM45JypxqAR73RoUQ10g";
-export const PIXIV_USER_ID = "27327959";
-export const SOURCES = Object.freeze([
+const CHANNEL_ID = "UCNElM45JypxqAR73RoUQ10g";
+const PIXIV_USER_ID = "27327959";
+const SOURCES = Object.freeze([
   Object.freeze({ id: "youtube", creator: "inabakumori", label: "YouTube", url: "https://www.youtube.com/@inabakumori" }),
   Object.freeze({ id: "pixiv", creator: "nknk", label: "pixiv", url: `https://www.pixiv.net/users/${PIXIV_USER_ID}` }),
   Object.freeze({ id: "campfire", creator: "nknk", label: "CAMPFIRE Creation", url: "https://camp-fire.jp/projects/970332/view/activities" })
@@ -92,7 +92,7 @@ export function parsePixivWork(data, expectedId) {
 }
 
 // Extract only the JSON assignment; never evaluate a platform script.
-export function parseEmbeddedJson(html, variable) {
+function parseEmbeddedJson(html, variable) {
   if (typeof html !== "string" || !["ytInitialData", "ytInitialPlayerResponse"].includes(variable)) throw new Error("Invalid embedded data");
   const startPattern = new RegExp(`(?:var\\s+)?${variable}\\s*=\\s*`, "gu");
   const match = startPattern.exec(html);

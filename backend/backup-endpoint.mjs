@@ -9,8 +9,8 @@ import path from "node:path";
 import { backupDatabase } from "./backup.mjs";
 import { normalizeRequestPath } from "./services.mjs";
 
-export const BACKUP_PATH = "/api/admin/backup";
-export const MIN_BACKUP_TOKEN_LENGTH = 32;
+const BACKUP_PATH = "/api/admin/backup";
+const MIN_BACKUP_TOKEN_LENGTH = 32;
 
 export function backupTokenFrom(env) {
   const token = String(env.BACKUP_TOKEN ?? "").trim();

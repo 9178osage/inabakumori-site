@@ -21,7 +21,7 @@ for (const [network, prefix] of [["::", 128], ["::1", 128], ["fc00::", 7], ["fe8
 
 // Canonical hostname as a browser would see it: lower-case, no trailing dot, IPv4
 // shorthands (127.1, 0x7f.1, 2130706433) expanded, IPv6 without brackets.
-export function canonicalHost(host) {
+function canonicalHost(host) {
   let value = String(host ?? "").trim().toLowerCase().replace(/\.+$/u, "");
   if (!value) return "";
   try {
@@ -35,7 +35,7 @@ function addressFamily(host) {
   return version === 4 ? "ipv4" : version === 6 ? "ipv6" : null;
 }
 
-export function isLoopbackHost(host) {
+function isLoopbackHost(host) {
   const value = canonicalHost(host);
   if (value === "localhost" || value.endsWith(".localhost")) return true;
   const family = addressFamily(value);
@@ -51,7 +51,7 @@ export function isNonPublicHost(host) {
 }
 
 // Host part of a CSP source expression, or null for keywords ('self'), schemes (https:) and nonces.
-export function cspSourceHost(source) {
+function cspSourceHost(source) {
   if (/^'/u.test(source) || /^[a-z][a-z0-9+.-]*:$/iu.test(source)) return null;
   const withoutScheme = source.replace(/^[a-z][a-z0-9+.-]*:\/\//iu, "");
   const host = /^(\[[^\]]*\]|[^:/]*)/u.exec(withoutScheme)?.[1] ?? "";
