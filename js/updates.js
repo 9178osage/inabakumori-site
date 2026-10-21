@@ -103,8 +103,12 @@
       // Choosing a creator here starts over from all sources and years.
       source = "all";
       year = "all";
-      // Drop the linked query so a refresh does not bring the old source/year back.
-      try { if (window.location?.search) window.history?.replaceState?.(null, "", window.location.pathname + window.location.hash); } catch { /* history unavailable: in-memory state still applies */ }
+      // Keep only the chosen creator in the address (none for "all") so a reload restores it,
+      // while the linked source/year are dropped. The page's own path and hash are preserved.
+      try {
+        const query = filter === "all" ? "" : "?creator=" + encodeURIComponent(filter);
+        if ((window.location?.search || "") !== query) window.history?.replaceState?.(null, "", window.location.pathname + query + window.location.hash);
+      } catch { /* history unavailable: in-memory state still applies */ }
       applyFilter();
     }));
     window.addEventListener("storage", event => {

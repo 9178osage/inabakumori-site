@@ -66,14 +66,28 @@ test("choosing a creator on the updates page clears linked source and year", () 
   assert.equal(app.shown().length, 3);
 });
 
-test("choosing a creator removes the linked query so a refresh keeps the cleared filters", () => {
+test("choosing a creator keeps only ?creator in the URL (none for all) and drops source/year", () => {
   const app = load("?source=youtube&year=2026");
   app.buttons[1].listeners.click();
-  assert.deepEqual(app.replaced, ["/updates.html#feed-title"]);
-  assert.equal(load("").replaced.length, 0);
+  assert.deepEqual(app.replaced, ["/updates.html?creator=inabakumori#feed-title"]);
+  const all = load("?creator=nknk&source=pixiv");
+  all.buttons[0].listeners.click();
+  assert.deepEqual(all.replaced, ["/updates.html#feed-title"]);
   const plain = load("");
-  plain.buttons[2].listeners.click();
-  assert.deepEqual(plain.replaced, [], "no history write without a linked query");
+  plain.buttons[0].listeners.click();
+  assert.deepEqual(plain.replaced, [], "no history write when the address already matches");
+  const same = load("?creator=nknk");
+  same.buttons[2].listeners.click();
+  assert.deepEqual(same.replaced, [], "no history write when the address already matches");
+});
+
+test("a reload with the URL written by a creator click restores that creator", () => {
+  const first = load("");
+  first.buttons[2].listeners.click();
+  const url = first.replaced.at(-1);
+  const reloaded = load(url.slice(url.indexOf("?"), url.indexOf("#")));
+  assert.deepEqual(reloaded.shown(), first.shown());
+  assert.ok(reloaded.shown().length > 0 && reloaded.shown().every(item => item.startsWith("nknk/")));
 });
 
 test("only the first occurrence of a filter key counts, even when it is malformed", () => {
