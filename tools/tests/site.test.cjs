@@ -509,6 +509,22 @@ test("a 429 without a known code gets a rate-limit message in every language", (
   assert.equal(run("commentErrorMessage(result, response)"), "留言发布失败。");
 });
 
+test("a gateway 429 with an empty body shows the localized rate-limit text after submitting", async () => {
+  const { elements, context, run, events } = setup();
+  elements["message-name"] = { value: "tester" };
+  elements["message-input"] = { value: "hello" };
+  elements[".message-box button"] = {};
+  run("createFloatingMessage=()=>{}");
+  const gateway429 = () => ({ ok: false, status: 429, headers: { get: () => null }, json: async () => { throw new SyntaxError("Unexpected end of JSON input"); }, text: async () => "" });
+  context.fetch = async () => gateway429();
+  run('currentLanguage="en"');
+  await run("addMessage()");
+  assert.equal(events.at(-1), "Too many requests. Please try again later.");
+  run('currentLanguage="ja"');
+  await run("addMessage()");
+  assert.equal(events.at(-1), "投稿が多すぎます。しばらくしてから再試行してください。");
+});
+
 test("submission never surfaces a raw Error message", async () => {
   const { elements, context, run, events } = setup();
   elements["message-name"] = { value: "tester" };

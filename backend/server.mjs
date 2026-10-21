@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { normalizeRequestPath, validateCommentInput, websiteLocation, resolveDatabasePath, parseAdditionalOrigins, clientIpResolver, parseAdminUserIds, createAdminCheck, buildVersion, createRecentDuplicateChecker, insertFreshComment, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery, requireJsonRequestBody, revokeSessionsAfterPasswordReset, clientErrorResponse } from "./services.mjs";
+import { normalizeRequestPath, validateCommentInput, websiteLocation, resolveDatabasePath, parseAdditionalOrigins, clientIpResolver, parseAdminUserIds, createAdminCheck, buildVersion, createRecentDuplicateChecker, insertFreshComment, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery, requireJsonRequestBody, revokeSessionsAfterPasswordReset, clientErrorResponse, createFinalErrorHandler } from "./services.mjs";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -368,38 +368,7 @@ app.use((req, res) => {
   res.status(404).json({ error: "请求的地址不存在，请刷新页面后重试", code: "NOT_FOUND" });
 });
 app.use(errorHandler());
-app.use((err, req, res, next) => {
-  // A response that already started cannot be replaced by any of the JSON errors below.
-  if (res.headersSent) {
-    return next(err);
-  }
-  if (err?.message === "Origin not allowed by CORS") {
-    return res.status(403).json({ error: "当前网页无法访问此服务，请从本站网址打开", code: "CORS_ORIGIN_DENIED" });
-  }
-  if (err?.type === "entity.too.large") {
-    return res.status(413).json({ error: "请求内容过大", code: "PAYLOAD_TOO_LARGE" });
-  }
-  if (err?.type === "charset.unsupported" || err?.type === "encoding.unsupported") {
-    return res.status(415).json({ error: "请求的字符集或压缩格式不受支持", code: "UNSUPPORTED_MEDIA_TYPE" });
-  }
-  if (err instanceof SyntaxError && Object.prototype.hasOwnProperty.call(err, "body")) {
-    return res.status(400).json({ error: "请求格式不正确，请刷新页面后重试", code: "INVALID_JSON" });
-  }
-  // Any other client error (e.g. body-parser's 400 for a corrupt gzip/deflate/br body) keeps its 4xx
-  // status; only a generic message is sent, never the error's own text.
-  const clientError = clientErrorResponse(err);
-  if (clientError) return res.status(clientError.status).json(clientError.body);
-  if (IS_PRODUCTION) {
-    console.error("Internal server error", { requestId: req.requestId, name: err?.name, code: err?.code });
-  } else {
-    console.error(err);
-  }
-  if (err?.code === "ERR_SQLITE_ERROR" && /(?:busy|locked)/iu.test(err.message || "")) {
-    res.setHeader("Retry-After", "2");
-    return res.status(503).json({ error: "服务器忙，请稍后重试", code: "DATABASE_BUSY", requestId: req.requestId });
-  }
-  return res.status(500).json({ error: "服务器发生错误", code: "INTERNAL_SERVER_ERROR", requestId: req.requestId });
-});
+app.use(createFinalErrorHandler({ isProduction: IS_PRODUCTION }));
 const server = app.listen(PORT, HOST, () => {
   console.log(`✅ Backend running at http://${HOST}:${PORT} (version ${BUILD_VERSION})`);
   console.log(`🔐 Environment: ${NODE_ENV}`);

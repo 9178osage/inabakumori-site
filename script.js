@@ -410,7 +410,8 @@ async function addMessage() {
   if (button) button.disabled = true;
   try {
     const response = await (window.siteFetch || fetch)(COMMENTS_API, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ nickname, content }) });
-    const data = await response.json();
+    // Gateway/proxy errors (e.g. an empty 429) carry no JSON; the status alone still picks the message.
+    const data = response.ok ? await response.json() : await response.json().catch(() => null);
     if (!response.ok) {
       const failure = new Error("Comment rejected");
       failure.userMessage = () => commentErrorMessage(data, response);
