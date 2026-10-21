@@ -96,6 +96,7 @@ function fillUpdates(template, prefix, items = updates.items) {
 }
 let html = await readFile(source("index.html"), "utf8");
 html = fillUpdates(html, "HOME-UPDATES", updates.homeItems);
+html = fillOnce(html, "HOME-UPDATES:YEARS", updates.years);
 html = fingerprintXPosts(fillOnce(html, "X-POSTS:HOME", xPostsRenderer.renderHome()));
 // Share-tracking parameters (?si=...) identify who shared a link; published links never carry them.
 const cleanSongUrl = value => {

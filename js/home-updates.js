@@ -5,13 +5,16 @@
     const entries = [...section.querySelectorAll(".update-item[data-creator]")];
     const buttons = [...section.querySelectorAll("[data-home-creator]")];
     const sourceButtons = [...section.querySelectorAll("[data-home-source]")];
+    const yearSelect = document.getElementById("home-updates-year");
+    const years = new Set(["all", ...entries.map(entry => entry.dataset.year)]);
     const more = document.getElementById("home-updates-more");
     const count = document.getElementById("home-updates-count");
     const empty = document.getElementById("home-updates-empty");
     let creator = "all";
     let source = "all";
+    let year = "all";
     const text = (zh, en, ja) => ({ zh, en, ja })[currentLanguage] || zh;
-    const matching = () => entries.filter(entry => (creator === "all" || entry.dataset.creator === creator) && (source === "all" || entry.dataset.source === source));
+    const matching = () => entries.filter(entry => (creator === "all" || entry.dataset.creator === creator) && (source === "all" || entry.dataset.source === source) && (year === "all" || entry.dataset.year === year));
 
     function render() {
       const selected = matching();
@@ -19,6 +22,7 @@
       entries.forEach(entry => { entry.hidden = !visible.has(entry); });
       buttons.forEach(button => button.setAttribute("aria-pressed", String(button.dataset.homeCreator === creator)));
       sourceButtons.forEach(button => button.setAttribute("aria-pressed", String(button.dataset.homeSource === source)));
+      if (yearSelect) yearSelect.value = year;
       count.hidden = false;
       count.textContent = text(`显示 ${visible.size} / ${selected.length} 条动态`, `Showing ${visible.size} / ${selected.length} updates`, `${selected.length}件中${visible.size}件を表示`);
       empty.hidden = selected.length > 0;
@@ -36,6 +40,11 @@
       source = button.dataset.homeSource;
       render();
     }));
+    yearSelect?.addEventListener("change", () => {
+      if (!years.has(yearSelect.value)) { yearSelect.value = year; return; }
+      year = yearSelect.value;
+      render();
+    });
     window.addEventListener("languagechange", render);
 
     function updateStaleness() {
