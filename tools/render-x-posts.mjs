@@ -56,7 +56,7 @@ export function xPostsPageUrl(creator = "all", page = 1) {
   return `updates${creator === "all" ? "" : `-${creator}`}${page === 1 ? "" : `-page-${page}`}.html`;
 }
 
-function renderPost(post) {
+function renderPost(post, hidden = false) {
   const creator = creators[post.creator];
   const links = [...new Map(post.links.map(link => [https(link.url), link])).entries()].map(([url, link]) => {
     const label = link.label.replace(/\s*\n\s*/gu, "").trim() || url;
@@ -66,7 +66,7 @@ function renderPost(post) {
   const media = post.media.length ? text("span", [`附 ${post.media.length} 张图片 · 请到原帖查看`, `${post.media.length} image${post.media.length === 1 ? "" : "s"} · View in the original post`, `画像${post.media.length}枚 · 元の投稿で見る`]) : "";
   const video = post.hasVideo ? text("span", ["视频 · 请到原帖播放", "Video · Play in the original post", "動画 · 元の投稿で再生"]) : "";
   const body = post.text ? `<p class="x-post-text" lang="ja" dir="auto">${escape(post.text)}</p>` : text("p", ["这条帖子以媒体为主，请查看原帖。", "This post contains media. View the original post.", "メディアを中心とした投稿です。元の投稿をご覧ください。"], ' class="x-post-text x-post-media-only"');
-  return `<article class="x-post" data-x-post-id="${post.id}" data-creator="${post.creator}"><header class="x-post-header"><h3>${escape(creator.name)} <span>@${creator.handle}</span></h3>${time(post.publishedAt)}</header>${body}${links ? `<div class="x-post-links">${links}</div>` : ""}${media || video ? `<p class="x-post-media-note">${media}${media && video ? " · " : ""}${video}</p>` : ""}<footer class="x-post-footer">${text("a", ["查看原帖 ↗", "View original ↗", "元の投稿を見る ↗"], ` class="x-post-source" href="${escape(post.url)}" target="_blank" rel="noopener noreferrer"`)}${references}</footer></article>`;
+  return `<article class="x-post"${hidden ? " hidden" : ""} data-x-post-id="${post.id}" data-creator="${post.creator}"><header class="x-post-header"><h3>${escape(creator.name)} <span>@${creator.handle}</span></h3>${time(post.publishedAt)}</header>${body}${links ? `<div class="x-post-links">${links}</div>` : ""}${media || video ? `<p class="x-post-media-note">${media}${media && video ? " · " : ""}${video}</p>` : ""}<footer class="x-post-footer">${text("a", ["查看原帖 ↗", "View original ↗", "元の投稿を見る ↗"], ` class="x-post-source" href="${escape(post.url)}" target="_blank" rel="noopener noreferrer"`)}${references}</footer></article>`;
 }
 
 function renderCoverage(archive, posts) {
@@ -96,11 +96,13 @@ function renderAuthorLinks(creator) {
 }
 
 function renderHome(posts, groups, status, renderItem) {
-  const latest = new Set(Object.keys(creators).flatMap(creator => groups.get(creator).slice(0, 6)).map(post => post.id));
+  const latest = new Set(Object.keys(creators).flatMap(creator => groups.get(creator).slice(0, 3)).map(post => post.id));
   const selected = posts.filter(post => latest.has(post.id));
+  const visible = new Set(posts.slice(0, 3).map(post => post.id));
+  const renderPreview = post => visible.has(post.id) ? renderItem(post) : renderPost(post, true);
   const count = creator => groups.get(creator).length;
   const filters = `<div class="x-home-filters" role="group" aria-label="按创作者筛选帖子" data-aria-zh="按创作者筛选帖子" data-aria-en="Filter posts by creator" data-aria-ja="クリエイター別の投稿" hidden>${text("button", ["全部帖子", "All posts", "すべて"], ' type="button" data-x-home-creator="all" aria-pressed="true"')}<button type="button" data-x-home-creator="inabakumori" aria-pressed="false">稲葉曇</button><button type="button" data-x-home-creator="nknk" aria-pressed="false">NKNK</button></div>`;
-  return `<section class="x-posts-home" data-x-posts-home data-x-total="${posts.length}" data-x-total-inabakumori="${count("inabakumori")}" data-x-total-nknk="${count("nknk")}" aria-labelledby="home-x-posts-title"><h3 id="home-x-posts-title" class="x-posts-title" data-zh="X 帖子原文" data-en="Original X posts" data-ja="Xの投稿・原文">X 帖子原文</h3><div class="x-posts-status">${status}</div>${filters}<p class="x-home-count" data-x-home-count role="status" aria-live="polite" hidden></p><div class="x-posts-feed">${selected.map(renderItem).join("\n") || text("p", ["公开帖子正在补录中。", "Public posts are being collected.", "公開投稿を収録しています。"], ' class="x-posts-empty"')}</div>${text("a", ["在本站浏览已收录的全部帖子 →", "Browse all collected posts on this site →", "サイト内で収録済みの投稿をすべて見る →"], ' class="x-posts-archive-link" data-x-archive-link href="updates.html"')}<noscript>${text("p", ["这里展示近期收录。完整帖子正文可通过上方站内档案分页阅读。", "Recent collected posts are shown here. Read the complete collected text through the archive pages above.", "ここには最近の収録分を表示しています。収録済みの全文は上のリンク先でページごとに読めます。"], ' class="x-posts-coverage-note"')}</noscript></section>`;
+  return `<section class="x-posts-home" data-x-posts-home data-x-total="${posts.length}" data-x-total-inabakumori="${count("inabakumori")}" data-x-total-nknk="${count("nknk")}" aria-labelledby="home-x-posts-title"><h3 id="home-x-posts-title" class="x-posts-title" data-zh="X 帖子原文" data-en="Original X posts" data-ja="Xの投稿・原文">X 帖子原文</h3><div class="x-posts-status">${status}</div>${filters}<p class="x-home-count" data-x-home-count role="status" aria-live="polite" hidden></p><div class="x-posts-feed">${selected.map(renderPreview).join("\n") || text("p", ["公开帖子正在补录中。", "Public posts are being collected.", "公開投稿を収録しています。"], ' class="x-posts-empty"')}</div>${text("a", ["在本站浏览已收录的全部帖子 →", "Browse all collected posts on this site →", "サイト内で収録済みの投稿をすべて見る →"], ' class="x-posts-archive-link" data-x-archive-link href="updates.html"')}<noscript>${text("p", ["这里展示最近 3 条。完整帖子正文可通过上方站内档案分页阅读。", "The latest 3 posts are shown here. Read all collected posts through the archive link above.", "ここには最新3件を表示しています。収録済みの全文は上のリンク先で読めます。"], ' class="x-posts-coverage-note"')}</noscript></section>`;
 }
 
 function renderArchive(groups, status, renderItem, { page = 1, creator = "all", pageSize = 30 } = {}) {

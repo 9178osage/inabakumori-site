@@ -7,40 +7,26 @@
     const more = document.getElementById("home-updates-more");
     const count = document.getElementById("home-updates-count");
     const empty = document.getElementById("home-updates-empty");
-    const batch = 6;
     let creator = "all";
-    let limit = batch;
     const text = (zh, en, ja) => ({ zh, en, ja })[currentLanguage] || zh;
     const matching = () => entries.filter(entry => creator === "all" || entry.dataset.creator === creator);
 
     function render() {
       const selected = matching();
-      const visible = new Set(selected.slice(0, limit));
+      const visible = new Set(selected.slice(0, 3));
       entries.forEach(entry => { entry.hidden = !visible.has(entry); });
       buttons.forEach(button => button.setAttribute("aria-pressed", String(button.dataset.homeCreator === creator)));
       count.hidden = false;
       count.textContent = text(`显示 ${visible.size} / ${selected.length} 条动态`, `Showing ${visible.size} / ${selected.length} updates`, `${selected.length}件中${visible.size}件を表示`);
       empty.hidden = selected.length > 0;
       more.hidden = visible.size >= selected.length;
-      const next = Math.min(batch, selected.length - visible.size);
-      more.textContent = text(`再显示 ${next} 条动态`, `Show ${next} more updates`, `さらに${next}件を表示`);
+      more.textContent = text("浏览全部作品动态 →", "Browse all work updates →", "作品の更新をすべて見る →");
     }
 
     buttons.forEach(button => button.addEventListener("click", () => {
       creator = button.dataset.homeCreator;
-      limit = batch;
       render();
     }));
-    more.addEventListener("click", () => {
-      const focused = document.activeElement === more;
-      const previouslyVisible = new Set(entries.filter(entry => !entry.hidden));
-      limit += batch;
-      render();
-      if (more.hidden && focused) {
-        const firstNew = entries.find(entry => !entry.hidden && !previouslyVisible.has(entry));
-        firstNew?.querySelector("h3 a")?.focus();
-      }
-    });
     window.addEventListener("languagechange", render);
 
     function updateStaleness() {

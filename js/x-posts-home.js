@@ -24,12 +24,11 @@
     };
 
     function render() {
-      let visible = 0;
+      const selected = new Set(posts.filter(post => creator === "all" || post.dataset.creator === creator).slice(0, 3));
       posts.forEach(post => {
-        const shown = creator === "all" || post.dataset.creator === creator;
-        post.hidden = !shown;
-        if (shown) visible++;
+        post.hidden = !selected.has(post);
       });
+      const visible = selected.size;
       buttons.forEach(button => button.setAttribute("aria-pressed", String(button.dataset.xHomeCreator === creator)));
       const all = total(creator);
       count.hidden = false;
