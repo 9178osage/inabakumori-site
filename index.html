@@ -188,11 +188,15 @@
 <button type="button" data-home-source="pixiv" aria-pressed="false">pixiv</button>
 <button type="button" data-home-source="campfire" aria-pressed="false">CAMPFIRE</button>
 </div>
+<div class="home-updates-toolbar home-year-filter" hidden>
+<label class="home-updates-filter-label" for="home-updates-year" data-zh="年份" data-en="Year" data-ja="年">年份</label>
+<select id="home-updates-year"><option value="all" data-zh="全部年份" data-en="All years" data-ja="すべての年">全部年份</option><!-- HOME-UPDATES:YEARS --></select>
+</div>
 <p id="home-updates-count" class="home-updates-count" role="status" aria-live="polite" hidden></p>
 <div id="home-updates-feed" class="home-updates-feed">
 <!-- HOME-UPDATES:ITEMS -->
 </div>
-<p id="home-updates-empty" class="home-updates-note" data-zh="没有符合筛选条件的动态，试试其他创作者或来源。" data-en="No updates match these filters. Try another creator or source." data-ja="条件に合う更新はありません。作者や公開元を変えてみてください。" hidden>没有符合筛选条件的动态，试试其他创作者或来源。</p>
+<p id="home-updates-empty" class="home-updates-note" data-zh="没有符合筛选条件的动态，试试其他创作者、来源或年份。" data-en="No updates match these filters. Try another creator, source or year." data-ja="条件に合う更新はありません。作者・公開元・年を変えてみてください。" hidden>没有符合筛选条件的动态，试试其他创作者、来源或年份。</p>
 <a id="home-updates-more" href="updates.html#feed-title" data-zh="浏览全部作品动态 →" data-en="Browse all work updates →" data-ja="作品の更新をすべて見る →">浏览全部作品动态 →</a>
 <noscript><p class="home-updates-note">这里只展示最近 3 条，全部作品动态可通过上方链接在本站查看。 / Only the latest 3 are shown here. Follow the link above for all work updates. / ここには最新3件を表示しています。すべての更新は上のリンクからご覧ください。</p></noscript>
 <details class="home-updates-sources"><summary data-zh="来源与核对时间" data-en="Sources and check times" data-ja="取得元と確認日時">来源与核对时间</summary><div class="home-updates-status">

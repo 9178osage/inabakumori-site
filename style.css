@@ -2137,7 +2137,7 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
   flex-wrap: wrap;
   gap: 8px;
 }
-.home-updates .home-source-filters { margin-top: 12px; }
+.home-updates .home-source-filters, .home-updates .home-year-filter { margin-top: 12px; }
 .home-updates .home-updates-filter-label {
   display: flex;
   align-items: center;
@@ -2147,6 +2147,7 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
   color: var(--ui-muted);
 }
 .home-updates .home-updates-toolbar button,
+.home-updates #home-updates-year,
 .home-updates #home-updates-more {
   min-width: 44px;
   min-height: 44px;
@@ -2159,6 +2160,7 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
   line-height: 1.6;
   transition: var(--transition-action);
 }
+.home-updates #home-updates-year { max-width: 100%; }
 .home-updates .home-updates-toolbar button[aria-pressed="true"] {
   border-color: var(--ui-action-bg);
   color: var(--ui-action-text);
@@ -2299,6 +2301,7 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
 }
 .home-updates a:focus-visible,
 .home-updates button:focus-visible,
+.home-updates select:focus-visible,
 .home-updates summary:focus-visible {
   outline: 2px solid var(--ui-text);
   outline-offset: 4px;

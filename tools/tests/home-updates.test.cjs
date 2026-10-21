@@ -12,7 +12,7 @@ function setup(creators = [...Array(12).fill("inabakumori"), ...Array(17).fill("
   });
   const document = { readyState: "complete", activeElement: null };
   const entries = creators.map((creator, index) => {
-    const entry = element({ creator, source: creator === "inabakumori" ? "youtube" : index % 2 ? "pixiv" : "campfire" });
+    const entry = element({ creator, year: index % 2 ? "2025" : "2026", source: creator === "inabakumori" ? "youtube" : index % 2 ? "pixiv" : "campfire" });
     const link = { focus() { document.activeElement = link; } };
     entry.querySelector = selector => selector === "h3 a" ? link : null;
     return entry;
@@ -20,6 +20,7 @@ function setup(creators = [...Array(12).fill("inabakumori"), ...Array(17).fill("
   const buttons = ["all", "inabakumori", "nknk"].map(homeCreator => element({ homeCreator }));
   const sourceButtons = ["all", "youtube", "pixiv", "campfire"].map(homeSource => element({ homeSource }));
   const sourceToolbar = element();
+  const yearSelect = element();
   const more = element();
   const count = element();
   const empty = element();
@@ -28,7 +29,7 @@ function setup(creators = [...Array(12).fill("inabakumori"), ...Array(17).fill("
     querySelector: () => toolbar,
     querySelectorAll: selector => selector === ".update-item[data-creator]" ? entries : selector === "[data-home-creator]" ? buttons : selector === "[data-home-source]" ? sourceButtons : selector === ".home-updates-toolbar" ? [toolbar, sourceToolbar] : []
   };
-  document.getElementById = id => ({ updates: section, "home-updates-more": more, "home-updates-count": count, "home-updates-empty": empty })[id];
+  document.getElementById = id => ({ updates: section, "home-updates-more": more, "home-updates-count": count, "home-updates-empty": empty, "home-updates-year": yearSelect })[id];
   let nextTimer = 0;
   const timers = new Set();
   const context = vm.createContext({
@@ -41,7 +42,7 @@ function setup(creators = [...Array(12).fill("inabakumori"), ...Array(17).fill("
   });
   vm.runInContext(fs.readFileSync("js/home-updates.js", "utf8"), context);
   const click = item => { document.activeElement = item; item.listeners.click(); };
-  return { context, entries, buttons, sourceButtons, sourceToolbar, more, count, empty, toolbar, document, click, events, timers, visible: () => entries.filter(entry => !entry.hidden) };
+  return { context, entries, buttons, sourceButtons, sourceToolbar, yearSelect, more, count, empty, toolbar, document, click, events, timers, visible: () => entries.filter(entry => !entry.hidden) };
 }
 
 test("homepage work updates show three entries and link to the complete archive", () => {
@@ -93,6 +94,28 @@ test("source and creator filters combine, handle empty results and survive langu
   assert.ok(app.visible().every(entry => entry.dataset.source === "pixiv"));
 });
 
+test("year combines with creator and source, rejects unknown values and survives language changes", () => {
+  const app = setup();
+  app.click(app.buttons[2]);
+  app.click(app.sourceButtons[2]);
+  app.yearSelect.value = "2026";
+  app.yearSelect.listeners.change();
+  assert.equal(app.visible().length, 0);
+  assert.equal(app.empty.hidden, false);
+  assert.equal(app.more.hidden, true);
+  app.yearSelect.value = "2025";
+  app.yearSelect.listeners.change();
+  assert.equal(app.visible().length, 3);
+  assert.ok(app.visible().every(entry => entry.dataset.creator === "nknk" && entry.dataset.source === "pixiv" && entry.dataset.year === "2025"));
+  app.yearSelect.value = "2099";
+  app.yearSelect.listeners.change();
+  assert.equal(app.yearSelect.value, "2025");
+  app.context.currentLanguage = "ja";
+  app.events.get("languagechange")();
+  assert.equal(app.yearSelect.value, "2025");
+  assert.equal(app.count.textContent, "8件中3件を表示");
+});
+
 test("a short work list hides the unnecessary archive control", () => {
   const app = setup(Array(2).fill("nknk"));
   assert.equal(app.more.hidden, true);
@@ -113,10 +136,13 @@ test("bfcache restores the existing creator filter, preview limit and a single s
   app.click(app.buttons[2]);
   app.click(app.sourceButtons[2]);
   assert.equal(app.timers.size, 1);
+  app.yearSelect.value = "2025";
+  app.yearSelect.listeners.change();
   app.events.get("pagehide")();
   assert.equal(app.timers.size, 0);
   app.events.get("pageshow")();
   assert.equal(app.timers.size, 1);
+  assert.equal(app.yearSelect.value, "2025");
   assert.equal(app.visible().length, 3);
   assert.ok(app.visible().every(entry => entry.dataset.creator === "nknk" && entry.dataset.source === "pixiv"));
 });
