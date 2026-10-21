@@ -368,6 +368,7 @@ app.use((req, res) => {
   res.status(404).json({ error: "请求的地址不存在，请刷新页面后重试", code: "NOT_FOUND" });
 });
 app.use(errorHandler());
+// Final error handler (shared with tests via services.mjs); must stay the last middleware.
 app.use(createFinalErrorHandler({ isProduction: IS_PRODUCTION }));
 const server = app.listen(PORT, HOST, () => {
   console.log(`✅ Backend running at http://${HOST}:${PORT} (version ${BUILD_VERSION})`);
