@@ -237,6 +237,20 @@ test("check-build rejects asset references that resolve outside dist/", () => {
   }
 });
 
+test("check-build verifies every srcset candidate, not just src and href", () => {
+  for (const [html, missing] of [['<img src="a.png" srcset="a.png 1x, missing-2x.png 2x" alt="">', "missing-2x.png"], ['<picture><source srcset="missing.webp?v=3"><img src="a.png" alt=""></picture>', "missing.webp"]]) {
+    const box = sandbox(["tools/check-build.mjs", "tools/net-guards.mjs", "tools/x-posts-data.mjs", "tools/safe-fs.mjs"]);
+    try {
+      fs.mkdirSync(path.join(box.root, "dist"));
+      fs.writeFileSync(path.join(box.root, "dist/a.png"), "x");
+      fs.writeFileSync(path.join(box.root, "dist/index.html"), html);
+      const result = run(box.root, "tools/check-build.mjs");
+      assert.notEqual(result.status, 0, html);
+      assert.ok(result.stderr.includes(missing), result.stderr);
+    } finally { box.cleanup(); }
+  }
+});
+
 test("check-build only allows the known connect-src sources, so a loopback alias cannot ship", () => {
   // These names resolve to 127.0.0.1 for a browser but contain no loopback text, so the
   // spelling blocklist cannot see them; the allowlist must reject them all the same.

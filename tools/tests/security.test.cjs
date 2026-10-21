@@ -214,3 +214,11 @@ test("the published contact address never becomes an admin login identifier", ()
   assert.match(securityDoc, /管理员登录邮箱应与公开联系邮箱不同/, "the login-email goal must stay documented");
   assert.match(securityDoc, /当前已接受偏差/, "the accepted deviation must stay documented");
 });
+
+test("the final error handler hands started responses to Express before any JSON reply", () => {
+  const server = read("backend/server.mjs");
+  const handler = server.slice(server.indexOf("app.use((err, req, res, next) => {"));
+  const firstStatement = handler.split("\n").slice(1).find(line => line.trim() && !line.trim().startsWith("//"));
+  assert.match(firstStatement, /if \(res\.headersSent\)/u);
+  assert.equal((server.match(/res\.headersSent/gu) || []).length, 1);
+});

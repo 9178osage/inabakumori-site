@@ -19,7 +19,7 @@ function commentErrorMessage(data, response) {
     return response.status === 429 ? "投稿が多すぎます。しばらくしてから再試行してください。" : response.status === 400 || response.status === 413 ? "入力内容または文字数を確認して、もう一度お試しください。" : pageText("留言发布失败。", "Failed to post your message.");
   }
   if (currentLanguage === "en") {
-    return response.status === 400 || response.status === 413 ? "Please check your input and message length." : "Failed to post your message. Please try again.";
+    return response.status === 429 ? "Too many requests. Please try again later." : response.status === 400 || response.status === 413 ? "Please check your input and message length." : "Failed to post your message. Please try again.";
   }
   return data?.error || pageText("留言发布失败。", "Failed to post your message.");
 }

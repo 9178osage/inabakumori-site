@@ -27,6 +27,8 @@ function timestamp(value) {
 }
 function titleText(value) {
   if (typeof value !== "string" || !value.trim() || value.length > 2000) throw new Error("Invalid work title");
+  // Titles come from XML entities, CDATA or JSON; none may smuggle in C0/C1 control characters.
+  if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/u.test(value)) throw new Error("Invalid work title");
   return value.trim();
 }
 function decodeXml(value) {

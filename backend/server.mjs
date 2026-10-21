@@ -369,6 +369,10 @@ app.use((req, res) => {
 });
 app.use(errorHandler());
 app.use((err, req, res, next) => {
+  // A response that already started cannot be replaced by any of the JSON errors below.
+  if (res.headersSent) {
+    return next(err);
+  }
   if (err?.message === "Origin not allowed by CORS") {
     return res.status(403).json({ error: "当前网页无法访问此服务，请从本站网址打开", code: "CORS_ORIGIN_DENIED" });
   }
@@ -380,9 +384,6 @@ app.use((err, req, res, next) => {
   }
   if (err instanceof SyntaxError && Object.prototype.hasOwnProperty.call(err, "body")) {
     return res.status(400).json({ error: "请求格式不正确，请刷新页面后重试", code: "INVALID_JSON" });
-  }
-  if (res.headersSent) {
-    return next(err);
   }
   // Any other client error (e.g. body-parser's 400 for a corrupt gzip/deflate/br body) keeps its 4xx
   // status; only a generic message is sent, never the error's own text.

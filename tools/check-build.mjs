@@ -7,6 +7,17 @@ import { loopbackCspSources } from "./net-guards.mjs";
 import { readXPostsArchive } from "./x-posts-data.mjs";
 import { createHash } from "node:crypto";
 
+// Local references in built HTML: src/href values plus every URL inside srcset candidate lists.
+function htmlReferences(html) {
+  const refs = [...html.matchAll(/(?:src|href)="([^"]+)"/gu)].map(match => match[1]);
+  for (const match of html.matchAll(/\bsrcset="([^"]*)"/gu)) {
+    for (const candidate of match[1].split(",")) {
+      const url = candidate.trim().split(/\s+/u)[0];
+      if (url) refs.push(url);
+    }
+  }
+  return refs;
+}
 const root = fileURLToPath(new URL("../dist/", import.meta.url));
 assert.ok((await lstat(path.resolve(root))).isDirectory(), "Refusing symlink or non-regular build root");
 assert.ok((await lstat(path.join(root, "index.html"))).isFile(), "Refusing symlink or non-regular build entry");
@@ -42,8 +53,7 @@ async function checkFolder(folder) {
   }
 }
 await checkFolder(root);
-for (const match of html.matchAll(/(?:src|href)="([^"]+)"/g)) {
-  const value = match[1];
+for (const value of htmlReferences(html)) {
   if (/^(https?:|mailto:|#)/.test(value)) continue;
   const file = value.split(/[?#]/u)[0];
   assert.ok((await stat(distFile(file))).isFile(), `Missing asset: ${file}`);
@@ -132,8 +142,7 @@ for (const creator of ["all", "inabakumori", "nknk"]) {
     assert.doesNotMatch(updatesCsp, /unsafe-inline|unsafe-eval|localhost|127\.0\.0\.1/iu);
     const pageIds = [...pageHtml.matchAll(/\bid="([^"]+)"/gu)].map(match => match[1]);
     assert.equal(pageIds.length, new Set(pageIds).size, `Duplicate archive HTML IDs: ${name}`);
-    for (const match of pageHtml.matchAll(/(?:src|href)="([^"]+)"/gu)) {
-      const value = match[1];
+    for (const value of htmlReferences(pageHtml)) {
       if (value.startsWith("#")) assert.ok(pageIds.includes(value.slice(1)), `Missing archive anchor: ${name} ${value}`);
       else if (!/^(https?:|mailto:)/u.test(value)) {
         const reference = value.split(/[?#]/u)[0];
