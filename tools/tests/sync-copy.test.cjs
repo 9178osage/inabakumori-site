@@ -194,18 +194,24 @@ test("committed X post shards and their manifest are exported whole with exact U
   } finally { box.close(); }
 });
 
-test("an oversized X post diff fails without dropping shards, splitting changes or advancing the baseline", () => {
+test("large X post shard changes stay out of changes.txt, are listed by name, and remain in the data group", () => {
   const box = fixture();
   try {
     fs.mkdirSync(box.output); fs.writeFileSync(path.join(box.output, ".review-base"), box.base + "\n");
     passed(box.run());
-    const before = new Map(textFiles(box).map(name => [name, fs.readFileSync(path.join(box.output, name))]));
-    for (const item of [postShard("雨"), postShard("雪")]) box.write(item.file, item.source);
+    const shards = [postShard("雨"), postShard("雪")];
+    for (const item of shards) box.write(item.file, item.source);
     box.commit();
-    failed(box.run(), /changes\.txt.*超过 130,000 字节/u);
-    assert.deepEqual(textFiles(box).sort(), [...before.keys()].sort(), "oversized changes remain a failure instead of extra diff volumes");
-    for (const [name, source] of before) assert.deepEqual(fs.readFileSync(path.join(box.output, name)), source, name);
+    passed(box.run());
+    const changes = fs.readFileSync(path.join(box.output, "changes.txt"), "utf8");
+    assert.ok(Buffer.byteLength(changes) <= CAP, "post data no longer inflates changes.txt");
+    for (const item of shards) {
+      assert.ok(changes.includes(`# 帖子正文分片有变化（未列入差异，见第 4 组）: ${item.file}\n`), item.file);
+      assert.ok(!changes.includes(`+++ b/${item.file}`), "shard bodies are not diffed");
+    }
+    assert.ok(textFiles(box).some(name => name.startsWith("4-x-posts-")), "shards are still exported in group 4");
     assert.equal(fs.readFileSync(path.join(box.output, ".review-base"), "utf8"), box.base + "\n");
+    passed(box.run(["--check"]));
   } finally { box.close(); }
 });
 

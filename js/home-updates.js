@@ -28,6 +28,9 @@
       empty.hidden = selected.length > 0;
       more.hidden = visible.size >= selected.length;
       more.textContent = text("浏览全部作品动态 →", "Browse all work updates →", "作品の更新をすべて見る →");
+      // Carry the whitelisted filters to the works list; updates.js validates them again on load.
+      const query = [["creator", creator], ["source", source], ["year", year]].filter(([, value]) => value !== "all").map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join("&");
+      more.setAttribute("href", `updates.html${query ? `?${query}` : ""}#feed-title`);
     }
 
     buttons.forEach(button => button.addEventListener("click", () => {
