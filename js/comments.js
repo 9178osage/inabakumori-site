@@ -1,6 +1,13 @@
 (() => {
+  const segmenter = typeof Intl.Segmenter === "function" ? new Intl.Segmenter(undefined, { granularity: "grapheme" }) : null;
+  function commentExcerpt(content) {
+    // Keep emoji sequences and combining marks intact; older browsers still preserve surrogate pairs.
+    const characters = segmenter ? Array.from(segmenter.segment(content), part => part.segment) : Array.from(content);
+    return characters.slice(0, 40).join("") + (characters.length > 40 ? "…" : "");
+  }
+
   // Reuse each row so translations, pagination and pending deletes keep the focused button.
-  function commentListView(listId, statusId) {
+  function commentListView(listId, statusId, showIdentity = false) {
     const rows = new Map();
     let order = [];
     return (comments, deleting, label, remove) => {
@@ -26,11 +33,13 @@
           row = { item, text, button };
           rows.set(comment.id, row);
         }
-        row.text.textContent = `${comment.nickname}：${comment.content}`;
+        const identity = showIdentity && typeof comment.isGuest === "boolean"
+          ? comment.isGuest ? label(" [游客]", " [Guest]") : label(" [已登录]", " [Signed in]") : "";
+        row.text.textContent = `${comment.nickname}${identity}：${comment.content}`;
         row.button.textContent = deleting.has(comment.id) ? label("正在删除…", "Deleting…") : label("删除", "Delete");
         // Keep it focusable while the request is pending; remove() already blocks duplicate activation.
         row.button.setAttribute("aria-disabled", String(deleting.has(comment.id)));
-        row.button.setAttribute("aria-label", label("删除这条留言：", "Delete this message: ") + comment.content);
+        row.button.setAttribute("aria-label", label("删除这条留言：", "Delete this message: ") + commentExcerpt(comment.content));
         if (list.children[index] !== row.item) list.insertBefore(row.item, list.children[index] || null);
       });
       if (focusedId === undefined || list.closest?.("[hidden]")) return;
@@ -225,7 +234,7 @@
     comments = [];
     nextCursor = null;
   }
-  const renderList = commentListView("admin-comments-list", "admin-comments-status");
+  const renderList = commentListView("admin-comments-list", "admin-comments-status", true);
   const watchMore = loadMoreFocus("admin-comments-list", "admin-comments-more");
   function render() {
     const element = panel();

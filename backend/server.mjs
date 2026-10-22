@@ -205,16 +205,24 @@ const memberCommentLimiter = rateLimit({
 });
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const databasePath = resolveDatabasePath(process.env, __dirname);
-mkdirSync(path.dirname(databasePath), { recursive: true });
-const db = new DatabaseSync(databasePath);
-db.exec(`
+let databasePath;
+try {
+  databasePath = resolveDatabasePath(process.env, __dirname);
+} catch (error) {
+  console.error(`❌ ${error.message}`);
+  process.exit(1);
+}
+let db;
+try {
+  mkdirSync(path.dirname(databasePath), { recursive: true });
+  db = new DatabaseSync(databasePath);
+  db.exec(`
     PRAGMA journal_mode = WAL;
     PRAGMA synchronous = NORMAL;
     PRAGMA foreign_keys = ON;
     PRAGMA busy_timeout = 5000;
 `);
-db.exec(`
+  db.exec(`
     CREATE TABLE IF NOT EXISTS comments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nickname TEXT NOT NULL,
@@ -225,7 +233,7 @@ db.exec(`
         expires_at INTEGER
     )
 `);
-db.exec(`
+  db.exec(`
     CREATE INDEX IF NOT EXISTS idx_comments_created_at
     ON comments(created_at DESC);
 
@@ -239,6 +247,13 @@ db.exec(`
     CREATE INDEX IF NOT EXISTS idx_comments_member_recent ON comments(user_id, created_at DESC) WHERE is_guest = 0;
     CREATE INDEX IF NOT EXISTS idx_comments_guest_recent ON comments(created_at DESC) WHERE is_guest = 1;
 `);
+} catch {
+  // Filesystem/SQLite errors can include configured paths. Keep startup logs actionable
+  // without exposing those values or an uncaught stack trace.
+  console.error("❌ Unable to initialize comments database; check COMMENTS_DB_PATH, volume write permissions and database integrity");
+  try { db?.close(); } catch {}
+  process.exit(1);
+}
 console.log("✅ Comments database ready");
 const selectRecentCommentsStatement = db.prepare(`
     SELECT

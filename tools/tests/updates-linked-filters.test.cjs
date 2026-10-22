@@ -13,22 +13,23 @@ function load(search, archiveDataset = {}, language = null) {
     ["nknk", "pixiv", "2026"], ["nknk", "pixiv", "2025"], ["nknk", "campfire", "2026"]
   ].map(([creator, source, year]) => element({ creator, source, year }));
   const buttons = ["all", "inabakumori", "nknk"].map(filter => element({ filter }));
-  const count = element(), empty = element();
+  const count = element(), empty = element(), langButton = element();
+  const metadata = Object.fromEntries(['meta[name="description"]', 'meta[property="og:title"]', 'meta[property="og:description"]'].map(selector => [selector, element()]));
   const document = {
     readyState: "complete", documentElement: { dataset: archiveDataset }, title: "",
-    getElementById: id => ({ "updates-count": count, "updates-empty": empty })[id] || null,
-    querySelector: () => null,
+    getElementById: id => ({ "updates-count": count, "updates-empty": empty, "updates-lang-btn": langButton })[id] || null,
+    querySelector: selector => metadata[selector] || null,
     querySelectorAll: selector => selector.startsWith(".update-item") ? entries : selector === "[data-filter]" ? buttons : []
   };
-  const replaced = [];
+  const replaced = [], events = {};
   const window = {
     location: { search, pathname: "/updates.html", hash: "#feed-title" },
-    history: { replaceState(state, title, url) { replaced.push(url); } }, siteStorage: { getItem: key => key === "language" ? language : null, setItem() {} },
+    history: { replaceState(state, title, url) { replaced.push(url); } }, siteStorage: { getItem: key => key === "language" ? language : null, setItem(key, value) { if (key === "language") language = value; } },
     matchMedia: () => ({ matches: false, addEventListener() {} }),
-    addEventListener() {}, setInterval: () => 1, clearInterval() {}, localStorage: {}
+    addEventListener(name, listener) { events[name] = listener; }, setInterval: () => 1, clearInterval() {}, localStorage: {}
   };
   vm.runInContext(fs.readFileSync("js/updates.js", "utf8"), vm.createContext({ window, document, Intl, Date }));
-  return { entries, buttons, count, empty, replaced, document, shown: () => entries.filter(entry => !entry.hidden).map(entry => Object.values(entry.dataset).join("/")) };
+  return { entries, buttons, count, empty, replaced, document, metadata, langButton, window, events, shown: () => entries.filter(entry => !entry.hidden).map(entry => Object.values(entry.dataset).join("/")) };
 }
 
 test("updates page applies whitelisted creator, source and year from the homepage link", () => {
@@ -111,5 +112,30 @@ test("the client title mirrors the build-time title for every language", async (
   for (const language of ["zh", "en", "ja"]) for (const [creator, page] of [["all", 1], ["all", 2], ["nknk", 1], ["inabakumori", 7]]) {
     const app = load("", { archiveCreator: creator, archivePage: String(page) }, language);
     assert.equal(app.document.title, xPostsPageTitle(creator, page).title[language], `${language} ${creator} ${page}`);
+  }
+});
+
+test("language changes keep Open Graph metadata aligned with the current archive title and description", () => {
+  for (const dataset of [{}, { archiveCreator: "nknk", archivePage: "3" }]) {
+    const app = load("", dataset, "zh");
+    const check = language => {
+      assert.equal(app.document.documentElement.lang, { zh: "zh-CN", en: "en", ja: "ja" }[language]);
+      assert.equal(app.metadata['meta[property="og:title"]'].attributes.content, app.document.title);
+      assert.equal(app.metadata['meta[property="og:description"]'].attributes.content, app.metadata['meta[name="description"]'].content);
+      assert.ok(app.metadata['meta[name="description"]'].content.length > 0);
+    };
+    check("zh");
+    const originalDescription = app.metadata['meta[property="og:description"]'].attributes.content;
+    for (const language of ["en", "ja", "zh"]) {
+      app.langButton.listeners.click();
+      check(language);
+      if (language !== "zh") assert.notEqual(app.metadata['meta[property="og:description"]'].attributes.content, originalDescription);
+    }
+    app.window.siteStorage.setItem("language", "en");
+    app.events.storage({ key: "language", storageArea: app.window.localStorage });
+    check("en");
+    app.window.siteStorage.setItem("language", "ja");
+    app.events.pageshow();
+    check("ja");
   }
 });
