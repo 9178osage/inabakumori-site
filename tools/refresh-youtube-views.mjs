@@ -20,6 +20,27 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SONGS_PATH = assertRepoPath(ROOT, "js/songs.js", { mustExist: true });
 const BATCH_SIZE = 50;
 const API_BASE = "https://www.googleapis.com/youtube/v3/videos";
+const MAX_ERROR_BYTES = 16 * 1024;
+
+// Exact Google-defined identifiers only. Messages, metadata, domains and URLs
+// may contain private values and must never be copied into workflow logs.
+// https://developers.google.com/youtube/data/reference/rest/v3/core_errors
+// https://github.com/googleapis/googleapis/blob/master/google/api/error_reason.proto
+const ERROR_HINTS = new Map([
+  [["keyInvalid", "keyExpired", "API_KEY_INVALID"], "Check or replace the GitHub Actions YOUTUBE_API_KEY secret with a valid Google API key."],
+  [["accessNotConfigured", "SERVICE_DISABLED"], "Check that YouTube Data API v3 is enabled and the Google Cloud project is active."],
+  [["API_KEY_SERVICE_BLOCKED"], "Allow YouTube Data API v3 in the key's API restrictions."],
+  [["API_KEY_HTTP_REFERRER_BLOCKED", "API_KEY_IP_ADDRESS_BLOCKED", "API_KEY_ANDROID_APP_BLOCKED", "API_KEY_IOS_APP_BLOCKED"], "Use application restrictions compatible with the GitHub Actions runner; keep the key limited to YouTube Data API v3."],
+  [["quotaExceeded", "dailyLimitExceeded", "RESOURCE_QUOTA_EXCEEDED"], "Check the project's YouTube API quota; retry after the quota resets or request more quota."],
+  [["rateLimitExceeded", "userRateLimitExceeded", "RATE_LIMIT_EXCEEDED"], "Wait before retrying and check the project's API rate limits."],
+  [["badRequest", "invalidParameter", "invalidFilters", "incompatibleParameters", "invalidValue"], "Check the videos.list parameters and video IDs."],
+  [["forbidden", "insufficientPermissions", "unauthorized", "authError"], "Check the Google Cloud project's API access and credential permissions."],
+  [["backendError", "internalError"], "Retry later; Google reported a temporary API failure."]
+].flatMap(([reasons, hint]) => reasons.map((reason) => [reason, hint])));
+const ERROR_STATUSES = new Set([
+  "INVALID_ARGUMENT", "FAILED_PRECONDITION", "PERMISSION_DENIED", "UNAUTHENTICATED",
+  "RESOURCE_EXHAUSTED", "NOT_FOUND", "UNAVAILABLE", "INTERNAL", "DEADLINE_EXCEEDED"
+]);
 
 const apiKey = process.env.YOUTUBE_API_KEY?.trim();
 if (!apiKey) {
@@ -65,6 +86,59 @@ function formatSongsFile(songs) {
   return `const SONGS = ${JSON.stringify(songs, null, 2)};\n`;
 }
 
+function describeApiError(prefix, data) {
+  const error = data?.error;
+  const candidates = [
+    ...(Array.isArray(error?.errors) ? error.errors.map((entry) => entry?.reason) : []),
+    ...(Array.isArray(error?.details) ? error.details
+      .filter((entry) => entry?.["@type"] === "type.googleapis.com/google.rpc.ErrorInfo")
+      .map((entry) => entry?.reason) : [])
+  ];
+  const reasons = [...new Set(candidates.filter((reason) => ERROR_HINTS.has(reason)))].slice(0, 3);
+  const identifiers = reasons.map((reason) => `reason=${reason}`);
+  if (ERROR_STATUSES.has(error?.status)) identifiers.push(`status=${error.status}`);
+  const hints = [...new Set(reasons.map((reason) => ERROR_HINTS.get(reason)))];
+  return prefix + (identifiers.length ? `; ${identifiers.join("; ")}` : "") +
+    (hints.length ? `. ${hints.join(" ")}` : "");
+}
+
+async function readErrorPayload(response, signal) {
+  // Never call text()/json() on an unbounded error response. The original fetch
+  // deadline covers headers and this read; the explicit abort race also bounds
+  // streams whose read does not itself observe the signal.
+  if (!response.body?.getReader) return null;
+  const reader = response.body.getReader();
+  let onAbort;
+  const aborted = new Promise((_, reject) => {
+    onAbort = () => reject(new Error("YouTube API request timed out"));
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+  const chunks = [];
+  let size = 0;
+  try {
+    signal.throwIfAborted();
+    while (true) {
+      const { done, value } = await Promise.race([reader.read(), aborted]);
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_ERROR_BYTES) return null;
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    return null;
+  } finally {
+    signal.removeEventListener("abort", onAbort);
+    reader.cancel().catch(() => {});
+  }
+}
+
 async function fetchStatistics(ids) {
   const params = new URLSearchParams({
     part: "statistics",
@@ -80,13 +154,13 @@ async function fetchStatistics(ids) {
     throw new Error(signal.aborted ? "YouTube API request timed out" : "YouTube API request failed");
   }
   if (!res.ok) {
-    res.body?.cancel().catch(() => {});
-    throw new Error(`YouTube API HTTP ${res.status}`);
+    const errorData = await readErrorPayload(res, signal);
+    if (signal.aborted) throw new Error("YouTube API request timed out");
+    throw new Error(describeApiError(`YouTube API HTTP ${res.status}`, errorData));
   }
   try { data = await res.json(); }
   catch { throw new Error(signal.aborted ? "YouTube API request timed out" : "YouTube API returned invalid JSON"); }
-  // Never log external error bodies: they may echo a key, URL or other private value.
-  if (data?.error) throw new Error("YouTube API reported an error");
+  if (data?.error) throw new Error(describeApiError("YouTube API reported an error", data));
   if (!Array.isArray(data?.items)) throw new Error("YouTube API returned invalid statistics");
   const map = new Map();
   for (const item of data.items || []) {
