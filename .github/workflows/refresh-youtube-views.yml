@@ -33,7 +33,7 @@ jobs:
           fetch-depth: 0 # full history so the pull --rebase before push can replay the commit
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 24
+          node-version: 24.22.1
       - name: Require YouTube API key secret
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
