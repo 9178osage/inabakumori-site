@@ -317,6 +317,53 @@ function adminUi() {
   vm.runInContext(fs.readFileSync('js/comments.js', 'utf8'), context);
   return { elements, events, context };
 }
+
+test('comment delete labels use short complete Unicode characters while the full message stays visible', async () => {
+  for (const [createUi, listId] of [[ui, 'my-comments-list'], [adminUi, 'admin-comments-list']]) {
+    const { elements, events, context } = createUi();
+    context.localStorage.getItem = () => 'en';
+    const prefix = '雨'.repeat(39);
+    const family = '👩‍👩‍👧‍👦';
+    const combining = 'e\u0301';
+    for (const [content, excerpt] of [
+      ['a short message', 'a short message'],
+      [prefix + family, prefix + family],
+      [prefix + family + 'more', prefix + family + '…'],
+      [prefix + combining + 'more', prefix + combining + '…']
+    ]) {
+      context.fetch = async () => ({ ok: true, json: async () => ({ comments: [{ id: 1, nickname: 'fan', content }] }) });
+      await events.authchange();
+      const [text, button] = elements[listId].children[0].children;
+      assert.equal(text.textContent, `fan：${content}`);
+      assert.equal(button.attributes['aria-label'], `Delete this message: ${excerpt}`);
+    }
+  }
+});
+
+test('only the admin list identifies guest and signed-in messages and translates on language change', async () => {
+  const comments = [
+    { id: 1, nickname: 'guest', content: 'hello', isGuest: true },
+    { id: 2, nickname: 'member', content: 'hello', isGuest: false },
+    { id: 3, nickname: 'unknown', content: 'hello' }
+  ];
+  for (const [createUi, listId] of [[ui, 'my-comments-list'], [adminUi, 'admin-comments-list']]) {
+    const { elements, events, context } = createUi();
+    context.fetch = async () => ({ ok: true, json: async () => ({ comments }) });
+    await events.authchange();
+    const originalButtons = elements[listId].children.map(row => row.children[1]);
+    for (const [language, labels] of [['zh', [' [游客]', ' [已登录]']], ['en', [' [Guest]', ' [Signed in]']], ['ja', [' [ゲスト]', ' [ログイン済み]']]]) {
+      context.localStorage.getItem = () => language;
+      events.languagechange();
+      for (const [index, comment] of comments.entries()) {
+        const identity = listId === 'admin-comments-list' ? labels[index] || '' : '';
+        const row = elements[listId].children[index];
+        assert.equal(row.children[0].textContent, `${comment.nickname}${identity}：hello`);
+        assert.equal(row.children[1], originalButtons[index], 'translations preserve the existing delete button');
+      }
+    }
+  }
+});
+
 test('admin panel stays hidden for failed permission checks and stale responses after logout', async () => {
   const { elements, events, context } = adminUi();
   context.fetch = async () => { throw new Error('offline'); };

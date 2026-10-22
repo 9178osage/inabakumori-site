@@ -83,9 +83,8 @@ test("short pages or changing totals cannot hide extra pushes behind an observed
   await assert.rejects(verifyChangelogTable(baseTable(), { coverage: scope([]),
     fetchImpl: api([baseline()], { total: 102 }) }), /incomplete GitHub pagination data/u);
   const recorded = sha("bbbbbbb");
-  let page = 0;
-  await assert.rejects(verifyChangelogTable(table([row(recorded, 200)]), { coverage: scope([recorded]), fetchImpl: async () => {
-    const data = ++page === 1 ? { total_count: 102, workflow_runs: fullFirstPage(pair(200, recorded)) } :
+  await assert.rejects(verifyChangelogTable(table([row(recorded, 200)]), { coverage: scope([recorded]), fetchImpl: async url => {
+    const data = new URL(url).searchParams.get("page") === "1" ? { total_count: 102, workflow_runs: fullFirstPage(pair(200, recorded)) } :
       { total_count: 103, workflow_runs: baseline() };
     return { ok: true, status: 200, json: async () => data };
   } }), /pagination changed/u);
@@ -240,4 +239,107 @@ test("a push whose Publish workflow was disabled can be recorded as Verify / —
   await assert.rejects(verifyChangelogTable(markdown, { coverage: scope([verifyOnly]), fetchImpl: api([wrong]) }), /must be Verify website/u);
   assert.throws(() => parseChangelogTable(table([`| 10-17 | \`${verifyOnly.slice(0, 7)}\` | x | — / 201 |`])), /Verify \/ Publish run ID pair|primary/u);
   assert.throws(() => parseChangelogTable(table([`| 10-17 | \`aaaaaaa\`、\`${verifyOnly.slice(0, 7)}\` | x | 200 / 201（\`aaaaaaa\` 的推送：300 / —） |`])), /Verify \/ Publish run ID pair|unparsed/u);
+});
+
+
+test("a changed pagination scan is discarded and retried once with fresh list responses", async () => {
+  const { verifyChangelogTable } = await load();
+  const recorded = sha("bbbbbbb"), vanished = sha("ccccccc");
+  const cache = { version: 1, repo: "9178osage/inabakumori-site", responses: {} };
+  const stats = {}, calls = [];
+  let attempt = 0;
+  const result = await verifyChangelogTable(table([row(recorded, 200), row(since, 101, "10-16")]), {
+    coverage: scope([recorded, vanished]), cache, stats, fetchImpl: async (url, options) => {
+      const page = Number(new URL(url).searchParams.get("page"));
+      if (page === 1) attempt++;
+      calls.push([attempt, page]);
+      assert.equal(options.headers["If-None-Match"], undefined, "the restarted scan must not reuse a mismatched list cache");
+      const data = attempt === 1
+        ? { total_count: page === 1 ? 104 : 102, workflow_runs: page === 1 ? fullFirstPage([...pair(200, recorded), ...pair(300, vanished)]) : baseline() }
+        : { total_count: 102, workflow_runs: page === 1 ? fullFirstPage(pair(200, recorded)) : baseline() };
+      return { ok: true, status: 200, headers: { etag: `"scan-${attempt}-${page}"` }, json: async () => data };
+    }
+  });
+  assert.deepEqual(calls, [[1, 1], [1, 2], [2, 1], [2, 2]]);
+  assert.equal(stats.paginationRestarts, 1);
+  assert.deepEqual(result.coverage, { since, through, pushes: 1, recorded: 1, currentHeadExempt: false });
+});
+
+test("the successful retry still rejects missing rows and never trusts discarded baseline anchors", async () => {
+  const { verifyChangelogTable } = await load();
+  const recorded = sha("bbbbbbb"), omitted = sha("ccccccc");
+  let attempt = 0;
+  await assert.rejects(verifyChangelogTable(table([row(recorded, 200), row(since, 101, "10-16")]), {
+    coverage: scope([recorded, omitted]), fetchImpl: async url => {
+      const page = Number(new URL(url).searchParams.get("page"));
+      if (page === 1) attempt++;
+      const data = attempt === 1
+        ? { total_count: page === 1 ? 102 : 104, workflow_runs: page === 1 ? fullFirstPage(pair(200, recorded)) : baseline() }
+        : { total_count: 104, workflow_runs: page === 1 ? fullFirstPage(pair(200, recorded)) : [...pair(300, omitted), ...baseline()] };
+      return { ok: true, status: 200, json: async () => data };
+    }
+  }), /Missing deployment table rows for 1/u);
+
+  attempt = 0;
+  const markdown = table([row(recorded, 200), row(since, 101, "10-16")]);
+  await assert.rejects(verifyChangelogTable(markdown, {
+    coverage: scope([recorded]), fetchImpl: async url => {
+      const page = Number(new URL(url).searchParams.get("page"));
+      if (!page) return { ok: true, status: 200, json: async () => baseline().find(run => String(run.id) === url.split("/").at(-1)) };
+      if (page === 1) attempt++;
+      const first = fullFirstPage(baseline());
+      const data = attempt === 1
+        ? { total_count: page === 1 ? 102 : 103, workflow_runs: page === 1 ? first : pair(200, recorded) }
+        : { total_count: 2, workflow_runs: pair(200, recorded) };
+      return { ok: true, status: 200, json: async () => data };
+    }
+  }), /Incomplete changelog push coverage/u);
+});
+
+test("continuous pagination changes fail after exactly one complete restart", async () => {
+  const { verifyChangelogTable } = await load();
+  const recorded = sha("bbbbbbb"), calls = [];
+  await assert.rejects(verifyChangelogTable(table([row(recorded, 200)]), {
+    coverage: scope([recorded]), fetchImpl: async url => {
+      const page = Number(new URL(url).searchParams.get("page"));
+      calls.push(page);
+      const data = { total_count: page === 1 ? 102 : 103, workflow_runs: page === 1 ? fullFirstPage(pair(200, recorded)) : baseline() };
+      return { ok: true, status: 200, json: async () => data };
+    }
+  }), /pagination changed; coverage is incomplete/u);
+  assert.deepEqual(calls, [1, 2, 1, 2]);
+});
+
+test("a repeated page is retried without accepting duplicate runs", async () => {
+  const { verifyChangelogTable } = await load();
+  const recorded = sha("bbbbbbb"), calls = [];
+  let attempt = 0;
+  const result = await verifyChangelogTable(table([row(recorded, 200), row(since, 101, "10-16")]), {
+    coverage: scope([recorded]), fetchImpl: async url => {
+      const page = Number(new URL(url).searchParams.get("page"));
+      if (page === 1) attempt++;
+      calls.push([attempt, page]);
+      const data = { total_count: 104, workflow_runs: page === 1 ? fullFirstPage(pair(200, recorded)) :
+        [...(attempt === 1 ? pair(200, recorded) : pair(500, through)), ...baseline()] };
+      return { ok: true, status: 200, json: async () => data };
+    }
+  });
+  assert.deepEqual(calls, [[1, 1], [1, 2], [2, 1], [2, 2]]);
+  assert.equal(result.coverage.pushes, 2);
+});
+
+test("a pagination change preserves anonymous rate-limit cooldown before restarting requests", async () => {
+  const { verifyChangelogTable } = await load();
+  const recorded = sha("bbbbbbb"), calls = [], reset = Math.floor(Date.now() / 1000) + 3600;
+  const cache = { version: 1, repo: "9178osage/inabakumori-site", responses: {} };
+  await assert.rejects(verifyChangelogTable(table([row(recorded, 200)]), {
+    coverage: scope([recorded]), cache, fetchImpl: async url => {
+      const page = Number(new URL(url).searchParams.get("page"));
+      calls.push(page);
+      const data = { total_count: page === 1 ? 102 : 103, workflow_runs: page === 1 ? fullFirstPage(pair(200, recorded)) : baseline() };
+      return { ok: true, status: 200, headers: page === 2 ? { "x-ratelimit-remaining": "0", "x-ratelimit-reset": String(reset) } : {}, json: async () => data };
+    }
+  }), /cooldown|rate limit/u);
+  assert.deepEqual(calls, [1, 2], "no HTTP request during the preserved cooldown");
+  assert.equal(cache.cooldownUntil, reset * 1000);
 });

@@ -71,6 +71,20 @@ test("disabled endpoint returns 404 even with a bearer header", async () => {
   const s = await serve(null);
   try {
     assert.equal((await fetch(s.url, { headers: { Authorization: `Bearer ${TOKEN}` } })).status, 404);
+    assert.equal((await fetch(s.url, { method: "HEAD", headers: { Authorization: `Bearer ${TOKEN}` } })).status, 404);
+  } finally { await s.close(); fs.rmSync(s.dir, { recursive: true, force: true }); }
+});
+
+test("HEAD is rejected with the allowed method before opening the snapshot source", async () => {
+  const s = await serve(TOKEN);
+  try {
+    fs.unlinkSync(path.join(s.dir, "comments.db"));
+    const response = await fetch(s.url, { method: "HEAD", headers: { Authorization: `Bearer ${TOKEN}` } });
+    assert.equal(response.status, 405);
+    assert.equal(response.headers.get("allow"), "GET");
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.equal(await response.text(), "");
+    assert.deepEqual(s.logs, [], "HEAD must not try to serve a backup");
   } finally { await s.close(); fs.rmSync(s.dir, { recursive: true, force: true }); }
 });
 

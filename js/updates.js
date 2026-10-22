@@ -76,7 +76,10 @@
       document.title = [slice, text("最新动态 · 稲葉曇与 NKNK", "Latest updates · Inabakumori & NKNK", "最新情報 · 稲葉曇・ぬくぬくにぎりめし")].filter(Boolean).join(" · ");
       const description = document.querySelector('meta[name="description"]');
       const baseDescription = text("稲葉曇与ぬくぬくにぎりめし（NKNK）的作品动态，附官方来源与核对时间。", "New work from Inabakumori and Nukunuku Nigirimeshi (NKNK), with official sources and check times.", "稲葉曇さんとぬくぬくにぎりめしさんの作品情報。公式の取得元と確認日時を掲載。");
-      if (description) description.content = slice ? `${slice}${language === "en" ? ": " : "："}${baseDescription}` : baseDescription;
+      const pageDescription = slice ? `${slice}${language === "en" ? ": " : "："}${baseDescription}` : baseDescription;
+      if (description) description.content = pageDescription;
+      document.querySelector('meta[property="og:title"]')?.setAttribute("content", document.title);
+      document.querySelector('meta[property="og:description"]')?.setAttribute("content", pageDescription);
       document.querySelectorAll("[data-zh][data-en][data-ja]").forEach(element => {
         element.textContent = element.dataset[language];
       });

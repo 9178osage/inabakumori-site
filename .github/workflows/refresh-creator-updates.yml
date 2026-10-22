@@ -11,7 +11,7 @@ concurrency:
 jobs:
   refresh:
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: read
@@ -61,7 +61,7 @@ jobs:
           retention-days: 3
   commit:
     needs: refresh
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: write
@@ -98,7 +98,7 @@ jobs:
   publish:
     needs: [refresh, commit]
     if: needs.commit.outputs.changed == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: read
@@ -136,7 +136,7 @@ jobs:
   report:
     needs: [refresh, commit, publish]
     if: always() && needs.refresh.outputs.source-outcome == 'failure'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions: {}
     steps:
       - run: |

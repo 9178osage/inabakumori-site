@@ -3,10 +3,8 @@
 # Local equivalent:
 #   YOUTUBE_API_KEY=... node tools/refresh-youtube-views.mjs
 #
-# GITHUB_TOKEN with contents:write can commit to the default branch. Commits made with
-# GITHUB_TOKEN do not re-trigger push workflows; publish dispatches Pages explicitly.
-# If your org blocks token pushes to main, switch the commit step to open a PR instead
-# (see comments below).
+# Refresh and all checks run with read-only permissions. Only a separate job may
+# commit the checked files; token-created commits require explicit Verify/Publish.
 name: Refresh YouTube view counts
 on:
   schedule:
@@ -20,20 +18,28 @@ concurrency:
   cancel-in-progress: false
 jobs:
   refresh:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    # Only this job can push; it runs repository code but installs no dependencies.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
-      contents: write
+      contents: read
+      actions: read
     outputs:
-      changed: ${{ steps.commit.outputs.changed }}
+      snapshot: ${{ steps.snapshot.outputs.hash }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0 # full history so the pull --rebase before push can replay the commit
+          fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24.22.1
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+      - run: npm ci
+      - run: npm --prefix backend ci
       - name: Require YouTube API key secret
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
@@ -42,42 +48,77 @@ jobs:
             echo "::error::Missing repository secret YOUTUBE_API_KEY. Add it under Settings → Secrets and variables → Actions. Do not commit the key."
             exit 1
           fi
+      - name: Record the previous completed main push
+        run: node tools/record-current-deployment.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Refresh view counts
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: node tools/refresh-youtube-views.mjs
-      - name: Commit updates when counts changed
-        id: commit
+      - run: npm test
+      - run: npm run check
+      - run: npm run test:integration
+      - run: npm run check:changelog
         env:
-          REF_NAME: ${{ github.ref_name }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Identify checked published counts
+        id: snapshot
+        run: echo "hash=$(sha256sum dist/js/songs.js | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: youtube-views-snapshot
+          path: |
+            js/songs.js
+            docs/CHANGELOG.md
+          if-no-files-found: error
+          retention-days: 3
+  commit:
+    needs: refresh
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    # This job runs no repository or dependency code with its write token.
+    permissions:
+      contents: write
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
+      sha: ${{ steps.commit.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: youtube-views-snapshot
+          path: checked-snapshot
+      - name: Commit checked view counts
+        id: commit
         run: |
-          if git diff --quiet -- js/songs.js; then
+          # A moved main must be checked again, never merged with an older checked snapshot.
+          if [ "$(git rev-parse HEAD)" != "$GITHUB_SHA" ]; then
+            echo "::error::main changed during validation; rerun this workflow on the latest main."
+            exit 1
+          fi
+          cp checked-snapshot/js/songs.js js/songs.js
+          cp checked-snapshot/docs/CHANGELOG.md docs/CHANGELOG.md
+          if git diff --quiet -- js/songs.js docs/CHANGELOG.md; then
             echo "No view-count changes to commit."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          case "$REF_NAME" in
-            ""|-*|*..*|*[!A-Za-z0-9._/-]*)
-              echo "::error::Refusing to push to unexpected ref name"
-              exit 1 ;;
-          esac
-          git add js/songs.js
+          git add js/songs.js docs/CHANGELOG.md
           git commit -m "chore: refresh YouTube view counts"
-          # main may have moved while the job ran; replay this commit on top instead of a non-fast-forward failure.
-          git pull --rebase origin "$REF_NAME"
-          git push origin "HEAD:refs/heads/$REF_NAME"
+          # A concurrent push after checkout is rejected by the normal fast-forward check.
+          git push origin HEAD:refs/heads/main
           echo "changed=true" >> "$GITHUB_OUTPUT"
-          # If push to main is blocked for GITHUB_TOKEN, replace the push with a PR flow:
-          #   git checkout -b chore/youtube-views-$(date -u +%Y%m%d)
-          #   git push -u origin HEAD
-          #   gh pr create --title "chore: refresh YouTube view counts" --body "Automated weekly refresh via tools/refresh-youtube-views.mjs."
-          # and add permissions: pull-requests: write
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
   publish:
-    needs: refresh
-    if: github.ref == 'refs/heads/main' && needs.refresh.outputs.changed == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    needs: [refresh, commit]
+    if: needs.commit.outputs.changed == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     # Only this job may dispatch workflows; it runs no repository or dependency code.
     permissions:
       contents: read
@@ -87,6 +128,27 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
+          UPDATE_SHA: ${{ needs.commit.outputs.sha }}
+          SNAPSHOT_HASH: ${{ needs.refresh.outputs.snapshot }}
         run: |
           gh workflow run check.yml --ref main
           gh workflow run pages.yml --ref main
+          for attempt in $(seq 1 12); do
+            gh api --method GET "repos/$GH_REPO/actions/runs" -f head_sha="$UPDATE_SHA" -f event=workflow_dispatch -f per_page=30 > /tmp/youtube-update-runs.json
+            VERIFY_RUN=$(jq -r '.workflow_runs | map(select(.name == "Verify website")) | max_by(.id) | .id // empty' /tmp/youtube-update-runs.json)
+            PUBLISH_RUN=$(jq -r '.workflow_runs | map(select(.name == "Publish public site")) | max_by(.id) | .id // empty' /tmp/youtube-update-runs.json)
+            if [ -n "$VERIFY_RUN" ] && [ -n "$PUBLISH_RUN" ]; then break; fi
+            sleep 10
+          done
+          test -n "$VERIFY_RUN" && test -n "$PUBLISH_RUN"
+          gh run watch "$VERIFY_RUN" --exit-status --interval 15
+          gh run watch "$PUBLISH_RUN" --exit-status --interval 15
+          for attempt in $(seq 1 12); do
+            if curl --fail --silent --show-error --max-time 20 "https://osagechan.top/js/songs.js?check=$UPDATE_SHA" -o /tmp/published-youtube-songs.js && [ "$(sha256sum /tmp/published-youtube-songs.js | cut -d ' ' -f 1)" = "$SNAPSHOT_HASH" ]; then
+              echo "Verified published YouTube view counts $UPDATE_SHA"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::Published songs do not match the checked view counts."
+          exit 1

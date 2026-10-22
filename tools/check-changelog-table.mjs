@@ -1,6 +1,7 @@
 import { readFile, mkdir, lstat, open, rename, unlink } from "node:fs/promises";
 import { constants, realpathSync } from "node:fs";
 import { randomUUID } from "node:crypto";
+import { setTimeout as sleep } from "node:timers/promises";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -13,6 +14,8 @@ const FULL_SHA = /^[0-9a-f]{40}$/u;
 const PACIFIC_DATE = new Intl.DateTimeFormat("en-US", {
   timeZone: "America/Los_Angeles", month: "2-digit", day: "2-digit"
 });
+
+class PaginationChangedError extends Error {}
 
 function rowError(line, message) {
   throw new Error(`CHANGELOG line ${line}: ${message}`);
@@ -192,47 +195,69 @@ export async function verifyChangelogTable(markdown, {
   const requestOptions = { fetchImpl, repo, token, deadlineMs, cache, stats, maxRetries, retryBaseMs, maxRetryWaitMs };
   if (lookup === "paginated" || scope) {
     const wanted = new Set(ids);
-    const listed = new Set();
-    let previousCreated = Infinity;
-    let listedTotal;
-    for (let page = 1; page <= maxPages; page++) {
-      const data = await requestGithubJson(`?branch=main&event=push&per_page=100&page=${page}`, `Runs page ${page}`, requestOptions);
-      if (!data || !Number.isSafeInteger(data.total_count) || data.total_count < 0 || !Array.isArray(data.workflow_runs) ||
-          data.workflow_runs.some(run => !Number.isSafeInteger(run?.id) || run.id <= 0) ||
-          scope && (data.workflow_runs.length > 100 || data.total_count < data.workflow_runs.length)) {
-        throw new Error(`Runs page ${page}: missing or invalid GitHub list fields`);
-      }
-      if (scope) {
-        if (listedTotal !== undefined && listedTotal !== data.total_count) throw new Error("GitHub run pagination changed; coverage is incomplete");
-        listedTotal = data.total_count;
-        if (data.workflow_runs.length !== Math.min(100, Math.max(0, listedTotal - (page - 1) * 100))) {
-          throw new Error(`Runs page ${page}: incomplete GitHub pagination data for push coverage`);
-        }
-      }
-      for (const run of data.workflow_runs) {
-        const id = String(run.id);
-        const parsed = scope || wanted.has(id) ? parseRun(run, id) : null;
-        if (scope) {
-          if (listed.has(id) || parsed.createdMs > previousCreated) throw new Error("GitHub run pagination changed or is out of order; coverage is incomplete");
-          listed.add(id);
-          previousCreated = parsed.createdMs;
-          const baselineIndex = scope.baselineRunIds.indexOf(id);
-          if (baselineIndex >= 0) {
-            if (parsed.head_sha !== scope.since) throw new Error(`Run ${id}: baseline anchor commit mismatch`);
-            if (parsed.name !== WORKFLOWS[baselineIndex]) throw new Error(`Run ${id}: baseline anchor must be ${WORKFLOWS[baselineIndex]}`);
-            if (parsed.event !== "push" || parsed.head_branch !== "main") throw new Error(`Run ${id}: baseline anchor must be a push on main`);
-            baselineAnchors.add(id);
+    // A new push can move page boundaries while we read them. Discard the entire
+    // partial scan and retry once; never merge pages from different attempts.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const listed = new Set();
+        let previousCreated = Infinity;
+        let listedTotal;
+        for (let page = 1; page <= maxPages; page++) {
+          const data = await requestGithubJson(`?branch=main&event=push&per_page=100&page=${page}`, `Runs page ${page}`, requestOptions);
+          if (!data || !Number.isSafeInteger(data.total_count) || data.total_count < 0 || !Array.isArray(data.workflow_runs) ||
+              data.workflow_runs.some(run => !Number.isSafeInteger(run?.id) || run.id <= 0) ||
+              scope && (data.workflow_runs.length > 100 || data.total_count < data.workflow_runs.length)) {
+            throw new Error(`Runs page ${page}: missing or invalid GitHub list fields`);
           }
-          if (parsed.event === "push" && parsed.head_branch === "main" && WORKFLOWS.includes(parsed.name)) {
-            if (scope.heads.has(parsed.head_sha)) pushHeads.add(parsed.head_sha);
-            if (parsed.name === WORKFLOWS[1]) publishHeads.add(parsed.head_sha);
+          if (scope) {
+            if (listedTotal !== undefined && listedTotal !== data.total_count) throw new PaginationChangedError("GitHub run pagination changed; coverage is incomplete");
+            listedTotal = data.total_count;
+            if (data.workflow_runs.length !== Math.min(100, Math.max(0, listedTotal - (page - 1) * 100))) {
+              throw new Error(`Runs page ${page}: incomplete GitHub pagination data for push coverage`);
+            }
+          }
+          for (const run of data.workflow_runs) {
+            const id = String(run.id);
+            const parsed = scope || wanted.has(id) ? parseRun(run, id) : null;
+            if (scope) {
+              if (listed.has(id) || parsed.createdMs > previousCreated) throw new PaginationChangedError("GitHub run pagination changed or is out of order; coverage is incomplete");
+              listed.add(id);
+              previousCreated = parsed.createdMs;
+              const baselineIndex = scope.baselineRunIds.indexOf(id);
+              if (baselineIndex >= 0) {
+                if (parsed.head_sha !== scope.since) throw new Error(`Run ${id}: baseline anchor commit mismatch`);
+                if (parsed.name !== WORKFLOWS[baselineIndex]) throw new Error(`Run ${id}: baseline anchor must be ${WORKFLOWS[baselineIndex]}`);
+                if (parsed.event !== "push" || parsed.head_branch !== "main") throw new Error(`Run ${id}: baseline anchor must be a push on main`);
+                baselineAnchors.add(id);
+              }
+              if (parsed.event === "push" && parsed.head_branch === "main" && WORKFLOWS.includes(parsed.name)) {
+                if (scope.heads.has(parsed.head_sha)) pushHeads.add(parsed.head_sha);
+                if (parsed.name === WORKFLOWS[1]) publishHeads.add(parsed.head_sha);
+              }
+            }
+            if (wanted.has(id)) runs.set(id, parsed);
+          }
+          if (scope && baselineAnchors.size === WORKFLOWS.length) completeScope = true;
+          if (runs.size === ids.length && (!scope || completeScope)) break;
+          if (!data.workflow_runs.length || page * 100 >= data.total_count) break;
+        }
+        break;
+      } catch (error) {
+        if (!(error instanceof PaginationChangedError) || attempt === 1) throw error;
+        runs.clear();
+        pushHeads.clear();
+        publishHeads.clear();
+        baselineAnchors.clear();
+        completeScope = false;
+        // Keep rate-limit cooldowns and direct lookups; refetch every list page.
+        if (cache) {
+          for (const key of Object.keys(cache.responses)) {
+            if (/^\?branch=main&event=push&per_page=100&page=[1-9]\d*$/u.test(key)) delete cache.responses[key];
           }
         }
-        if (wanted.has(id)) runs.set(id, parsed);
+        if (stats) stats.paginationRestarts = (stats.paginationRestarts || 0) + 1;
+        await sleep(500);
       }
-      if (scope && baselineAnchors.size === WORKFLOWS.length) completeScope = true;
-      if (runs.size === ids.length && (!scope || completeScope)) break;
-      if (!data.workflow_runs.length || page * 100 >= data.total_count) break;
     }
   }
   // A filtered list can omit a wrong-branch/event ID, or age past the page limit.
@@ -373,7 +398,7 @@ async function main() {
   const repo = process.env.GITHUB_REPOSITORY || DEFAULT_REPO;
   const token = (process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "").trim();
   const cache = args.includes("--no-cache") ? undefined : await loadCache(repo, token);
-  const stats = { networkRequests: 0, revalidatedResponses: 0, retries: 0 };
+  const stats = { networkRequests: 0, revalidatedResponses: 0, retries: 0, paginationRestarts: 0 };
   const configuration = JSON.parse(await readFile(new URL("./changelog-coverage.json", import.meta.url), "utf8"));
   if (!configuration || Object.keys(configuration).length !== 2 ||
       Object.keys(configuration).some(key => !["since", "baselineRunIds"].includes(key)) ||
@@ -391,10 +416,10 @@ async function main() {
     console.error("Could not save changelog cache; the original verification failure is preserved.");
   }
   if (failure) {
-    console.error(`GitHub verification: ${stats.networkRequests} requests, ${stats.revalidatedResponses} HTTP 304 revalidations, ${stats.retries} retries; not completed.`);
+    console.error(`GitHub verification: ${stats.networkRequests} requests, ${stats.revalidatedResponses} HTTP 304 revalidations, ${stats.retries} request retries, ${stats.paginationRestarts} pagination restarts; not completed.`);
     throw failure;
   }
-  console.log(`Deployment table verified online: ${result.rows} rows, ${result.runs} GitHub runs; ${stats.networkRequests} requests, ${stats.revalidatedResponses} HTTP 304 revalidations, ${stats.retries} retries; dates in America/Los_Angeles (earlier primary run).`);
+  console.log(`Deployment table verified online: ${result.rows} rows, ${result.runs} GitHub runs; ${stats.networkRequests} requests, ${stats.revalidatedResponses} HTTP 304 revalidations, ${stats.retries} request retries, ${stats.paginationRestarts} pagination restarts; dates in America/Los_Angeles (earlier primary run).`);
   console.log(`Push coverage since ${result.coverage.since} through ${result.coverage.through}: ${result.coverage.pushes} observed main/push head(s), ${result.coverage.recorded} recorded; only checkout HEAD may be one row behind${result.coverage.currentHeadExempt ? " (current push exempt)" : ""}${result.coverage.pushes ? "." : "; baseline-only: no newer target push observed."}`);
 }
 

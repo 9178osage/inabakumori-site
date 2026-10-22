@@ -33,6 +33,8 @@ GitHub 仅保证携带有效 Authorization 的条件请求在收到 `304` 时不
 
 默认模式发现匿名请求的 `x-ratelimit-remaining` 为 `0` 时，保存冷却至 `x-ratelimit-reset`；之后在恢复时间前快速失败并提示恢复时间与令牌配置方式，不继续消耗请求。配置令牌后不沿用匿名冷却，但仍受该令牌自己的配额限制。短暂网络故障、5xx 或短 `Retry-After` 仅作有界重试；较长限流直接失败，不能在服务器要求的等待时间内密集重试。无明确恢复时间的二级限流也不能立即重试；GitHub 要求至少等待一分钟，详见 [GitHub 限流处理说明](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api#exceeding-the-rate-limit)。
 
+分页期间出现总数变化、重复记录或时间乱序时，丢弃本轮已收集的运行、推送与锚点及分页缓存，等待 500 毫秒后从第一页完整重试一次。第二次仍不一致则失败；不会混用不同扫描的记录，缺行和缺锚点仍照常报错。HTTP 限流的冷却规则继续生效，输出分别列出请求重试和整轮分页重试次数。
+
 此前遇到的 `403` 仍是当时真实的校验失败，后续重试成功不改写该历史结果。GitHub API 的故障仍可能使本地门禁和 `Verify website` 失败；恢复后应重跑，不能跳过记录。`Publish public site` 独立运行，不会自动等待这项检查；发布后仍须确认两条工作流都成功。
 
 当前表格仅接受 `main` 分支上由 `push` 触发的 Verify / Publish 运行。若某次 main 推送时 `Publish public site` 已停用、确实没有产生 Publish 运行，该行主运行对写作 `Verify 运行号 / —`；Verify 照常联网核对，覆盖核对若在运行列表中发现该提交有 Publish push 运行则失败，`—` 不能用于括号内的历史运行或掩盖失败的发布。若以后要记录 `workflow_dispatch` 手动部署，应先扩展事件校验规则和测试，再填写对应运行号。
@@ -90,6 +92,10 @@ CI 的联网记录校验只在 `push` 到 `refs/heads/main` 时执行。PR、其
 - 不要用 `git add -A` 把 `.DS_Store` 提交进仓库（`.gitignore` 已忽略，但仍要留意）。
 
 ## 平时要做的事
+
+### YouTube 播放量
+
+每周播放量刷新先在只读作业中更新 `js/songs.js`、核对并补记此前的 main/push 上线记录，再运行四项门禁。独立写入作业只接收已通过检查的歌曲和日志文件；若 `main` 前移则拒绝提交，不把旧快照重新合并到未验证的新代码上。提交后显式派发 Verify / Publish，等待该提交的两项运行成功，再比对线上 `js/songs.js` 的 SHA-256 与已检查构建一致。
 
 ### 最新动态页面
 

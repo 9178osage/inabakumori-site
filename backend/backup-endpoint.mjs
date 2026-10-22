@@ -41,7 +41,11 @@ export function registerBackupEndpoint(app, { databasePath, token, limiter, log 
   const disabled = (req, res, next) => token ? next() : res.status(404).json({ error: "请求的地址不存在，请刷新页面后重试", code: "NOT_FOUND" });
   app.get(BACKUP_PATH, disabled, limiter, async (req, res, next) => {
     res.setHeader("Cache-Control", "no-store");
-    if (req.method !== "GET") return res.status(405).json({ error: "只支持 GET", code: "METHOD_NOT_ALLOWED" });
+    // Express routes HEAD to GET handlers too. Reject it before creating a snapshot.
+    if (req.method !== "GET") {
+      res.setHeader("Allow", "GET");
+      return res.status(405).json({ error: "只支持 GET", code: "METHOD_NOT_ALLOWED" });
+    }
     if (!bearerMatches(req.get("authorization"), token)) {
       log.warn("Backup request denied", { requestId: req.requestId, ip: clientIp(req) });
       return res.status(401).json({ error: "未授权", code: "UNAUTHORIZED" });
