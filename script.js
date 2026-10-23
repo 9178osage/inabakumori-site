@@ -981,7 +981,23 @@ function songMatchesSearch(link, query) {
   const matches = (token) => songMatchesTitle(getCleanSongTitle(link), token) || (link._songTags || []).some((tag) => fuzzyTagMatches(token, tag));
   return query.required.every(matches) && (!query.plain.length || query.plain.some(matches));
 }
+// Typing re-filters 150 ms after the last keystroke: every pass rebuilds the chips, fuzzy-matches each
+// song and rewrites the result count, so per-keystroke runs were wasted work and live-region chatter.
+const TAG_FILTER_DEBOUNCE_MS = 150;
+let tagFilterTimer = null;
+function scheduleTagFilter() {
+  if (tagFilterTimer !== null) clearTimeout(tagFilterTimer);
+  tagFilterTimer = setTimeout(() => {
+    tagFilterTimer = null;
+    updateTagFilter();
+  }, TAG_FILTER_DEBOUNCE_MS);
+}
 function updateTagFilter() {
+  // A direct call (clear button, chip, language switch) supersedes any pending debounced run.
+  if (tagFilterTimer !== null) {
+    clearTimeout(tagFilterTimer);
+    tagFilterTimer = null;
+  }
   const input = document.getElementById("tag-filter-input");
   const library = document.querySelector(".song-library");
   const emptyState = document.getElementById("tag-empty-state");
@@ -1045,7 +1061,7 @@ function initTagFilter() {
     return;
   }
   if (!renderSongs()) prepareSongTags();
-  input.addEventListener("input", updateTagFilter);
+  input.addEventListener("input", scheduleTagFilter);
   if (clear) {
     clear.addEventListener("click", () => {
       input.value = "";

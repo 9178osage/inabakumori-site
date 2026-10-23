@@ -54,8 +54,14 @@ function setup(extraSong) {
   ].map(id => [id, new Element()]));
   const opened = [];
   const list = elements["song-list"];
+  // Manual timers: the tag filter is debounced, so tests flush pending callbacks explicitly.
+  const timers = new Map();
+  let nextTimer = 1;
+  const flush = () => { for (const [id, fn] of [...timers]) { timers.delete(id); fn(); } };
   const context = {
     console, URL, setInterval() {},
+    setTimeout: fn => { const id = nextTimer++; timers.set(id, fn); return id; },
+    clearTimeout: id => { timers.delete(id); },
     localStorage: { getItem: () => null },
     document: {
       addEventListener() {},
@@ -82,11 +88,11 @@ function setup(extraSong) {
   if (extraSong) run(`SONGS.push(${JSON.stringify(extraSong)})`);
   run(fs.readFileSync("script.js", "utf8"));
   run("initTagFilter()");
-  return { run, elements, list, opened };
+  return { run, elements, list, opened, flush, timers };
 }
 
 test("all songs retain their exact order, titles, URLs, albums, and singers", () => {
-  const { run, list, elements } = setup();
+  const { run, list, elements, flush } = setup();
   const songs = JSON.parse(run("JSON.stringify(SONGS)"));
   assert.equal(songs.length, 51);
   const digest = createHash("sha256")
@@ -116,7 +122,7 @@ test("an additional data-only song renders and participates in search, singer co
     album: "NEW ALBUM",
     singers: ["星界", "Test Singer"]
   };
-  const { run, list, elements, opened } = setup(extra);
+  const { run, list, elements, opened, flush } = setup(extra);
   const row = list.children.at(-1);
   assert.equal(list.children.length, 52);
   assert.equal(row.querySelector(".song-title-text").textContent, "52　New <song> & test");
@@ -135,15 +141,15 @@ test("an additional data-only song renders and participates in search, singer co
   const input = elements["tag-filter-input"];
   for (const query of [extra.title, "Test Singer", "NEW ALBUM", "New <song>, +sekai"]) {
     input.value = query;
-    input.dispatch("input");
+    input.dispatch("input"); flush();
     assert.deepEqual(list.children.filter(song => !song.hidden), [row], query);
     assert.equal(elements["tag-result-count"].textContent, "显示 1 / 52 首");
   }
   input.value = "sekai";
-  input.dispatch("input");
+  input.dispatch("input"); flush();
   assert.deepEqual(list.children.filter(song => !song.hidden), [list.children[25], row]);
   input.value = "New <song>, +miku";
-  input.dispatch("input");
+  input.dispatch("input"); flush();
   assert.ok(list.children.every(song => song.hidden));
   assert.equal(elements["tag-empty-state"].hidden, false);
   elements["tag-filter-clear"].dispatch("click");
@@ -154,10 +160,10 @@ test("an additional data-only song renders and participates in search, singer co
 });
 
 test("random play respects filtering, opens nothing for no matches, and recovers after clearing", () => {
-  const { run, list, elements, opened } = setup();
+  const { run, list, elements, opened, flush } = setup();
   const input = elements["tag-filter-input"];
   input.value = "+ANTICYCLONE";
-  input.dispatch("input");
+  input.dispatch("input"); flush();
   const visible = list.children.filter(song => !song.hidden);
   assert.ok(visible.length > 1 && visible.length < list.children.length);
   run("Math.random = () => 0; playRandomSong()");
@@ -165,7 +171,7 @@ test("random play respects filtering, opens nothing for no matches, and recovers
   assert.deepEqual(opened, [visible[0], visible.at(-1)].map(song => [song.href, "_blank", "noopener,noreferrer"]));
 
   input.value = "+no-such-song-123456";
-  input.dispatch("input");
+  input.dispatch("input"); flush();
   assert.ok(list.children.every(song => song.hidden));
   run("playRandomSong()");
   assert.equal(opened.length, 2);
@@ -176,13 +182,31 @@ test("random play respects filtering, opens nothing for no matches, and recovers
 });
 
 test("Japanese singer tags filter correctly and counts use Japanese", () => {
-  const { run, list, elements } = setup();
+  const { run, list, elements, flush } = setup();
   run('currentLanguage = "ja"; updateTagLanguage()');
   assert.equal(run('getTagDisplayLabel("初音未来")'), "初音ミク");
   assert.equal(run('getTagInputLabel("歌爱雪")'), "歌愛ユキ");
   elements["tag-filter-input"].value = "歌愛ユキ";
-  elements["tag-filter-input"].dispatch("input");
+  elements["tag-filter-input"].dispatch("input"); flush();
   assert.ok(list.children.filter(row => !row.hidden).length > 0);
   assert.match(elements["tag-result-count"].textContent, /51 曲中/);
   assert.match(list.children[0].querySelector(".song-views").dataset.ja, /回再生/);
+});
+
+test("typing in the tag filter is debounced; the clear button filters immediately", () => {
+  const { run, list, elements, flush, timers } = setup();
+  const input = elements["tag-filter-input"];
+  assert.equal(run("TAG_FILTER_DEBOUNCE_MS"), 150);
+  input.value = "+no-such-song-123456";
+  input.dispatch("input");
+  input.dispatch("input");
+  assert.equal(timers.size, 1, "repeated keystrokes keep a single pending run");
+  assert.ok(list.children.some(song => !song.hidden), "nothing is filtered before the debounce fires");
+  flush();
+  assert.ok(list.children.every(song => song.hidden));
+  input.value = "x";
+  input.dispatch("input");
+  elements["tag-filter-clear"].dispatch("click");
+  assert.equal(timers.size, 0, "a direct update cancels the pending debounced run");
+  assert.ok(list.children.every(song => !song.hidden));
 });
