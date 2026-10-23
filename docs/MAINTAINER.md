@@ -17,6 +17,8 @@ GitHub Pages 提供网页、图片和音乐目录。登录与留言通过 HTTPS 
 5. 将访客可感知的变化补进 [更新日志](CHANGELOG.md)：一行一条，写「症状 → 处理（提交号）」。测试、内部重构和依赖升级留在提交记录中。
 6. 部署验证完成后，同步本地文本副本：运行 `python3 tools/sync-copy.py`，再运行 `python3 tools/sync-copy.py --check`，确认副本与当前已提交源码逐字节一致。保留现有 `.review-base`，除非维护者要求重置。生成器及其回归测试受版本控制；生成的副本仍由 `.gitignore` 排除，不提交、不部署。旧的 `inabakumori-site-all-code/sync.py` 仅为本地兼容入口，以 `realpath(__file__)` 定位实际路径，规则只维护在 `tools/sync-copy.py`。
 
+Railway 使用 Railpack 构建 `/backend`。后端 `package.json` 的 `engines.node` 保持精确版本（当前 `24.22.1`），同步锁文件；升级时同时核对 CI 的 Node 版本。Railpack 会把复合范围简化为主版本，`>=24.22.1 <25` 曾实际构建出 `24.21.0`，因此不能仅凭版本范围宣称安全更新已上线。部署后核对构建日志和容器内 `node --version`，详见 [Railpack 版本解析](https://railpack.com/architecture/package-resolution/)。
+
 副本保留原始缩进和字节，按完整源文件拆卷，每段以 `===== 文件路径 =====` 开头。`1-app-code`、`2-tools-tests`、`3-docs` 以及说明、`changes.txt` 每个最多 130,000 字节；`data/x-posts/posts-*.json` 独立归入第 4 组 `4-x-posts`，每个最多 140 MB（140,000,000 字节），避免帖子分片挤占代码附件。`data/x-posts/manifest.json` 留在第 1 组。数量随完整源文件体积自动调整，不设固定份数，说明和输出按组名与分卷数字顺序列出。空分卷会被校验拒绝；`changes-1.txt` 等编号差异文件视为额外文件，明确报错并保留，不自动删除。单个源文件连同段头超限时明确失败；`changes.txt` 仍保留为一个文件，超限时须由维护者明确调整复核基线，不自动拆分或重置。排除生成的 `js/auth.js`、两个 `package-lock.json`、`dist/`、二进制、环境变量、数据库及密钥。日常前后端、测试与文档复核只提供前三组；要复核帖子正文或全部文本时再附第 4 组，四组内容互不重叠。只核对改动时只提供 `changes.txt`，同一提问不要同时提供重叠内容。
 
 ## 核对上线记录表
