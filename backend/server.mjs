@@ -399,11 +399,18 @@ let shuttingDown = false;
 function shutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
+  // Railway sends SIGTERM on every redeploy; a clean drain must exit 0 or it is reported as a crash.
+  // After 8s, drop in-flight connections so server.close() still completes and exits 0;
+  // only a close that hangs past 15s exits 1.
+  const drain = setTimeout(() => {
+    console.error("Shutdown drain timeout; closing remaining connections");
+    server.closeAllConnections();
+  }, 8_000);
+  drain.unref();
   const deadline = setTimeout(() => {
     console.error("Shutdown deadline exceeded");
-    server.closeAllConnections();
     process.exit(1);
-  }, 10_000);
+  }, 15_000);
   deadline.unref();
   console.log(`🛑 Received ${signal}. Shutting down...`);
   clearInterval(guestCleanupTimer);
@@ -415,10 +422,13 @@ function shutdown(signal) {
     } catch (error) {
       console.error("❌ Failed to close database", error);
     }
+    clearTimeout(drain);
     clearTimeout(deadline);
     console.log("✅ Server shut down safely");
     process.exit(0);
   });
+  // Keep-alive sockets from the Railway edge would otherwise hold server.close() open.
+  server.closeIdleConnections();
 }
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));

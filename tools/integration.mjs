@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import http from "node:http";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -202,9 +203,17 @@ try {
   for (let i = 0; i < 3; i++) probes.push((await guestPost("198.51.100.73", comment.content)).status);
   probes.push((await guestPost("198.51.100.73", "另一条完全不同的测试留言内容")).status);
   assert.deepEqual(probes, [409, 409, 409, 429], "duplicates must consume the guest hourly quota");
+  // An idle keep-alive socket (as the Railway edge holds) must not delay or fail shutdown.
+  const keepAlive = new http.Agent({ keepAlive: true });
+  await new Promise((resolve, reject) => {
+    http.get(`${api}/healthz`, { agent: keepAlive }, res => { res.resume(); res.on("end", resolve); }).on("error", reject);
+  });
+  const stopStarted = Date.now();
   child.kill("SIGTERM");
   const [code] = await once(child, "exit");
+  keepAlive.destroy();
   assert.equal(code, 0, output);
+  assert.ok(Date.now() - stopStarted < 5_000, "SIGTERM with an idle keep-alive socket must exit promptly");
   console.log("HTTP integration passed: isolated guest posting, deduplication, auth boundaries, CORS, headers, auth parser/body limits, read throttling, public-only preview and graceful shutdown.");
 } finally {
   if (child.exitCode === null) child.kill("SIGKILL");
