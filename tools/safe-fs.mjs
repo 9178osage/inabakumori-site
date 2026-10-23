@@ -4,11 +4,14 @@
 import { lstatSync, realpathSync } from "node:fs";
 import path from "node:path";
 
+const isParentStep = relative => relative === ".." || relative.startsWith(`..${path.sep}`);
+
 export function assertRepoPath(root, target, { mustExist = false } = {}) {
   const base = path.resolve(root);
   const resolved = path.resolve(base, target);
   const relative = path.relative(base, resolved);
-  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+  // Only a real parent step ("..", "../x") escapes; names such as "..cache" are ordinary children.
+  if (!relative || isParentStep(relative) || path.isAbsolute(relative)) {
     throw new Error(`Refusing path outside the repository: ${target}`);
   }
   let current = base;
@@ -24,6 +27,6 @@ export function assertRepoPath(root, target, { mustExist = false } = {}) {
     if (info.isSymbolicLink()) throw new Error(`Refusing symlinked path: ${path.relative(base, current)}`);
   }
   const real = path.relative(realpathSync(base), realpathSync(resolved));
-  if (real.startsWith("..") || path.isAbsolute(real)) throw new Error(`Refusing path that resolves outside the repository: ${target}`);
+  if (isParentStep(real) || path.isAbsolute(real)) throw new Error(`Refusing path that resolves outside the repository: ${target}`);
   return resolved;
 }
