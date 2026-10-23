@@ -28,3 +28,16 @@
 }
 
 .x-post-translation{max-width:78ch;margin:8px 0 0;color:var(--muted);font-size:12.5px;line-height:1.85;white-space:pre-wrap;overflow-wrap:anywhere;word-wrap:break-word}.x-post-translation:empty{display:none}
+
+/* Translation sits a little apart from the original text. */
+.x-post-translation{padding-left:10px;border-left:2px solid var(--soft-line)}
+/* Phone: a shorter header, slimmer account cards and a tighter feed. */
+@media (max-width:430px) {
+  .updates-intro h1 { font-size:38px; margin-bottom:14px; }
+  .updates-description { margin-bottom:20px; }
+  .x-account { min-height:0; padding:10px 12px; gap:2px; }
+  .x-account-name { font-size:19px; }
+  .x-post { padding:16px 0; }
+  .x-post-text { margin-top:10px; line-height:1.8; }
+  .x-post-translation { margin-top:6px; font-size:12px; line-height:1.7; }
+}
