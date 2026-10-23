@@ -122,6 +122,59 @@ test("all listed hero images exist and switching waits for loading", async () =>
   await run("changeHeroSlide()");
   assert.equal(slide.src, "images/optimized/hero/002.webp");
 });
+test("rapid background clicks advance every requested slide without late loads taking over", async () => {
+  const images = new Map();
+  const { run, elements } = setup({ Image: class { set src(path) { images.set(path, this); } } });
+  const slide = elements["hero-slide"] = { src: "images/optimized/hero/001.webp" };
+  const requests = [run("changeHeroSlide()"), run("changeHeroSlide()"), run("changeHeroSlide()")];
+  assert.equal(slide.src, "images/optimized/hero/001.webp", "keep the current image while loading");
+  const latest = images.get("images/optimized/hero/004.webp");
+  assert.ok(latest, "three clicks should request the fourth image");
+  latest.onload();
+  await requests[2];
+  images.get("images/optimized/hero/003.webp").onload();
+  images.get("images/optimized/hero/002.webp").onload();
+  await Promise.all(requests);
+  assert.equal(slide.src, "images/optimized/hero/004.webp");
+  images.get("images/optimized/hero/005.webp").onload();
+});
+test("a failed switch releases the requested index so the next click retries it", async () => {
+  const images = [];
+  const { run, elements } = setup({ Image: class { set src(path) { this.path = path; images.push(this); } } });
+  elements["hero-slide"] = { src: "images/optimized/hero/001.webp" };
+  const failed = run("changeHeroSlide()");
+  images[0].onerror();
+  await new Promise(resolve => setImmediate(resolve));
+  images[1].onerror();
+  await failed;
+  const retry = run("changeHeroSlide()");
+  assert.equal(images[2].path, "images/optimized/hero/002.webp");
+  images[2].onload();
+  await retry;
+  images[3].onload();
+});
+test("rapid clicks wrapping to the visible background cancel the pending switch", async () => {
+  const images = [];
+  const { run, elements } = setup({ Image: class { set src(path) { images.push(this); } } });
+  const slide = elements["hero-slide"] = { src: "first.webp" };
+  run('heroImages = ["first.webp", "second.webp"]');
+  const pending = run("changeHeroSlide()");
+  await run("changeHeroSlide()");
+  images[0].onload();
+  await pending;
+  assert.equal(slide.src, "first.webp");
+  assert.equal(images.length, 1, "the visible image needs no additional download");
+});
+test("desktop initialization preloads only the next background and honors save-data", async () => {
+  for (const saveData of [false, true]) {
+    const paths = [];
+    const { run, context, elements } = setup({ Image: class { set src(path) { paths.push(path); queueMicrotask(() => this.onload?.()); } } });
+    context.navigator = { connection: { saveData } };
+    elements["hero-slide"] = {};
+    await run("discoverHeroImages()");
+    assert.deepEqual(paths, saveData ? [] : ["images/optimized/hero/002.webp"]);
+  }
+});
 test("hero scenery remains an unadvertised click target", () => {
   const html = fs.readFileSync("index.html", "utf8");
   const hero = html.match(/<div class="hero-bg"[^>]*>/)?.[0] || "";
@@ -409,15 +462,15 @@ test("unicodeLength aligns frontend limits with backend Array.from code points",
   assert.equal(Array.from(elements["message-input"].value).length, 500);
 });
 
-test("mobile manifest opens the first optimized image without eagerly downloading the gallery", async () => {
+test("mobile manifest opens the first optimized image and preloads only the next", async () => {
   let requests = 0;
   const { run, elements } = setup({
     window: { matchMedia: () => ({ matches: true, addEventListener() {} }), MOBILE_BACKGROUNDS: { lazy: true, folder: "images/optimized/hero-mobile/", files: ["001.webp", "002.webp"] } },
-    Image: class { constructor() { requests++; } }
+    Image: class { constructor() { requests++; } set src(path) { queueMicrotask(() => this.onload?.()); } }
   });
   elements["hero-slide"] = { removeAttribute() {} };
   await run("discoverHeroImages()");
-  assert.equal(requests, 0);
+  assert.equal(requests, 1);
   assert.equal(elements["hero-slide"].src, "images/optimized/hero-mobile/001.webp");
   assert.equal(run("heroImages.length"), 2);
 });

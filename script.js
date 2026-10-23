@@ -155,6 +155,7 @@ let heroLoadVersion = 0;
 const mobileHeroQuery = window.matchMedia?.("(max-width: 700px), (pointer: coarse) and (max-width: 1000px)");
 const loadedHeroImages = new Map();
 let heroSwitchVersion = 0;
+let pendingHeroSlide = null;
 function loadHeroImage(path, retry = true) {
   if (loadedHeroImages.has(path)) return loadedHeroImages.get(path);
   const request = new Promise(resolve => {
@@ -188,7 +189,7 @@ function setHeroSource(slide, path) {
   if (mobileSource) mobileSource.srcset = path;
 }
 function preloadNextHeroImage() {
-  if (heroImages.length && !document.hidden && !(typeof navigator !== "undefined" && navigator.connection?.saveData)) void loadHeroImage(heroImages[(currentSlide + 1) % heroImages.length]);
+  if (heroImages.length > 1 && !document.hidden && !(typeof navigator !== "undefined" && navigator.connection?.saveData)) void loadHeroImage(heroImages[(currentSlide + 1) % heroImages.length]);
 }
 async function loadMobileHeroImage(path) {
   const image = await loadHeroImage(path);
@@ -197,6 +198,7 @@ async function loadMobileHeroImage(path) {
 async function discoverHeroImages() {
   const version = ++heroLoadVersion;
   ++heroSwitchVersion;
+  pendingHeroSlide = null;
   const slide = document.getElementById("hero-slide");
   currentSlide = 0;
   heroImages = mobileHeroQuery?.matches ? [] : desktopHeroImages;
@@ -206,6 +208,7 @@ async function discoverHeroImages() {
     slide.hidden = !heroImages.length;
   }
   if (!mobileHeroQuery?.matches) {
+    preloadNextHeroImage();
     return;
   }
   const config = window.MOBILE_BACKGROUNDS;
@@ -216,6 +219,7 @@ async function discoverHeroImages() {
       setHeroSource(slide, heroImages[0]);
       slide.hidden = false;
     }
+    preloadNextHeroImage();
     return;
   }
   if (Array.isArray(config.files)) {
@@ -266,10 +270,18 @@ async function changeHeroSlide() {
     return;
   }
   const request = ++heroSwitchVersion;
-  const next = (currentSlide + 1) % heroImages.length;
+  // Count clicks immediately, even while a previous target is still loading.
+  const next = ((pendingHeroSlide ?? currentSlide) + 1) % heroImages.length;
+  pendingHeroSlide = next;
+  if (next === currentSlide) {
+    pendingHeroSlide = null;
+    return;
+  }
   const path = heroImages[next];
   const image = await loadHeroImage(path);
-  if (!image || request !== heroSwitchVersion) return;
+  if (request !== heroSwitchVersion) return;
+  pendingHeroSlide = null;
+  if (!image) return;
   currentSlide = next;
   setHeroSource(heroSlide, path);
   preloadNextHeroImage();

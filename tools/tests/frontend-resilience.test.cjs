@@ -41,6 +41,7 @@ function loadWithoutSongs() {
   const context = {
     console: { log() {}, warn() {}, error: (...args) => errors.push(args) },
     document, localStorage: storage, sessionStorage: storage, navigator: { onLine: true, language: "zh-CN" },
+    Image: class { set src(path) { queueMicrotask(() => this.onload?.()); } },
     setTimeout: () => 0, clearTimeout() {}, setInterval: () => 0, clearInterval() {},
     requestAnimationFrame: () => 0, matchMedia: () => ({ matches: false, addEventListener() {} }),
     Event: class { constructor(type) { this.type = type; } }, URL, Intl, alert() {}
