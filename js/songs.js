@@ -352,6 +352,16 @@ const SONGS = [
     "viewsCheckedAt": "2026-10-22"
   },
   {
+    "title": "ユレール",
+    "youtube": "https://youtu.be/2r4W_LoVFxA",
+    "album": "SINGLES",
+    "singers": [
+      "弦卷真纪"
+    ],
+    "viewCount": 1267365,
+    "viewsCheckedAt": "2026-10-23"
+  },
+  {
     "title": "スポットレイト",
     "youtube": "https://youtu.be/STBoCK69vVQ",
     "album": "SINGLES",

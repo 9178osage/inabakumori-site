@@ -94,18 +94,18 @@ function setup(extraSong) {
 test("all songs retain their exact order, titles, URLs, albums, and singers", () => {
   const { run, list, elements, flush } = setup();
   const songs = JSON.parse(run("JSON.stringify(SONGS)"));
-  assert.equal(songs.length, 51);
+  assert.equal(songs.length, 52);
   const digest = createHash("sha256")
     .update(JSON.stringify(songs.map(song => [song.title, song.youtube, song.album, song.singers])))
     .digest("hex");
-  // Covers every song (not just the first 37). Same videos as before; ?si= share trackers removed.
-  assert.equal(digest, "157795e47cd5d039adf93ea87f70a0229b5915c8bd199bb8dd52a2ea91759f76");
+  // Covers every song (not just the first 37); 52 since ユレール (2026-03-08). ?si= share trackers removed.
+  assert.equal(digest, "e3fbcf9162308cc800723888fe3a50c03bffe24fc718ab7896df7494647e6602");
   for (const song of songs) {
     const url = new URL(song.youtube);
     assert.deepEqual([...url.searchParams.keys()].filter(key => key !== "v"), [], `${song.title}: no tracking parameters`);
   }
   assert.equal(list.children.length, songs.length);
-  assert.equal(elements["tag-result-count"].textContent, "显示 51 / 51 首");
+  assert.equal(elements["tag-result-count"].textContent, "显示 52 / 52 首");
   songs.forEach((song, index) => {
     const row = list.children[index];
     assert.equal(row.querySelector(".song-title-text").textContent, `${String(index + 1).padStart(2, "0")}　${song.title}`);
@@ -124,8 +124,8 @@ test("an additional data-only song renders and participates in search, singer co
   };
   const { run, list, elements, opened, flush } = setup(extra);
   const row = list.children.at(-1);
-  assert.equal(list.children.length, 52);
-  assert.equal(row.querySelector(".song-title-text").textContent, "52　New <song> & test");
+  assert.equal(list.children.length, 53);
+  assert.equal(row.querySelector(".song-title-text").textContent, "53　New <song> & test");
   assert.equal(row.dataset.songTitle, extra.title);
   assert.equal(row.href, extra.youtube);
   assert.equal(row.target, "_blank");
@@ -143,7 +143,7 @@ test("an additional data-only song renders and participates in search, singer co
     input.value = query;
     input.dispatch("input"); flush();
     assert.deepEqual(list.children.filter(song => !song.hidden), [row], query);
-    assert.equal(elements["tag-result-count"].textContent, "显示 1 / 52 首");
+    assert.equal(elements["tag-result-count"].textContent, "显示 1 / 53 首");
   }
   input.value = "sekai";
   input.dispatch("input"); flush();
@@ -154,7 +154,7 @@ test("an additional data-only song renders and participates in search, singer co
   assert.equal(elements["tag-empty-state"].hidden, false);
   elements["tag-filter-clear"].dispatch("click");
   assert.equal(input.value, "");
-  assert.equal(elements["tag-result-count"].textContent, "显示 52 / 52 首");
+  assert.equal(elements["tag-result-count"].textContent, "显示 53 / 53 首");
   run("Math.random = () => 0.999999; playRandomSong()");
   assert.deepEqual(opened, [[extra.youtube, "_blank", "noopener,noreferrer"]]);
 });
@@ -189,7 +189,7 @@ test("Japanese singer tags filter correctly and counts use Japanese", () => {
   elements["tag-filter-input"].value = "歌愛ユキ";
   elements["tag-filter-input"].dispatch("input"); flush();
   assert.ok(list.children.filter(row => !row.hidden).length > 0);
-  assert.match(elements["tag-result-count"].textContent, /51 曲中/);
+  assert.match(elements["tag-result-count"].textContent, /52 曲中/);
   assert.match(list.children[0].querySelector(".song-views").dataset.ja, /回再生/);
 });
 

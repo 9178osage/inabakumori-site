@@ -48,3 +48,27 @@ test("homepage reaches the calendar through a labelled entry beside the station 
   assert.match(css, /\.station-calendar:focus-visible \{ outline:/);
   assert.match(read("tools/build-site.mjs"), /"CALENDAR:SHEET"/);
 });
+
+test("calendar counts only YouTube uploads that are songs in js/songs.js", async () => {
+  const { newestSongRelease } = await import("../calendar-song.mjs");
+  const songs = [{ title: "ユレール" }, { title: "ロストアンブレラ" }, { title: "たびのまえ、たびのあと (tabitabi Remix)" }];
+  const video = (title, publishedAt, extra = {}) => ({ creator: "inabakumori", source: "youtube", title, publishedAt, url: "https://www.youtube.com/watch?v=x", ...extra });
+  const items = [
+    video("稲葉曇『ユレール』Vo. 弦巻マキ", "2026-03-08T10:00:07.000Z"),
+    video("【告知】新アルバム クロスフェード", "2026-09-01T10:00:00.000Z"),
+    video("稲葉曇『まだ無い曲』Vo. 歌愛ユキ", "2026-08-01T10:00:00.000Z"),
+    video("ロストアンブレラ", "2026-07-01T10:00:00.000Z", { creator: "nknk" }),
+    video("稲葉曇『ロストアンブレラ』Live", "not a date")
+  ];
+  const match = newestSongRelease(items, songs);
+  assert.equal(match.song, "ユレール");
+  assert.equal(match.item.publishedAt, "2026-03-08T10:00:07.000Z");
+  assert.equal(newestSongRelease([video("『たびのまえ、たびのあと (tabitabi Remix)』feat. 初音ミク", "2024-11-13T10:00:08.000Z")], songs).song, "たびのまえ、たびのあと (tabitabi Remix)");
+  assert.equal(newestSongRelease([items[1]], songs), null);
+});
+
+test("calendar keeps theme-color and description in step with its toggles", () => {
+  const source = read("js/calendar.js");
+  assert.match(source, /meta\[name="theme-color"\][\s\S]*?#171b1f[\s\S]*?#c4c4c0/u);
+  assert.match(source, /meta\[name="description"\][\s\S]*?description\.content = text\(/u);
+});
