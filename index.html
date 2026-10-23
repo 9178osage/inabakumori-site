@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="referrer" content="no-referrer"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" name="viewport"/>
+<meta name="description" content="稲葉曇的气象观测站：歌曲、MV、创作链接与留言墙。"/>
+<meta name="theme-color" content="#c4c4c0" media="(prefers-color-scheme: light)"/>
+<meta name="theme-color" content="#171b1f" media="(prefers-color-scheme: dark)"/>
+<meta name="color-scheme" content="light dark"/>
+<meta property="og:locale" content="zh_CN"/>
+<meta property="og:locale:alternate" content="en_US"/>
+<meta property="og:locale:alternate" content="ja_JP"/>
+<link rel="dns-prefetch" href="https://inabakumori-site-production.up.railway.app"/>
+<link rel="dns-prefetch" href="https://i.ytimg.com"/>
+<link rel="preconnect" href="https://inabakumori-site-production.up.railway.app" crossorigin/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; img-src 'self' data: https://i.ytimg.com https://img.youtube.com; font-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self' https://inabakumori-site-production.up.railway.app; frame-src 'none'; worker-src 'none'; manifest-src 'self'; require-trusted-types-for 'script'; trusted-types 'none'"/>
+<link rel="canonical" href="https://osagechan.top/"/>
+<meta property="og:url" content="https://osagechan.top/"/>
+<meta property="og:site_name" content="气象观测站 · 稲葉曇"/>
+<meta property="og:image" content="https://osagechan.top/images/optimized/hero/001.webp"/>
+<meta property="og:image:width" content="1920"/>
+<meta property="og:image:height" content="1080"/>
+<meta property="og:image:alt" content="稲葉曇 / Inabakumori — Weather Observation Station"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<script src="js/preferences.js?v=59225532325b"></script>
+<link rel="preload" as="image" href="images/optimized/hero/001.webp" media="(min-width: 701px) and (pointer: fine), (min-width: 1001px)" fetchpriority="high"/>
+<link rel="preload" as="image" href="images/optimized/hero-mobile/001.webp?v=3" media="(max-width: 700px), (pointer: coarse) and (max-width: 1000px)" fetchpriority="high"/>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"气象观测站 · 稲葉曇","alternateName":"Weather Observation Station · Inabakumori","url":"https://osagechan.top/","inLanguage":["zh-CN","en","ja"],"description":"稲葉曇 / Inabakumori 非官方粉丝站，收录歌曲、MV、创作者链接与留言墙。","isAccessibleForFree":true}</script>
+<meta property="og:type" content="website"/>
+<meta property="og:title" content="气象观测站 · 稲葉曇"/>
+<meta property="og:description" content="歌曲、MV、创作链接与留言墙。"/>
+<title>气象观测站 · 稲葉曇</title>
+<link href="fonts/fonts.css?v=eee36f496fd1" rel="stylesheet"/>
+<link href="style.css?v=778069a6c90c" rel="stylesheet"/>
+<link href="site.webmanifest?v=3" rel="manifest"/>
+<link href="favicon.ico?v=3" rel="icon" type="image/x-icon" sizes="16x16 32x32 48x48"/>
+<link href="images/icons/favicon-16.png?v=3" rel="icon" type="image/png" sizes="16x16"/>
+<link href="images/icons/favicon-32.png?v=3" rel="icon" type="image/png" sizes="32x32"/>
+<link href="images/icons/favicon-48.png?v=3" rel="icon" type="image/png" sizes="48x48"/>
+<link href="images/icons/apple-touch-icon.png?v=3" rel="apple-touch-icon" sizes="180x180"/>
+<link href="images/icons/icon-512.png?v=3" rel="apple-touch-icon" sizes="512x512"/>
+<meta name="creator-updates-version" content="3b6ece82bcc78076ac86add8db500ff04360830efe49ac909fcd1ea530644bf8"/>
+<meta name="x-posts-version" content="45c7aa723622b2c7e37f8dbc7018b6f45e3c041919c07cdecb435f5d9c5283a5"/>
+</head>
+<body>
+<a class="skip-link" href="#main-content" data-zh="跳到主要内容" data-en="Skip to content" data-ja="メインコンテンツへスキップ">跳到主要内容</a>
+<div class="site-controls" role="region" aria-label="页面设置">
+
+<button id="lang-btn" type="button" aria-label="切换语言 / Switch language">
+        English
+    </button>
+
+<button id="theme-btn" type="button" aria-label="深色主题" aria-pressed="false">
+        ☾
+    </button>
+
+<button id="auth-btn" type="button">
+    登录 / 注册
+</button>
+
+</div>
+
+<div class="auth-modal" id="auth-modal">
+<div class="auth-window" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+<button type="button" id="auth-close" aria-label="关闭" class="auth-close">
+            ×
+        </button>
+<h2 id="auth-title">登录</h2>
+<input id="auth-email" aria-label="邮箱" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="email" placeholder="邮箱" type="email"/>
+<input id="auth-password" aria-label="密码" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="密码" type="password"/>
+<input id="auth-password-confirm" aria-label="确认新密码" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="再次输入新密码" type="password" hidden/>
+<p id="auth-status" role="status" aria-live="polite"></p>
+<p id="auth-error" role="alert"></p>
+<button id="auth-submit" type="button">
+            登录
+        </button>
+<button id="auth-switch" class="auth-switch" type="button">
+            没有账号？注册
+        </button>
+<button id="auth-forgot" class="auth-switch" type="button">忘记密码？</button>
+</div>
+</div>
+
+<header class="hero" id="top">
+<div class="station-brand"><a class="station-mark" href="#top"><span aria-hidden="true">☂</span> INABAKUMORI<span class="station-mark-small">UNOFFICIAL ARCHIVE</span></a><a class="station-calendar" href="calendar.html"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><rect x="2" y="3" width="12" height="11" rx="1" fill="none" stroke="currentColor"/><path d="M2 6.5h12M5 1.5v3M11 1.5v3" stroke="currentColor" fill="none"/></svg><span data-zh="神秘小日历" data-en="Secret Calendar" data-ja="秘密のカレンダー">神秘小日历</span></a></div>
+
+<div class="hero-bg" id="hero-bg">
+    <picture>
+    <source id="hero-mobile-source" media="(max-width: 700px), (pointer: coarse) and (max-width: 1000px)" srcset="images/optimized/hero-mobile/001.webp?v=3">
+    <img
+    src="images/optimized/hero/001.webp"
+    width="1920" height="1080" decoding="async"
+    id="hero-slide"
+    class="hero-slide active"
+    alt=""
+    fetchpriority="high"
+    draggable="false"
+>
+    </picture>
+</div>
+
+<div class="hero-overlay"></div>
+<div class="hero-rain" aria-hidden="true">
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+  <span></span>
+</div>
+
+<div class="hero-content">
+<p class="hero-eyebrow">稲葉曇 · INABAKUMORI</p>
+<h1><button type="button" id="easter-egg-trigger" class="glitch" data-en="WEATHER OBSERVATION STATION" data-text="气象观测站" data-zh="气象观测站" data-ja="気象観測所">
+                气象观测站
+            </button></h1>
+
+<p class="hero-description" data-zh="在声音与雨之间，停留一会儿。" data-en="Stay a while, between sound and rain." data-ja="音と雨のあいだで、ひと休み。">在声音与雨之间，停留一会儿。</p>
+<a class="hero-cta" href="#songs"><span data-zh="探索歌曲" data-en="Explore the music" data-ja="楽曲を探す">探索歌曲</span><span aria-hidden="true">↗</span></a>
+<nav aria-label="主导航 / Main navigation">
+<a data-en="Intro" data-zh="简介" data-ja="紹介" href="#intro">简介</a>
+<a href="#updates" data-zh="最新动态" data-en="Latest updates" data-ja="最新情報">最新动态</a>
+<a href="#artwork" data-zh="NKNK" data-en="Nukunuku Nigirimeshi" data-ja="ぬくぬくにぎりめし">NKNK</a>
+<a data-en="Songs" data-zh="歌曲" data-ja="楽曲" href="#songs">
+                    歌曲
+                </a>
+<a data-en="Message Wall" data-zh="留言墙" data-ja="メッセージウォール" href="#messages">
+    留言墙
+</a>
+</nav>
+</div>
+<div class="hero-bottom"><a href="#intro" aria-label="向下浏览" data-aria-zh="向下浏览" data-aria-en="Scroll down" data-aria-ja="下へスクロール">↓</a></div>
+</header>
+<nav class="section-nav" aria-label="章节导航 / Section navigation">
+<a href="#intro" data-zh="简介" data-en="Intro" data-ja="紹介">简介</a>
+<a href="#updates" data-zh="动态" data-en="Updates" data-ja="最新情報">动态</a>
+<a href="#artwork" data-zh="插画" data-en="Artwork" data-ja="イラスト">插画</a>
+<a href="#songs" data-zh="歌曲" data-en="Songs" data-ja="楽曲">歌曲</a>
+<a href="#messages" data-zh="留言" data-en="Messages" data-ja="メッセージ">留言</a>
+<a href="#top" class="back-top" aria-label="返回顶部" data-aria-zh="返回顶部" data-aria-en="Back to top" data-aria-ja="トップへ戻る">↑</a>
+</nav>
+
+<main id="main-content" tabindex="-1">
+<p id="site-status" class="site-status" role="status" aria-live="polite" hidden></p>
+
+<section class="artist-profile" id="intro" aria-labelledby="intro-title">
+<div class="section-heading">
+<p class="section-kicker">01 / THE ARTIST</p>
+<h2 id="intro-title" data-zh="简介" data-en="INTRO" data-ja="紹介">简介</h2>
+</div>
+<div class="artist-profile-copy">
+<p class="artist-intro" data-zh="稲葉曇（Inabakumori）是日本 VOCALOID 制作人，代表作有《ロストアンブレラ》《ラグトレイン》。常使用歌爱雪，MV 插画多由ぬくぬくにぎりめし绘制。" data-en="Inabakumori is a Japanese VOCALOID producer known for “Lost Umbrella” and “Lagtrain,” often featuring Kaai Yuki and illustrations by Nukunuku Nigirimeshi." data-ja="稲葉曇は「ロストアンブレラ」「ラグトレイン」などで知られるボカロP。歌愛ユキを多く用い、MVイラストはぬくぬくにぎりめしさんが手がけています。">稲葉曇（Inabakumori）是日本 VOCALOID 制作人，代表作有《ロストアンブレラ》《ラグトレイン》。常使用歌爱雪，MV 插画多由ぬくぬくにぎりめし绘制。</p>
+<p class="unofficial-note" data-zh="本站为非官方粉丝站，与创作者及官方厂牌／平台无关。" data-en="An unofficial fan site, unaffiliated with the creators or any official label or platform." data-ja="本サイトは非公式ファンサイトであり、クリエイターや公式レーベル・プラットフォームとは関係ありません。">本站为非官方粉丝站，与创作者及官方厂牌／平台无关。</p>
+</div>
+</section>
+
+<section id="updates" class="home-updates" aria-labelledby="home-updates-title">
+<div class="home-updates-overview">
+<div class="home-updates-header">
+<p class="section-kicker">02 / LATEST OBSERVATIONS</p>
+<h2 id="home-updates-title" data-zh="最新动态" data-en="LATEST UPDATES" data-ja="最新情報">最新动态</h2>
+<p data-zh="稲葉曇与 NKNK 的公开帖子，在本站直接阅读。正文保留原语言，并附发布时间与原帖链接。" data-en="Read public posts from Inabakumori and NKNK right here. The text stays in its original language, with publication times and source links." data-ja="稲葉曇さんとNKNKさんの公開投稿を、サイト内で。本文は原文のまま、投稿日時と元の投稿へのリンクを添えて掲載しています。">稲葉曇与 NKNK 的公开帖子，在本站直接阅读。正文保留原语言，并附发布时间与原帖链接。</p>
+</div>
+<div class="home-updates-accounts">
+<a href="https://x.com/inabakumori" target="_blank" rel="noopener noreferrer"><strong>稲葉曇</strong><span>@inabakumori</span><span data-zh="本人 X 账号 ↗" data-en="Official X account ↗" data-ja="ご本人のX ↗">本人 X 账号 ↗</span></a>
+<a href="https://x.com/NKNK_NGRMS" target="_blank" rel="noopener noreferrer"><strong>NKNK</strong><span>@NKNK_NGRMS</span><span data-zh="本人 X 账号 ↗" data-en="Official X account ↗" data-ja="ご本人のX ↗">本人 X 账号 ↗</span></a>
+</div>
+</div>
+<div class="home-updates-content">
+<section class="x-posts-home" data-x-posts-home data-x-total="6111" data-x-total-inabakumori="2571" data-x-total-nknk="3540" aria-labelledby="home-x-posts-title"><h3 id="home-x-posts-title" class="x-posts-title" data-zh="X 帖子原文" data-en="Original X posts" data-ja="Xの投稿・原文">X 帖子原文</h3><div class="x-posts-status"><p class="x-posts-summary" data-zh="已收录 6111 条公开帖子 · 历史仍在补全" data-en="6111 public posts collected · Historical posts are still being added" data-ja="公開投稿6111件を収録 · 過去の投稿を引き続き追加中">已收录 6111 条公开帖子 · 历史仍在补全</p><details class="x-collection-details"><summary data-zh="收录范围与说明" data-en="Collection details" data-ja="収録範囲と説明">收录范围与说明</summary><div class="x-collection-details-content"><p><span data-zh="最近收录" data-en="Last collected" data-ja="最終収録">最近收录</span> <time datetime="2026-10-23T05:40:39.000Z" data-local-time>2026-10-23 14:40 JST</time></p><ul class="x-posts-coverage"><li data-zh="稲葉曇：已收录 2571 条 · 发布日期范围 2015-12-16 至 2026-10-21（JST）" data-en="稲葉曇: 2571 collected · Post date range 2015-12-16 to 2026-10-21 (JST)" data-ja="稲葉曇：収録2571件 · 投稿日の範囲 2015-12-16〜2026-10-21（JST）">稲葉曇：已收录 2571 条 · 发布日期范围 2015-12-16 至 2026-10-21（JST）</li><li data-zh="NKNK：已收录 3540 条 · 发布日期范围 2017-07-08 至 2026-10-21（JST）" data-en="NKNK: 3540 collected · Post date range 2017-07-08 to 2026-10-21 (JST)" data-ja="NKNK：収録3540件 · 投稿日の範囲 2017-07-08〜2026-10-21（JST）">NKNK：已收录 3540 条 · 发布日期范围 2017-07-08 至 2026-10-21（JST）</li></ul><p class="x-posts-coverage-note" data-zh="全量历史、回复与转发仍未完整收录。日期范围只表示已保存的最早与最新帖子，不代表区间内每条都已收录。正文保留原语言；图片和视频请到原帖查看。" data-en="The full history, replies and reposts are not fully collected. The dates show the earliest and latest saved posts, not complete coverage of every post between them. Text stays in its original language; view images and videos in the original posts." data-ja="過去の全投稿・返信・リポストの収録はまだ完了していません。日付は保存済み投稿の最古と最新を示し、期間内の全投稿の収録を保証するものではありません。本文は原文のまま、画像・動画は元の投稿をご覧ください。">全量历史、回复与转发仍未完整收录。日期范围只表示已保存的最早与最新帖子，不代表区间内每条都已收录。正文保留原语言；图片和视频请到原帖查看。</p></div></details></div><div class="x-home-filters" role="group" aria-label="按创作者筛选帖子" data-aria-zh="按创作者筛选帖子" data-aria-en="Filter posts by creator" data-aria-ja="クリエイター別の投稿" hidden><button type="button" data-x-home-creator="all" aria-pressed="true" data-zh="全部帖子" data-en="All posts" data-ja="すべて">全部帖子</button><button type="button" data-x-home-creator="inabakumori" aria-pressed="false">稲葉曇</button><button type="button" data-x-home-creator="nknk" aria-pressed="false">NKNK</button></div><p class="x-home-count" data-x-home-count role="status" aria-live="polite" hidden></p><p class="x-posts-empty" data-x-home-empty hidden data-zh="这位创作者暂无已收录的帖子。" data-en="No posts have been collected for this creator yet." data-ja="このクリエイターの投稿はまだ収録されていません。">这位创作者暂无已收录的帖子。</p><div class="x-posts-feed"><article class="x-post" data-x-post-id="2112857083909751089" data-creator="nknk"><header class="x-post-header"><h3>NKNK <span>@NKNK_NGRMS</span></h3><time datetime="2026-10-21T10:42:38.000Z" data-local-time>2026-10-21 19:42 JST</time></header><p class="x-post-text" dir="auto">🎉🍰🫧🎉♪（ｖ＾＿＾）ｖ👍</p><p class="x-post-translation" data-zh="（庆祝一亿播放）🎉 开心比耶！" data-en="(Celebrating the 100M views) 🎉 Yay, peace sign!" data-ja="">（庆祝一亿播放）🎉 开心比耶！</p><footer class="x-post-footer"><a class="x-post-source" href="https://x.com/NKNK_NGRMS/status/2112857083909751089" target="_blank" rel="noopener noreferrer" data-zh="查看原帖 ↗" data-en="View original ↗" data-ja="元の投稿を見る ↗">查看原帖 ↗</a><a href="https://x.com/inabakumori/status/2112852822664638703" target="_blank" rel="noopener noreferrer" data-zh="引用原帖 ↗" data-en="Quoted post ↗" data-ja="引用元の投稿 ↗">引用原帖 ↗</a></footer></article>
+<article class="x-post" data-x-post-id="2112852822664638703" data-creator="inabakumori"><header class="x-post-header"><h3>稲葉曇 <span>@inabakumori</span></h3><time datetime="2026-10-21T10:25:42.000Z" data-local-time>2026-10-21 19:25 JST</time></header><p class="x-post-text" lang="ja" dir="auto">『ロストアンブレラ』
+YouTubeにて一億再生到達しました！！
+たくさん聴いてくれてうれしいです！！
+100M views on ‘Lost Umbrella’!! Thank you so much for listening!!</p><p class="x-post-translation" data-zh="《ロストアンブレラ》在 YouTube 突破一亿播放了！谢谢大家一直在听，好开心！" data-en="‘Lost Umbrella’ hit 100 million views on YouTube! I&#39;m so happy so many of you keep listening!" data-ja="">《ロストアンブレラ》在 YouTube 突破一亿播放了！谢谢大家一直在听，好开心！</p><p class="x-post-media-note"><span data-zh="附 1 张图片 · 请到原帖查看" data-en="1 image · View in the original post" data-ja="画像1枚 · 元の投稿で見る">附 1 张图片 · 请到原帖查看</span></p><footer class="x-post-footer"><a class="x-post-source" href="https://x.com/inabakumori/status/2112852822664638703" target="_blank" rel="noopener noreferrer" data-zh="查看原帖 ↗" data-en="View original ↗" data-ja="元の投稿を見る ↗">查看原帖 ↗</a></footer></article>
+<article class="x-post" data-x-post-id="2102973251404361912" data-creator="nknk"><header class="x-post-header"><h3>NKNK <span>@NKNK_NGRMS</span></h3><time datetime="2026-09-24T04:07:49.000Z" data-local-time>2026-09-24 13:07 JST</time></header><p class="x-post-text" lang="ja" dir="auto">無事終了いたしました❗️
+たくさんのご支援ありがとうございます❗️いっぱい可愛がってあげてください〜🍙</p><p class="x-post-translation" data-zh="众筹顺利结束啦！谢谢大家的大力支持，请好好疼爱它们哦🍙" data-en="The crowdfunding wrapped up safely! Thank you for all the support — please give them lots of love 🍙" data-ja="">众筹顺利结束啦！谢谢大家的大力支持，请好好疼爱它们哦🍙</p><footer class="x-post-footer"><a class="x-post-source" href="https://x.com/NKNK_NGRMS/status/2102973251404361912" target="_blank" rel="noopener noreferrer" data-zh="查看原帖 ↗" data-en="View original ↗" data-ja="元の投稿を見る ↗">查看原帖 ↗</a><a href="https://x.com/NKNK_NGRMS/status/2087829233875976511" target="_blank" rel="noopener noreferrer" data-zh="引用原帖 ↗" data-en="Quoted post ↗" data-ja="引用元の投稿 ↗">引用原帖 ↗</a></footer></article>
+<article class="x-post" hidden data-x-post-id="2098363452972814791" data-creator="nknk"><header class="x-post-header"><h3>NKNK <span>@NKNK_NGRMS</span></h3><time datetime="2026-09-11T10:50:07.000Z" data-local-time>2026-09-11 19:50 JST</time></header><p class="x-post-text" lang="ja" dir="auto">かわいいです❗️❗️</p><p class="x-post-translation" data-zh="好可爱！！" data-en="So cute!!" data-ja="">好可爱！！</p><footer class="x-post-footer"><a class="x-post-source" href="https://x.com/NKNK_NGRMS/status/2098363452972814791" target="_blank" rel="noopener noreferrer" data-zh="查看原帖 ↗" data-en="View original ↗" data-ja="元の投稿を見る ↗">查看原帖 ↗</a><a href="https://x.com/CF_Creation/status/2098349706778976544" target="_blank" rel="noopener noreferrer" data-zh="引用原帖 ↗" data-en="Quoted post ↗" data-ja="引用元の投稿 ↗">引用原帖 ↗</a></footer></article>
+<article class="x-post" hidden data-x-post-id="2073256048929148966" data-creator="inabakumori"><header class="x-post-header"><h3>稲葉曇 <span>@inabakumori</span></h3><time datetime="2026-07-04T04:02:15.000Z" data-local-time>2026-07-04 13:02 JST</time></header><p class="x-post-text" lang="ja" dir="auto">『ラグトレイン』
+YouTubeにて一億再生到達しました！！
+本当にありがとうございます！！
+100M views on ‘Lagtrain’!! Thank you so much for listening!!</p><p class="x-post-translation" data-zh="《ラグトレイン》在 YouTube 突破一亿播放了！真的非常感谢大家！" data-en="‘Lagtrain’ hit 100 million views on YouTube! Thank you all so much for listening!" data-ja="">《ラグトレイン》在 YouTube 突破一亿播放了！真的非常感谢大家！</p><p class="x-post-media-note"><span data-zh="附 1 张图片 · 请到原帖查看" data-en="1 image · View in the original post" data-ja="画像1枚 · 元の投稿で見る">附 1 张图片 · 请到原帖查看</span></p><footer class="x-post-footer"><a class="x-post-source" href="https://x.com/inabakumori/status/2073256048929148966" target="_blank" rel="noopener noreferrer" data-zh="查看原帖 ↗" data-en="View original ↗" data-ja="元の投稿を見る ↗">查看原帖 ↗</a></footer></article>
+<article class="x-post" hidden data-x-post-id="2059582164937904486" data-creator="inabakumori"><header class="x-post-header"><h3>稲葉曇 <span>@inabakumori</span></h3><time datetime="2026-05-27T10:27:07.000Z" data-local-time>2026-05-27 19:27 JST</time></header><p class="x-post-text" dir="auto">！？！？
+
+絶体暗星</p><p class="x-post-translation" data-zh="？！？！（是《絶体暗星》！）" data-en="?!?! (It&#39;s ‘絶体暗星’!)" data-ja="">？！？！（是《絶体暗星》！）</p><footer class="x-post-footer"><a class="x-post-source" href="https://x.com/inabakumori/status/2059582164937904486" target="_blank" rel="noopener noreferrer" data-zh="查看原帖 ↗" data-en="View original ↗" data-ja="元の投稿を見る ↗">查看原帖 ↗</a><a href="https://x.com/YouTubeJapan/status/2058851317976641965" target="_blank" rel="noopener noreferrer" data-zh="引用原帖 ↗" data-en="Quoted post ↗" data-ja="引用元の投稿 ↗">引用原帖 ↗</a></footer></article></div><a class="x-posts-archive-link" data-x-archive-link href="updates.html" data-zh="在本站浏览已收录的全部帖子 →" data-en="Browse all collected posts on this site →" data-ja="サイト内で収録済みの投稿をすべて見る →">在本站浏览已收录的全部帖子 →</a><noscript><p class="x-posts-coverage-note" data-zh="这里展示最近 3 条。完整帖子正文可通过上方站内档案分页阅读。" data-en="The latest 3 posts are shown here. Read all collected posts through the archive link above." data-ja="ここには最新3件を表示しています。収録済みの全文は上のリンク先で読めます。">这里展示最近 3 条。完整帖子正文可通过上方站内档案分页阅读。</p></noscript></section>
+<details class="home-works-log"><summary data-zh="作品来源动态" data-en="Updates from work channels" data-ja="作品の公開元からの更新">作品来源动态</summary>
+<p class="home-updates-note" data-zh="这里单独记录官方 YouTube 视频、pixiv 插画与合作项目公告；合作项目公告由主办方发布。" data-en="Official YouTube videos, pixiv illustrations and collaboration announcements are recorded separately here. Collaboration notices come from the organizer." data-ja="公式YouTubeの動画、pixivのイラスト、コラボ企画のお知らせを別に記録しています。コラボ企画のお知らせは主催者によるものです。">这里单独记录官方 YouTube 视频、pixiv 插画与合作项目公告；合作项目公告由主办方发布。</p>
+<div class="home-updates-toolbar" role="group" aria-label="按创作者筛选动态" data-aria-zh="按创作者筛选动态" data-aria-en="Filter updates by creator" data-aria-ja="クリエイター別の最新情報" hidden>
+<span class="home-updates-filter-label" data-zh="创作者" data-en="Creator" data-ja="作者">创作者</span>
+<button type="button" data-home-creator="all" aria-pressed="true" data-zh="全部创作者" data-en="All creators" data-ja="すべての作者">全部创作者</button>
+<button type="button" data-home-creator="inabakumori" aria-pressed="false">稲葉曇</button>
+<button type="button" data-home-creator="nknk" aria-pressed="false">NKNK</button>
+</div>
+<div class="home-updates-toolbar home-source-filters" role="group" aria-label="按来源筛选动态" data-aria-zh="按来源筛选动态" data-aria-en="Filter updates by source" data-aria-ja="公開元で更新を絞り込む" hidden>
+<span class="home-updates-filter-label" data-zh="来源" data-en="Source" data-ja="公開元">来源</span>
+<button type="button" data-home-source="all" aria-pressed="true" data-zh="全部来源" data-en="All sources" data-ja="すべての公開元">全部来源</button>
+<button type="button" data-home-source="youtube" aria-pressed="false">YouTube</button>
+<button type="button" data-home-source="pixiv" aria-pressed="false">pixiv</button>
+<button type="button" data-home-source="campfire" aria-pressed="false">CAMPFIRE</button>
+</div>
+<div class="home-updates-toolbar home-year-filter" hidden>
+<label class="home-updates-filter-label" for="home-updates-year" data-zh="年份" data-en="Year" data-ja="年">年份</label>
+<select id="home-updates-year"><option value="all" data-zh="全部年份" data-en="All years" data-ja="すべての年">全部年份</option><option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option><option value="2023">2023</option><option value="2022">2022</option><option value="2021">2021</option><option value="2020">2020</option></select>
+</div>
+<p id="home-updates-count" class="home-updates-count" role="status" aria-live="polite" hidden></p>
+<div id="home-updates-feed" class="home-updates-feed">
+<article class="update-item" data-creator="nknk" data-source="campfire" data-year="2026"><span class="update-index" aria-hidden="true">01</span><div class="update-content"><div class="update-meta"><time datetime="2026-09-23T03:00:00.000Z">2026-09-23 12:00 JST</time><span class="update-source">NKNK / CAMPFIRE Creation</span></div><h3><a href="https://camp-fire.jp/projects/970332/view/activities/891733" target="_blank" rel="noopener noreferrer" lang="ja">【本日クラファン終了！】再販！おさげちゃんぬいぐるみ化プロジェクト！</a></h3><p class="update-summary" data-zh="NKNK 合作项目主办方的公告，并非作者本人发帖。本轮众筹已于 2026 年 9 月 23 日结束。" data-en="An announcement from the organizer of NKNK’s collaboration, rather than a personal post. This campaign ended on September 23, 2026." data-ja="NKNKさんのコラボ企画の主催者によるお知らせです。ご本人の投稿ではありません。この募集は2026年9月23日に終了しました。">NKNK 合作项目主办方的公告，并非作者本人发帖。本轮众筹已于 2026 年 9 月 23 日结束。</p></div><a class="update-link" href="https://camp-fire.jp/projects/970332/view/activities/891733" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" data-creator="nknk" data-source="campfire" data-year="2026"><span class="update-index" aria-hidden="true">02</span><div class="update-content"><div class="update-meta"><time datetime="2026-09-22T08:00:00.000Z">2026-09-22 17:00 JST</time><span class="update-source">NKNK / CAMPFIRE Creation</span></div><h3><a href="https://camp-fire.jp/projects/970332/view/activities/891732" target="_blank" rel="noopener noreferrer" lang="ja">【明日でクラファン終了！】再販！おさげちゃんぬいぐるみ化プロジェクト！</a></h3><p class="update-summary" data-zh="NKNK 合作项目主办方的公告，并非作者本人发帖。本轮众筹已于 2026 年 9 月 23 日结束。" data-en="An announcement from the organizer of NKNK’s collaboration, rather than a personal post. This campaign ended on September 23, 2026." data-ja="NKNKさんのコラボ企画の主催者によるお知らせです。ご本人の投稿ではありません。この募集は2026年9月23日に終了しました。">NKNK 合作项目主办方的公告，并非作者本人发帖。本轮众筹已于 2026 年 9 月 23 日结束。</p></div><a class="update-link" href="https://camp-fire.jp/projects/970332/view/activities/891732" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" data-creator="nknk" data-source="campfire" data-year="2026"><span class="update-index" aria-hidden="true">03</span><div class="update-content"><div class="update-meta"><time datetime="2026-09-21T09:00:00.000Z">2026-09-21 18:00 JST</time><span class="update-source">NKNK / CAMPFIRE Creation</span></div><h3><a href="https://camp-fire.jp/projects/970332/view/activities/891729" target="_blank" rel="noopener noreferrer" lang="ja">【クラファン終了まであと3日！】再販！おさげちゃんぬいぐるみ化プロジェクト！</a></h3><p class="update-summary" data-zh="NKNK 合作项目主办方的公告，并非作者本人发帖。本轮众筹已于 2026 年 9 月 23 日结束。" data-en="An announcement from the organizer of NKNK’s collaboration, rather than a personal post. This campaign ended on September 23, 2026." data-ja="NKNKさんのコラボ企画の主催者によるお知らせです。ご本人の投稿ではありません。この募集は2026年9月23日に終了しました。">NKNK 合作项目主办方的公告，并非作者本人发帖。本轮众筹已于 2026 年 9 月 23 日结束。</p></div><a class="update-link" href="https://camp-fire.jp/projects/970332/view/activities/891729" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" hidden data-creator="nknk" data-source="campfire" data-year="2026"><span class="update-index" aria-hidden="true">04</span><div class="update-content"><div class="update-meta"><time datetime="2026-09-15T09:00:00.000Z">2026-09-15 18:00 JST</time><span class="update-source">NKNK / CAMPFIRE Creation</span></div><h3><a href="https://camp-fire.jp/projects/970332/view/activities/890148" target="_blank" rel="noopener noreferrer" lang="ja">【ネクストゴール1600%達成しました！】再販！おさげちゃんぬいぐるみ化プロジェクト！</a></h3><p class="update-summary" data-zh="NKNK 合作项目主办方的公告，并非作者本人发帖。本轮众筹已于 2026 年 9 月 23 日结束。" data-en="An announcement from the organizer of NKNK’s collaboration, rather than a personal post. This campaign ended on September 23, 2026." data-ja="NKNKさんのコラボ企画の主催者によるお知らせです。ご本人の投稿ではありません。この募集は2026年9月23日に終了しました。">NKNK 合作项目主办方的公告，并非作者本人发帖。本轮众筹已于 2026 年 9 月 23 日结束。</p></div><a class="update-link" href="https://camp-fire.jp/projects/970332/view/activities/890148" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" hidden data-creator="nknk" data-source="campfire" data-year="2026"><span class="update-index" aria-hidden="true">05</span><div class="update-content"><div class="update-meta"><time datetime="2026-09-11T09:00:00.000Z">2026-09-11 18:00 JST</time><span class="update-source">NKNK / CAMPFIRE Creation</span></div><h3><a href="https://camp-fire.jp/projects/970332/view/activities/890143" target="_blank" rel="noopener noreferrer" lang="ja">【ネクストゴールのお知らせ！】再販！おさげちゃんぬいぐるみ化プロジェクト！</a></h3><p class="update-summary" data-zh="NKNK 合作项目主办方的公告，并非作者本人发帖。本轮众筹已于 2026 年 9 月 23 日结束。" data-en="An announcement from the organizer of NKNK’s collaboration, rather than a personal post. This campaign ended on September 23, 2026." data-ja="NKNKさんのコラボ企画の主催者によるお知らせです。ご本人の投稿ではありません。この募集は2026年9月23日に終了しました。">NKNK 合作项目主办方的公告，并非作者本人发帖。本轮众筹已于 2026 年 9 月 23 日结束。</p></div><a class="update-link" href="https://camp-fire.jp/projects/970332/view/activities/890143" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" hidden data-creator="inabakumori" data-source="youtube" data-year="2026"><span class="update-index" aria-hidden="true">06</span><div class="update-content"><div class="update-meta"><time datetime="2026-03-08T10:00:07.000Z">2026-03-08 19:00 JST</time><span class="update-source">稲葉曇 / YouTube</span></div><h3><a href="https://www.youtube.com/watch?v=2r4W_LoVFxA" target="_blank" rel="noopener noreferrer" lang="ja">稲葉曇『ユレール』Vo. 弦巻マキ</a></h3><p class="update-summary" data-zh="稲葉曇官方频道发布的视频。标题保留原文，详情请查看原始发布。" data-en="A video from Inabakumori’s official channel. Original title; follow the source for details." data-ja="稲葉曇さんの公式チャンネルの動画です。原題を掲載しています。詳細は公開元をご覧ください。">稲葉曇官方频道发布的视频。标题保留原文，详情请查看原始发布。</p></div><a class="update-link" href="https://www.youtube.com/watch?v=2r4W_LoVFxA" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" hidden data-creator="inabakumori" data-source="youtube" data-year="2026"><span class="update-index" aria-hidden="true">07</span><div class="update-content"><div class="update-meta"><time datetime="2026-01-26T10:00:07.000Z">2026-01-26 19:00 JST</time><span class="update-source">稲葉曇 / YouTube</span></div><h3><a href="https://www.youtube.com/watch?v=STBoCK69vVQ" target="_blank" rel="noopener noreferrer" lang="ja">稲葉曇『スポットレイト』Vo. 歌愛ユキ</a></h3><p class="update-summary" data-zh="稲葉曇官方频道发布的视频。标题保留原文，详情请查看原始发布。" data-en="A video from Inabakumori’s official channel. Original title; follow the source for details." data-ja="稲葉曇さんの公式チャンネルの動画です。原題を掲載しています。詳細は公開元をご覧ください。">稲葉曇官方频道发布的视频。标题保留原文，详情请查看原始发布。</p></div><a class="update-link" href="https://www.youtube.com/watch?v=STBoCK69vVQ" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" hidden data-creator="inabakumori" data-source="youtube" data-year="2025"><span class="update-index" aria-hidden="true">08</span><div class="update-content"><div class="update-meta"><time datetime="2025-08-01T03:00:03.000Z">2025-08-01 12:00 JST</time><span class="update-source">稲葉曇 / YouTube</span></div><h3><a href="https://www.youtube.com/watch?v=1nZwWpHF0mQ" target="_blank" rel="noopener noreferrer" lang="ja">稲葉曇『春難色』Vo. 彩澄しゅお &amp; 彩澄りりせ</a></h3><p class="update-summary" data-zh="稲葉曇官方频道发布的视频。标题保留原文，详情请查看原始发布。" data-en="A video from Inabakumori’s official channel. Original title; follow the source for details." data-ja="稲葉曇さんの公式チャンネルの動画です。原題を掲載しています。詳細は公開元をご覧ください。">稲葉曇官方频道发布的视频。标题保留原文，详情请查看原始发布。</p></div><a class="update-link" href="https://www.youtube.com/watch?v=1nZwWpHF0mQ" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" hidden data-creator="inabakumori" data-source="youtube" data-year="2025"><span class="update-index" aria-hidden="true">09</span><div class="update-content"><div class="update-meta"><time datetime="2025-07-26T13:00:07.000Z">2025-07-26 22:00 JST</time><span class="update-source">稲葉曇 / YouTube</span></div><h3><a href="https://www.youtube.com/watch?v=IJN0piNZhBE" target="_blank" rel="noopener noreferrer" lang="ja">稲葉曇『超深淵帯』Vo. 歌愛ユキ</a></h3><p class="update-summary" data-zh="稲葉曇官方频道发布的视频。标题保留原文，详情请查看原始发布。" data-en="A video from Inabakumori’s official channel. Original title; follow the source for details." data-ja="稲葉曇さんの公式チャンネルの動画です。原題を掲載しています。詳細は公開元をご覧ください。">稲葉曇官方频道发布的视频。标题保留原文，详情请查看原始发布。</p></div><a class="update-link" href="https://www.youtube.com/watch?v=IJN0piNZhBE" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" hidden data-creator="inabakumori" data-source="youtube" data-year="2024"><span class="update-index" aria-hidden="true">10</span><div class="update-content"><div class="update-meta"><time datetime="2024-12-03T15:00:07.000Z">2024-12-04 00:00 JST</time><span class="update-source">稲葉曇 / YouTube</span></div><h3><a href="https://www.youtube.com/watch?v=9x7t1s4xMw4" target="_blank" rel="noopener noreferrer" lang="ja">稲葉曇『アイペース』Vo. 歌愛ユキ</a></h3><p class="update-summary" data-zh="稲葉曇官方频道发布的视频。标题保留原文，详情请查看原始发布。" data-en="A video from Inabakumori’s official channel. Original title; follow the source for details." data-ja="稲葉曇さんの公式チャンネルの動画です。原題を掲載しています。詳細は公開元をご覧ください。">稲葉曇官方频道发布的视频。标题保留原文，详情请查看原始发布。</p></div><a class="update-link" href="https://www.youtube.com/watch?v=9x7t1s4xMw4" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" hidden data-creator="inabakumori" data-source="youtube" data-year="2024"><span class="update-index" aria-hidden="true">11</span><div class="update-content"><div class="update-meta"><time datetime="2024-11-13T10:00:08.000Z">2024-11-13 19:00 JST</time><span class="update-source">稲葉曇 / YouTube</span></div><h3><a href="https://www.youtube.com/watch?v=L38M7qK1Yv4" target="_blank" rel="noopener noreferrer" lang="ja">『たびのまえ、たびのあと (tabitabi Remix)』feat. 初音ミク</a></h3><p class="update-summary" data-zh="稲葉曇官方频道发布的视频。标题保留原文，详情请查看原始发布。" data-en="A video from Inabakumori’s official channel. Original title; follow the source for details." data-ja="稲葉曇さんの公式チャンネルの動画です。原題を掲載しています。詳細は公開元をご覧ください。">稲葉曇官方频道发布的视频。标题保留原文，详情请查看原始发布。</p></div><a class="update-link" href="https://www.youtube.com/watch?v=L38M7qK1Yv4" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" hidden data-creator="inabakumori" data-source="youtube" data-year="2024"><span class="update-index" aria-hidden="true">12</span><div class="update-content"><div class="update-meta"><time datetime="2024-05-22T03:00:39.000Z">2024-05-22 12:00 JST</time><span class="update-source">稲葉曇 / YouTube</span></div><h3><a href="https://www.youtube.com/watch?v=yGDcBmlIzww" target="_blank" rel="noopener noreferrer">Lost Umbrella</a></h3><p class="update-summary" data-zh="稲葉曇官方频道发布的视频。标题保留原文，详情请查看原始发布。" data-en="A video from Inabakumori’s official channel. Original title; follow the source for details." data-ja="稲葉曇さんの公式チャンネルの動画です。原題を掲載しています。詳細は公開元をご覧ください。">稲葉曇官方频道发布的视频。标题保留原文，详情请查看原始发布。</p></div><a class="update-link" href="https://www.youtube.com/watch?v=yGDcBmlIzww" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" hidden data-creator="inabakumori" data-source="youtube" data-year="2024"><span class="update-index" aria-hidden="true">13</span><div class="update-content"><div class="update-meta"><time datetime="2024-04-19T11:00:19.000Z">2024-04-19 20:00 JST</time><span class="update-source">稲葉曇 / YouTube</span></div><h3><a href="https://www.youtube.com/watch?v=EEk4JGzqoFg" target="_blank" rel="noopener noreferrer" lang="ja">稲葉曇『私は雨』Vo. 歌愛ユキ</a></h3><p class="update-summary" data-zh="稲葉曇官方频道发布的视频。标题保留原文，详情请查看原始发布。" data-en="A video from Inabakumori’s official channel. Original title; follow the source for details." data-ja="稲葉曇さんの公式チャンネルの動画です。原題を掲載しています。詳細は公開元をご覧ください。">稲葉曇官方频道发布的视频。标题保留原文，详情请查看原始发布。</p></div><a class="update-link" href="https://www.youtube.com/watch?v=EEk4JGzqoFg" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" hidden data-creator="inabakumori" data-source="youtube" data-year="2023"><span class="update-index" aria-hidden="true">14</span><div class="update-content"><div class="update-meta"><time datetime="2023-10-20T10:00:09.000Z">2023-10-20 19:00 JST</time><span class="update-source">稲葉曇 / YouTube</span></div><h3><a href="https://www.youtube.com/watch?v=uZdnPgDaOpk" target="_blank" rel="noopener noreferrer" lang="ja">稲葉曇『余裕欲』Vo. nagiβ &amp; カゼヒキβ</a></h3><p class="update-summary" data-zh="稲葉曇官方频道发布的视频。标题保留原文，详情请查看原始发布。" data-en="A video from Inabakumori’s official channel. Original title; follow the source for details." data-ja="稲葉曇さんの公式チャンネルの動画です。原題を掲載しています。詳細は公開元をご覧ください。">稲葉曇官方频道发布的视频。标题保留原文，详情请查看原始发布。</p></div><a class="update-link" href="https://www.youtube.com/watch?v=uZdnPgDaOpk" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" hidden data-creator="inabakumori" data-source="youtube" data-year="2023"><span class="update-index" aria-hidden="true">15</span><div class="update-content"><div class="update-meta"><time datetime="2023-10-06T09:30:11.000Z">2023-10-06 18:30 JST</time><span class="update-source">稲葉曇 / YouTube</span></div><h3><a href="https://www.youtube.com/watch?v=Imcr7rsBxsc" target="_blank" rel="noopener noreferrer" lang="ja">稲葉曇『電気予報』feat. 初音ミク</a></h3><p class="update-summary" data-zh="稲葉曇官方频道发布的视频。标题保留原文，详情请查看原始发布。" data-en="A video from Inabakumori’s official channel. Original title; follow the source for details." data-ja="稲葉曇さんの公式チャンネルの動画です。原題を掲載しています。詳細は公開元をご覧ください。">稲葉曇官方频道发布的视频。标题保留原文，详情请查看原始发布。</p></div><a class="update-link" href="https://www.youtube.com/watch?v=Imcr7rsBxsc" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" hidden data-creator="inabakumori" data-source="youtube" data-year="2023"><span class="update-index" aria-hidden="true">16</span><div class="update-content"><div class="update-meta"><time datetime="2023-08-22T10:00:00.000Z">2023-08-22 19:00 JST</time><span class="update-source">稲葉曇 / YouTube</span></div><h3><a href="https://www.youtube.com/watch?v=-nHEIOrCauI" target="_blank" rel="noopener noreferrer" lang="ja">VOCALOID β-STUDIO VX-β × 稲葉曇『余裕欲(仮)』Vo. nagiβ &amp; カゼヒキβ #Shorts</a></h3><p class="update-summary" data-zh="稲葉曇官方频道发布的视频。标题保留原文，详情请查看原始发布。" data-en="A video from Inabakumori’s official channel. Original title; follow the source for details." data-ja="稲葉曇さんの公式チャンネルの動画です。原題を掲載しています。詳細は公開元をご覧ください。">稲葉曇官方频道发布的视频。标题保留原文，详情请查看原始发布。</p></div><a class="update-link" href="https://www.youtube.com/watch?v=-nHEIOrCauI" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" hidden data-creator="inabakumori" data-source="youtube" data-year="2023"><span class="update-index" aria-hidden="true">17</span><div class="update-content"><div class="update-meta"><time datetime="2023-08-08T11:00:09.000Z">2023-08-08 20:00 JST</time><span class="update-source">稲葉曇 / YouTube</span></div><h3><a href="https://www.youtube.com/watch?v=b56xjtP6Qac" target="_blank" rel="noopener noreferrer" lang="ja">稲葉曇『リレイアウター』Vo. 歌愛ユキ</a></h3><p class="update-summary" data-zh="稲葉曇官方频道发布的视频。标题保留原文，详情请查看原始发布。" data-en="A video from Inabakumori’s official channel. Original title; follow the source for details." data-ja="稲葉曇さんの公式チャンネルの動画です。原題を掲載しています。詳細は公開元をご覧ください。">稲葉曇官方频道发布的视频。标题保留原文，详情请查看原始发布。</p></div><a class="update-link" href="https://www.youtube.com/watch?v=b56xjtP6Qac" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" hidden data-creator="nknk" data-source="pixiv" data-year="2023"><span class="update-index" aria-hidden="true">18</span><div class="update-content"><div class="update-meta"><time datetime="2022-12-31T15:16:00.000Z">2023-01-01 00:16 JST</time><span class="update-source">NKNK / pixiv</span></div><h3><a href="https://www.pixiv.net/artworks/104102788" target="_blank" rel="noopener noreferrer">2🐰23</a></h3><p class="update-summary" data-zh="NKNK 本人在 pixiv 发布的插画。此日期为作品发布时间，更多近况请查看作者的 X。" data-en="An illustration published by NKNK on pixiv. This is the work’s publication date; visit X for other news." data-ja="NKNKさんがpixivに投稿した作品です。作品の公開日を掲載しています。その他の近況はXをご覧ください。">NKNK 本人在 pixiv 发布的插画。此日期为作品发布时间，更多近况请查看作者的 X。</p></div><a class="update-link" href="https://www.pixiv.net/artworks/104102788" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" hidden data-creator="nknk" data-source="pixiv" data-year="2022"><span class="update-index" aria-hidden="true">19</span><div class="update-content"><div class="update-meta"><time datetime="2022-05-21T10:27:00.000Z">2022-05-21 19:27 JST</time><span class="update-source">NKNK / pixiv</span></div><h3><a href="https://www.pixiv.net/artworks/98500311" target="_blank" rel="noopener noreferrer" lang="ja">ねろ</a></h3><p class="update-summary" data-zh="NKNK 本人在 pixiv 发布的插画。此日期为作品发布时间，更多近况请查看作者的 X。" data-en="An illustration published by NKNK on pixiv. This is the work’s publication date; visit X for other news." data-ja="NKNKさんがpixivに投稿した作品です。作品の公開日を掲載しています。その他の近況はXをご覧ください。">NKNK 本人在 pixiv 发布的插画。此日期为作品发布时间，更多近况请查看作者的 X。</p></div><a class="update-link" href="https://www.pixiv.net/artworks/98500311" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" hidden data-creator="nknk" data-source="pixiv" data-year="2022"><span class="update-index" aria-hidden="true">20</span><div class="update-content"><div class="update-meta"><time datetime="2022-01-01T02:06:00.000Z">2022-01-01 11:06 JST</time><span class="update-source">NKNK / pixiv</span></div><h3><a href="https://www.pixiv.net/artworks/95201538" target="_blank" rel="noopener noreferrer">2🐯22</a></h3><p class="update-summary" data-zh="NKNK 本人在 pixiv 发布的插画。此日期为作品发布时间，更多近况请查看作者的 X。" data-en="An illustration published by NKNK on pixiv. This is the work’s publication date; visit X for other news." data-ja="NKNKさんがpixivに投稿した作品です。作品の公開日を掲載しています。その他の近況はXをご覧ください。">NKNK 本人在 pixiv 发布的插画。此日期为作品发布时间，更多近况请查看作者的 X。</p></div><a class="update-link" href="https://www.pixiv.net/artworks/95201538" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" hidden data-creator="nknk" data-source="pixiv" data-year="2021"><span class="update-index" aria-hidden="true">21</span><div class="update-content"><div class="update-meta"><time datetime="2021-08-09T04:19:00.000Z">2021-08-09 13:19 JST</time><span class="update-source">NKNK / pixiv</span></div><h3><a href="https://www.pixiv.net/artworks/91839952" target="_blank" rel="noopener noreferrer">⚡︎</a></h3><p class="update-summary" data-zh="NKNK 本人在 pixiv 发布的插画。此日期为作品发布时间，更多近况请查看作者的 X。" data-en="An illustration published by NKNK on pixiv. This is the work’s publication date; visit X for other news." data-ja="NKNKさんがpixivに投稿した作品です。作品の公開日を掲載しています。その他の近況はXをご覧ください。">NKNK 本人在 pixiv 发布的插画。此日期为作品发布时间，更多近况请查看作者的 X。</p></div><a class="update-link" href="https://www.pixiv.net/artworks/91839952" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" hidden data-creator="nknk" data-source="pixiv" data-year="2021"><span class="update-index" aria-hidden="true">22</span><div class="update-content"><div class="update-meta"><time datetime="2021-06-12T02:08:00.000Z">2021-06-12 11:08 JST</time><span class="update-source">NKNK / pixiv</span></div><h3><a href="https://www.pixiv.net/artworks/90494439" target="_blank" rel="noopener noreferrer">^_^</a></h3><p class="update-summary" data-zh="NKNK 本人在 pixiv 发布的插画。此日期为作品发布时间，更多近况请查看作者的 X。" data-en="An illustration published by NKNK on pixiv. This is the work’s publication date; visit X for other news." data-ja="NKNKさんがpixivに投稿した作品です。作品の公開日を掲載しています。その他の近況はXをご覧ください。">NKNK 本人在 pixiv 发布的插画。此日期为作品发布时间，更多近况请查看作者的 X。</p></div><a class="update-link" href="https://www.pixiv.net/artworks/90494439" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" hidden data-creator="nknk" data-source="pixiv" data-year="2021"><span class="update-index" aria-hidden="true">23</span><div class="update-content"><div class="update-meta"><time datetime="2021-04-29T03:48:00.000Z">2021-04-29 12:48 JST</time><span class="update-source">NKNK / pixiv</span></div><h3><a href="https://www.pixiv.net/artworks/89463497" target="_blank" rel="noopener noreferrer" lang="ja">たい焼きを追加</a></h3><p class="update-summary" data-zh="NKNK 本人在 pixiv 发布的插画。此日期为作品发布时间，更多近况请查看作者的 X。" data-en="An illustration published by NKNK on pixiv. This is the work’s publication date; visit X for other news." data-ja="NKNKさんがpixivに投稿した作品です。作品の公開日を掲載しています。その他の近況はXをご覧ください。">NKNK 本人在 pixiv 发布的插画。此日期为作品发布时间，更多近况请查看作者的 X。</p></div><a class="update-link" href="https://www.pixiv.net/artworks/89463497" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" hidden data-creator="nknk" data-source="pixiv" data-year="2021"><span class="update-index" aria-hidden="true">24</span><div class="update-content"><div class="update-meta"><time datetime="2021-01-02T23:12:00.000Z">2021-01-03 08:12 JST</time><span class="update-source">NKNK / pixiv</span></div><h3><a href="https://www.pixiv.net/artworks/86778614" target="_blank" rel="noopener noreferrer">2021</a></h3><p class="update-summary" data-zh="NKNK 本人在 pixiv 发布的插画。此日期为作品发布时间，更多近况请查看作者的 X。" data-en="An illustration published by NKNK on pixiv. This is the work’s publication date; visit X for other news." data-ja="NKNKさんがpixivに投稿した作品です。作品の公開日を掲載しています。その他の近況はXをご覧ください。">NKNK 本人在 pixiv 发布的插画。此日期为作品发布时间，更多近况请查看作者的 X。</p></div><a class="update-link" href="https://www.pixiv.net/artworks/86778614" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" hidden data-creator="nknk" data-source="pixiv" data-year="2020"><span class="update-index" aria-hidden="true">25</span><div class="update-content"><div class="update-meta"><time datetime="2020-12-08T08:37:00.000Z">2020-12-08 17:37 JST</time><span class="update-source">NKNK / pixiv</span></div><h3><a href="https://www.pixiv.net/artworks/86173613" target="_blank" rel="noopener noreferrer">🩹🐇🍰</a></h3><p class="update-summary" data-zh="NKNK 本人在 pixiv 发布的插画。此日期为作品发布时间，更多近况请查看作者的 X。" data-en="An illustration published by NKNK on pixiv. This is the work’s publication date; visit X for other news." data-ja="NKNKさんがpixivに投稿した作品です。作品の公開日を掲載しています。その他の近況はXをご覧ください。">NKNK 本人在 pixiv 发布的插画。此日期为作品发布时间，更多近况请查看作者的 X。</p></div><a class="update-link" href="https://www.pixiv.net/artworks/86173613" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" hidden data-creator="nknk" data-source="pixiv" data-year="2020"><span class="update-index" aria-hidden="true">26</span><div class="update-content"><div class="update-meta"><time datetime="2020-07-19T12:35:00.000Z">2020-07-19 21:35 JST</time><span class="update-source">NKNK / pixiv</span></div><h3><a href="https://www.pixiv.net/artworks/83083558" target="_blank" rel="noopener noreferrer" lang="ja">U3U3うさ</a></h3><p class="update-summary" data-zh="NKNK 本人在 pixiv 发布的插画。此日期为作品发布时间，更多近况请查看作者的 X。" data-en="An illustration published by NKNK on pixiv. This is the work’s publication date; visit X for other news." data-ja="NKNKさんがpixivに投稿した作品です。作品の公開日を掲載しています。その他の近況はXをご覧ください。">NKNK 本人在 pixiv 发布的插画。此日期为作品发布时间，更多近况请查看作者的 X。</p></div><a class="update-link" href="https://www.pixiv.net/artworks/83083558" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" hidden data-creator="nknk" data-source="pixiv" data-year="2020"><span class="update-index" aria-hidden="true">27</span><div class="update-content"><div class="update-meta"><time datetime="2020-06-10T09:46:00.000Z">2020-06-10 18:46 JST</time><span class="update-source">NKNK / pixiv</span></div><h3><a href="https://www.pixiv.net/artworks/82226870" target="_blank" rel="noopener noreferrer" lang="ja">Ɩ  ̶̅ゃ</a></h3><p class="update-summary" data-zh="NKNK 本人在 pixiv 发布的插画。此日期为作品发布时间，更多近况请查看作者的 X。" data-en="An illustration published by NKNK on pixiv. This is the work’s publication date; visit X for other news." data-ja="NKNKさんがpixivに投稿した作品です。作品の公開日を掲載しています。その他の近況はXをご覧ください。">NKNK 本人在 pixiv 发布的插画。此日期为作品发布时间，更多近况请查看作者的 X。</p></div><a class="update-link" href="https://www.pixiv.net/artworks/82226870" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" hidden data-creator="nknk" data-source="pixiv" data-year="2020"><span class="update-index" aria-hidden="true">28</span><div class="update-content"><div class="update-meta"><time datetime="2020-05-31T10:32:00.000Z">2020-05-31 19:32 JST</time><span class="update-source">NKNK / pixiv</span></div><h3><a href="https://www.pixiv.net/artworks/81994738" target="_blank" rel="noopener noreferrer" lang="ja">ぞ</a></h3><p class="update-summary" data-zh="NKNK 本人在 pixiv 发布的插画。此日期为作品发布时间，更多近况请查看作者的 X。" data-en="An illustration published by NKNK on pixiv. This is the work’s publication date; visit X for other news." data-ja="NKNKさんがpixivに投稿した作品です。作品の公開日を掲載しています。その他の近況はXをご覧ください。">NKNK 本人在 pixiv 发布的插画。此日期为作品发布时间，更多近况请查看作者的 X。</p></div><a class="update-link" href="https://www.pixiv.net/artworks/81994738" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+<article class="update-item" hidden data-creator="nknk" data-source="pixiv" data-year="2020"><span class="update-index" aria-hidden="true">29</span><div class="update-content"><div class="update-meta"><time datetime="2020-03-19T09:30:00.000Z">2020-03-19 18:30 JST</time><span class="update-source">NKNK / pixiv</span></div><h3><a href="https://www.pixiv.net/artworks/80220756" target="_blank" rel="noopener noreferrer" lang="ja">モチモチ</a></h3><p class="update-summary" data-zh="NKNK 本人在 pixiv 发布的插画。此日期为作品发布时间，更多近况请查看作者的 X。" data-en="An illustration published by NKNK on pixiv. This is the work’s publication date; visit X for other news." data-ja="NKNKさんがpixivに投稿した作品です。作品の公開日を掲載しています。その他の近況はXをご覧ください。">NKNK 本人在 pixiv 发布的插画。此日期为作品发布时间，更多近况请查看作者的 X。</p></div><a class="update-link" href="https://www.pixiv.net/artworks/80220756" target="_blank" rel="noopener noreferrer" data-zh="查看原文 ↗" data-en="View original ↗" data-ja="公開元を見る ↗">查看原文 ↗</a></article>
+</div>
+<p id="home-updates-empty" class="home-updates-note" data-zh="没有符合筛选条件的动态，试试其他创作者、来源或年份。" data-en="No updates match these filters. Try another creator, source or year." data-ja="条件に合う更新はありません。作者・公開元・年を変えてみてください。" hidden>没有符合筛选条件的动态，试试其他创作者、来源或年份。</p>
+<a id="home-updates-more" href="updates.html#feed-title" data-zh="浏览全部作品动态 →" data-en="Browse all work updates →" data-ja="作品の更新をすべて見る →">浏览全部作品动态 →</a>
+<noscript><p class="home-updates-note">这里只展示最近 3 条，全部作品动态可通过上方链接在本站查看。 / Only the latest 3 are shown here. Follow the link above for all work updates. / ここには最新3件を表示しています。すべての更新は上のリンクからご覧ください。</p></noscript>
+<details class="home-updates-sources"><summary data-zh="来源与核对时间" data-en="Sources and check times" data-ja="取得元と確認日時">来源与核对时间</summary><div class="home-updates-status">
+<article class="source-status" data-state="ok" data-source="youtube" data-checked-at="2026-10-22T17:41:34.891Z"><h3>稲葉曇 · YouTube</h3><p><span data-zh="上次成功检查" data-en="Last successful check" data-ja="最終確認">上次成功检查</span> <time datetime="2026-10-22T17:41:34.891Z">2026-10-23 02:41 JST</time></p><p class="source-stale" hidden><span data-zh="超过 72 小时未成功检查，内容可能尚未更新。" data-en="No successful check in over 72 hours. New posts may be missing." data-ja="72時間以上確認できていないため、新しい投稿が未掲載の可能性があります。">超过 72 小时未成功检查，内容可能尚未更新。</span> <a href="https://www.youtube.com/@inabakumori" target="_blank" rel="noopener noreferrer">YouTube ↗</a></p></article>
+<article class="source-status" data-state="ok" data-source="pixiv" data-checked-at="2026-10-22T17:41:34.891Z"><h3>NKNK · pixiv</h3><p><span data-zh="上次成功检查" data-en="Last successful check" data-ja="最終確認">上次成功检查</span> <time datetime="2026-10-22T17:41:34.891Z">2026-10-23 02:41 JST</time></p><p class="source-stale" hidden><span data-zh="超过 72 小时未成功检查，内容可能尚未更新。" data-en="No successful check in over 72 hours. New posts may be missing." data-ja="72時間以上確認できていないため、新しい投稿が未掲載の可能性があります。">超过 72 小时未成功检查，内容可能尚未更新。</span> <a href="https://www.pixiv.net/users/27327959" target="_blank" rel="noopener noreferrer">pixiv ↗</a></p></article>
+<article class="source-status" data-state="ok" data-source="campfire" data-checked-at="2026-10-22T17:41:34.891Z"><h3>NKNK · CAMPFIRE Creation</h3><p><span data-zh="上次成功检查" data-en="Last successful check" data-ja="最終確認">上次成功检查</span> <time datetime="2026-10-22T17:41:34.891Z">2026-10-23 02:41 JST</time></p><p class="source-stale" hidden><span data-zh="超过 72 小时未成功检查，内容可能尚未更新。" data-en="No successful check in over 72 hours. New posts may be missing." data-ja="72時間以上確認できていないため、新しい投稿が未掲載の可能性があります。">超过 72 小时未成功检查，内容可能尚未更新。</span> <a href="https://camp-fire.jp/projects/970332/view/activities" target="_blank" rel="noopener noreferrer">CAMPFIRE Creation ↗</a></p></article>
+</div></details>
+</details>
+</div>
+</section>
+
+<section id="about" aria-labelledby="about-title">
+<div class="site-about" id="site-about">
+<h2 id="about-title" data-zh="关于" data-ja="このサイトについて" data-en="ABOUT">关于</h2>
+<p data-en="A website made because I really love Inabakumori. Here you’ll find playlists, album information, and materials I’ve gathered. It may not be professional, but everything here was put together with care." data-zh="一个因为太喜欢稲葉曇所以做出来的网站。这里包含一些歌单、专辑信息和我找到的资料。内容不一定专业，但都是我认真整理的。" data-ja="稲葉曇さんが大好きで作ったファンサイトです。楽曲やアルバムの情報、集めた資料を紹介しています。専門的な内容ではありませんが、一つひとつ丁寧にまとめました。">
+                一个因为太喜欢稲葉曇所以做出来的网站。
+                这里包含一些歌单、专辑信息和我找到的资料。
+                内容不一定专业，但都是我认真整理的。
+            </p>
+</div>
+
+<div class="related-directory" aria-labelledby="related-links-title">
+<h2 id="related-links-title" data-en="RELATED LINKS" data-zh="相关链接" data-ja="関連リンク">
+                相关链接
+            </h2>
+<p class="links-intro" data-zh="以下链接均来自本站已收录或公开可查的稲葉曇相关入口，已去重并按类别整理；MV 单曲请见下方歌曲列表。" data-en="Below are Inabakumori-related links collected on this site or publicly available, grouped by category. Individual MVs are listed in the Songs section." data-ja="以下は、本サイトで既に掲載しているか、一般に公開されている稲葉曇さんの関連リンクを重複なく分類したものです。個別のMVは下の楽曲一覧をご覧ください。">
+                以下链接均来自本站已收录或公开可查的稲葉曇相关入口，已去重并按类别整理；MV 单曲请见下方歌曲列表。
+            </p>
+<div class="artist-links">
+<div class="link-subheading link-subheading-first" data-zh="音乐" data-ja="音楽" data-en="MUSIC">音乐</div>
+<a href="https://www.youtube.com/@inabakumori" rel="noopener noreferrer" target="_blank">
+<img alt="" loading="lazy" decoding="async" width="40" height="40" src="images/youtube.png?v=3"/><span>YouTube</span></a>
+<a href="https://www.nicovideo.jp/user/42833430" rel="noopener noreferrer" target="_blank">
+<img alt="" loading="lazy" decoding="async" width="40" height="40" src="images/niconico.png?v=3"/><span>Niconico</span></a>
+<a href="https://space.bilibili.com/26040194" rel="noopener noreferrer" target="_blank">
+<img alt="" loading="lazy" decoding="async" width="40" height="40" src="images/bilibili.png?v=3"/><span>Bilibili</span></a>
+<div class="link-subheading" data-zh="社交" data-ja="SNS" data-en="SOCIAL">社交</div>
+<a href="https://twitter.com/inabakumori" rel="noopener noreferrer" target="_blank">
+<img alt="" loading="lazy" decoding="async" width="40" height="40" src="images/X.png?v=3"/><span>X / Twitter</span></a>
+<a href="https://www.instagram.com/inabakumori/" rel="noopener noreferrer" target="_blank">
+<img alt="" loading="lazy" decoding="async" width="40" height="40" src="images/instagram.png?v=3"/><span>Instagram</span></a>
+<a href="https://www.tiktok.com/@inabakumori" rel="noopener noreferrer" target="_blank">
+<img alt="" loading="lazy" decoding="async" width="40" height="40" src="images/tiktok.png?v=3"/><span>TikTok</span></a>
+<a href="https://www.pixiv.net/users/16662832" rel="noopener noreferrer" target="_blank">
+<img alt="" loading="lazy" decoding="async" width="40" height="40" src="images/pixiv.png?v=3"/><span>Pixiv</span></a>
+<div class="link-subheading" data-zh="资料" data-ja="資料" data-en="REFERENCES">资料</div>
+<a
+    class="knowledge-link"
+    href="https://zh.wikipedia.org/wiki/稻叶昙"
+    data-href-zh="https://zh.wikipedia.org/wiki/稻叶昙"
+    data-href-en="https://en.wikipedia.org/wiki/Inabakumori"
+    data-href-ja="https://ja.wikipedia.org/wiki/%E7%A8%B2%E8%91%89%E6%9B%87"
+    target="_blank"
+    rel="noopener noreferrer"
+>
+    <img loading="lazy" decoding="async" src="images/wikipedia.png?v=3" alt="" width="40" height="40"><span>Wikipedia</span></a>
+<a class="knowledge-link" href="https://inabakumori.fandom.com/wiki/Inabakumori_Wiki" rel="noopener noreferrer" target="_blank">
+    <img loading="lazy" decoding="async" src="images/fandom.png?v=3" alt="" width="48" height="48"><span>Inabakumori Wiki</span></a>
+<a class="knowledge-link" href="https://vocaloid.fandom.com/wiki/Inabakumori" rel="noopener noreferrer" target="_blank">
+    <img loading="lazy" decoding="async" src="images/fandom.png?v=3" alt="" width="48" height="48"><span>VOCALOID Wiki</span></a>
+</div>
+</div>
+</section>
+<section id="artwork" aria-labelledby="artwork-title">
+<p class="section-kicker">03 / THE ARTWORK</p>
+<h2 id="artwork-title" data-zh="NKNK" data-en="Nukunuku Nigirimeshi" data-ja="ぬくぬくにぎりめし">NKNK</h2>
+<p class="artwork-intro" data-zh="别忘了还有ぬくぬくにぎりめし" data-en="Don’t forget ぬくぬくにぎりめし, too." data-ja="ぬくぬくにぎりめしさんもお忘れなく。">别忘了还有ぬくぬくにぎりめし</p>
+<div id="nknk-gallery" class="nknk-gallery" role="group" aria-label="NKNK 插画库"></div>
+<div class="artwork-links">
+<a class="artwork-link" href="https://twitter.com/NKNK_NGRMS" target="_blank" rel="noopener noreferrer"><img loading="lazy" decoding="async" src="images/X.png?v=3" alt="" width="36" height="36"><span><strong>X / Twitter</strong><span  data-zh="插画与最新动态" data-en="Artwork and latest updates" data-ja="イラスト・最新情報">插画与最新动态</span>
+ </span><span aria-hidden="true">↗</span></a>
+<a class="artwork-link" href="https://www.pixiv.net/users/27327959" target="_blank" rel="noopener noreferrer"><img loading="lazy" decoding="async" src="images/pixiv.png?v=3" alt="" width="36" height="36"><span><strong>pixiv</strong><span  data-zh="浏览作者作品" data-en="Explore the artist’s work" data-ja="作品を見る">浏览作者作品</span>
+ </span><span aria-hidden="true">↗</span></a>
+</div>
+</section>
+<section id="songs" aria-labelledby="songs-title">
+<p class="section-kicker">04 / THE DISCOGRAPHY</p>
+<div class="songs-heading">
+    <h2 id="songs-title" data-zh="歌曲" data-ja="楽曲" data-en="SONGS">歌曲</h2>
+    <button id="random-song-button" type="button"
+        data-zh="随机一首" data-ja="ランダム再生" data-en="Random Song">随机一首</button>
+</div>
+
+<div class="tag-filter-panel" id="tag-filter-panel">
+
+
+    <div class="tag-filter-row">
+
+        <label
+            class="tag-filter-label"
+            data-en="SEARCH"
+            data-zh="歌曲搜索" data-ja="楽曲検索"
+            for="tag-filter-input"
+        >
+            歌曲搜索
+        </label>
+
+        <input
+            id="tag-filter-input"
+            type="search"
+            maxlength="200"
+            aria-describedby="search-help"
+            aria-controls="song-list"
+            autocomplete="off"
+            autocapitalize="off"
+            autocorrect="off"
+            inputmode="search"
+            enterkeyhint="search"
+            spellcheck="false"
+            placeholder="搜索歌名或 TAG，例如：ラグ / 歌爱 / yuki"
+        >
+
+        <button
+            class="tag-clear-button"
+            id="tag-filter-clear"
+            type="button"
+            data-en="Clear"
+            data-zh="清空" data-ja="クリア"
+        >
+            清空
+        </button>
+
+    </div>
+
+    <p id="search-help" class="tag-filter-help"
+        data-zh="支持歌名和标签模糊搜索。多个关键词用逗号分隔，匹配任意一个即可；加 + 表示必须包含。例如：ラグ, +歌爱。" data-ja="曲名やタグの一部で検索できます。複数のキーワードはカンマで区切り、必須条件には + を付けてください。例：ラグ, +歌愛ユキ。"
+        data-en="Search song titles or tags. Separate keywords with commas to match any; prefix a keyword with + to require it. Example: ラグ, +yuki.">
+        支持歌名和标签模糊搜索。多个关键词用逗号分隔，匹配任意一个即可；加 + 表示必须包含。例如：ラグ, +歌爱。
+    </p>
+
+    
+    <div
+        id="tag-suggestions"
+        class="tag-suggestions"
+        aria-label="Available tags"
+    ></div>
+
+    <div class="library-toolbar">
+      <div class="sort-control"><label for="song-sort" data-zh="排序" data-en="Sort" data-ja="並び順">排序</label>
+      <select id="song-sort">
+        <option value="original" data-zh="收录顺序" data-en="Archive order" data-ja="収録順">收录顺序</option>
+        <option value="popular" data-zh="播放量优先" data-en="Most viewed" data-ja="再生回数順">播放量优先</option>
+        <option value="title" data-zh="歌曲名称" data-en="Song title" data-ja="曲名順">歌曲名称</option>
+      </select></div>
+      <button id="favorites-filter" class="tag-clear-button" type="button" aria-pressed="false" data-zh="只看收藏" data-en="Favorites" data-ja="お気に入り">只看收藏</button>
+      <button id="share-search" class="tag-clear-button" type="button" data-zh="复制筛选链接" data-en="Copy filter link" data-ja="絞り込みリンクをコピー">复制筛选链接</button>
+    </div>
+    <div class="tag-filter-status">
+        <span id="tag-result-count" role="status" aria-live="polite"></span><span id="library-status" role="status" aria-live="polite"></span>
+    </div>
+
+</div>
+
+<div
+    class="tag-empty-state"
+    id="tag-empty-state"
+    hidden
+    data-zh="没有找到符合歌名和标签条件的歌曲。" data-ja="条件に一致する楽曲が見つかりませんでした。"
+    data-en="No songs match the title and tag filters."
+>
+    没有找到符合歌名和标签条件的歌曲。
+</div>
+<div class="song-library">
+  <a class="skip-link" href="#messages" data-zh="跳过歌曲列表" data-en="Skip the song list" data-ja="楽曲一覧をスキップ">跳过歌曲列表</a>
+<div class="song-scroll song-list" id="song-list"><a href="https://youtu.be/2_93SNGYgYs" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="アンチサイクロン">01　アンチサイクロン</a>
+<a href="https://youtu.be/DeKLpgzh-qQ" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="ロストアンブレラ">02　ロストアンブレラ</a>
+<a href="https://youtu.be/M8ZGGCqJduU" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="パスカルビーツ">03　パスカルビーツ</a>
+<a href="https://youtu.be/r8Lrrx6TMMY" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="クーラーガール">04　クーラーガール</a>
+<a href="https://youtu.be/ffGcA4Kj-rk" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="ループスピナ">05　ループスピナ</a>
+<a href="https://youtu.be/vyfNM-tIfiw" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="ナミダ電波">06　ナミダ電波</a>
+<a href="https://youtu.be/3NWuC2UF0u0" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="ツクリカケノ心象">07　ツクリカケノ心象</a>
+<a href="https://youtu.be/Jhw7Hum-eLw" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="浮遊月光街">08　浮遊月光街</a>
+<a href="https://youtu.be/lYtZ5oMs3_8" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="絶体暗星">09　絶体暗星</a>
+<a href="https://youtu.be/e5d-DvD55OI" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="渦巻ハナビ">10　渦巻ハナビ</a>
+<a href="https://youtu.be/MZvTr20tkro" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="うつしあそび">11　うつしあそび</a>
+<a href="https://youtu.be/n8O_gZ0Ebbs" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="さかさま少女感">12　さかさま少女感</a>
+<a href="https://youtu.be/-5T-L0b43no" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="ノンユース">13　ノンユース</a>
+<a href="https://youtu.be/sXc204xHj8g" target="_blank" rel="noopener noreferrer" data-album="ANTICYCLONE" data-song-title="秘密音楽">14　秘密音楽</a>
+<a href="https://youtu.be/wdUCRDvFv3Q" target="_blank" rel="noopener noreferrer" data-album="WEATHER STATION" data-song-title="ひみつの小学生">15　ひみつの小学生</a>
+<a href="https://youtu.be/g6sYNwl1EWg" target="_blank" rel="noopener noreferrer" data-album="WEATHER STATION" data-song-title="ハローマリーナ">16　ハローマリーナ</a>
+<a href="https://youtu.be/G5hScSFkib4" target="_blank" rel="noopener noreferrer" data-album="WEATHER STATION" data-song-title="レイニーブーツ">17　レイニーブーツ</a>
+<a href="https://youtu.be/UnIhRpIT7nc" target="_blank" rel="noopener noreferrer" data-album="WEATHER STATION" data-song-title="ラグトレイン">18　ラグトレイン</a>
+<a href="https://youtu.be/mFih47l1pVI" target="_blank" rel="noopener noreferrer" data-album="WEATHER STATION" data-song-title="ハルノ寂寞">19　ハルノ寂寞</a>
+<a href="https://youtu.be/FRFgNWBAa8k" target="_blank" rel="noopener noreferrer" data-album="WEATHER STATION" data-song-title="カゼマチグサ (album ver.)">20　カゼマチグサ (album ver.)</a>
+<a href="https://youtu.be/xyrUvwVpDRI" target="_blank" rel="noopener noreferrer" data-album="WEATHER STATION" data-song-title="レーダー">21　レーダー</a>
+<a href="https://youtu.be/n9xlE973OMs" target="_blank" rel="noopener noreferrer" data-album="WEATHER STATION" data-song-title="かたむすび">22　かたむすび</a>
+<a href="https://youtu.be/1_8pQVYJtwQ" target="_blank" rel="noopener noreferrer" data-album="WEATHER STATION" data-song-title="天泣">23　天泣</a>
+<a href="https://youtu.be/kYwB-kZyNU4" target="_blank" rel="noopener noreferrer" data-album="WEATHER STATION" data-song-title="ポストシェルター">24　ポストシェルター</a>
+<a href="https://youtu.be/3NLsyjOH92k" target="_blank" rel="noopener noreferrer" data-album="WEATHER STATION" data-song-title="きみに回帰線">25　きみに回帰線</a>
+<a href="https://youtu.be/8Rq6dVpEUS4" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="とこしずめ">26　とこしずめ</a>
+<a href="https://youtu.be/xn4qndSd3vs" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="シンクタンク">27　シンクタンク</a>
+<a href="https://youtu.be/NRQRC_0ZQ00" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="フロートプレイ">28　フロートプレイ</a>
+<a href="https://youtu.be/o14pj9CsNVY" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="期待通り">29　期待通り</a>
+<a href="https://youtu.be/b56xjtP6Qac" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="リレイアウター">30　リレイアウター</a>
+<a href="https://youtu.be/Imcr7rsBxsc" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="電気予報">31　電気予報</a>
+<a href="https://youtu.be/uZdnPgDaOpk" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="余裕欲">32　余裕欲</a>
+<a href="https://youtu.be/EEk4JGzqoFg" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="私は雨">33　私は雨</a>
+<a href="https://youtu.be/9x7t1s4xMw4" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="アイペース">34　アイペース</a>
+<a href="https://youtu.be/IJN0piNZhBE" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="超深淵帯">35　超深淵帯</a>
+<a href="https://youtu.be/1nZwWpHF0mQ" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="春難色">36　春難色</a>
+<a href="https://youtu.be/2r4W_LoVFxA" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="ユレール">37　ユレール</a>
+<a href="https://youtu.be/STBoCK69vVQ" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="スポットレイト">38　スポットレイト</a>
+<a href="https://youtu.be/L38M7qK1Yv4" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="たびのまえ、たびのあと (tabitabi Remix)">39　たびのまえ、たびのあと (tabitabi Remix)</a>
+<a href="https://youtu.be/io5HEdBNqWk" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="あいたい星人 (大気圏外 Remix)">40　あいたい星人 (大気圏外 Remix)</a>
+<a href="https://youtu.be/v03uVgQZOOM" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="僕のサイノウ (稲葉曇 Arrange)">41　僕のサイノウ (稲葉曇 Arrange)</a>
+<a href="https://youtu.be/KK9nXYdmkiM" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="かにだいすき">42　かにだいすき</a>
+<a href="https://youtu.be/QpKaP3oGBXE" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="もち">43　もち</a>
+<a href="https://youtu.be/Vb-z6AR-2F0" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="ダンスロボットダンス (MVアレンジメドレー)">44　ダンスロボットダンス (MVアレンジメドレー)</a>
+<a href="https://youtu.be/17xSzYLQVKQ" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="おはようオーパーツ (稲葉曇 Cover)">45　おはようオーパーツ (稲葉曇 Cover)</a>
+<a href="https://youtu.be/42P4ritVHjE" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="失敗作少女 (稲葉曇 Remix)">46　失敗作少女 (稲葉曇 Remix)</a>
+<a href="https://youtu.be/dmG60q44PJQ" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="篝火 (稲葉曇 Remix)">47　篝火 (稲葉曇 Remix)</a>
+<a href="https://youtu.be/LqlD2Btv0KI" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="ラストリヴ">48　ラストリヴ</a>
+<a href="https://youtu.be/KLxigReVbk8" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="忘れん坊の猫かぶり">49　忘れん坊の猫かぶり</a>
+<a href="https://youtu.be/vnJE7k9Wiag" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="ロールレスウエポン (稲葉曇×Neru)">50　ロールレスウエポン (稲葉曇×Neru)</a>
+<a href="https://youtu.be/PJo89L-_l3s" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="ノンユース (Original Version)">51　ノンユース (Original Version)</a>
+<a href="https://youtu.be/DXngar-Nl6g" target="_blank" rel="noopener noreferrer" data-album="SINGLES" data-song-title="紗痲 (稲葉曇 Cover)">52　紗痲 (稲葉曇 Cover)</a></div>
+</div>
+<noscript><p>启用 JavaScript 可使用搜索、收藏和账号功能。 / Enable JavaScript for search, favorites and accounts. / 検索・お気に入り・アカウント機能を使うには JavaScript を有効にしてください。</p></noscript>
+</section>
+
+
+<section id="messages" aria-labelledby="messages-title">
+<p class="section-kicker">05 / LETTERS IN THE RAIN</p>
+<h2 id="messages-title" data-en="MESSAGE WALL" data-zh="留言墙" data-ja="メッセージウォール">
+        留言墙
+    </h2>
+<p class="message-intro" data-en="Leave a message for Inabakumori." data-zh="写下你想对稲葉曇说的话。" data-ja="稲葉曇さんへのメッセージを書いてみましょう。">
+        写下你想对稲葉曇说的话。
+    </p>
+
+<div class="message-load-feedback">
+    <p id="message-load-status" aria-hidden="true"></p>
+    <p id="message-load-announce" class="sr-only" role="status" aria-live="polite"></p>
+    <button id="message-retry" class="tag-clear-button" type="button" hidden
+        data-zh="重新加载" data-ja="再読み込み" data-en="Retry">重新加载</button>
+</div>
+<div class="wall-toolbar"><button type="button" id="wall-mode" class="tag-clear-button" aria-controls="floating-wall" data-zh="静态阅读" data-en="Read as a list" data-ja="一覧で読む">静态阅读</button><span class="wall-note" data-zh="来自喜欢同一片雨的人。" data-en="From people who love the same rain." data-ja="同じ雨が好きな人たちから。">来自喜欢同一片雨的人。</span></div>
+<div id="floating-wall" role="region" aria-label="留言 / Messages" aria-busy="false" tabindex="0"></div>
+
+<div class="message-box">
+<label for="message-name" data-zh="昵称" data-en="Nickname" data-ja="ニックネーム">昵称</label>
+<input id="message-name" name="nickname" maxlength="60" placeholder="你的昵称" type="text" autocomplete="nickname" autocapitalize="off" autocorrect="off" enterkeyhint="send" data-max-code-points="30"/>
+<label for="message-input" data-zh="留言" data-en="Message" data-ja="メッセージ">留言</label>
+<textarea aria-describedby="message-policy message-counter" id="message-input" name="message" maxlength="1000" autocapitalize="off" placeholder="想对稲葉曇说些什么？ / Say something to Inabakumori..." data-max-code-points="500"></textarea>
+<div class="message-meta"><p id="message-policy" data-zh="游客留言保留半年，每小时最多 3 条。请勿发布联系方式或广告。" data-en="Guest messages stay for 6 months, up to 3 per hour. No contact details or ads." data-ja="ゲストの投稿は6か月間保存、1時間に3件まで。連絡先や広告は投稿しないでください。">游客留言保留半年，每小时最多 3 条。请勿发布联系方式或广告。</p><span id="message-counter">0 / 500</span></div>
+<p id="message-submit-status" role="status" aria-live="polite"></p>
+<button type="button" id="message-submit" data-en="Post Message" data-zh="贴到墙上" data-ja="投稿する">
+            贴到墙上
+        </button>
+</div>
+</section>
+<section id="my-comments" aria-labelledby="my-comments-title">
+  <h2 id="my-comments-title" data-zh="我的留言" data-ja="自分のメッセージ" data-en="My Messages">我的留言</h2>
+  <p id="my-comments-status" role="status" aria-live="polite"></p>
+  <button id="my-comments-retry" class="tag-clear-button" type="button" hidden data-zh="重试" data-ja="再試行" data-en="Retry">重试</button>
+  <div id="my-comments-controls" hidden>
+    <ul id="my-comments-list"></ul>
+    <button id="my-comments-more" class="tag-clear-button" type="button" hidden data-zh="加载更多" data-ja="もっと見る" data-en="Load more">加载更多</button>
+  </div>
+</section>
+<section id="admin-comments" aria-labelledby="admin-comments-title" hidden>
+  <h2 id="admin-comments-title" data-zh="留言管理" data-ja="メッセージ管理" data-en="Message moderation">留言管理</h2>
+  <p id="admin-comments-status" role="status" aria-live="polite"></p>
+  <button id="admin-comments-retry" class="tag-clear-button" type="button" hidden data-zh="重试" data-ja="再試行" data-en="Retry">重试</button>
+  <ul id="admin-comments-list"></ul>
+  <button id="admin-comments-more" class="tag-clear-button" type="button" hidden data-zh="加载更多" data-en="Load more" data-ja="もっと見る">加载更多</button>
+</section>
+
+</main>
+
+
+<footer>
+<p class="footer-brand">稲葉曇 / WEATHER OBSERVATION STATION</p>
+<p data-zh="非官方 · 非商业 · 因为喜欢" data-en="Unofficial · Non-commercial · Made out of love" data-ja="非公式 · 非営利 · 好きだから">非官方 · 非商业 · 因为喜欢</p>
+<p data-zh="如果你对这个网站有任何建议、想法、内容补充，或者发现了需要修改的地方，也欢迎联系我。我很乐意听听你的意见，并继续把这个网站做得更好。" data-en="Have any suggestions, ideas, corrections, or something you think could make this website better? I’d be happy to hear from you." data-ja="このサイトへのご意見、ご提案、情報の追加や訂正などがありましたら、お気軽にご連絡ください。皆さまの声を参考に、より良いサイトにしていきたいと思っています。">如果你对这个网站有任何建议、想法、内容补充，或者发现了需要修改的地方，也欢迎联系我。我很乐意听听你的意见，并继续把这个网站做得更好。</p>
+<p data-zh="如果您是相关版权方或权利人，并认为本站中的任何内容需要修改、补充署名或删除，也请联系我，我会尽快进行处理。" data-en="If you are a copyright or rights holder and believe that any material on this website should be corrected, credited differently, or removed, please contact me." data-ja="著作権者・権利者の方で、掲載内容の修正、クレジットの追加・変更、削除をご希望の場合はご連絡ください。できるだけ早く対応いたします。">如果您是相关版权方或权利人，并认为本站中的任何内容需要修改、补充署名或删除，也请联系我，我会尽快进行处理。</p>
+<p>
+    <span data-zh="联系：" data-en="Contact: " data-ja="お問い合わせ：">联系：</span>
+
+    <a
+        class="contact-email"
+        href="mailto:throne-uplift.3b@icloud.com?subject=Inabakumori%20Fan%20Site%20-%20Feedback%20or%20Content%20Inquiry"
+    >
+        <span data-zh="点这里" data-en="here" data-ja="こちら">点这里</span>
+    </a>
+</p>
+</footer>
+
+
+<div id="nknk-lightbox" class="nknk-lightbox" hidden role="dialog" aria-modal="true" aria-label="NKNK illustration">
+<button type="button" id="nknk-lightbox-close" class="nknk-lightbox-close" aria-label="关闭">×</button>
+<button type="button" id="nknk-lightbox-prev" class="nknk-lightbox-nav nknk-lightbox-prev" aria-label="上一张">‹</button>
+<figure class="nknk-lightbox-figure">
+<img id="nknk-lightbox-image" class="nknk-lightbox-image" alt="" width="300" height="300" decoding="async" draggable="false"/>
+<figcaption id="nknk-lightbox-caption" class="nknk-lightbox-caption"></figcaption>
+</figure>
+<button type="button" id="nknk-lightbox-next" class="nknk-lightbox-nav nknk-lightbox-next" aria-label="下一张">›</button>
+</div>
+<div id="easter-egg-overlay" class="easter-egg-overlay" aria-hidden="true">
+    <div class="easter-egg-box" role="dialog" aria-modal="true" aria-labelledby="easter-egg-title">
+        <p class="easter-egg-kicker">SPECIAL WEATHER REPORT · 05</p>
+        <h2 id="easter-egg-title" data-zh="你发现了彩蛋！" data-en="A secret forecast, just for you." data-ja="ひみつの天気を発見！">你发现了彩蛋！</h2>
+        <p class="easter-egg-stars" aria-hidden="true">★ ★ ★ ★ ★</p>
+        <img id="easter-egg-image" alt="随机表情包" width="259" height="224" draggable="false">
+        <button type="button" id="easter-egg-close" data-zh="回到观测站" data-en="Back to the station" data-ja="観測所に戻る">回到观测站</button>
+    </div>
+    <div id="confetti-layer" aria-hidden="true"></div>
+</div>
+
+
+<script src="js/config.js?v=6059cfc2b2b3" defer></script>
+<script src="js/network.js?v=4e20ba042482" defer></script>
+<script src="js/i18n.js?v=e1425966d722" defer></script>
+<script src="js/auth.js?v=feac00fa6ca1" defer></script>
+<script src="js/songs.js?v=21f3fe638a8d" defer></script>
+<script src="js/nknk-gallery.js?v=c6b4e3c7b80e" defer></script>
+<script src="script.js?v=6dbb47daa4b8" defer></script>
+<script src="js/nknk-gallery-ui.js?v=e170c95506d6" defer></script>
+<script src="js/experience.js?v=b9b33996005f" defer></script>
+<script src="js/comments.js?v=b2726c0e6468" defer></script>
+<script src="js/home-updates.js?v=05fc05fefacc" defer></script>
+<script src="js/x-posts-home.js?v=eebfb26181f9" defer></script>
+</body>
+</html>
