@@ -34,7 +34,7 @@
           rows.set(comment.id, row);
         }
         const identity = showIdentity && typeof comment.isGuest === "boolean"
-          ? comment.isGuest ? label(" [游客]", " [Guest]") : label(" [已登录]", " [Signed in]") : "";
+          ? window.siteIdentityLabel?.(comment.isGuest) ?? (comment.isGuest ? label(" [游客]", " [Guest]") : label(" [已登录]", " [Signed in]")) : "";
         row.text.textContent = `${comment.nickname}${identity}：${comment.content}`;
         row.button.textContent = deleting.has(comment.id) ? label("正在删除…", "Deleting…") : label("删除", "Delete");
         // Keep it focusable while the request is pending; remove() already blocks duplicate activation.

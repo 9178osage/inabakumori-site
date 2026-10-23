@@ -553,7 +553,8 @@ function createFloatingMessage(message, startInside = false, deferLayout = false
   let track;
   let animation;
   element.refreshLanguage = (deferLayout = false) => {
-    const identity = message.isGuest === true ? pageText(" [游客]", " [Guest]") : message.isGuest === false ? pageText(" [已登录]", " [Member]") : "";
+    // Same identity label as the "my comments" panel (js/i18n.js siteIdentityLabel), in every site language.
+    const identity = window.siteIdentityLabel?.(message.isGuest, currentLanguage) ?? "";
     element.textContent = (message.nickname || message.name || "Anonymous") + identity + "： " + (message.content || message.text || "");
     if (element.isConnected && !deferLayout) element.refreshLayout();
   };

@@ -112,4 +112,7 @@
   "以下链接均来自本站已收录或公开可查的稲葉曇相关入口，已去重并按类别整理；MV 单曲请见下方歌曲列表。": "以下は、本サイトで既に掲載しているか、一般に公開されている稲葉曇さんの関連リンクを重複なく分類したものです。個別のMVは下の楽曲一覧をご覧ください。"
 };
   window.siteText = (zh, en, language = (window.siteStorage || localStorage).getItem("language") || "zh") => language === "ja" ? (japanese[zh] ?? en ?? zh) : language === "en" ? (en ?? zh) : zh;
+  // One guest/member label for the message wall and the "my comments" panel. Empty when unknown.
+  window.siteIdentityLabel = (isGuest, language) => typeof isGuest !== "boolean" ? ""
+    : isGuest ? window.siteText(" [游客]", " [Guest]", language) : window.siteText(" [已登录]", " [Signed in]", language);
 })();
