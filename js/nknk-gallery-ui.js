@@ -87,7 +87,9 @@
 
     const syncChromeLabels = () => {
       root.setAttribute("aria-label", chromeLabel("gallery"));
-      lightbox.setAttribute("aria-label", altFor(items[lightboxIndex]?.id || 1));
+      // No current item: name the dialog after the gallery instead of borrowing illustration 1's text.
+      const currentItem = items[lightboxIndex];
+      lightbox.setAttribute("aria-label", currentItem ? altFor(currentItem.id) : chromeLabel("gallery"));
       closeBtn?.setAttribute("aria-label", chromeLabel("close"));
       prevBtn?.setAttribute("aria-label", chromeLabel("prev"));
       nextBtn?.setAttribute("aria-label", chromeLabel("next"));
