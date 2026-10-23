@@ -62,7 +62,7 @@ function publicBuild(box) {
 <link rel="canonical" href="https://osagechan.top/"/>
 <script type="application/ld+json">{"@type":"WebSite"}</script>
 <div id="nknk-gallery"></div><div id="nknk-lightbox"></div><section id="updates"></section><a href="#updates">Updates</a>
-${emptyXPostsMeta}<footer><a href="calendar.html">calendar</a></footer>`);
+${emptyXPostsMeta}<div class="station-brand"><a class="station-mark" href="#updates">INABAKUMORI</a><a class="station-calendar" href="calendar.html">calendar</a></div>`);
   box.write("data/creator-updates.json", JSON.stringify({ items: [{ creator: "inabakumori", source: "youtube", publishedAt: "2026-03-08T10:00:07.000Z" }] }));
   box.write("dist/calendar.html", `<meta name="robots" content="noindex, nofollow"/>
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self';"/>

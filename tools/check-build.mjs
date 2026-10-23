@@ -183,8 +183,9 @@ for (const name of sitemapLocations) assert.ok(name === "" || expectedPages.has(
 const calendarHtml = await readFile(path.join(root, "calendar.html"), "utf8");
 assert.match(calendarHtml, /<meta name="robots" content="noindex, nofollow"\/>/u, "Calendar must stay out of search results");
 assert.ok(!sitemapLocations.some(name => /^calendar/u.test(name)), "Calendar must not be listed in the sitemap");
-assert.match(html, /<footer>[\s\S]*href="calendar\.html"[\s\S]*<\/footer>/u, "Homepage footer must link to the calendar");
-assert.doesNotMatch(html.replace(/<footer>[\s\S]*<\/footer>/u, ""), /href="calendar\.html"/u, "Calendar must not appear in the navigation");
+assert.equal([...html.matchAll(/href="calendar\.html"/gu)].length, 1, "Homepage must link to the calendar exactly once");
+assert.match(html, /<div class="station-brand"><a class="station-mark"[^>]*>[\s\S]*?<\/a><a class="station-calendar" href="calendar\.html">/u, "Calendar entry must sit beside the station mark");
+assert.doesNotMatch(html.match(/<nav[\s\S]*?<\/nav>/gu)?.join("") ?? "", /calendar\.html/u, "Calendar must not appear in the navigation");
 const calendarCsp = calendarHtml.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)"/)?.[1];
 assert.ok(calendarCsp && /script-src 'self';/u.test(calendarCsp) && !/unsafe-inline|unsafe-eval/u.test(calendarCsp), "Calendar CSP must stay script-src 'self'");
 assert.doesNotMatch(calendarHtml, /<script(?![^>]*\bsrc=)[^>]*>/u, "Calendar must not use inline scripts");
