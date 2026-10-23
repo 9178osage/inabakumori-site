@@ -179,6 +179,23 @@ assert.equal(sitemapLocations.length, new Set(sitemapLocations).size, "Sitemap m
 assert.ok(sitemapLocations.includes(""), "Sitemap must list the homepage");
 for (const name of expectedPages) assert.ok(sitemapLocations.includes(name), `Sitemap must list archive page: ${name}`);
 for (const name of sitemapLocations) assert.ok(name === "" || expectedPages.has(name) || name === "index.html", `Sitemap lists an unknown page: ${name}`);
+// Hidden calendar: reachable only from the footer icon, kept out of search and the sitemap.
+const calendarHtml = await readFile(path.join(root, "calendar.html"), "utf8");
+assert.match(calendarHtml, /<meta name="robots" content="noindex, nofollow"\/>/u, "Calendar must stay out of search results");
+assert.ok(!sitemapLocations.some(name => /^calendar/u.test(name)), "Calendar must not be listed in the sitemap");
+assert.match(html, /<footer>[\s\S]*href="calendar\.html"[\s\S]*<\/footer>/u, "Homepage footer must link to the calendar");
+assert.doesNotMatch(html.replace(/<footer>[\s\S]*<\/footer>/u, ""), /href="calendar\.html"/u, "Calendar must not appear in the navigation");
+const calendarCsp = calendarHtml.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)"/)?.[1];
+assert.ok(calendarCsp && /script-src 'self';/u.test(calendarCsp) && !/unsafe-inline|unsafe-eval/u.test(calendarCsp), "Calendar CSP must stay script-src 'self'");
+assert.doesNotMatch(calendarHtml, /<script(?![^>]*\bsrc=)[^>]*>/u, "Calendar must not use inline scripts");
+assert.doesNotMatch(calendarHtml, /<!-- CALENDAR:/u, "Calendar sheet must be pre-rendered");
+const creatorUpdates = JSON.parse(await readFile(path.resolve(root, "../data/creator-updates.json"), "utf8"));
+const newestRelease = creatorUpdates.items.filter(item => item.creator === "inabakumori" && item.source === "youtube").map(item => item.publishedAt).sort().at(-1);
+assert.ok(calendarHtml.includes(`data-release="${newestRelease}"`), "Calendar must count from the newest Inabakumori release");
+for (const value of htmlReferences(calendarHtml)) {
+  if (/^(https?:|mailto:|#)/u.test(value)) continue;
+  assert.ok((await stat(distFile(value.split(/[?#]/u)[0]))).isFile(), `Missing calendar asset: ${value}`);
+}
 assert.ok(bytes < 12 * 1024 * 1024, `Public build (excluding archive pages) exceeds 12 MiB: ${bytes}`);
 assert.ok(archiveBytes < 20 * 1024 * 1024, `Archive pages exceed 20 MiB: ${archiveBytes}`);
 console.log(`Public build verified: references, anchors, JS syntax, metadata, pre-rendering, privacy allowlist; ${(bytes / 1024 / 1024).toFixed(2)} MiB + ${(archiveBytes / 1024 / 1024).toFixed(2)} MiB archive pages.`);

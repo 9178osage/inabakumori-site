@@ -27,8 +27,8 @@ await build({ entryPoints: [source("tools/auth-src.js")], bundle: true, platform
 // dist is generated exclusively by this script. Only explicitly public assets are copied.
 await rm(output("dist"), { recursive: true, force: true });
 await mkdir(out, { recursive: true });
-const scripts = ["script.js", ...["preferences", "config", "network", "i18n", "auth", "songs", "nknk-gallery", "nknk-gallery-ui", "experience", "comments", "updates", "home-updates", "x-posts-home"].map(name => `js/${name}.js`)];
-const css = ["style.css", "updates.css", "fonts/fonts.css"];
+const scripts = ["script.js", ...["preferences", "config", "network", "i18n", "auth", "songs", "nknk-gallery", "nknk-gallery-ui", "experience", "comments", "updates", "home-updates", "x-posts-home", "calendar"].map(name => `js/${name}.js`)];
+const css = ["style.css", "updates.css", "calendar.css", "fonts/fonts.css"];
 const hashes = new Map();
 for (const file of [...scripts, ...css]) {
   const text = await readFile(source(file), "utf8");
@@ -160,6 +160,23 @@ for (const creator of ["all", "inabakumori", "nknk"]) {
     archivePages++;
   }
 }
+// Hidden calendar page (noindex, not in the sitemap): days since Inabakumori's newest YouTube
+// song, pre-rendered from the scheduled creator-updates snapshot and recounted daily in js/calendar.js.
+const newestSong = JSON.parse(updatesSource).items.filter(item => item.creator === "inabakumori" && item.source === "youtube")
+  .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))[0];
+if (!newestSong || !Number.isFinite(Date.parse(newestSong.publishedAt))) throw new Error("Calendar needs an Inabakumori YouTube release");
+const japanDay = time => Math.floor((time + 9 * 3_600_000) / 86_400_000);
+const songTitle = /『([^』]+)』/u.exec(newestSong.title)?.[1] ?? newestSong.title;
+const releaseDay = new Date(Date.parse(newestSong.publishedAt) + 9 * 3_600_000).toISOString().slice(0, 10);
+const calendarSheet = `<section class="calendar-stack" aria-labelledby="calendar-sentence"><article class="calendar-sheet" data-release="${escape(newestSong.publishedAt)}">
+<div class="calendar-binding" aria-hidden="true"><span></span><span></span><span></span></div>
+<p class="calendar-date"><span id="calendar-today">${new Date(Date.now() + 9 * 3_600_000).toISOString().slice(0, 10)}</span><span id="calendar-weekday"></span></p>
+<h2 class="calendar-sentence" id="calendar-sentence"><span data-zh="稲葉曇已经" data-en="Inabakumori has gone" data-ja="稲葉曇の新曲から">稲葉曇已经</span> <span class="calendar-days" id="calendar-days">${Math.max(0, japanDay(Date.now()) - japanDay(Date.parse(newestSong.publishedAt)))}</span> <span class="calendar-unit" data-zh="天没有发新歌了" data-en="days without a new song" data-ja="日が経ちました">天没有发新歌了</span></h2>
+<p class="calendar-song"><span data-zh="最新歌曲：" data-en="Latest song: " data-ja="最新曲：">最新歌曲：</span><a href="${escape(newestSong.url)}" lang="ja">${escape(songTitle)}</a><br/><span data-zh="发布于 " data-en="Released " data-ja="公開日 ">发布于 </span><time id="calendar-release" datetime="${escape(newestSong.publishedAt)}">${releaseDay}</time></p>
+</article></section>`;
+let calendarHtml = fillOnce(await readFile(source("calendar.html"), "utf8"), "CALENDAR:SHEET", calendarSheet);
+calendarHtml = calendarHtml.replace(/(src|href)="([^"?]+)(?:\?[^"\s]*)?"/g, (match, attribute, file) => hashes.has(file) ? `${attribute}="${file}?v=${hashes.get(file)}"` : match);
+await writeFile(output("dist/calendar.html"), calendarHtml);
 // The source sitemap lists the hand-maintained pages; every generated archive page is appended
 // with the date its newest post was collected, so search engines can find the paginated history.
 const sitemapSource = await readFile(source("sitemap.xml"), "utf8");

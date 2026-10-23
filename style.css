@@ -2653,3 +2653,10 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
   .song-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; grid-auto-rows: max-content; align-content: start; }
   .song-list .song-row { margin-bottom: 0; }
 }
+
+/* Hidden calendar: a quiet footer icon, no navigation entry. */
+.footer-calendar { margin: 4px auto 0; }
+.footer-calendar a { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; color: inherit; opacity: .45; transition: opacity .2s; }
+.footer-calendar a:focus-visible { opacity: 1; }
+@media (hover: hover) { .footer-calendar a:hover { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .footer-calendar a { transition: none; } }
