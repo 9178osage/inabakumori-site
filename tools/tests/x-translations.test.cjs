@@ -52,3 +52,33 @@ test("translations are applied as text, never parsed as HTML, and empty lines ar
   assert.match(read("style.css"), /\.x-post-translation:empty \{ display: none; \}/);
   assert.doesNotMatch(read("tools/import-x-posts.mjs"), /x-translations/);
 });
+
+// English titles a gist may use: the artist's own English (seen in their posts) or the site's album names.
+// Any other song is named by its Japanese title from js/songs.js, never a made-up romanization.
+const ENGLISH_TITLES = {
+  "ロストアンブレラ": "Lost Umbrella", "ラグトレイン": "Lagtrain", "電気予報": "Denki Yohou", "リレイアウター": "Relayouter",
+  "レイニーブーツ": "Rainy Boots", "ハルノ寂寞": "Haru no Sekibaku", "アンチサイクロン": "ANTICYCLONE", "ウェザーステーション": "WEATHER STATION",
+  "たびのまえ、たびのあと (tabitabi Remix)": "Journey's Prequels, Journey's Traces (tabitabi Remix)"
+};
+const SHORT_FORMS = { "WEATHER STATION": ["ウェザステ"] };
+const KNOWN_WRONG = ["Zettai Ansei", "Yureru", "Spotlight", "Eye Pace", "Hadal Zone", "Harunanshiki’", "I'm the Rain", "Kitai Doori", "Float Play", "Yoyuu Yoku", "Kimi ni Kaikisen", "Weather Station", "Kazehiki"];
+
+test("translations name songs by their real titles and never swap one song for another", async () => {
+  const { readXTranslations } = await import("../x-translations.mjs");
+  const { readXPostsArchive } = await import("../x-posts-data.mjs");
+  const archive = await readXPostsArchive(root);
+  const text = new Map(archive.items.map(item => [item.id, item.text]));
+  const songs = [...read("js/songs.js").matchAll(/"title": "([^"]+)"/g)].map(match => match[1]);
+  for (const [id, { zh, en }] of await readXTranslations(root, archive)) {
+    const source = text.get(id).toLowerCase();
+    for (const wrong of KNOWN_WRONG) assert.ok(!en.includes(wrong), `${id}: “${wrong}” is not an official title`);
+    for (const [ja, english] of Object.entries(ENGLISH_TITLES)) {
+      if (en.includes(english)) assert.ok(source.includes(ja.toLowerCase()) || source.includes(english.toLowerCase()) || (SHORT_FORMS[english] ?? []).some(short => source.includes(short)), `${id}: mentions ${english} but the post does not`);
+    }
+    for (const title of songs) {
+      if (!source.includes(`『${title.toLowerCase()}』`)) continue;
+      assert.ok(zh.includes(title), `${id}: zh should keep 《${title}》`);
+      assert.ok(en.includes(title) || en.includes(ENGLISH_TITLES[title] ?? "\u0000"), `${id}: en should name ${title}`);
+    }
+  }
+});
