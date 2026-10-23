@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { loopbackCspSources } from "./net-guards.mjs";
 import { readXPostsArchive } from "./x-posts-data.mjs";
 import { readXTranslations } from "./x-translations.mjs";
+import { newestSongRelease } from "./calendar-song.mjs";
 import { createHash } from "node:crypto";
 
 // Local references in built HTML: src/href values plus every URL inside srcset candidate lists.
@@ -182,7 +183,8 @@ for (const name of expectedPages) assert.ok(sitemapLocations.includes(name), `Si
 for (const name of sitemapLocations) assert.ok(name === "" || expectedPages.has(name) || name === "index.html", `Sitemap lists an unknown page: ${name}`);
 // Translations: every pre-rendered post with a gist carries exactly one zh/en line (ja shows none).
 const xTranslations = await readXTranslations(path.resolve(root, ".."), xArchive);
-for (const [name, content] of [["index.html", html], ["updates.html", updatesHtml]]) {
+// Every pre-rendered page that shows posts (homepage and each archive page) is checked.
+for (const [name, content] of [["index.html", html], ...await Promise.all([...actualPages].sort().map(async page => [page, page === "updates.html" ? updatesHtml : await readFile(path.join(root, page), "utf8")]))]) {
   for (const match of content.matchAll(/<article class="x-post"[^>]*data-x-post-id="([0-9]+)"[^>]*>([\s\S]*?)<\/article>/gu)) {
     const lines = [...match[2].matchAll(/<p class="x-post-translation" data-zh="([^"]*)" data-en="([^"]*)" data-ja="">/gu)];
     assert.equal(lines.length, xTranslations.has(match[1]) ? 1 : 0, `Translation line mismatch for ${match[1]} in ${name}`);
@@ -200,8 +202,8 @@ assert.ok(calendarCsp && /script-src 'self';/u.test(calendarCsp) && !/unsafe-inl
 assert.doesNotMatch(calendarHtml, /<script(?![^>]*\bsrc=)[^>]*>/u, "Calendar must not use inline scripts");
 assert.doesNotMatch(calendarHtml, /<!-- CALENDAR:/u, "Calendar sheet must be pre-rendered");
 const creatorUpdates = JSON.parse(await readFile(path.resolve(root, "../data/creator-updates.json"), "utf8"));
-const newestRelease = creatorUpdates.items.filter(item => item.creator === "inabakumori" && item.source === "youtube").map(item => item.publishedAt).sort().at(-1);
-assert.ok(calendarHtml.includes(`data-release="${newestRelease}"`), "Calendar must count from the newest Inabakumori release");
+const newestRelease = newestSongRelease(creatorUpdates.items, vm.runInContext("SONGS", songContext))?.item.publishedAt;
+assert.ok(calendarHtml.includes(`data-release="${newestRelease}"`), "Calendar must count from the newest Inabakumori song in js/songs.js");
 for (const value of htmlReferences(calendarHtml)) {
   if (/^(https?:|mailto:|#)/u.test(value)) continue;
   assert.ok((await stat(distFile(value.split(/[?#]/u)[0]))).isFile(), `Missing calendar asset: ${value}`);

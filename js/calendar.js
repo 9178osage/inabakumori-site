@@ -37,6 +37,7 @@
       const stored = storage?.getItem("theme");
       const theme = ["light", "dark"].includes(stored) ? stored : window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
       document.documentElement.dataset.theme = theme;
+      document.querySelectorAll('meta[name="theme-color"]').forEach(meta => meta.setAttribute("content", theme === "dark" ? "#171b1f" : "#c4c4c0"));
       if (themeButton) {
         themeButton.textContent = theme === "dark" ? "☀" : "☾";
         themeButton.setAttribute("aria-label", text("深色主题", "Dark theme", "ダークテーマ"));
@@ -46,6 +47,8 @@
     function applyLanguage() {
       document.documentElement.lang = { zh: "zh-CN", en: "en", ja: "ja" }[language];
       document.title = text("神秘小日历 · 气象观测站", "Secret little calendar · Weather Observation Station", "ひみつの日めくり · 気象観測所");
+      const description = document.querySelector('meta[name="description"]');
+      if (description) description.content = text("气象观测站的神秘小日历。", "The Weather Observation Station's secret little calendar.", "気象観測所のひみつの日めくり。");
       document.querySelectorAll("[data-zh]").forEach(element => { element.textContent = element.dataset[language] ?? element.dataset.zh; });
       document.querySelectorAll("[data-aria-zh]").forEach(element => element.setAttribute("aria-label", element.dataset[`aria${language[0].toUpperCase()}${language.slice(1)}`] || element.dataset.ariaZh));
       if (langButton) {

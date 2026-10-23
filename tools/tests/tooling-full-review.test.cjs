@@ -57,13 +57,13 @@ test("preview refuses allowlisted symlink files, parent directories and linked 4
 
 const emptyXPostsMeta = `<meta name="x-posts-version" content="${require("node:crypto").createHash("sha256").update(JSON.stringify({ version: 1, coverage: [], items: [] })).digest("hex")}"/>`;
 function publicBuild(box) {
-  for (const file of ["tools/check-build.mjs", "tools/net-guards.mjs", "tools/x-posts-data.mjs", "tools/x-translations.mjs", "tools/safe-fs.mjs"]) box.copy(file);
+  for (const file of ["tools/check-build.mjs", "tools/net-guards.mjs", "tools/x-posts-data.mjs", "tools/x-translations.mjs", "tools/calendar-song.mjs", "tools/safe-fs.mjs"]) box.copy(file);
   box.write("dist/index.html", `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://inabakumori-site-production.up.railway.app"/>
 <link rel="canonical" href="https://osagechan.top/"/>
 <script type="application/ld+json">{"@type":"WebSite"}</script>
 <div id="nknk-gallery"></div><div id="nknk-lightbox"></div><section id="updates"></section><a href="#updates">Updates</a>
-${emptyXPostsMeta}<div class="station-brand"><a class="station-mark" href="#updates">INABAKUMORI</a><a class="station-calendar" href="calendar.html">calendar</a></div>`);
-  box.write("data/creator-updates.json", JSON.stringify({ items: [{ creator: "inabakumori", source: "youtube", publishedAt: "2026-03-08T10:00:07.000Z" }] }));
+${emptyXPostsMeta}<div class="station-brand"><a class="station-mark" href="#updates">INABAKUMORI</a><a class="station-calendar" href="calendar.html">calendar</a></div><a data-song-title="ユレール">ユレール</a>`);
+  box.write("data/creator-updates.json", JSON.stringify({ items: [{ creator: "inabakumori", source: "youtube", title: "稲葉曇『ユレール』Vo. 弦巻マキ", publishedAt: "2026-03-08T10:00:07.000Z" }, { creator: "inabakumori", source: "youtube", title: "Live stream", publishedAt: "2026-09-01T10:00:00.000Z" }] }));
   box.write("dist/calendar.html", `<meta name="robots" content="noindex, nofollow"/>
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self';"/>
 <article class="calendar-sheet" data-release="2026-03-08T10:00:07.000Z"></article>`);
@@ -81,7 +81,7 @@ ${emptyXPostsMeta}<div class="station-brand"><a class="station-mark" href="#upda
 <meta property="og:url" content="https://osagechan.top/${name}"/>
 ${emptyXPostsMeta}
 <article class="source-status"></article><article class="source-status"></article><article class="source-status"></article>`);
-  box.write("dist/js/songs.js", "const SONGS = [];\n");
+  box.write("dist/js/songs.js", 'const SONGS = [{ "title": "ユレール" }];\n');
   box.write("dist/js/nknk-gallery.js", 'const NKNK_GALLERY = [{id:1,thumb:"images/picture.webp",full:"images/picture.webp"}];\n');
   box.write("dist/images/picture.webp", "PUBLIC_IMAGE");
 }

@@ -10,6 +10,7 @@ import { renderCreatorUpdates } from "./render-creator-updates.mjs";
 import { readXPostsArchive } from "./x-posts-data.mjs";
 import { readXTranslations } from "./x-translations.mjs";
 import { createXPostsRenderer, xPostsPageUrl, xPostsPageTitle } from "./render-x-posts.mjs";
+import { newestSongRelease } from "./calendar-song.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const out = path.join(root, "dist");
@@ -164,11 +165,11 @@ for (const creator of ["all", "inabakumori", "nknk"]) {
 }
 // Hidden calendar page (noindex, not in the sitemap): days since Inabakumori's newest YouTube
 // song, pre-rendered from the scheduled creator-updates snapshot and recounted daily in js/calendar.js.
-const newestSong = JSON.parse(updatesSource).items.filter(item => item.creator === "inabakumori" && item.source === "youtube")
-  .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))[0];
-if (!newestSong || !Number.isFinite(Date.parse(newestSong.publishedAt))) throw new Error("Calendar needs an Inabakumori YouTube release");
+const newestMatch = newestSongRelease(JSON.parse(updatesSource).items, songs);
+if (!newestMatch) throw new Error("Calendar needs an Inabakumori YouTube release of a song from js/songs.js");
+const newestSong = newestMatch.item;
 const japanDay = time => Math.floor((time + 9 * 3_600_000) / 86_400_000);
-const songTitle = /『([^』]+)』/u.exec(newestSong.title)?.[1] ?? newestSong.title;
+const songTitle = newestMatch.song;
 const releaseDay = new Date(Date.parse(newestSong.publishedAt) + 9 * 3_600_000).toISOString().slice(0, 10);
 const calendarSheet = `<section class="calendar-stack" aria-labelledby="calendar-sentence"><article class="calendar-sheet" data-release="${escape(newestSong.publishedAt)}">
 <div class="calendar-binding" aria-hidden="true"><span></span><span></span><span></span></div>

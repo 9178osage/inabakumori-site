@@ -27,6 +27,7 @@ test("public preview cannot expose source, environment, database or directory li
   const { publicPath } = await import("../static-server.mjs");
   for (const url of ["/backend/.env", "/backend/server.mjs", "/AI_HANDOFF.md", "/docs/AI_HANDOFF.md", "/docs/OPTIMIZATION.md", "/trusted-read-20260929/test.json", "/.git/config", "/node_modules/x.js", "/images/../../backend/.env", "/images/%2e%2e%2fbackend%2f.env", "/images", "/js", "/js/missing.js", "/%E0%A4%A"]) assert.equal(publicPath(url), null, url);
   assert.equal(publicPath("/?q=rain"), "index.html");
+  for (const file of ["calendar.html", "calendar.css", "js/calendar.js"]) assert.equal(publicPath(`/${file}?v=1`), file, file);
   assert.equal(publicPath("/script.js?v=123"), "script.js");
   assert.equal(publicPath("/images/optimized/hero/001.webp"), "images/optimized/hero/001.webp");
   assert.equal(publicPath("/images/optimized/nknk/1.webp"), "images/optimized/nknk/1.webp");
