@@ -39,7 +39,8 @@ jobs:
       - name: Read public creator sources
         id: sources
         # Publish the explicit failure status while keeping the previous entries.
-        # The final report job still fails when any source could not be checked.
+        # The final report job fails only when a source has had no successful check for over 48 hours;
+        # shorter outages are reported as ::warning:: annotations by the script.
         continue-on-error: true
         run: node tools/refresh-creator-updates.mjs
       - run: npm test
@@ -140,5 +141,5 @@ jobs:
     permissions: {}
     steps:
       - run: |
-          echo "::error::One or more official sources could not be read. Previous entries were retained; see source status on the updates page."
+          echo "::error::An official source has not been read successfully for over 48 hours. Previous entries were retained; see source status on the updates page."
           exit 1

@@ -264,3 +264,19 @@ test("a bad title only marks its own source as error and keeps that source's pre
   assert.ok(!JSON.stringify(data).includes("\u202e"));
   assert.doesNotThrow(() => renderCreatorUpdates(data), "the snapshot the refresh writes still builds");
 });
+
+test("only sources failing for over 48 hours count as persistent failures", async () => {
+  const { persistentSourceFailures, FAILURE_GRACE_MS } = await load();
+  assert.equal(FAILURE_GRACE_MS, 48 * 60 * 60 * 1000);
+  const now = "2026-10-20T12:00:00.000Z";
+  const data = { sources: [
+    { id: "youtube", checkedAt: "2026-10-19T12:00:00.000Z" },
+    { id: "pixiv", checkedAt: "2026-10-18T11:59:59.000Z" },
+    { id: "campfire", checkedAt: null }
+  ] };
+  const errors = [{ source: "youtube", message: "a" }, { source: "pixiv", message: "b" }, { source: "campfire", message: "c" }];
+  assert.deepEqual(persistentSourceFailures(data, errors, { now }).map(error => error.source), ["pixiv", "campfire"]);
+  const exactly = { sources: [{ id: "youtube", checkedAt: "2026-10-18T12:00:00.000Z" }] };
+  assert.deepEqual(persistentSourceFailures(exactly, [{ source: "youtube", message: "a" }], { now }), []);
+  assert.deepEqual(persistentSourceFailures(data, [], { now }), []);
+});

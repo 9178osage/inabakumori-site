@@ -303,6 +303,16 @@ export async function writeUpdatesSnapshot(root, data, { renameImpl = rename } =
 // public "last successful check" stays inside STALE_MS without a daily timestamp-only commit.
 export const HEARTBEAT_MS = 36 * 60 * 60 * 1000;
 export const STALE_MS = 72 * 60 * 60 * 1000;
+// A single failed check is routine (platform hiccups); only a source whose last successful
+// check is older than this fails the scheduled job, so a red run means a real, lasting outage.
+export const FAILURE_GRACE_MS = 48 * 60 * 60 * 1000;
+export function persistentSourceFailures(data, errors, { now = new Date().toISOString(), graceMs = FAILURE_GRACE_MS } = {}) {
+  const current = Date.parse(timestamp(now));
+  return errors.filter(error => {
+    const checkedAt = data.sources.find(source => source.id === error.source)?.checkedAt;
+    return !checkedAt || current - Date.parse(checkedAt) > graceMs;
+  });
+}
 const withoutTimes = data => JSON.stringify({ ...data, sources: data.sources.map(({ checkedAt: _checked, lastAttemptAt: _attempt, ...rest }) => rest) });
 export function snapshotNeedsWrite(previous, next, { now = new Date().toISOString(), heartbeatMs = HEARTBEAT_MS } = {}) {
   if (!previous) return true;
@@ -328,8 +338,12 @@ async function main() {
   if (snapshotNeedsWrite(previous, data, { now })) await writeUpdatesSnapshot(ROOT, data);
   else console.log("No update, status or heartbeat change; snapshot left untouched.");
   for (const source of data.sources) console.log(`${source.label}: ${source.status}, ${data.items.filter(item => item.source === source.id).length} retained updates; last successful check ${source.checkedAt || "never"}.`);
-  for (const error of errors) console.error(`${error.source}: ${error.message}`);
-  if (errors.length) process.exitCode = 1;
+  const persistent = new Set(persistentSourceFailures(data, errors, { now }));
+  for (const error of errors) {
+    if (persistent.has(error)) console.error(`::error::${error.source}: ${error.message} (no successful check for over 48 hours)`);
+    else console.log(`::warning::${error.source}: ${error.message} (last successful check is recent; retrying next run)`);
+  }
+  if (persistent.size) process.exitCode = 1;
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch(error => { console.error(error.message); process.exitCode = 1; });
