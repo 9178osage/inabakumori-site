@@ -62,7 +62,11 @@ function publicBuild(box) {
 <link rel="canonical" href="https://osagechan.top/"/>
 <script type="application/ld+json">{"@type":"WebSite"}</script>
 <div id="nknk-gallery"></div><div id="nknk-lightbox"></div><section id="updates"></section><a href="#updates">Updates</a>
-${emptyXPostsMeta}`);
+${emptyXPostsMeta}<footer><a href="calendar.html">calendar</a></footer>`);
+  box.write("data/creator-updates.json", JSON.stringify({ items: [{ creator: "inabakumori", source: "youtube", publishedAt: "2026-03-08T10:00:07.000Z" }] }));
+  box.write("dist/calendar.html", `<meta name="robots" content="noindex, nofollow"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self';"/>
+<article class="calendar-sheet" data-release="2026-03-08T10:00:07.000Z"></article>`);
   box.write("dist/CNAME", "osagechan.top\n"); box.write("dist/site.webmanifest", '{"icons":[]}');
   box.write("dist/sitemap.xml", `<urlset>${["", "updates.html", "updates-inabakumori.html", "updates-nknk.html"].map(name => `<url><loc>https://osagechan.top/${name}</loc></url>`).join("")}</urlset>\n`);
   // An empty X archive (no data/x-posts) still yields one archive page per author filter.
