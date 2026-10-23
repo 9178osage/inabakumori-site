@@ -129,6 +129,8 @@ API 失败时，刷新日志只显示 HTTP 状态及固定白名单中的 Google
 
 导入：把扫描结果写成 `tools/x-posts-data.mjs` 定义的格式（`{version: 1, coverage, items}`，完整正文、`translated: false`），放在不提交的位置（如 `artifacts/`），运行 `node tools/import-x-posts.mjs <scan.json>`。同一 ID 的正文、作者或时间不一致会保留旧值并列为冲突、命令非零退出，需人工核对。原始扫描文件不提交。覆盖范围始终标为 partial，并记录扫描区间与中断原因；原帖发布时间和实际采集时间应保留证据，不把导入时间写成新采集时间。档案第 1 页保留完整作品列表，第 2 页起只放一条回到第 1 页作品列表的链接（`data-works-list-link`），并省去来源核对状态、「关于这份观测记录」和各账号收录范围说明（只保留收录总数和「见第 1 页」提示），以免这些内容随页数重复；check-build 校验。创作者档案与第 2 页起的 `<title>`、`og:title`、description 和 `og:description` 注明创作者与页码（`xPostsPageTitle`，`js/updates.js` 按语言同步）。帖子正文与作品标题只在含假名时标 `lang="ja"`。作品标题的禁用字符（C0/C1 控制符含 CR、双向覆盖字符）定义在 `tools/text-guards.mjs`，刷新与构建共用；刷新遇到这类标题只把该来源标为失败并保留旧条目。档案页单独计入 20 MiB 预算，其余公开文件仍受 12 MiB 限制。本机文本副本（`tools/sync-copy.py`）完整导出已提交的 `manifest.json` 和全部帖子正文分片，索引留在第 1 组（每份 130,000 字节），正文独立归入第 4 组（每份 140 MB），不混进日常代码附件。若 `changes.txt` 超过 130,000 字节，应明确报告并按前文规则取得调整复核基线的授权，`changes.txt` 不含帖子正文分片（`data/x-posts/posts-*.json`）的差异，只在文件开头列出最多 10 个变化的分片名、其余只计数，正文仍完整导出在第 4 组；其余代码差异超限时仍须取得调整复核基线的授权。
 
+帖子译文：`data/x-translations/batch-NNN.json`（`{version: 1, items: {"<帖子 ID>": {zh, en}}}`，每个文件不超过 120,000 字节）存放人工撰写的中文、英文大意，与原文档案分开，导入脚本不读也不写，原文仍为 `translated: false`。构建时 `tools/x-translations.mjs` 校验（只允许 zh/en 两个键、去首尾空白的 1–1000 字、无控制符或双向覆盖字符、无重复 ID、ID 必须已收录），`render-x-posts.mjs` 在正文下方输出 `<p class="x-post-translation" data-zh data-en data-ja="">`，前端按语言用 textContent 替换，日语模式为空并由 `:empty` 隐藏。没有条目的帖子不输出这一行，新导入的帖子默认无译文；按时间从新到旧分批补充，check-build 核对每条帖子译文行数。
+
 
 `npm run check` 包含最小 ESLint 门禁：检查未定义名称和变量/类的提前引用；允许普通函数声明提前调用。它覆盖前端、后端、工具与测试，排除生成的认证包和本地副本。
 

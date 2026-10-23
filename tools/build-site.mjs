@@ -8,6 +8,7 @@ import { assertRepoPath } from "./safe-fs.mjs";
 import { stripLoopbackCspSources } from "./net-guards.mjs";
 import { renderCreatorUpdates } from "./render-creator-updates.mjs";
 import { readXPostsArchive } from "./x-posts-data.mjs";
+import { readXTranslations } from "./x-translations.mjs";
 import { createXPostsRenderer, xPostsPageUrl, xPostsPageTitle } from "./render-x-posts.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -79,7 +80,8 @@ const updatesVersion = createHash("sha256").update(updatesSource).digest("hex");
 const updates = renderCreatorUpdates(JSON.parse(updatesSource));
 const xPosts = await readXPostsArchive(root);
 const xPostsVersion = createHash("sha256").update(JSON.stringify(xPosts)).digest("hex");
-const xPostsRenderer = createXPostsRenderer(xPosts);
+const xTranslations = await readXTranslations(root, xPosts);
+const xPostsRenderer = createXPostsRenderer(xPosts, xTranslations);
 function fillOnce(template, marker, content) {
   const placeholder = `<!-- ${marker} -->`;
   if (template.split(placeholder).length !== 2) throw new Error(`Expected one ${marker} placeholder`);

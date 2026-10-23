@@ -58,6 +58,12 @@ export function xPostsPageUrl(creator = "all", page = 1) {
   return `updates${creator === "all" ? "" : `-${creator}`}${page === 1 ? "" : `-page-${page}`}.html`;
 }
 
+// Gist per post (zh + en), attached by createXPostsRenderer. Japanese readers see no line.
+const translationOf = new WeakMap();
+const renderTranslation = post => {
+  const entry = translationOf.get(post);
+  return entry ? `<p class="x-post-translation" data-zh="${escape(entry.zh)}" data-en="${escape(entry.en)}" data-ja="">${escape(entry.zh)}</p>` : "";
+};
 function renderPost(post, hidden = false) {
   const creator = creators[post.creator];
   const links = [...new Map(post.links.map(link => [https(link.url), link])).entries()].map(([url, link]) => {
@@ -68,7 +74,7 @@ function renderPost(post, hidden = false) {
   const media = post.media.length ? text("span", [`附 ${post.media.length} 张图片 · 请到原帖查看`, `${post.media.length} image${post.media.length === 1 ? "" : "s"} · View in the original post`, `画像${post.media.length}枚 · 元の投稿で見る`]) : "";
   const video = post.hasVideo ? text("span", ["视频 · 请到原帖播放", "Video · Play in the original post", "動画 · 元の投稿で再生"]) : "";
   const body = post.text ? `<p class="x-post-text"${KANA.test(post.text) ? ' lang="ja"' : ""} dir="auto">${escape(post.text)}</p>` : text("p", ["这条帖子以媒体为主，请查看原帖。", "This post contains media. View the original post.", "メディアを中心とした投稿です。元の投稿をご覧ください。"], ' class="x-post-text x-post-media-only"');
-  return `<article class="x-post"${hidden ? " hidden" : ""} data-x-post-id="${post.id}" data-creator="${post.creator}"><header class="x-post-header"><h3>${escape(creator.name)} <span>@${creator.handle}</span></h3>${time(post.publishedAt)}</header>${body}${links ? `<div class="x-post-links">${links}</div>` : ""}${media || video ? `<p class="x-post-media-note">${media}${media && video ? " · " : ""}${video}</p>` : ""}<footer class="x-post-footer">${text("a", ["查看原帖 ↗", "View original ↗", "元の投稿を見る ↗"], ` class="x-post-source" href="${escape(post.url)}" target="_blank" rel="noopener noreferrer"`)}${references}</footer></article>`;
+  return `<article class="x-post"${hidden ? " hidden" : ""} data-x-post-id="${post.id}" data-creator="${post.creator}"><header class="x-post-header"><h3>${escape(creator.name)} <span>@${creator.handle}</span></h3>${time(post.publishedAt)}</header>${body}${renderTranslation(post)}${links ? `<div class="x-post-links">${links}</div>` : ""}${media || video ? `<p class="x-post-media-note">${media}${media && video ? " · " : ""}${video}</p>` : ""}<footer class="x-post-footer">${text("a", ["查看原帖 ↗", "View original ↗", "元の投稿を見る ↗"], ` class="x-post-source" href="${escape(post.url)}" target="_blank" rel="noopener noreferrer"`)}${references}</footer></article>`;
 }
 
 function renderCoverage(archive, posts) {
@@ -128,9 +134,10 @@ function renderArchive(groups, status, renderItem, { page = 1, creator = "all", 
 
 // One renderer belongs to one build snapshot. Keep it detached from the caller's
 // mutable objects, and reuse validation, ordering and escaped markup across pages.
-export function createXPostsRenderer(archive) {
+export function createXPostsRenderer(archive, translations = new Map()) {
   const snapshot = structuredClone(archive);
   const posts = orderedPosts(snapshot);
+  for (const post of posts) if (translations.has(post.id)) translationOf.set(post, translations.get(post.id));
   const groups = new Map([["all", posts], ...Object.keys(creators).map(creator => [creator, posts.filter(post => post.creator === creator)])]);
   const status = renderStatus(snapshot, posts);
   const markup = new Map();
