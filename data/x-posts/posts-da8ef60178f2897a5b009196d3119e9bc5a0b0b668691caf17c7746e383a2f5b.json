@@ -2,6 +2,65 @@
   "version": 1,
   "items": [
     {
+      "creator": "nknk",
+      "handle": "NKNK_NGRMS",
+      "id": "1710227756255211701",
+      "url": "https://x.com/NKNK_NGRMS/status/1710227756255211701",
+      "text": "稲葉曇『電気予報』feat.初音ミク\nイラスト描かせて頂きました！\n是非見て聴いてください⚡️ぴっかり⚡️\n\n#初音ミク　#ポケモン　#ポケミク\n\nyoutu.be/Imcr7rsBxsc?si… \n\nproject-voltage.jp",
+      "translated": false,
+      "publishedAt": "2023-10-06T09:37:26.000Z",
+      "collectedAt": "2026-10-18T18:36:00.000Z",
+      "hasVideo": false,
+      "links": [
+        {
+          "label": "youtu.be/Imcr7rsBxsc?si",
+          "url": "https://t.co/mgsCwkt9vn"
+        },
+        {
+          "label": "project-voltage.jp",
+          "url": "https://www.project-voltage.jp/"
+        }
+      ],
+      "media": [
+        {
+          "alt": "",
+          "url": "https://pbs.twimg.com/media/F7vzE6pbgAAAy6_.jpg"
+        }
+      ],
+      "relatedUrls": []
+    },
+    {
+      "creator": "inabakumori",
+      "handle": "inabakumori",
+      "id": "1710226536388047182",
+      "url": "https://x.com/inabakumori/status/1710226536388047182",
+      "text": "Lyrics : 稲葉曇 / Project VOLTAGE\n\nListen : \nhttps://\nkarent.jp/album/3799 (10/7 0時配信スタート)\nOff Vocal : \nhttps://\nproject-voltage.jp/music.html#mv02\n\nポケモン feat. 初音ミク Project VOLTAGE\n\nhttps://\nproject-voltage.jp\n\n@PokeMikuVOLTAGE",
+      "translated": false,
+      "publishedAt": "2023-10-06T09:32:35.000Z",
+      "collectedAt": "2026-10-18T18:10:16.160Z",
+      "hasVideo": false,
+      "links": [
+        {
+          "label": "https://\nkarent.jp/album/3799",
+          "url": "https://t.co/x2iq7Z3VP1"
+        },
+        {
+          "label": "https://\nproject-voltage.jp/music.html#mv02",
+          "url": "https://t.co/UibiGi8inK"
+        },
+        {
+          "label": "https://\nproject-voltage.jp",
+          "url": "https://t.co/oxJo6lC8tn"
+        },
+        {
+          "label": "@PokeMikuVOLTAGE",
+          "url": "https://x.com/PokeMikuVOLTAGE"
+        }
+      ],
+      "media": [],
+      "relatedUrls": []
+    },
+    {
       "creator": "inabakumori",
       "handle": "inabakumori",
       "id": "1710225888896229871",
@@ -3368,57 +3427,6 @@
       "collectedAt": "2026-10-18T18:36:00.000Z",
       "hasVideo": false,
       "links": [],
-      "media": [],
-      "relatedUrls": []
-    },
-    {
-      "creator": "nknk",
-      "handle": "NKNK_NGRMS",
-      "id": "1601888435786354689",
-      "url": "https://x.com/NKNK_NGRMS/status/1601888435786354689",
-      "text": "アスパラ4000年分食べた",
-      "translated": false,
-      "publishedAt": "2022-12-11T10:35:39.000Z",
-      "collectedAt": "2026-10-18T18:36:00.000Z",
-      "hasVideo": false,
-      "links": [],
-      "media": [],
-      "relatedUrls": []
-    },
-    {
-      "creator": "inabakumori",
-      "handle": "inabakumori",
-      "id": "1601155254699307008",
-      "url": "https://x.com/inabakumori/status/1601155254699307008",
-      "text": "1stアルバム、再プレスしたらBOOTH通販の在庫補充しますので🙇‍♂️",
-      "translated": false,
-      "publishedAt": "2022-12-09T10:02:15.000Z",
-      "collectedAt": "2026-10-18T18:12:02.407Z",
-      "hasVideo": false,
-      "links": [],
-      "media": [],
-      "relatedUrls": []
-    },
-    {
-      "creator": "inabakumori",
-      "handle": "inabakumori",
-      "id": "1601155253323595781",
-      "url": "https://x.com/inabakumori/status/1601155253323595781",
-      "text": "『VOCALOCK MANIA』\n公式Twitter : \n@VocalockMania\n\nチケット：\nhttps://\neplus.jp/vocalockmania/",
-      "translated": false,
-      "publishedAt": "2022-12-09T10:02:15.000Z",
-      "collectedAt": "2026-10-18T18:12:02.407Z",
-      "hasVideo": false,
-      "links": [
-        {
-          "label": "@VocalockMania",
-          "url": "https://x.com/VocalockMania"
-        },
-        {
-          "label": "https://\neplus.jp/vocalockmania/",
-          "url": "https://t.co/WY23ahYlUj"
-        }
-      ],
       "media": [],
       "relatedUrls": []
     }
