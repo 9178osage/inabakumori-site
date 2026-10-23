@@ -2665,3 +2665,15 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
 .station-calendar:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 @media (hover: hover) { .station-calendar:hover { background: rgba(255, 255, 255, .16); border-color: #fff; } }
 @media (prefers-reduced-motion: reduce) { .station-calendar { transition: none; } }
+
+.home-updates .x-post-translation {
+  max-width: 76ch;
+  margin: 8px 0 0;
+  color: var(--ui-muted);
+  font-size: 12.5px;
+  line-height: 1.85;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-wrap: break-word;
+}
+.home-updates .x-post-translation:empty { display: none; }

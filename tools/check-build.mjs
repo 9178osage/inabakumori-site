@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { loopbackCspSources } from "./net-guards.mjs";
 import { readXPostsArchive } from "./x-posts-data.mjs";
+import { readXTranslations } from "./x-translations.mjs";
 import { createHash } from "node:crypto";
 
 // Local references in built HTML: src/href values plus every URL inside srcset candidate lists.
@@ -179,6 +180,14 @@ assert.equal(sitemapLocations.length, new Set(sitemapLocations).size, "Sitemap m
 assert.ok(sitemapLocations.includes(""), "Sitemap must list the homepage");
 for (const name of expectedPages) assert.ok(sitemapLocations.includes(name), `Sitemap must list archive page: ${name}`);
 for (const name of sitemapLocations) assert.ok(name === "" || expectedPages.has(name) || name === "index.html", `Sitemap lists an unknown page: ${name}`);
+// Translations: every pre-rendered post with a gist carries exactly one zh/en line (ja shows none).
+const xTranslations = await readXTranslations(path.resolve(root, ".."), xArchive);
+for (const [name, content] of [["index.html", html], ["updates.html", updatesHtml]]) {
+  for (const match of content.matchAll(/<article class="x-post"[^>]*data-x-post-id="([0-9]+)"[^>]*>([\s\S]*?)<\/article>/gu)) {
+    const lines = [...match[2].matchAll(/<p class="x-post-translation" data-zh="([^"]*)" data-en="([^"]*)" data-ja="">/gu)];
+    assert.equal(lines.length, xTranslations.has(match[1]) ? 1 : 0, `Translation line mismatch for ${match[1]} in ${name}`);
+  }
+}
 // Hidden calendar: reachable only from the footer icon, kept out of search and the sitemap.
 const calendarHtml = await readFile(path.join(root, "calendar.html"), "utf8");
 assert.match(calendarHtml, /<meta name="robots" content="noindex, nofollow"\/>/u, "Calendar must stay out of search results");

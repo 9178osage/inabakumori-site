@@ -26,3 +26,5 @@
   .creator-links { flex-direction:row; align-items:stretch; }
   .creator-links a { min-width:0; flex:1 1 auto; }
 }
+
+.x-post-translation{max-width:78ch;margin:8px 0 0;color:var(--muted);font-size:12.5px;line-height:1.85;white-space:pre-wrap;overflow-wrap:anywhere;word-wrap:break-word}.x-post-translation:empty{display:none}
