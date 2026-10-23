@@ -2677,3 +2677,12 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
   word-wrap: break-word;
 }
 .home-updates .x-post-translation:empty { display: none; }
+/* Translation sits a little apart from the original text. */
+.home-updates .x-post-translation { padding-left: 10px; border-left: 2px solid var(--link-border); }
+/* Phone: tighter, calmer X feed and creator cards on the homepage. */
+@media (max-width: 700px) {
+  .home-updates .home-updates-accounts a { min-height: 48px; padding: 10px 14px; gap: 2px 12px; }
+  .home-updates .x-post { padding: 18px 0; }
+  .home-updates .x-post-text { margin-top: 10px; line-height: 1.8; }
+  .home-updates .x-post-translation { margin-top: 6px; font-size: 12px; line-height: 1.7; }
+}
