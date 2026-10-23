@@ -4,6 +4,41 @@
     {
       "creator": "nknk",
       "handle": "NKNK_NGRMS",
+      "id": "2112857083909751089",
+      "url": "https://x.com/NKNK_NGRMS/status/2112857083909751089",
+      "text": "🎉🍰🫧🎉♪（ｖ＾＿＾）ｖ👍",
+      "translated": false,
+      "publishedAt": "2026-10-21T10:42:38.000Z",
+      "collectedAt": "2026-10-23T05:40:39.000Z",
+      "hasVideo": false,
+      "links": [],
+      "media": [],
+      "relatedUrls": [
+        "https://x.com/inabakumori/status/2112852822664638703"
+      ]
+    },
+    {
+      "creator": "inabakumori",
+      "handle": "inabakumori",
+      "id": "2112852822664638703",
+      "url": "https://x.com/inabakumori/status/2112852822664638703",
+      "text": "『ロストアンブレラ』\nYouTubeにて一億再生到達しました！！\nたくさん聴いてくれてうれしいです！！\n100M views on ‘Lost Umbrella’!! Thank you so much for listening!!",
+      "translated": false,
+      "publishedAt": "2026-10-21T10:25:42.000Z",
+      "collectedAt": "2026-10-23T05:40:39.000Z",
+      "hasVideo": false,
+      "links": [],
+      "media": [
+        {
+          "alt": "",
+          "url": "https://pbs.twimg.com/media/HVJb9D3bsAA5oL5.png"
+        }
+      ],
+      "relatedUrls": []
+    },
+    {
+      "creator": "nknk",
+      "handle": "NKNK_NGRMS",
       "id": "2102973251404361912",
       "url": "https://x.com/NKNK_NGRMS/status/2102973251404361912",
       "text": "無事終了いたしました❗️\nたくさんのご支援ありがとうございます❗️いっぱい可愛がってあげてください〜🍙",
@@ -3366,65 +3401,6 @@
           "url": "https://pbs.twimg.com/media/F748iq-a4AAWApV.jpg"
         }
       ],
-      "relatedUrls": []
-    },
-    {
-      "creator": "nknk",
-      "handle": "NKNK_NGRMS",
-      "id": "1710227756255211701",
-      "url": "https://x.com/NKNK_NGRMS/status/1710227756255211701",
-      "text": "稲葉曇『電気予報』feat.初音ミク\nイラスト描かせて頂きました！\n是非見て聴いてください⚡️ぴっかり⚡️\n\n#初音ミク　#ポケモン　#ポケミク\n\nyoutu.be/Imcr7rsBxsc?si… \n\nproject-voltage.jp",
-      "translated": false,
-      "publishedAt": "2023-10-06T09:37:26.000Z",
-      "collectedAt": "2026-10-18T18:36:00.000Z",
-      "hasVideo": false,
-      "links": [
-        {
-          "label": "youtu.be/Imcr7rsBxsc?si",
-          "url": "https://t.co/mgsCwkt9vn"
-        },
-        {
-          "label": "project-voltage.jp",
-          "url": "https://www.project-voltage.jp/"
-        }
-      ],
-      "media": [
-        {
-          "alt": "",
-          "url": "https://pbs.twimg.com/media/F7vzE6pbgAAAy6_.jpg"
-        }
-      ],
-      "relatedUrls": []
-    },
-    {
-      "creator": "inabakumori",
-      "handle": "inabakumori",
-      "id": "1710226536388047182",
-      "url": "https://x.com/inabakumori/status/1710226536388047182",
-      "text": "Lyrics : 稲葉曇 / Project VOLTAGE\n\nListen : \nhttps://\nkarent.jp/album/3799 (10/7 0時配信スタート)\nOff Vocal : \nhttps://\nproject-voltage.jp/music.html#mv02\n\nポケモン feat. 初音ミク Project VOLTAGE\n\nhttps://\nproject-voltage.jp\n\n@PokeMikuVOLTAGE",
-      "translated": false,
-      "publishedAt": "2023-10-06T09:32:35.000Z",
-      "collectedAt": "2026-10-18T18:10:16.160Z",
-      "hasVideo": false,
-      "links": [
-        {
-          "label": "https://\nkarent.jp/album/3799",
-          "url": "https://t.co/x2iq7Z3VP1"
-        },
-        {
-          "label": "https://\nproject-voltage.jp/music.html#mv02",
-          "url": "https://t.co/UibiGi8inK"
-        },
-        {
-          "label": "https://\nproject-voltage.jp",
-          "url": "https://t.co/oxJo6lC8tn"
-        },
-        {
-          "label": "@PokeMikuVOLTAGE",
-          "url": "https://x.com/PokeMikuVOLTAGE"
-        }
-      ],
-      "media": [],
       "relatedUrls": []
     }
   ]
