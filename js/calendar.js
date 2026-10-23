@@ -35,7 +35,7 @@
     }
     function applyTheme() {
       const stored = storage?.getItem("theme");
-      const theme = ["light", "dark"].includes(stored) ? stored : window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      const theme = ["light", "dark"].includes(stored) ? stored : window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light";
       document.documentElement.dataset.theme = theme;
       document.querySelectorAll('meta[name="theme-color"]').forEach(meta => meta.setAttribute("content", theme === "dark" ? "#171b1f" : "#c4c4c0"));
       if (themeButton) {

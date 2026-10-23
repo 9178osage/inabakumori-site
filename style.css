@@ -122,6 +122,7 @@ textarea {
   overflow: hidden;
   z-index: 0;
   cursor: pointer;
+  touch-action: manipulation;
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
