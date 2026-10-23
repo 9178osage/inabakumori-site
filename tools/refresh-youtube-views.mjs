@@ -11,7 +11,8 @@
  * Never put the API key in tracked files. On failure for a video, keeps the
  * previous viewCount (does not invent numbers).
  */
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, open, rename, rm } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { assertRepoPath } from "./safe-fs.mjs";
@@ -244,7 +245,24 @@ if (withIds.length && statsById.size === 0) {
   process.exit(1);
 }
 
-await writeFile(assertRepoPath(ROOT, SONGS_PATH, { mustExist: true }), formatSongsFile(songs), "utf8");
+// Write a sibling temp file, fsync, then rename: an interrupted run never leaves a half-written songs.js.
+{
+  const destination = assertRepoPath(ROOT, SONGS_PATH, { mustExist: true });
+  const temporary = assertRepoPath(ROOT, path.join(path.dirname(SONGS_PATH), `.songs-${randomUUID()}.tmp`));
+  let file;
+  try {
+    file = await open(temporary, "wx", 0o644);
+    await file.writeFile(formatSongsFile(songs), "utf8");
+    await file.sync();
+    await file.close();
+    file = null;
+    assertRepoPath(ROOT, SONGS_PATH, { mustExist: true });
+    await rename(temporary, destination);
+  } finally {
+    await file?.close().catch(() => {});
+    await rm(temporary, { force: true });
+  }
+}
 
 console.log("\n--- summary ---");
 console.log(`songs total:     ${songs.length}`);
