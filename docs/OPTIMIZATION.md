@@ -9,7 +9,7 @@
 - 数据库路径配置、目录或 SQLite 初始化失败时，后端给出简洁的配置或初始化错误并退出；文件系统异常不输出路径或堆栈。备份接口继续拒绝 HEAD，补上 `Allow: GET`，避免为无正文请求生成快照。
 - CI 使用 `ubuntu-24.04`，避免 `ubuntu-latest` 自动切换系统版本；Node 仍固定为 24.22.1。Pages 双发布渠道保留，待实际仓库 Pages 设置核实后再清理。
 
-10 月 18–20 日的创作者刷新日志显示 YouTube 来源校验失败（`Unexpected video metadata or author`），其余来源正常，保留历史数据并发布失败状态；后续修复后的运行已成功。10 月 22 日的另一轮失败是 GitHub 分页总数不一致，两者原因不同。后端实际部署状态仍须单独核对 Railway 和 `/healthz`，前端发布成功不代表后端安全升级已生效。
+10 月 18–20 日的创作者刷新日志显示 YouTube 来源校验失败（`Unexpected video metadata or author`），其余来源正常，保留历史数据并发布失败状态；后续修复后的运行已成功。10 月 22 日的另一轮失败是 GitHub 分页总数不一致，两者原因不同。当时后端须单独核对 Railway 和 `/healthz`；迁移后的当前入口改为 Vercel，部署核对见 [站长手册](MAINTAINER.md)。前端发布成功不代表后端安全升级已生效。
 
 ## 2026-10-20 目录整理与帖子构建优化
 
@@ -152,7 +152,7 @@
 
 ## 本地开发与检查
 
-需要 Node.js 24；前端不再需要 Python。
+本地检查使用 Node.js 24.22.1，与 CI 固定版本一致；前端不再需要 Python。生产运行版本另按 [安全与运维现状](SECURITY.md) 核对。
 
 ```sh
 npm ci
@@ -179,14 +179,16 @@ npm run backend    # 需要 backend/.env 中的真实后端配置
 
 提交代码后，`Verify website` 工作流自动验证并保留 `public-site` 产物。推送 `main` 后由 `Publish public site` 构建并部署（仓库 Settings → Pages 的 Source 已于 2026-10-11 设为 GitHub Actions），构建及集成检查通过后才部署；也可手动运行该工作流。参见 [GitHub Pages 官方工作流说明](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)。
 
-后端继续采用 Railway 的 `/backend`、Node.js 24、原环境变量和持久化卷；部署后检查 `/healthz`。`TRUST_PROXY` 必须与实际可信代理层数匹配。应用内限流为单进程内存存储，目前适用于现有单实例部署；增加实例前需统一限流存储及数据库方案。
+当前生产后端为 Vercel 项目 `inabakumori-backend`，根目录 `backend`，留言与共享限流计数均使用独立 Neon PostgreSQL；部署后核对 Vercel 状态和 `/healthz`。原 Railway 服务连接同一 PostgreSQL 并核验后已停止。重新启用回退服务时仍须使用当前 PostgreSQL，不能恢复旧 SQLite 写入；具体步骤见 [迁移与回退说明](VERCEL.md)。代理与 IP 头信任边界见 [安全与运维现状](SECURITY.md)。
 
 ## 数据库备份
+
+生产 PostgreSQL 通过受保护快照接口和数据库提供商支持的方式备份，说明见 [安全与运维现状](SECURITY.md#备份与例行检查)。以下命令与文件替换步骤仅用于本地 SQLite 和隔离恢复演练，不用于生产 PostgreSQL；运行前确认 `COMMENTS_DB_PATH` 指向本地实验数据库。
 
 ```sh
 npm --prefix backend run backup
 # 或指定一个尚不存在的备份文件：
-npm --prefix backend run backup -- /data/.backups/manual-snapshot.db
+npm --prefix backend run backup -- /private/backup/manual-snapshot.db
 ```
 
-使用 [Node.js SQLite online backup](https://nodejs.org/api/sqlite.html#sqlitebackupsource-db-path-options) 读取包含 WAL 的一致快照，随后 quick_check 校验；备份文件权限 0600，拒绝覆盖源数据库或已有备份。默认保存在数据库目录下的 `.backups/`；应自行保留异地副本（远程备份接口与定期备份说明见 [SECURITY.md](SECURITY.md#备份与例行检查)）。恢复前停止后端、保留现有数据库及 WAL 文件，再使用已验证的快照替换，重启后检查健康接口。该命令已用临时数据库验证，本轮没有复制或读取真实留言数据库。
+该本地工具使用 [Node.js SQLite online backup](https://nodejs.org/api/sqlite.html#sqlitebackupsource-db-path-options) 读取包含 WAL 的一致快照，随后 quick_check 校验；备份文件权限 0600，拒绝覆盖源数据库或已有备份。默认保存在本地数据库目录下的 `.backups/`，应自行保留异地副本。在本地恢复演练中，先停止实验后端、保留现有实验数据库及 WAL 文件，再用已验证的快照替换，重启后检查健康接口。该命令在 2026-10-01 以临时数据库验证，当时没有复制或读取真实留言数据库。生产恢复须按 [迁移与回退说明](VERCEL.md#回退与后续备份) 先保留当前 PostgreSQL，并在隔离环境核对快照与迁移后的新增、删除，不能直接以旧文件替换生产数据源。

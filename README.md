@@ -133,7 +133,8 @@ Authentication is powered by **SuperTokens**:
 - Node.js 24
 - Express 5
 - SuperTokens Node
-- Node.js built-in SQLite (`node:sqlite`)
+- PostgreSQL (`pg`, production)
+- Node.js built-in SQLite (`node:sqlite`, local development and offline backups)
 - Helmet
 - CORS
 - express-rate-limit
@@ -186,7 +187,7 @@ inabakumori-site/
 
 ### 📋 Requirements
 
-- **Node.js 24.x**
+- **Node.js 24.22.1** (the version pinned in CI)
 - npm
 - The frontend preview uses Node.js; no Python dependency.
 - A working SuperTokens Core / Managed SuperTokens instance
@@ -332,9 +333,9 @@ Because the account system and message wall are dynamic, they also require a sep
 - `WEBSITE_URL`
 - `SUPERTOKENS_CONNECTION_URI`
 - `SUPERTOKENS_API_KEY`
-- PostgreSQL (`DATABASE_URL`) on Vercel, or persistent SQLite storage on Railway
+- PostgreSQL (`DATABASE_URL`) for production comments and shared rate limits
 
-The backend is rooted in `backend/`. Vercel uses PostgreSQL for comments and shared rate limits; local development and the existing Railway deployment can retain SQLite. Follow [the migration guide](docs/VERCEL.md) to import existing comments and verify the new service before switching the frontend API and CSP.
+The production API is `https://inabakumori-backend.vercel.app`, rooted in `backend/` and backed by independent Neon PostgreSQL. The former Railway service was verified against the same PostgreSQL database and then stopped. Local development can still use SQLite; a production rollback must reconnect to the current PostgreSQL database and must not resume writes to the old SQLite copy. See [the migration guide](docs/VERCEL.md) for migration checks and recovery steps.
 
 ---
 
@@ -507,7 +508,8 @@ I like Inabakumori, so I made a “Weather Observation Station” — a nod to t
 - Node.js 24
 - Express 5
 - SuperTokens Node
-- Node.js built-in SQLite (`node:sqlite`)
+- PostgreSQL（`pg`，生产数据库）
+- Node.js built-in SQLite（`node:sqlite`，本地开发与离线备份）
 - Helmet
 - CORS
 - express-rate-limit
@@ -560,7 +562,7 @@ inabakumori-site/
 
 ### 📋 环境要求
 
-- **Node.js 24.x**
+- **Node.js 24.22.1**（与 CI 固定版本一致）
 - npm
 - 前端预览使用 Node.js，无需 Python。
 - 可用的 SuperTokens Core / Managed SuperTokens 实例
@@ -705,9 +707,9 @@ npm run check:links:strict
 - `WEBSITE_URL`
 - `SUPERTOKENS_CONNECTION_URI`
 - `SUPERTOKENS_API_KEY`
-- Vercel 使用 PostgreSQL（`DATABASE_URL`）；Railway 可继续使用持久化 SQLite
+- PostgreSQL（`DATABASE_URL`），保存生产留言和共享限流计数
 
-后端以 `backend/` 为服务根目录。Vercel 使用 PostgreSQL 保存留言和共享限流计数，本地开发及现有 Railway 可保留 SQLite。按 [Vercel 迁移说明](docs/VERCEL.md) 导入既有留言、核实新服务后，再切换前端 API 地址和 CSP。
+生产 API 为 `https://inabakumori-backend.vercel.app`，以 `backend/` 为服务根目录，连接独立 Neon PostgreSQL。原 Railway 服务已连接同一 PostgreSQL 并核验，随后停止。本地开发仍可使用 SQLite；生产回退必须连接当前 PostgreSQL，不能恢复旧 SQLite 写入。迁移核对与恢复步骤见 [Vercel 迁移说明](docs/VERCEL.md)。
 
 ---
 
@@ -878,7 +880,8 @@ npm run check:links:strict
 - Node.js 24
 - Express 5
 - SuperTokens Node
-- Node.js built-in SQLite (`node:sqlite`)
+- PostgreSQL（`pg`、本番データベース）
+- Node.js built-in SQLite（`node:sqlite`、ローカル開発とオフラインバックアップ）
 - Helmet
 - CORS
 - express-rate-limit
@@ -931,7 +934,7 @@ inabakumori-site/
 
 ### 📋 必要な環境
 
-- **Node.js 24.x**
+- **Node.js 24.22.1**（CI と同じ固定バージョン）
 - npm
 - フロントエンドのプレビューには Node.js を使用します。Python は不要です。
 - 利用可能な SuperTokens Core / Managed SuperTokens インスタンス
@@ -1055,7 +1058,7 @@ npm run check:links:strict
 
 ## ☁️ デプロイ
 
-フロントエンドは静的サイトとして、たとえば **GitHub Pages** にデプロイできます。
+フロントエンドは `.github/workflows/pages.yml` でビルドし、公開用の `dist/` のみを **GitHub Pages** にデプロイします。
 
 アカウント機能とメッセージウォールは動的機能のため、別途 Node.js バックエンドをデプロイし、以下を設定する必要があります：
 
@@ -1063,9 +1066,9 @@ npm run check:links:strict
 - `WEBSITE_URL`
 - `SUPERTOKENS_CONNECTION_URI`
 - `SUPERTOKENS_API_KEY`
-- Vercel は PostgreSQL（`DATABASE_URL`）、Railway は永続化された SQLite ストレージ
+- PostgreSQL（`DATABASE_URL`）：本番コメントと共有レート制限のカウンターを保存
 
-`backend/` をサービスルートに指定します。Vercel ではコメントと共有レート制限に PostgreSQL を使い、ローカル開発と既存の Railway では SQLite を引き続き使えます。[移行手順](docs/VERCEL.md) に従って既存コメントを移し、新サービスを検証してからフロントエンドの API URL と CSP を切り替えてください。
+本番 API は `https://inabakumori-backend.vercel.app` です。`backend/` をサービスルートとし、独立した Neon PostgreSQL に接続します。旧 Railway サービスは同じ PostgreSQL への接続を検証した後に停止しました。ローカル開発では SQLite を使えますが、本番を切り戻す場合は現在の PostgreSQL に接続し、古い SQLite への書き込みを再開しないでください。移行時の確認と復旧手順は[移行ガイド](docs/VERCEL.md)を参照してください。
 
 ---
 

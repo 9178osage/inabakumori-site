@@ -22,7 +22,7 @@
 
 “气象观测站”是稲葉曇 / Inabakumori 非官方粉丝网站。原生 HTML、CSS、JavaScript 前端，含中英日三语、歌曲搜索、主题与背景切换、SuperTokens 账号系统和留言墙。
 
-后端使用 Node.js 24、Express 5、SuperTokens，生产使用 PostgreSQL；本地与旧部署保留 SQLite 兼容能力。仓库当前没有依赖本地 `.env`、留言数据库或其他私密文件才能运行 GitHub Pages 前端。
+后端使用 Node.js 24、Express 5、SuperTokens，生产使用 PostgreSQL；SQLite 用于本地开发和离线快照。旧 Railway 服务也已迁到同一 PostgreSQL 并停止，不能恢复旧 SQLite 写入。仓库当前没有依赖本地 `.env`、留言数据库或其他私密文件才能运行 GitHub Pages 前端。
 
 ## 文件入口
 
@@ -52,7 +52,7 @@
 
 ## 本地运行与检查
 
-环境要求：Node.js 24.x、npm。账号功能需要可用的 SuperTokens 服务。前端预览不再依赖 Python。
+环境要求：Node.js 24.22.1（与 CI 固定版本一致）、npm。账号功能需要可用的 SuperTokens 服务。前端预览不再依赖 Python。
 
 在项目根目录安装依赖：
 
@@ -92,7 +92,7 @@ npm --prefix backend run check
 - 前端地址：`https://osagechan.top/`（自定义域名，仓库根目录 `CNAME`；旧地址 `https://9178osage.github.io/inabakumori-site/` 由 GitHub 301 跳转到新域名）
 - `js/config.js` 在 localhost / 127.0.0.1 下连接当前主机的 3001 端口，其他域名下连接 `https://inabakumori-backend.vercel.app`。
 - 后端公网地址：`https://inabakumori-backend.vercel.app`。
-- Vercel 项目根目录为 `backend`，Express 默认导出应用，使用 `DATABASE_URL` 连接 Neon PostgreSQL。旧 Railway 源码配置与卷用于回退；重新启动时须使用同一 PostgreSQL，不能恢复旧 SQLite 写入。
+- Vercel 项目根目录为 `backend`，Express 默认导出应用，使用 `DATABASE_URL` 连接 Neon PostgreSQL。旧 Railway 服务连接同一 PostgreSQL 并核验后已停止，源码配置与卷保留；重新启动时须先核对同一 PostgreSQL 和接口行为，再恢复前端旧地址，不能恢复旧 SQLite 写入。
 - Pages 发布源为 GitHub Actions（`Publish public site` 工作流）；`main` 有 ruleset `protect-main`（禁止删除与 force push）。
 - 推送 `main` 分别触发 Vercel 与 Pages 部署；核实 GitHub 两条工作流、Vercel 部署 Ready 和 `/healthz` 对应的提交版本。
 

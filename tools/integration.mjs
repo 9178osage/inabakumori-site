@@ -44,6 +44,10 @@ try {
   assert.ok(ready, `Test API did not start: ${output}`);
   const page = await request(`${previewUrl}/`);
   assert.equal(page.status, 200);
+  const previewCsp = page.headers.get("content-security-policy");
+  assert.ok(previewCsp, "the actual preview HTTP response includes CSP");
+  const previewConnections = previewCsp.split(";").map(directive => directive.trim().split(/\s+/u)).find(([name]) => name === "connect-src");
+  assert.deepEqual(previewConnections, ["connect-src", "'self'", "https://inabakumori-backend.vercel.app", "http://127.0.0.1:3001", "http://localhost:3001"], "preview permits the current API and both local backend hostnames");
   const homeHtml = await page.text();
   assert.match(homeHtml, /data-song-title=/);
   assert.match(homeHtml, /id="updates"/u);

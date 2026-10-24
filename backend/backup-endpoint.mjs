@@ -62,6 +62,8 @@ export function registerBackupEndpoint(app, { databasePath, snapshot = destinati
       await snapshot(file);
       const { size } = await stat(file);
       res.status(200);
+      // Private backup clients can retain runtime evidence beyond short log retention.
+      res.setHeader("X-Backend-Node-Version", process.version);
       res.setHeader("Content-Type", "application/octet-stream");
       res.setHeader("Content-Length", String(size));
       res.setHeader("Content-Disposition", `attachment; filename="${backupFilename()}"`);

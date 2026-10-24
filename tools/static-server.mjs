@@ -29,7 +29,7 @@ const SECURITY_HEADERS = {
   "Cross-Origin-Opener-Policy": "same-origin",
   "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
   // Inline onclick handlers and rain style attributes removed; CSSOM / external sheets only.
-  "Content-Security-Policy": "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data: https://i.ytimg.com https://img.youtube.com; font-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self' https://inabakumori-site-production.up.railway.app http://127.0.0.1:3001 http://localhost:3001; frame-src 'none'; worker-src 'none'; manifest-src 'self'; require-trusted-types-for 'script'; trusted-types 'none'"
+  "Content-Security-Policy": "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data: https://i.ytimg.com https://img.youtube.com; font-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self' https://inabakumori-backend.vercel.app http://127.0.0.1:3001 http://localhost:3001; frame-src 'none'; worker-src 'none'; manifest-src 'self'; require-trusted-types-for 'script'; trusted-types 'none'"
 };
 
 export function createStaticServer(directory = root) {
