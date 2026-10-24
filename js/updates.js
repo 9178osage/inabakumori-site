@@ -64,6 +64,7 @@
       }
     }
 
+    const dateFormatters = new Map();
     function applyLanguage() {
       document.documentElement.lang = { zh: "zh-CN", en: "en", ja: "ja" }[language];
       // Creator archives and page 2+ name their slice; mirrors xPostsPageTitle in tools/render-x-posts.mjs.
@@ -89,7 +90,13 @@
       document.querySelectorAll("time[data-local-time]").forEach(element => {
         const date = new Date(element.dateTime);
         if (!Number.isFinite(date.getTime())) return;
-        element.textContent = new Intl.DateTimeFormat({ zh: "zh-CN", en: "en-US", ja: "ja-JP" }[language], { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Tokyo" }).format(date) + " JST";
+        let formatter = dateFormatters.get(language);
+        if (!formatter) {
+          formatter = new Intl.DateTimeFormat({ zh: "zh-CN", en: "en-US", ja: "ja-JP" }[language], { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Tokyo" });
+          dateFormatters.set(language, formatter);
+        }
+        const formatted = formatter.format(date) + " JST";
+        if (element.textContent !== formatted) element.textContent = formatted;
       });
       if (langButton) {
         langButton.textContent = { zh: "English", en: "日本語", ja: "中文" }[language];

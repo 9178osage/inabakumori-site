@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 
 // Runs js/updates.js against a minimal DOM with a given ?query string.
-function load(search, archiveDataset = {}, language = null) {
+function load(search, archiveDataset = {}, language = null, dates = []) {
   const element = (dataset = {}) => ({ dataset, hidden: false, textContent: "", attributes: {}, listeners: {},
     setAttribute(name, value) { this.attributes[name] = value; }, removeAttribute(name) { delete this.attributes[name]; this.hidden = false; },
     addEventListener(type, handler) { this.listeners[type] = handler; }, querySelector: () => null });
@@ -14,12 +14,17 @@ function load(search, archiveDataset = {}, language = null) {
   ].map(([creator, source, year]) => element({ creator, source, year }));
   const buttons = ["all", "inabakumori", "nknk"].map(filter => element({ filter }));
   const count = element(), empty = element(), langButton = element();
+  let formatterCount = 0, timeWrites = 0;
+  const times = dates.map(dateTime => {
+    let value = "pre-rendered date";
+    return { dateTime, get textContent() { return value; }, set textContent(text) { value = text; timeWrites++; } };
+  });
   const metadata = Object.fromEntries(['meta[name="description"]', 'meta[property="og:title"]', 'meta[property="og:description"]'].map(selector => [selector, element()]));
   const document = {
     readyState: "complete", documentElement: { dataset: archiveDataset }, title: "",
     getElementById: id => ({ "updates-count": count, "updates-empty": empty, "updates-lang-btn": langButton })[id] || null,
     querySelector: selector => metadata[selector] || null,
-    querySelectorAll: selector => selector.startsWith(".update-item") ? entries : selector === "[data-filter]" ? buttons : []
+    querySelectorAll: selector => selector.startsWith(".update-item") ? entries : selector === "[data-filter]" ? buttons : selector === "time[data-local-time]" ? times : []
   };
   const replaced = [], events = {};
   const window = {
@@ -28,8 +33,13 @@ function load(search, archiveDataset = {}, language = null) {
     matchMedia: () => ({ matches: false, addEventListener() {} }),
     addEventListener(name, listener) { events[name] = listener; }, setInterval: () => 1, clearInterval() {}, localStorage: {}
   };
-  vm.runInContext(fs.readFileSync("js/updates.js", "utf8"), vm.createContext({ window, document, Intl, Date }));
-  return { entries, buttons, count, empty, replaced, document, metadata, langButton, window, events, shown: () => entries.filter(entry => !entry.hidden).map(entry => Object.values(entry.dataset).join("/")) };
+  const measuredIntl = { DateTimeFormat: class extends Intl.DateTimeFormat {
+    constructor(...args) { super(...args); formatterCount++; }
+  } };
+  vm.runInContext(fs.readFileSync("js/updates.js", "utf8"), vm.createContext({ window, document, Intl: measuredIntl, Date }));
+  return { entries, buttons, count, empty, replaced, document, metadata, langButton, window, events, times,
+    formatterCount: () => formatterCount, timeWrites: () => timeWrites,
+    shown: () => entries.filter(entry => !entry.hidden).map(entry => Object.values(entry.dataset).join("/")) };
 }
 
 test("updates page applies whitelisted creator, source and year from the homepage link", () => {
@@ -137,5 +147,44 @@ test("language changes keep Open Graph metadata aligned with the current archive
     app.window.siteStorage.setItem("language", "ja");
     app.events.pageshow();
     check("ja");
+  }
+});
+
+test("localized dates reuse one formatter per language, retain JST midnight and skip unchanged writes", () => {
+  const dates = ["2026-10-23T14:59:00Z", "2026-10-23T15:00:00Z", "not-a-date"];
+  const app = load("", {}, "zh", dates);
+  const check = language => {
+    const formatter = new Intl.DateTimeFormat({ zh: "zh-CN", en: "en-US", ja: "ja-JP" }[language], {
+      dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Tokyo"
+    });
+    for (let index = 0; index < 2; index++) assert.equal(app.times[index].textContent, formatter.format(new Date(dates[index])) + " JST");
+    assert.equal(app.times[2].textContent, "pre-rendered date", "invalid dates retain their existing text");
+    assert.notEqual(app.times[0].textContent, app.times[1].textContent, "JST midnight crosses the calendar day");
+  };
+  check("zh");
+  assert.equal(app.formatterCount(), 1);
+  assert.equal(app.timeWrites(), 2);
+  app.events.pageshow();
+  app.events.pageshow();
+  assert.equal(app.formatterCount(), 1, "same-language page resumes reuse the formatter");
+  assert.equal(app.timeWrites(), 2, "same-language page resumes do not rewrite dates");
+  for (const [index, language] of ["en", "ja", "zh"].entries()) {
+    app.langButton.listeners.click();
+    check(language);
+    assert.equal(app.formatterCount(), Math.min(index + 2, 3));
+    assert.equal(app.timeWrites(), (index + 2) * 2);
+  }
+  app.events.pageshow();
+  assert.equal(app.formatterCount(), 3);
+  assert.equal(app.timeWrites(), 8);
+});
+
+test("pages without valid localized times never construct a date formatter", () => {
+  for (const dates of [[], ["invalid", ""]]) {
+    const app = load("", {}, "zh", dates);
+    app.events.pageshow();
+    app.langButton.listeners.click();
+    assert.equal(app.formatterCount(), 0);
+    assert.equal(app.timeWrites(), 0);
   }
 });
