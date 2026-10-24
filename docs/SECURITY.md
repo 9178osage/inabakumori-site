@@ -1,27 +1,28 @@
 # 安全与运维现状（唯一当前参考）
 
-更新：2026-10-17。本文只记录**当前**状态和操作清单；最新代码审查见 [2026-10-17 复核记录](history/2026-10-17-full-review.md)，此前审查证据见 [history/2026-10-11-security-audits.md](history/2026-10-11-security-audits.md) 与 [history/2026-10-11-deployment-review.md](history/2026-10-11-deployment-review.md)。如何报告漏洞见根目录 [SECURITY.md](../SECURITY.md)。
+更新：2026-10-23。本文只记录**当前**状态和操作清单；最新代码审查见 [2026-10-17 复核记录](history/2026-10-17-full-review.md)，此前审查证据见 [history/2026-10-11-security-audits.md](history/2026-10-11-security-audits.md) 与 [history/2026-10-11-deployment-review.md](history/2026-10-11-deployment-review.md)。如何报告漏洞见根目录 [SECURITY.md](../SECURITY.md)。
 
 ## 当前状态
 
 - 前端：`https://osagechan.top/`（GitHub Pages，只发布 `dist/` 白名单产物）；旧地址 `9178osage.github.io/inabakumori-site/` 301 到新域名。
-- 后端：`https://inabakumori-site-production.up.railway.app`（Railway，根目录 `/backend`，单实例，SQLite 在持久化卷 `/data/comments.db`）。
-- `/healthz` 只公开 `{ ok, version }`；`version` = 部署提交前 7 位（`RAILWAY_GIT_COMMIT_SHA`），用于确认重新部署。
+- 前端 API 配置目前仍指向 `https://inabakumori-site-production.up.railway.app`。代码支持 Vercel Express / PostgreSQL；只有按 [迁移说明](VERCEL.md) 验证部署、迁移数据并切换 API 与 CSP 后，才能记为迁移完成。兼容的 Railway 部署仍使用 `/backend`、单实例与持久卷 SQLite。
+- `/healthz` 只公开 `{ ok, version }`；`version` 为部署提交前 7 位，优先取 `VERCEL_GIT_COMMIT_SHA`，兼容 `RAILWAY_GIT_COMMIT_SHA`。
 - 三轮审查（2026-10-11）发现的问题均已修复上线：限流按真实访客 IP（`X-Real-IP`）计数；认证请求必须为 `application/json`（非 JSON 415，JSON 解压后 ≤20 KB）；生产会话 Cookie 使用 `__Host-station-` 前缀并强制 `Secure`、`Path=/`；CSP 含 Trusted Types、`frame-src/worker-src 'none'`；404 页独立 CSP；防嵌入脚本；GitHub Actions 固定 SHA，Dependabot 每周检查。
-- 已有防护：SuperTokens 会话（header 传输）；会员只能删除自己的留言，管理接口另查权限；SQLite 参数化；服务端校验留言；前端只用 `textContent` 渲染；生产错误不返回堆栈；密码重置令牌放在 URL fragment 并立即清除。CORS 不是认证，保护操作始终依赖会话与权限。
+- 已有防护：SuperTokens 会话（header 传输）；会员只能删除自己的留言，管理接口另查权限；数据库查询参数化；服务端校验留言；前端只用 `textContent` 渲染；生产错误不返回堆栈；密码重置令牌放在 URL fragment 并立即清除。CORS 不是认证，保护操作始终依赖会话与权限。
 - 本地维护工具也按输入边界加固：链接检查器只访问公开 HTTP(S) 地址、逐跳检查重定向并固定到已验证的 DNS 答案；构建、图库生成、播放量更新拒绝符号链接输入/输出，防止访问或覆盖仓库外的文件。
 - 2026-10-17 代码复核补齐：Unicode 行分隔符纳入留言换行限制；本地预览拒绝符号链接文件和目录，产物检查拒绝符号链接及非普通文件，防止白名单文件名掩盖私有内容。根目录及后端依赖在本次 `npm audit` 中均为 0 已知漏洞，不代表不存在未公开漏洞。
 
-## Railway 变量（只写名称，值不要进仓库或聊天）
+## 后端变量（只写名称，值不要进仓库或聊天）
 
 | 变量 | 说明 |
 | --- | --- |
 | `NODE_ENV` | `production` |
 | `WEBSITE_URL` | `https://osagechan.top`（CORS、SuperTokens websiteDomain、重置链接都由它决定） |
-| `API_DOMAIN` | Railway 公网 API 地址 |
+| `API_DOMAIN` | 当前后端部署的公网 HTTPS origin |
 | `ADDITIONAL_WEBSITE_ORIGINS` | 可选，逗号分隔的裸 https origin（迁移过渡期用），不接受路径/通配符 |
-| `TRUST_PROXY` | `1`（Railway 一层代理）；错误值会破坏限流 |
-| `CLIENT_IP_HEADER` | 可选，默认在 Railway 上使用 `X-Real-IP` |
+| `TRUST_PROXY` | Railway 使用 `1`；Vercel 可省略，代码直接读取平台覆盖的 IP 头 |
+| `CLIENT_IP_HEADER` | 可选，Railway 默认 `X-Real-IP`，Vercel 默认 `X-Forwarded-For`；仅接受单个有效 IP |
+| `DATABASE_URL` | Vercel 必需的 PostgreSQL 连接串；Preview 必须使用独立数据库，不能复用生产 |
 | `COMMENTS_DB_PATH` | 可选，绝对路径且须位于 Railway 卷内；默认为卷挂载目录下的 `comments.db`（当前 `/data/comments.db`） |
 | `SUPERTOKENS_CONNECTION_URI` / `SUPERTOKENS_API_KEY` | SuperTokens Core |
 | `ADMIN_USER_IDS` | **唯一**管理员来源：逗号分隔的 SuperTokens user ID。为空时启动日志警告；`ADMIN_EMAILS` 已移除且会被忽略 |
@@ -37,6 +38,7 @@
 ## 备份与例行检查
 
 - 远程快照：`GET /api/admin/backup`，`Authorization: Bearer <BACKUP_TOKEN>`；每 IP 每小时 5 次、无 CORS、`no-store`，日志不记录令牌。返回 `comments-YYYYMMDD.db`。
+- PostgreSQL 模式仍导出一致性 SQLite 留言快照，保留全部留言字段，不含共享限流计数。`npm --prefix backend run backup` 是 SQLite 本机备份入口；PostgreSQL 使用受保护快照接口和数据库提供商备份。
 - 备份脚本：运行在维护者自己的机器上，令牌保存在该机器的私有存储中（仅所有者可读），每次下载后校验 SQLite 文件头与大小，失败时非零退出。具体路径与运行方式记录在私有运维手册，不放入公开仓库。
 - 本机/卷内快照：`npm --prefix backend run backup`（见 [OPTIMIZATION.md](OPTIMIZATION.md#数据库备份)）。
 - 快照含全部留言与会员 user ID（无邮箱、密码、令牌、IP），按私密数据保管。令牌泄露时在 Railway 换新值并重新部署。
@@ -61,10 +63,10 @@
 
 ## 边界与残余风险
 
-- 限流计数在单进程内存中，SQLite 单写入：Railway 必须保持 **1 个副本**；不防分布式 DDoS。扩容前需共享限流存储与数据库方案。
-- 应用只经 Railway 公网 HTTP 入口访问；增加 TCP Proxy、自建代理或私网调用者时需重新核实 `X-Real-IP` 的信任边界。
+- SQLite 模式的限流计数仍在单进程内存中，Railway 必须保持 **1 个副本**。PostgreSQL 模式各限流器使用独立命名空间的共享原子计数，数据库不可用时拒绝请求，不回落到内存。留言去重、会员上限与插入在同一写事务内完成。不防分布式 DDoS。
+- 应用只经部署平台公网 HTTP 入口访问；Vercel 信任平台覆盖的 `X-Forwarded-For`，Railway 信任 `X-Real-IP`。增加代理或私网调用者时需重新核实 IP 信任边界。
 - SuperTokens 默认允许已撤销的 access token 有效至到期。
-- GitHub、Railway、SuperTokens 与 DNS 服务商账号都应开启两步验证；能推 `main`、改 Railway 变量或改 DNS 的人等同网站管理员。
+- GitHub、Vercel、Railway、SuperTokens 与 DNS 服务商账号都应开启两步验证；能推 `main`、改后端变量或改 DNS 的人等同网站管理员。
 - 管理员账号应使用长随机密码，并建议与公开联系方式分开。
 
 ## 验证

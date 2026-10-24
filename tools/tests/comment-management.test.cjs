@@ -34,7 +34,7 @@ test('auth POST throttling covers tenant paths and URL normalization; disabled e
   // The limiter block imports its path normaliser from services.mjs; inject the real one instead of
   // duplicating it, so this harness tests the implementation that ships.
   const { normalizeRequestPath } = await import('../../backend/services.mjs');
-  vm.runInNewContext(setup[0], { app, rateLimit, URL, normalizeRequestPath, clientIpKey: req => ipKeyGenerator(req.ip) });
+  vm.runInNewContext(setup[0], { app, rateLimit, URL, normalizeRequestPath, sharedStore: () => ({}), clientIpKey: req => ipKeyGenerator(req.ip) });
   app.use((req, res) => res.status(204).end());
   const request = async (method, pathname) => {
     const socket = new Duplex({ read() {}, write(chunk, encoding, callback) { callback(); } });
@@ -73,7 +73,19 @@ test('auth POST throttling covers tenant paths and URL normalization; disabled e
   assert.equal(await request('POST', '/author'), 204);
 });
 
-async function database() {
+function asynchronousStatements(db) {
+  return {
+    prepare(sql) {
+      const statement = db.prepare(sql);
+      return Object.fromEntries(['get', 'all', 'run'].map(method => [method, async (...args) => {
+        await new Promise(resolve => setImmediate(resolve));
+        return statement[method](...args);
+      }]));
+    }
+  };
+}
+
+async function database({ asynchronous = false } = {}) {
   const { registerCommentManagement } = await import('../../backend/services.mjs');
   const db = new DatabaseSync(':memory:');
   db.exec('CREATE TABLE comments(id INTEGER PRIMARY KEY, nickname TEXT, content TEXT, created_at INTEGER, user_id TEXT, is_guest INTEGER)');
@@ -87,11 +99,11 @@ async function database() {
     assert.equal(guard, auth);
     routes[method] = handler;
   }]));
-  registerCommentManagement(app, db, () => auth);
-  const call = (method, values = {}) => {
+  registerCommentManagement(app, asynchronous ? asynchronousStatements(db) : db, () => auth);
+  const call = async (method, values = {}) => {
     const req = { query: {}, params: {}, session: { getUserId: () => 'owner' }, ...values };
     const res = { code: 200, headers: {}, setHeader(k, v) { this.headers[k] = v; }, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
-    routes[method](req, res);
+    await routes[method](req, res);
     return res;
   };
   return { db, call };
@@ -99,28 +111,40 @@ async function database() {
 test('own messages are paginated, private and never include other users or guests', async () => {
   const { db, call } = await database();
   try {
-    const first = call('get');
+    const first = await call('get');
     assert.equal(first.body.comments.length, 20);
     assert.equal(first.headers['Cache-Control'], 'no-store');
     assert.equal(first.body.comments[0].id, 25);
     assert.equal(first.body.nextCursor, 6);
     assert.ok(first.body.comments.every(row => !('user_id' in row)));
-    const next = call('get', { query: { before: first.body.nextCursor } });
+    const next = await call('get', { query: { before: first.body.nextCursor } });
     assert.deepEqual(next.body.comments.map(row => row.id), [5,4,3,2,1]);
     assert.equal(next.body.nextCursor, null);
-    assert.equal(call('get', { query: { before: 'bad' } }).code, 400);
+    assert.equal((await call('get', { query: { before: 'bad' } })).code, 400);
   } finally { db.close(); }
 });
 test('delete checks ownership on the server and rejects guests, missing and invalid IDs', async () => {
   const { db, call } = await database();
   try {
-    assert.equal(call('delete', { params: { id: '26' } }).code, 403);
-    assert.equal(call('delete', { params: { id: '27' } }).code, 403);
-    assert.equal(call('delete', { params: { id: '999' } }).code, 404);
-    assert.equal(call('delete', { params: { id: '-1' } }).code, 400);
-    assert.equal(call('delete', { params: { id: '1' } }).body.deletedCommentId, 1);
+    assert.equal((await call('delete', { params: { id: '26' } })).code, 403);
+    assert.equal((await call('delete', { params: { id: '27' } })).code, 403);
+    assert.equal((await call('delete', { params: { id: '999' } })).code, 404);
+    assert.equal((await call('delete', { params: { id: '-1' } })).code, 400);
+    assert.equal((await call('delete', { params: { id: '1' } })).body.deletedCommentId, 1);
     assert.equal(db.prepare('SELECT id FROM comments WHERE id = 1').get(), undefined);
     assert.equal(db.prepare('SELECT count(*) AS n FROM comments WHERE id IN (26,27)').get().n, 2);
+  } finally { db.close(); }
+});
+
+test('own message management awaits asynchronous database reads and writes', async () => {
+  const { db, call } = await database({ asynchronous: true });
+  try {
+    const page = await call('get');
+    assert.equal(page.body.comments[0].id, 25);
+    assert.equal(page.body.comments.length, 20);
+    assert.equal((await call('delete', { params: { id: '26' } })).code, 403);
+    assert.equal((await call('delete', { params: { id: '1' } })).body.deletedCommentId, 1);
+    assert.equal(db.prepare('SELECT id FROM comments WHERE id = 1').get(), undefined);
   } finally { db.close(); }
 });
 test('reset email redirects to the GitHub Pages homepage and keeps the token in the fragment', async () => {
@@ -303,6 +327,32 @@ test('admin comment management lists and deletes any comment only for configured
   db.close();
 });
 
+test('admin message management awaits asynchronous database reads and writes', async () => {
+  const { registerAdminCommentManagement } = await import('../../backend/services.mjs');
+  const db = new DatabaseSync(':memory:');
+  try {
+    db.exec('CREATE TABLE comments(id INTEGER PRIMARY KEY, nickname TEXT, content TEXT, created_at INTEGER, user_id TEXT, is_guest INTEGER, expires_at INTEGER)');
+    db.prepare('INSERT INTO comments VALUES(?,?,?,?,?,?,?)').run(1, 'guest', 'remove me', Date.now(), null, 1, null);
+    const routes = {};
+    const app = {
+      get(path, ...handlers) { routes.get = handlers.at(-1); },
+      delete(path, ...handlers) { routes.delete = handlers.at(-1); }
+    };
+    registerAdminCommentManagement(app, asynchronousStatements(db), () => () => {}, async () => true);
+    const response = () => ({ code: 200, setHeader() {}, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } });
+    const page = response();
+    await routes.get({ query: {} }, page);
+    assert.deepEqual(page.body.comments.map(comment => [comment.id, comment.isGuest]), [[1, true]]);
+    const removed = response();
+    await routes.delete({ params: { id: '1' } }, removed);
+    assert.equal(removed.body.deletedCommentId, 1);
+    assert.equal(db.prepare('SELECT id FROM comments WHERE id = 1').get(), undefined);
+    const missing = response();
+    await routes.delete({ params: { id: '1' } }, missing);
+    assert.equal(missing.code, 404);
+  } finally { db.close(); }
+});
+
 function adminUi() {
   const element = () => commentElement(true);
   const elements = Object.fromEntries(['admin-comments', 'admin-comments-list', 'admin-comments-status', 'admin-comments-retry'].map(id => [id, element()]));
@@ -410,6 +460,8 @@ test('admin rights come only from ADMIN_USER_IDS, never from emails', async () =
   assert.match(server, /registerAdminCommentManagement\(app, db, verifySession, createAdminCheck\(ADMIN_USER_IDS\)\)/);
   assert.match(server, /ADMIN_USER_IDS is empty/);
   assert.equal(buildVersion({ RAILWAY_GIT_COMMIT_SHA: '7270D91ABCDEF0123456789abcdef0123456789a' }), '7270d91');
+  assert.equal(buildVersion({ VERCEL_GIT_COMMIT_SHA: 'ABC1234abc1234', RAILWAY_GIT_COMMIT_SHA: '7270d91' }), 'abc1234');
+  assert.equal(buildVersion({ VERCEL_GIT_COMMIT_SHA: 'invalid', RAILWAY_GIT_COMMIT_SHA: '7270d91' }), '7270d91');
   for (const sha of [undefined, '', 'main', '<script>', '123']) assert.equal(buildVersion({ RAILWAY_GIT_COMMIT_SHA: sha }), 'dev');
   for (const message of ['手机上听这首歌很喜欢', '邮箱收不到邮件', '希望不要有广告', '微信里朋友推荐了这首歌']) assert.equal(detectCommentSafetyIssue(message), null);
   for (const message of ['加微信 abc123', '微信：abc123', 'qq号:123456', '扫码领取优惠']) assert.equal(detectCommentSafetyIssue(message)?.code, 'PROMOTIONAL_CONTENT');
@@ -435,6 +487,9 @@ test('deployment preserves the frontend subpath and keeps SQLite inside the volu
   assert.equal(resolveDatabasePath({ NODE_ENV: 'production', RAILWAY_SERVICE_ID: 'test-service', RAILWAY_VOLUME_MOUNT_PATH: '/data', COMMENTS_DB_PATH: '/data/comments.db' }, '/app/backend'), '/data/comments.db');
   assert.throws(() => resolveDatabasePath({ NODE_ENV: 'production', COMMENTS_DB_PATH: './comments.db' }, '/app/backend'));
   assert.throws(() => resolveDatabasePath({ RAILWAY_VOLUME_MOUNT_PATH: '/data', COMMENTS_DB_PATH: '/data-other/comments.db' }, '/app/backend'));
+  for (const env of [{ VERCEL: '1' }, { VERCEL: '1', COMMENTS_DB_PATH: '/tmp/comments.db', DATABASE_URL: 'libsql://example.test' }]) {
+    assert.throws(() => resolveDatabasePath(env, '/app/backend'), /Vercel requires a persistent remote database/);
+  }
 });
 
 test('admin deletion remains applied when a concurrent refresh returns stale data', async () => {
@@ -667,7 +722,7 @@ test('the global limiter runs before CORS, and duplicate guest posts count again
   assert.ok(definition, 'guest limiter definition');
   const express = require('../../backend/node_modules/express');
   const { rateLimit, ipKeyGenerator } = require('../../backend/node_modules/express-rate-limit');
-  const guestCommentLimiter = vm.runInNewContext(`${definition[0]}; guestCommentLimiter`, { rateLimit, clientIpKey: req => ipKeyGenerator(req.ip) });
+  const guestCommentLimiter = vm.runInNewContext(`${definition[0]}; guestCommentLimiter`, { rateLimit, sharedStore: () => ({}), clientIpKey: req => ipKeyGenerator(req.ip) });
   const app = express();
   app.post('/comments/:status', guestCommentLimiter, (req, res) => res.status(Number(req.params.status)).json({}));
   const server = app.listen(0, '127.0.0.1');

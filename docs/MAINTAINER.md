@@ -2,9 +2,9 @@
 
 ## 网站怎么运作
 
-GitHub Pages 提供网页、图片和音乐目录。登录与留言通过 HTTPS 请求 Railway 后端；SuperTokens 负责身份验证，留言保存在数据库里。因此，页面能打开不代表登录和留言也正常。
+GitHub Pages 提供网页、图片和音乐目录。登录与留言通过 HTTPS 请求独立后端；SuperTokens 负责身份验证，留言保存在数据库里。因此，页面能打开不代表登录和留言也正常。Vercel 接入、数据库迁移与切换见 [Vercel 迁移说明](VERCEL.md)；迁移完成前继续保留 Railway 服务。
 
-推送到 main 后，GitHub Actions 会运行检查并发布网站。Railway 的部署需要单独确认。每周播放量刷新任务会直接更新 main，不要随意禁止直接推送；如需改成必须审核，应先调整自动更新流程。
+推送到 main 后，GitHub Actions 会运行检查并发布网站。后端平台的部署需要单独确认。每周播放量刷新任务会直接更新 main，不要随意禁止直接推送；如需改成必须审核，应先调整自动更新流程。
 
 目录与命令入口见[文档导航](README.md)和[工具导航](../tools/README.md)。`data/` 保存经过校验的发布数据；本地报告、日志、采集原件与测量结果按用途归入被忽略的 `artifacts/` 子目录。该目录根下的 `changelog-api-cache.json` 是联网门禁的现用缓存，应保留原路径。整理时保留原始图片、字体、环境配置、数据库及备份；确认无文件的旧构建目录才可用 `rmdir` 移除。
 
@@ -17,7 +17,9 @@ GitHub Pages 提供网页、图片和音乐目录。登录与留言通过 HTTPS 
 5. 将访客可感知的变化补进 [更新日志](CHANGELOG.md)：一行一条，写「症状 → 处理（提交号）」。测试、内部重构和依赖升级留在提交记录中。
 6. 部署验证完成后，同步本地文本副本：运行 `python3 tools/sync-copy.py`，再运行 `python3 tools/sync-copy.py --check`，确认副本与当前已提交源码逐字节一致。保留现有 `.review-base`，除非维护者要求重置。生成器及其回归测试受版本控制；生成的副本仍由 `.gitignore` 排除，不提交、不部署。旧的 `inabakumori-site-all-code/sync.py` 仅为本地兼容入口，以 `realpath(__file__)` 定位实际路径，规则只维护在 `tools/sync-copy.py`。
 
-Railway 使用 Railpack 构建 `/backend`。后端 `package.json` 的 `engines.node` 保持精确版本（当前 `24.22.1`），同步锁文件；升级时同时核对 CI 的 Node 版本。Railpack 会把复合范围简化为主版本，`>=24.22.1 <25` 曾实际构建出 `24.21.0`，因此不能仅凭版本范围宣称安全更新已上线。部署后核对构建日志和容器内 `node --version`，详见 [Railpack 版本解析](https://railpack.com/architecture/package-resolution/)。
+Vercel 以 `/backend` 为根目录，使用 Express 框架和 PostgreSQL（`DATABASE_URL`）。留言与限流计数使用共享数据库；不得把 SQLite 放到函数临时目录。版本来自 `VERCEL_GIT_COMMIT_SHA`。平台自动维护 Node 主版本内的补丁，须核实实际运行版本，不能用本地精确版本替代线上证据。过期留言与限流旧窗口在请求内清理，不依赖常驻计时器。
+
+兼容的 Railway 部署仍使用 Railpack 构建 `/backend`。后端 `package.json` 的 `engines.node` 保持精确版本（当前 `24.22.1`），同步锁文件；升级时同时核对 CI 的 Node 版本。Railpack 会把复合范围简化为主版本，`>=24.22.1 <25` 曾实际构建出 `24.21.0`，因此不能仅凭版本范围宣称安全更新已上线。部署后核对构建日志和容器内 `node --version`，详见 [Railpack 版本解析](https://railpack.com/architecture/package-resolution/)。
 
 副本保留原始缩进和字节，按完整源文件拆卷，每段以 `===== 文件路径 =====` 开头。`1-app-code`、`2-tools-tests`、`3-docs` 以及说明、`changes.txt` 每个最多 130,000 字节；`data/x-posts/posts-*.json` 独立归入第 4 组 `4-x-posts`，每个最多 140 MB（140,000,000 字节），避免帖子分片挤占代码附件。`data/x-posts/manifest.json` 留在第 1 组。数量随完整源文件体积自动调整，不设固定份数，说明和输出按组名与分卷数字顺序列出。空分卷会被校验拒绝；`changes-1.txt` 等编号差异文件视为额外文件，明确报错并保留，不自动删除。单个源文件连同段头超限时明确失败；`changes.txt` 仍保留为一个文件，超限时须由维护者明确调整复核基线，不自动拆分或重置。排除生成的 `js/auth.js`、两个 `package-lock.json`、`dist/`、二进制、环境变量、数据库及密钥。日常前后端、测试与文档复核只提供前三组；要复核帖子正文或全部文本时再附第 4 组，四组内容互不重叠。只核对改动时只提供 `changes.txt`，同一提问不要同时提供重叠内容。
 
@@ -62,7 +64,7 @@ CI 的联网记录校验只在 `push` 到 `refs/heads/main` 时执行。PR、其
 | 现象 | 先检查 |
 | --- | --- |
 | 页面不更新或发布失败 | GitHub Actions 的发布记录，确认看的是本次提交 |
-| 页面正常，登录或留言失败 | Railway 部署状态和错误日志，再看 SuperTokens 服务状态 |
+| 页面正常，登录或留言失败 | 当前后端平台的部署状态和错误日志，再看数据库与 SuperTokens 服务状态 |
 | 域名打不开或证书报错 | 域名服务商与 GitHub Pages 的域名、HTTPS 状态 |
 | 数据异常或误删 | 保留现有数据，确认备份可读，先在隔离环境演练恢复 |
 | 怀疑凭证泄露 | 在对应平台撤销或轮换凭证，撤销相关会话，检查账号活动记录 |

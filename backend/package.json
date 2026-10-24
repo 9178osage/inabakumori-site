@@ -5,19 +5,22 @@
   "main": "server.mjs",
   "scripts": {
     "start": "node server.mjs",
-    "check": "node --check server.mjs && node --check services.mjs && node --check backup.mjs && node --check backup-endpoint.mjs",
-    "backup": "node backup.mjs"
+    "check": "node --check server.mjs && node --check services.mjs && node --check backup.mjs && node --check backup-endpoint.mjs && node --check database.mjs && node --check rate-limit-store.mjs && node --check migrate-comments.mjs && node --check maintenance.mjs",
+    "backup": "node backup.mjs",
+    "migrate:comments": "node migrate-comments.mjs"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@vercel/functions": "^3.10.3",
     "cors": "^2.8.6",
     "dotenv": "^18.0.8",
     "express": "^5.3.0",
     "express-rate-limit": "^8.7.1",
     "helmet": "^8.3.0",
+    "pg": "^8.23.1",
     "supertokens-node": "^24.0.4"
   },
   "overrides": {
