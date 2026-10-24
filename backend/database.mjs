@@ -182,10 +182,12 @@ export async function createPostgresDatabase(pool) {
   // lock serializes schema setup and comment check-and-insert transactions.
   const initializer = await pool.connect();
   try {
-    await initializer.query("BEGIN");
-    await initializer.query("SELECT pg_advisory_xact_lock($1)", [COMMENT_TRANSACTION_LOCK]);
-    await initializer.query(`${POSTGRES_SCHEMA}${COMMENT_INDEXES}${RATE_LIMIT_SCHEMA}`);
-    await initializer.query("COMMIT");
+    // This batch contains application constants only. One simple-protocol
+    // message retains transaction order, replacing four network round trips with one.
+    await initializer.query(`BEGIN;
+      SELECT pg_advisory_xact_lock(${COMMENT_TRANSACTION_LOCK});
+      ${POSTGRES_SCHEMA}${COMMENT_INDEXES}${RATE_LIMIT_SCHEMA}
+      COMMIT;`);
   } catch (error) {
     try { await initializer.query("ROLLBACK"); } catch {}
     throw error;
@@ -203,8 +205,9 @@ export async function createPostgresDatabase(pool) {
         if (!active) throw new Error("Transaction is already closed");
       });
       try {
-        await client.query("BEGIN");
-        await client.query("SELECT pg_advisory_xact_lock($1)", [COMMENT_TRANSACTION_LOCK]);
+        // The lock ID is fixed in this module; request data stays parameterized
+        // in tx.prepare(). Complete the lock acquisition before user work runs.
+        await client.query(`BEGIN; SELECT pg_advisory_xact_lock(${COMMENT_TRANSACTION_LOCK});`);
         const value = await context.run(marker, () => callback(tx));
         active = false;
         await client.query("COMMIT");

@@ -150,12 +150,40 @@ test("PostgreSQL transactions keep one client, lock check-and-insert and release
   try {
     await db.transaction(async tx => { escaped = tx; await tx.prepare("SELECT ?").get(7); });
     const committed = pool.calls.filter(call => call.connection === 2);
-    assert.deepEqual(committed.map(call => call.sql), ["BEGIN", "SELECT pg_advisory_xact_lock($1)", "SELECT $1", "COMMIT", "release"]);
+    assert.deepEqual(committed.map(call => call.sql), ["BEGIN; SELECT pg_advisory_xact_lock(721784230);", "SELECT $1", "COMMIT", "release"]);
     await assert.rejects(escaped.prepare("SELECT 1").get(), /already closed/u);
     await assert.rejects(db.transaction(async tx => { await tx.exec("SELECT 2"); throw new Error("abort write"); }), /abort write/u);
-    assert.deepEqual(pool.calls.filter(call => call.connection === 3).map(call => call.sql), ["BEGIN", "SELECT pg_advisory_xact_lock($1)", "SELECT 2", "ROLLBACK", "release"]);
+    assert.deepEqual(pool.calls.filter(call => call.connection === 3).map(call => call.sql), ["BEGIN; SELECT pg_advisory_xact_lock(721784230);", "SELECT 2", "ROLLBACK", "release"]);
     await assert.rejects(db.transaction(() => db.prepare("SELECT 1").get()), /transaction-scoped/u);
   } finally { await db.close(); }
+});
+
+test("a pending or failed PostgreSQL lock batch never starts the write callback", async () => {
+  const { createPostgresDatabase } = await import("../../backend/database.mjs");
+  const started = deferred();
+  const resume = deferred();
+  const failure = Object.assign(new Error("synthetic advisory lock timeout"), { code: "57014" });
+  const pool = fakePool(async sql => {
+    if (sql === "BEGIN; SELECT pg_advisory_xact_lock(721784230);") {
+      started.resolve();
+      await resume.promise;
+      throw failure;
+    }
+    return { rows: [], fields: [], rowCount: 0 };
+  });
+  const db = await createPostgresDatabase(pool);
+  let called = false;
+  try {
+    const pending = db.transaction(() => { called = true; });
+    await started.promise;
+    assert.equal(called, false, "callback waits for the entire lock batch");
+    resume.resolve();
+    await assert.rejects(pending, error => error === failure);
+    assert.equal(called, false, "a failed lock batch never enters user work");
+    assert.deepEqual(pool.calls.filter(call => call.connection === 2).map(call => call.sql), [
+      "BEGIN; SELECT pg_advisory_xact_lock(721784230);", "ROLLBACK", "release"
+    ]);
+  } finally { resume.resolve(); await db.close(); }
 });
 
 test("PostgreSQL backup produces a restorable SQLite snapshot with exact IDs and metadata", async () => {
