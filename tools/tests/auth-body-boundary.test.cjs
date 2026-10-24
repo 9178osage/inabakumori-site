@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { Readable } = require("node:stream");
-const { gzipSync } = require("node:zlib");
+const { gzipSync, deflateSync, brotliCompressSync } = require("node:zlib");
 const express = require("../../backend/node_modules/express");
 const typeIs = require("../../backend/node_modules/type-is");
 const { assertThatBodyParserHasBeenUsedForExpressLikeRequest: sdkParse } =
@@ -27,7 +27,7 @@ async function parseRequest(data, headers) {
     requireJsonRequestBody(req, res, () => { accepted = true; });
     if (!accepted) return { status, response, sdkReached };
     const error = await new Promise(resolve => {
-      express.json({ limit: "20kb", strict: true })(req, res, resolve);
+      express.json({ limit: "20kb", strict: true, inflate: false })(req, res, resolve);
     });
     if (error) return { status: error.status, errorType: error.type, sdkReached };
     sdkReached = true;
@@ -59,15 +59,24 @@ test("chunked non-JSON bodies cannot bypass the parser boundary", async () => {
   assert.equal(result.sdkReached, false);
 });
 
-test("JSON bodies still enforce the 20 KB limit after decompression and with chunked transfer", async () => {
+test("plain JSON bodies enforce the 20 KB limit with fixed or chunked transfer", async () => {
   const raw = Buffer.from(JSON.stringify({ padding: "x".repeat(32 * 1024) }));
-  for (const compression of ["identity", "gzip"]) {
-    const data = compression === "gzip" ? gzipSync(raw) : raw;
+  for (const framing of [{ "content-length": String(raw.length) }, { "transfer-encoding": "chunked" }]) {
+    const result = await parseRequest(raw, { ...framing, "content-type": "application/json", "content-encoding": "identity" });
+    assert.equal(result.status, 413);
+    assert.equal(result.errorType, "entity.too.large");
+    assert.equal(result.sdkReached, false);
+  }
+});
+
+test("compressed JSON is rejected before decoding or reaching the auth SDK", async () => {
+  const raw = Buffer.from('{"formFields":[]}');
+  for (const [encoding, data] of [["gzip", gzipSync(raw)], ["deflate", deflateSync(raw)], ["br", brotliCompressSync(raw)]]) {
     for (const framing of [{ "content-length": String(data.length) }, { "transfer-encoding": "chunked" }]) {
-      const result = await parseRequest(data, { ...framing, "content-type": "application/json", "content-encoding": compression });
-      assert.equal(result.status, 413);
-      assert.equal(result.errorType, "entity.too.large");
-      assert.equal(result.sdkReached, false);
+      const result = await parseRequest(data, { ...framing, "content-type": "application/json", "content-encoding": encoding });
+      assert.equal(result.status, 415, encoding);
+      assert.equal(result.errorType, "encoding.unsupported", encoding);
+      assert.equal(result.sdkReached, false, encoding);
     }
   }
 });

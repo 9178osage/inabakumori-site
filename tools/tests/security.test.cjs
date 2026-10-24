@@ -21,7 +21,7 @@ test("backend has no shell, eval, dynamic code or SQLite extension loading primi
   assert.match(database, /new DatabaseSync\(databasePath\)/, "database opened with default options (extensions disabled)");
   assert.doesNotMatch(database, /allowExtension|loadExtension|load_extension/i, "database adapter must not enable SQLite extensions");
   assert.match(server, /app\.set\("query parser", "simple"\)/, "no nested query objects");
-  assert.match(server, /express\.json\(\{ limit: "20kb", strict: true \}\)/);
+  assert.match(server, /express\.json\(\{ limit: "20kb", strict: true, inflate: false \}\)/);
   assert.match(server, /app\.disable\("x-powered-by"\)/);
 });
 

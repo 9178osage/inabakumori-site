@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { once } from "node:events";
-import { gzipSync } from "node:zlib";
+import { gzipSync, deflateSync, brotliCompressSync } from "node:zlib";
 import { setTimeout as delay } from "node:timers/promises";
 import { createStaticServer } from "./static-server.mjs";
 
@@ -128,15 +128,25 @@ try {
     const result = await request(`${api}/auth/signin`, { method: "POST", headers: {
       "Content-Type": contentType, "Content-Encoding": "gzip"
     }, body: compressedAuth });
-    assert.equal(result.status, contentType === "application/json" ? 413 : 415);
+    assert.equal(result.status, 415);
     await result.arrayBuffer();
   }
-  // A complete gzip frame followed by garbage used to emit a late, unhandled
-  // decoder error after body parsing. The public API must survive the request.
+  // Reject compressed JSON before auth or comment handlers, even when the JSON
+  // would otherwise be valid. No attacker-controlled input reaches a decoder.
+  for (const endpoint of ["/auth/signin", "/api/comments"]) {
+    for (const [encoding, compress] of [["gzip", gzipSync], ["deflate", deflateSync], ["br", brotliCompressSync]]) {
+      const result = await request(api + endpoint, { method: "POST", headers: {
+        "Content-Type": "application/json", "Content-Encoding": encoding
+      }, body: compress(Buffer.from("{}")) });
+      assert.equal(result.status, 415, `${endpoint}: ${encoding}`);
+      assert.equal((await result.json()).code, "UNSUPPORTED_MEDIA_TYPE");
+    }
+  }
+  // A malformed frame must also be rejected without starting decompression.
   const trailingGzip = await request(`${api}/missing`, { method: "POST", headers: {
     "Content-Type": "application/json", "Content-Encoding": "gzip"
   }, body: Buffer.concat([gzipSync(Buffer.from("{}")), Buffer.from("invalid trailing gzip payload")]) });
-  assert.ok([400, 404].includes(trailingGzip.status), `unexpected trailing gzip response: ${trailingGzip.status}`);
+  assert.equal(trailingGzip.status, 415);
   await trailingGzip.arrayBuffer();
   assert.equal((await request(`${api}/healthz`)).status, 200, "malformed compressed data must never crash the API");
   const invalidCharset = await request(`${api}/auth/signin`, { method: "POST", headers: {
