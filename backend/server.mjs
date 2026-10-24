@@ -98,6 +98,7 @@ try {
   process.exit(1);
 }
 console.log("✅ Comments database ready");
+console.log("✅ Backend initialized", { version: BUILD_VERSION, node: process.version, storage: db.kind });
 const sharedStore = prefix => db.kind === "postgres" ? { store: createPostgresRateLimitStore(db, {
   prefix: prefix.toLowerCase(), onBackgroundTask: IS_VERCEL ? waitUntil : undefined
 }) } : {};
