@@ -154,7 +154,9 @@ async function sqliteSnapshot(destination, rows, highWater) {
     // IDs already issued and later deleted must stay unavailable after restore,
     // including when every comment has been deleted from the source database.
     snapshot.prepare("DELETE FROM sqlite_sequence WHERE name = ?").run("comments");
-    snapshot.prepare("INSERT INTO sqlite_sequence (name, seq) VALUES (?, ?)").run("comments", highWater);
+    // sqlite_sequence.seq has no INTEGER affinity: node:sqlite binds Numbers
+    // as REAL, so cast explicitly for interoperable integer backup metadata.
+    snapshot.prepare("INSERT INTO sqlite_sequence (name, seq) VALUES (?, CAST(? AS INTEGER))").run("comments", highWater);
     snapshot.exec("COMMIT");
     if (snapshot.prepare("PRAGMA quick_check").get().quick_check !== "ok") throw new Error("Backup integrity check failed");
     snapshot.close();

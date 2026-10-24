@@ -6,7 +6,7 @@
 
 - 前端：`https://osagechan.top/`（GitHub Pages，只发布 `dist/` 白名单产物）；旧地址 `9178osage.github.io/inabakumori-site/` 301 到新域名。
 - 后端：`https://inabakumori-backend.vercel.app`（Vercel，项目 `inabakumori-backend`，根目录 `backend`，Express / Node 24.x）。留言和共享限流计数保存在独立 Neon 免费 PostgreSQL，Production 以外的部署没有连接该生产库。身份和管理员 user ID 沿用原 SuperTokens Core。
-- 迁移时的最终 SQLite 快照已导入并逐字段核对：13 条留言（2 条会员、11 条游客），保留原 ID、所有权、时间和历史 ID 序列。原 Railway 卷和私密快照用于恢复演练；重新启用旧入口时，必须保持连接迁移后的 PostgreSQL，不能再启用旧 SQLite 写入。切换和回退步骤见 [迁移说明](VERCEL.md)。
+- 迁移时的最终 SQLite 快照已导入并逐字段核对：13 条留言（2 条会员、11 条游客），保留原 ID、所有权、时间和历史 ID 序列。原 Railway 服务连接同一 PostgreSQL 并核验后已停止，原卷和私密快照保留用于恢复演练；重新启用旧入口时，必须保持连接迁移后的 PostgreSQL，不能再启用旧 SQLite 写入。切换和回退步骤见 [迁移说明](VERCEL.md)。
 - `/healthz` 只公开 `{ ok, version }`；`version` 为部署提交前 7 位，优先取 `VERCEL_GIT_COMMIT_SHA`，兼容 `RAILWAY_GIT_COMMIT_SHA`。
 - 三轮审查（2026-10-11）发现的问题均已修复上线：限流按真实访客 IP 计数（当前 Vercel 使用平台覆盖的 `X-Forwarded-For`，Railway 使用 `X-Real-IP`）；认证请求必须为未压缩 `application/json` 且 ≤20 KB（非 JSON 或压缩体均返回 415）；生产会话 Cookie 使用 `__Host-station-` 前缀并强制 `Secure`、`Path=/`；CSP 含 Trusted Types、`frame-src/worker-src 'none'`；404 页独立 CSP；防嵌入脚本；GitHub Actions 固定 SHA，Dependabot 每周检查。
 - 已有防护：SuperTokens 会话（header 传输）；会员只能删除自己的留言，管理接口另查权限；数据库查询参数化；服务端校验留言；前端只用 `textContent` 渲染；生产错误不返回堆栈；密码重置令牌放在 URL fragment 并立即清除。CORS 不是认证，保护操作始终依赖会话与权限。
@@ -25,7 +25,7 @@
 | `CLIENT_IP_HEADER` | 可选，Railway 默认 `X-Real-IP`，Vercel 默认 `X-Forwarded-For`；仅接受单个有效 IP |
 | `DATABASE_URL` | Vercel 必需的 PostgreSQL 连接串；Preview 必须使用独立数据库，不能复用生产 |
 | `COMMENTS_READ_ONLY` | 正常为 `0`；迁移维护时设为 `1`，冻结留言发布、删除和过期清理，读取及受保护备份仍可用 |
-| `COMMENTS_DB_PATH` | 仅供本地或旧 SQLite 模式；Vercel 不使用该路径 |
+| `COMMENTS_DB_PATH` | 仅供本地开发与离线 SQLite 工具；Vercel 和生产回退均使用 PostgreSQL，不恢复旧 SQLite 写入 |
 | `SUPERTOKENS_CONNECTION_URI` / `SUPERTOKENS_API_KEY` | SuperTokens Core |
 | `ADMIN_USER_IDS` | **唯一**管理员来源：逗号分隔的 SuperTokens user ID。为空时启动日志警告；`ADMIN_EMAILS` 已移除且会被忽略 |
 | `BACKUP_TOKEN` | ≥32 字符（如 `openssl rand -hex 32`）；未设置或过短时备份接口返回 404 |
@@ -41,7 +41,8 @@
 
 - 远程快照：`GET /api/admin/backup`，`Authorization: Bearer <BACKUP_TOKEN>`；每 IP 每小时 5 次、无 CORS、`no-store`，日志不记录令牌。返回 `comments-YYYYMMDD.db`。
 - PostgreSQL 模式仍导出一致性 SQLite 留言快照，保留全部留言字段，不含共享限流计数。`npm --prefix backend run backup` 是 SQLite 本机备份入口；PostgreSQL 使用受保护快照接口和数据库提供商备份。
-- 备份脚本：运行在维护者自己的机器上，令牌保存在该机器的私有存储中（仅所有者可读），每次下载后校验 SQLite 文件头与大小，失败时非零退出。具体路径与运行方式记录在私有运维手册，不放入公开仓库。
+- 备份脚本：`tools/remote-backup.py` 使用私有配置，拒绝重定向，并在下载后校验 SQLite 完整性、留言字段及历史 ID 序列；失败非零退出且保留旧快照，成功后只清理其自有命名的过期文件。维护者 Mac 的私有安装副本每日执行，保留 30 天；需要机器开机、用户登录且联网，旧备份主机当前无法访问，不能将它当作已验证的持续备份。令牌、实际路径和调度维护方式记录在私有运维手册，不放入公开仓库。
+- Neon Free 的恢复历史最多 6 小时且不含定时备份，不能代替上述独立快照。受保护备份响应额外提供实际 Node 版本，供私有日志留存，未授权响应不返回该信息。详见 [迁移后的备份说明](VERCEL.md#回退与后续备份)。
 - 本机/卷内快照：`npm --prefix backend run backup`（见 [OPTIMIZATION.md](OPTIMIZATION.md#数据库备份)）。
 - 快照含全部留言与会员 user ID（无邮箱、密码、令牌、IP），按私密数据保管。令牌泄露时在 Vercel Production 换新值并重新部署；如旧回退入口仍启用，同步轮换。
 - 例行：每次推送后看 `Verify website` / `Publish public site` 是否成功、`/healthz` 的 `version`；定期 `npm audit`（根目录与 `backend`）并处理 Dependabot PR；定期恢复演练一次备份。
@@ -65,7 +66,7 @@
 
 ## 边界与残余风险
 
-- SQLite 模式的限流计数仍在单进程内存中，Railway 必须保持 **1 个副本**。PostgreSQL 模式各限流器使用独立命名空间的共享原子计数，数据库不可用时拒绝请求，不回落到内存。留言去重、会员上限与插入在同一写事务内完成。不防分布式 DDoS。
+- 本地 SQLite 模式的限流计数仍在单进程内存中，只适用于单实例。已迁移的生产和回退服务必须使用当前 PostgreSQL；各限流器使用独立命名空间的共享原子计数，数据库不可用时拒绝请求，不回落到内存。留言去重、会员上限与插入在同一写事务内完成。不防分布式 DDoS。
 - 应用只经部署平台公网 HTTP 入口访问；Vercel 信任平台覆盖的 `X-Forwarded-For`，Railway 信任 `X-Real-IP`。增加代理或私网调用者时需重新核实 IP 信任边界。
 - SuperTokens 默认允许已撤销的 access token 有效至到期。
 - GitHub、Vercel、Railway、SuperTokens 与 DNS 服务商账号都应开启两步验证；能推 `main`、改后端变量或改 DNS 的人等同网站管理员。

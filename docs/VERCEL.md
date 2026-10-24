@@ -1,6 +1,8 @@
 # 将登录与留言后端迁往 Vercel
 
-前端继续由 GitHub Pages 发布。Vercel 只运行 `backend/` 中的 Express API；留言改存外部 PostgreSQL，身份、密码和会员 user ID 继续使用现有 SuperTokens Core。仓库包含迁移适配不代表生产流量已切换；只有完成以下数据迁移、预验证和前端发布，才能记录为迁移完成。
+当前前端由 GitHub Pages 发布，生产 API 已切换到 `https://inabakumori-backend.vercel.app`。Vercel 只运行 `backend/` 中的 Express API；留言和共享限流计数保存在独立 Neon PostgreSQL，身份、密码和会员 user ID 继续使用原 SuperTokens Core。最终 SQLite 快照的 13 条留言已逐字段核对，保留原 ID、会员归属和历史 ID 序列。原 Railway 服务连接同一 PostgreSQL 并核验后已停止，旧 SQLite 卷和私密快照保留用于恢复演练。
+
+下文保留迁移、预验证与回退步骤。后续部署仍须核对实际平台部署和线上内容，不能把源码适配或 Git 推送等同于生产发布。
 
 Vercel 支持直接识别 `server.mjs` 导出的 Express 应用，项目根目录应为 `backend`。不要添加旧式 `api/` 包装或覆盖路由的 rewrites。[Express 部署说明](https://vercel.com/docs/frameworks/backend/express)
 
@@ -73,15 +75,19 @@ node backend/migrate-comments.mjs --source /private/backup/comments.db --apply
 1. 保持原 Railway 服务与卷可恢复，记录当前正常提交、旧 API 地址、变量名称和备份位置。在独立 Preview 数据库上验证 Vercel 构建、`/healthz` 和数据库连接，预演导入与恢复。
 2. 安排维护窗口，先让原 Railway 服务部署包含维护开关的兼容版本，再设置 `COMMENTS_READ_ONLY=1` 并重新部署。等待所有旧实例停止后，实际调用旧 API 的留言发布、会员删除和管理员删除路径，逐一确认均返回 `503`、`COMMENTS_READ_ONLY` 和 `Retry-After: 300`；同时确认读取、`/healthz`、认证与受保护备份仍可用。只隐藏前端按钮不能阻止直接调用。确认原服务不再写入后，生成最后一份 SQLite 一致性备份并离线检查。
 3. 将最终快照 dry-run 后导入空的生产 PostgreSQL。保留原 SQLite 卷和备份。将保留的 Railway 后端设置为同一 `DATABASE_URL`，同时确保 Vercel 连接的也是该数据库。先保持两边 `COMMENTS_READ_ONLY=1` 部署并核对数据与健康状态，再取消两边的冻结变量并重新部署、验证恢复写入；这样切换期间两个地址共享同一份数据，不再各写一份数据库。
-4. 部署 Vercel Production，确认对应 Git 提交、构建实际 Node 版本及 `/healthz` 返回的提交前缀。使用实际前端 origin 检查 CORS 和预检；在受控环境核对留言读取、游客发布、会员归属、删除权限、管理员接口、登录与会话刷新。确认多个实例共享限流、过期行为正确，备份可导出且恢复可用。测试留言及时清理。
+4. 部署 Vercel Production，确认对应 Git 提交、构建与函数初始化日志中的实际 Node 版本，以及 `/healthz` 返回的提交前缀。使用实际前端 origin 检查 CORS 和预检；在受控环境核对留言读取、游客发布、会员归属、删除权限、管理员接口、登录与会话刷新。确认多个实例共享限流、过期行为正确，备份可导出且恢复可用。测试留言及时清理。
 5. 以上预验证全部通过后，再把 `js/config.js` 的生产 `apiDomain`、页面 CSP 的 `connect-src` 和相应构建校验、测试一并改为已经验证的 Vercel API origin。不要提前填写猜测的项目域名；不扩大 CSP 为通配符。
 6. 按[站长手册](MAINTAINER.md)运行四项提交门禁，提交并推送 `main`，核对 GitHub Pages 发布和线上页面实际加载的新 API 地址。用线上页面再次验证登录、留言、删除和控制台 CSP/CORS 错误，记录实际检查的提交范围及部署结果。
 7. Vercel、Pages、生产数据与回退方案全部确认后，再决定停用 Railway。停用前确认数据库已独立于待移除的 Railway 资源，保存最后备份和恢复记录；不要连同仍被 Vercel 使用的数据库一起删除。完成部署验证后按项目约定同步并检查本地文本副本。
 
 ## 回退与后续备份
 
-前端切换前发现故障，保持原 API 地址，修复 Vercel 后重做预验证。前端切换后发现故障，优先把前端配置与 CSP 恢复为已验证的旧地址，并使用仍连接同一 PostgreSQL 的兼容 Railway 后端；重新部署前端并核验线上行为。
+前端切换前发现故障，保持原 API 地址，修复 Vercel 后重做预验证。当前 Railway 回退服务已停止；若切换后需要恢复该入口，先重新启动兼容后端，确认其 `DATABASE_URL` 仍连接当前 PostgreSQL，并验证健康状态、读取、写入和 CORS。以上核对通过后，再把前端配置与 CSP 改为已验证的旧地址，重新部署前端并核验线上行为。
 
 一旦 PostgreSQL 已接收新留言或删除，不能只把后端切回旧 SQLite 文件或回退到只支持 SQLite 的历史代码，否则会丢失新数据。需要恢复数据库时先暂停所有写入、备份当前 PostgreSQL，并在隔离环境演练、核对时间点与增量，再制定数据恢复方案。Vercel 的代码回滚不会回滚数据库。
 
-生产迁移后启用数据库提供商的备份与恢复能力，并保留独立的异地备份。应用快照导出为兼容的 SQLite 文件，便于离线核对与恢复演练；导出文件同样含私密留言及 user ID，不作为公开构建产物。定期检查备份新鲜度、恢复可用性、数据库连接量和共享限流表的清理情况。
+Neon Free 的恢复历史最多 6 小时、手动快照限 1 个，不包含定时备份；不能把免费数据库接入等同持续异地备份已建立。[Neon 方案说明](https://neon.com/docs/introduction/plans)
+
+独立快照使用 `python3 tools/remote-backup.py /private/path/backup-config.json`。私有 JSON 包含 `url`（当前生产 `/api/admin/backup` 的完整 HTTPS 地址）、`token`、`directory`（绝对路径）及可选的 `retention_days`（默认 30）；配置与目录仅允许所有者访问，不放入 Git。工具拒绝重定向，限制下载体积，校验 SQLite 完整性、留言结构与 ID 序列后才保存，失败不轮换旧备份；成功后只清理其自有命名的过期快照。它不包含 SuperTokens 的身份、密码或会话备份。
+
+维护者机器使用本工具的私有安装副本每日备份；需要机器开机、用户登录且联网，不能宣称全天候云备份。应用快照导出为兼容的 SQLite 文件，便于离线核对与恢复演练；导出文件同样含私密留言及 user ID，不作为公开构建产物。成功备份响应的 `X-Backend-Node-Version` 仅向持有备份令牌的请求提供实际运行时版本；客户端日志保留版本证据，便于确认平台补丁。定期检查备份新鲜度、恢复可用性、数据库连接量和共享限流表的清理情况。

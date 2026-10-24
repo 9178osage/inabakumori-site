@@ -2,7 +2,7 @@
 
 ## 网站怎么运作
 
-GitHub Pages 提供网页、图片和音乐目录。登录与留言通过 HTTPS 请求独立后端；SuperTokens 负责身份验证，留言保存在数据库里。因此，页面能打开不代表登录和留言也正常。Vercel 接入、数据库迁移与切换见 [Vercel 迁移说明](VERCEL.md)；迁移完成前继续保留 Railway 服务。
+GitHub Pages 提供网页、图片和音乐目录。登录与留言通过 HTTPS 请求 Vercel 后端 `https://inabakumori-backend.vercel.app`；SuperTokens 负责身份验证，留言和共享限流计数保存在独立 Neon PostgreSQL。因此，页面能打开不代表登录和留言也正常。原 Railway 服务已连接同一 PostgreSQL 并核验，随后停止；原卷和备份仍保留，回退时必须继续使用当前 PostgreSQL。迁移记录和恢复步骤见 [Vercel 迁移说明](VERCEL.md)。
 
 推送到 main 后，GitHub Actions 会运行检查并发布网站。后端平台的部署需要单独确认。每周播放量刷新任务会直接更新 main，不要随意禁止直接推送；如需改成必须审核，应先调整自动更新流程。
 
@@ -12,14 +12,16 @@ GitHub Pages 提供网页、图片和音乐目录。登录与留言通过 HTTPS 
 
 1. 本地运行 `npm test`、`npm run check`、`npm run test:integration`、`npm run check:changelog`，都成功再提交。最后一项单独联网核对上线记录；`npm run check` 本身不查询 GitHub API。测试失败时先找原因，不要删除安全检查来通过测试。
 2. 在 GitHub Actions 查看对应提交的 `Verify website` 和 `Publish public site`，两项都应成功。
-3. 打开网站确认页面正常，再检查后端 `/healthz`：`ok` 应为 `true`，`version` 应与部署提交前七位一致。健康检查成功不等于所有登录、留言功能都验证过。
+3. 打开网站确认页面正常，再确认 Vercel 对应提交的部署为 Ready，并检查生产后端 `/healthz`：`ok` 应为 `true`，`version` 应与部署提交前七位一致。健康检查成功不等于所有登录、留言功能都验证过。
 4. 记录提交号、两项工作流的运行编号和后端版本。没有核实就写“待确认”，不要写“已上线”。
 5. 将访客可感知的变化补进 [更新日志](CHANGELOG.md)：一行一条，写「症状 → 处理（提交号）」。测试、内部重构和依赖升级留在提交记录中。
 6. 部署验证完成后，同步本地文本副本：运行 `python3 tools/sync-copy.py`，再运行 `python3 tools/sync-copy.py --check`，确认副本与当前已提交源码逐字节一致。保留现有 `.review-base`，除非维护者要求重置。生成器及其回归测试受版本控制；生成的副本仍由 `.gitignore` 排除，不提交、不部署。旧的 `inabakumori-site-all-code/sync.py` 仅为本地兼容入口，以 `realpath(__file__)` 定位实际路径，规则只维护在 `tools/sync-copy.py`。
 
 Vercel 以 `/backend` 为根目录，使用 Express 框架和 PostgreSQL（`DATABASE_URL`）。留言与限流计数使用共享数据库；不得把 SQLite 放到函数临时目录。版本来自 `VERCEL_GIT_COMMIT_SHA`。平台自动维护 Node 主版本内的补丁，须核实实际运行版本，不能用本地精确版本替代线上证据。过期留言与限流旧窗口在请求内清理，不依赖常驻计时器。
 
-兼容的 Railway 部署仍使用 Railpack 构建 `/backend`。后端 `package.json` 的 `engines.node` 保持精确版本（当前 `24.22.1`），同步锁文件；升级时同时核对 CI 的 Node 版本。Railpack 会把复合范围简化为主版本，`>=24.22.1 <25` 曾实际构建出 `24.21.0`，因此不能仅凭版本范围宣称安全更新已上线。部署后核对构建日志和容器内 `node --version`，详见 [Railpack 版本解析](https://railpack.com/architecture/package-resolution/)。
+本地检查与 CI 使用精确版本 Node `24.22.1`；后端 `package.json` 的 `engines.node` 也保留该精确版本，并同步锁文件。升级时同时核对 CI 配置。Vercel 实际运行版本的核验以 [安全与运维现状](SECURITY.md) 和 [迁移记录](VERCEL.md) 为准，不能仅凭 `engines` 推断。
+
+已停止的 Railway 服务此前使用 Railpack 构建 `/backend`。Railpack 会把复合范围简化为主版本，`>=24.22.1 <25` 曾实际构建出 `24.21.0`；若以后重新启用该回退服务，须核对构建日志和容器内 `node --version`，并确认连接当前 PostgreSQL。原 SQLite 卷不能作为生产写入来源。详见 [Railpack 版本解析](https://railpack.com/architecture/package-resolution/)。
 
 副本保留原始缩进和字节，按完整源文件拆卷，每段以 `===== 文件路径 =====` 开头。`1-app-code`、`2-tools-tests`、`3-docs` 以及说明、`changes.txt` 每个最多 130,000 字节；`data/x-posts/posts-*.json` 独立归入第 4 组 `4-x-posts`，每个最多 140 MB（140,000,000 字节），避免帖子分片挤占代码附件。`data/x-posts/manifest.json` 留在第 1 组。数量随完整源文件体积自动调整，不设固定份数，说明和输出按组名与分卷数字顺序列出。空分卷会被校验拒绝；`changes-1.txt` 等编号差异文件视为额外文件，明确报错并保留，不自动删除。单个源文件连同段头超限时明确失败；`changes.txt` 仍保留为一个文件，超限时须由维护者明确调整复核基线，不自动拆分或重置。排除生成的 `js/auth.js`、两个 `package-lock.json`、`dist/`、二进制、环境变量、数据库及密钥。日常前后端、测试与文档复核只提供前三组；要复核帖子正文或全部文本时再附第 4 组，四组内容互不重叠。只核对改动时只提供 `changes.txt`，同一提问不要同时提供重叠内容。
 
@@ -103,13 +105,13 @@ CI 的联网记录校验只在 `push` 到 `refs/heads/main` 时执行。PR、其
 
 API 失败时，刷新日志只显示 HTTP 状态及固定白名单中的 Google 错误代码和处理建议；不输出响应原文、错误 message、metadata 或密钥。根据代码核对 GitHub Actions 的 `YOUTUBE_API_KEY`、对应 Cloud 项目的 YouTube Data API v3 启用状态、密钥限制或配额。更新 Secret 后重新运行 `Refresh YouTube view counts`，以刷新成功、对应提交发布成功及线上歌曲文件指纹一致作为恢复依据；仅更新 Secret 不算恢复完成。所有视频请求均失败时保留原歌曲文件，工作流失败，不提交或发布空结果。
 
-### Node 版本（精确固定）
+### Node 版本（本地与 CI 精确固定）
 
-后端 `engines.node` 与各工作流固定为精确版本（当前 `24.22.1`），不会自动获得 24.x 安全补丁。检查清单：
+后端 `engines.node` 与各工作流固定为精确版本（当前 `24.22.1`），本地与 CI 不会自动跟进新的 24.x 安全补丁。Vercel 的运行时补丁由平台管理，须另查函数初始化日志；`engines` 的精确声明不等于线上正在运行该补丁。检查清单：
 
 - 关注 Node.js 安全发布公告（<https://nodejs.org/en/blog/vulnerability>）或 <https://nodejs.org/dist/index.json> 中 24.x 最新版本；每次 24.x 发布安全更新时及时升级。
 - 升级时同步修改：`backend/package.json` 的 `engines.node`、根 `package.json` 的范围下限、全部 `.github/workflows/*.yml` 的 `node-version`、本机 Node，并同步锁文件。
-- 本地四项门禁通过后推送，并按上文核对 Railway 构建日志与容器内 `node --version` 是否为新版本。
+- 本地四项门禁通过后推送，核对 Vercel 部署及函数初始化日志的实际 Node 版本；若重新启用 Railway 回退服务，也须核对其构建日志与容器内 `node --version`。
 
 ### 最新动态页面
 
@@ -140,7 +142,7 @@ API 失败时，刷新日志只显示 HTTP 状态及固定白名单中的 Google
 
 查看安全告警和依赖更新，备份后定期在隔离环境验证恢复。轮换管理员密码时，确认仍为 ≥20 位随机且全站唯一。平台账号启用两步验证，并妥善保存恢复方式；完成这一轮加固后，这些维护仍需继续。
 
-以下项目截至本次文档编写均**待维护者确认**，不代表已启用或未启用：GitHub、Railway、SuperTokens、域名服务商的两步验证；GitHub 的 Secret scanning、Push protection、Dependabot alerts。由维护者逐项核实，在私有运维记录中写明状态、确认人和确认日期，不在公开文档记录个人身份或恢复信息。
+以下项目截至本次文档编写均**待维护者确认**，不代表已启用或未启用：GitHub、Vercel、Neon、Railway、SuperTokens、域名服务商的两步验证；GitHub 的 Secret scanning、Push protection、Dependabot alerts。由维护者逐项核实，在私有运维记录中写明状态、确认人和确认日期，不在公开文档记录个人身份或恢复信息。
 
 ## 真机抽检清单（每次发布后约 2 分钟）
 

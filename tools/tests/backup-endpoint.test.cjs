@@ -92,12 +92,15 @@ test("wrong or missing token is rejected; correct token streams a valid SQLite s
   const s = await serve(TOKEN);
   const tmpBefore = fs.readdirSync(os.tmpdir()).filter(name => name.startsWith("inabakumori-backup-")).length;
   try {
-    assert.equal((await fetch(s.url)).status, 401);
+    const unauthenticated = await fetch(s.url);
+    assert.equal(unauthenticated.status, 401);
+    assert.equal(unauthenticated.headers.get("x-backend-node-version"), null);
     assert.equal((await fetch(s.url, { headers: { Authorization: "Bearer " + "b".repeat(48) } })).status, 401);
     const res = await fetch(s.url, { headers: { Authorization: `Bearer ${TOKEN}` } });
     assert.equal(res.status, 200);
     assert.equal(res.headers.get("content-type"), "application/octet-stream");
     assert.equal(res.headers.get("cache-control"), "no-store");
+    assert.equal(res.headers.get("x-backend-node-version"), process.version);
     const body = Buffer.from(await res.arrayBuffer());
     assert.equal(body.subarray(0, 16).toString("latin1"), "SQLite format 3\0");
     const copy = path.join(s.dir, "downloaded.db");

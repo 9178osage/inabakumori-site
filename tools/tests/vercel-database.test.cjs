@@ -177,9 +177,39 @@ test("PostgreSQL backup produces a restorable SQLite snapshot with exact IDs and
       assert.deepEqual({ ...copied }, { ...rows[0], id: 42, created_at: 1800000000000 });
       assert.equal(copy.prepare("PRAGMA quick_check").get().quick_check, "ok");
       assert.equal(copy.prepare("SELECT count(*) AS n FROM sqlite_master WHERE name = 'rate_limit_counters'").get().n, 0);
-      assert.equal(copy.prepare("SELECT seq FROM sqlite_sequence WHERE name = 'comments'").get().seq, 100);
+      assert.deepEqual({ ...copy.prepare("SELECT seq, typeof(seq) AS storage_type FROM sqlite_sequence WHERE name = 'comments'").get() }, { seq: 100, storage_type: "integer" });
     } finally { copy.close(); }
     assert.equal((await stat(destination)).mode & 0o777, 0o600);
     assert.match(pool.calls.find(call => call.connection === 2).sql, /REPEATABLE READ READ ONLY/u);
   } finally { await db.close(); await rm(directory, { recursive: true, force: true }); }
+});
+
+test("PostgreSQL snapshots preserve integer MAX_SAFE_INTEGER sequence metadata with rows or an empty table", async () => {
+  const { createPostgresDatabase } = await import("../../backend/database.mjs");
+  const directory = await mkdtemp(path.join(tmpdir(), "station-postgres-sequence-type-"));
+  try {
+    for (const populated of [true, false]) {
+      const rows = populated ? [{ id: String(Number.MAX_SAFE_INTEGER), nickname: "name", content: "last safe ID", user_id: null, is_guest: 1, created_at: "1800000000000", expires_at: null }] : [];
+      const pool = fakePool(sql => {
+        if (sql.includes("FROM comments ORDER BY id")) return { rows, fields: ["id", "created_at", "expires_at"].map(name => ({ name, dataTypeID: 20 })) };
+        if (sql.includes("pg_sequence_last_value")) return { rows: [{ high_water: String(Number.MAX_SAFE_INTEGER) }], fields: [{ name: "high_water", dataTypeID: 20 }] };
+        return { rows: [], fields: [], rowCount: 0 };
+      });
+      const db = await createPostgresDatabase(pool);
+      try {
+        const destination = path.join(directory, populated ? "populated.db" : "empty.db");
+        await db.snapshot(destination);
+        const copy = new DatabaseSync(destination, { readOnly: true });
+        try {
+          const sequence = copy.prepare("SELECT seq, typeof(seq) AS storage_type, CAST(seq AS TEXT) AS exact_value FROM sqlite_sequence WHERE name = 'comments'").get();
+          assert.equal(sequence.storage_type, "integer");
+          assert.equal(sequence.seq, Number.MAX_SAFE_INTEGER);
+          assert.equal(sequence.exact_value, String(Number.MAX_SAFE_INTEGER));
+          assert.equal(copy.prepare("SELECT count(*) AS n FROM comments").get().n, populated ? 1 : 0);
+          if (populated) assert.equal(copy.prepare("SELECT id FROM comments").get().id, Number.MAX_SAFE_INTEGER);
+          assert.equal(copy.prepare("PRAGMA quick_check").get().quick_check, "ok");
+        } finally { copy.close(); }
+      } finally { await db.close(); }
+    }
+  } finally { await rm(directory, { recursive: true, force: true }); }
 });
