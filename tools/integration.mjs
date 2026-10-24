@@ -131,6 +131,14 @@ try {
     assert.equal(result.status, contentType === "application/json" ? 413 : 415);
     await result.arrayBuffer();
   }
+  // A complete gzip frame followed by garbage used to emit a late, unhandled
+  // decoder error after body parsing. The public API must survive the request.
+  const trailingGzip = await request(`${api}/missing`, { method: "POST", headers: {
+    "Content-Type": "application/json", "Content-Encoding": "gzip"
+  }, body: Buffer.concat([gzipSync(Buffer.from("{}")), Buffer.from("invalid trailing gzip payload")]) });
+  assert.ok([400, 404].includes(trailingGzip.status), `unexpected trailing gzip response: ${trailingGzip.status}`);
+  await trailingGzip.arrayBuffer();
+  assert.equal((await request(`${api}/healthz`)).status, 200, "malformed compressed data must never crash the API");
   const invalidCharset = await request(`${api}/auth/signin`, { method: "POST", headers: {
     "Content-Type": "application/json; charset=iso-8859-1"
   }, body: "{}" });
