@@ -62,13 +62,13 @@ for (const value of htmlReferences(html)) {
 }
 const csp = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)"/)?.[1];
 assert.ok(csp, "Production CSP meta missing");
-assert.match(csp, /connect-src 'self' https:\/\/inabakumori-site-production\.up\.railway\.app/, "Production CSP must allow the Railway API");
+assert.match(csp, /connect-src 'self' https:\/\/inabakumori-backend\.vercel\.app/, "Production CSP must allow the Vercel API");
 // Always enforced, whatever the environment: a published CSP never reaches a loopback service.
 assert.deepEqual(loopbackCspSources(csp), [], "Production CSP must not allow local development APIs (dist came from build:local/preview? run npm run build)");
 assert.doesNotMatch(csp, /localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0/iu, "Production CSP must not name a loopback host");
 // Positive allowlist instead of a blocklist of spellings: the build cannot resolve DNS, so a
 // public name that resolves to loopback (localtest.me, *.nip.io, ...) would otherwise ship.
-const CONNECT_SRC_ALLOWED = new Set(["'self'", "https://inabakumori-site-production.up.railway.app"]);
+const CONNECT_SRC_ALLOWED = new Set(["'self'", "https://inabakumori-backend.vercel.app"]);
 for (const source of (/connect-src([^;]*)/u.exec(csp)?.[1] ?? "").trim().split(/\s+/u).filter(Boolean)) {
   assert.ok(CONNECT_SRC_ALLOWED.has(source), `Unexpected connect-src source: ${source}`);
 }

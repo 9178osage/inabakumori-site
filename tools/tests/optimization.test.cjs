@@ -116,7 +116,7 @@ test("homepage ships CSP meta, locale hints and dns-prefetch for API/thumbnails"
   const html = await fs.readFile("index.html", "utf8");
   assert.match(html, /http-equiv="Content-Security-Policy"/);
   assert.match(html, /og:locale/);
-  assert.match(html, /dns-prefetch" href="https:\/\/inabakumori-site-production\.up\.railway\.app"/);
+  assert.match(html, /dns-prefetch" href="https:\/\/inabakumori-backend\.vercel\.app"/);
   assert.match(html, /dns-prefetch" href="https:\/\/i\.ytimg\.com"/);
   assert.match(html, /id="message-submit"/);
   assert.match(html, /aria-busy="false"/);

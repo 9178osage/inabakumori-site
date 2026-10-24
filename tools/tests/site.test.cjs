@@ -181,8 +181,13 @@ test("hero scenery remains an unadvertised click target", () => {
   assert.match(hero, /id="hero-bg"/);
   assert.doesNotMatch(hero, /role="button"|tabindex="0"|aria-label=/);
 });
-test("configuration supports local development and Railway from GitHub Pages", () => {
-  for (const [hostname, protocol, expected] of [["localhost", "http:", "http://localhost:3001"], ["127.0.0.1", "http:", "http://127.0.0.1:3001"], ["9178osage.github.io", "https:", "https://inabakumori-site-production.up.railway.app"]]) {
+test("configuration supports local development and the Vercel API from both public frontend hosts", () => {
+  for (const [hostname, protocol, expected] of [
+    ["localhost", "http:", "http://localhost:3001"],
+    ["127.0.0.1", "http:", "http://127.0.0.1:3001"],
+    ["9178osage.github.io", "https:", "https://inabakumori-backend.vercel.app"],
+    ["osagechan.top", "https:", "https://inabakumori-backend.vercel.app"]
+  ]) {
     const context = { window: { location: { hostname, protocol, origin: `${protocol}//${hostname}` } } };
     vm.runInNewContext(fs.readFileSync("js/config.js", "utf8"), context);
     assert.equal(context.window.APP_CONFIG.apiDomain, expected);

@@ -190,12 +190,12 @@ test("every loopback spelling is detected and stripped from CSP source lists", a
     "http://app.localhost:3001", "http://*.localhost:3001", "*.LOCALHOST", "localhost:3001", "127.0.0.1", "ws://localhost:3001", "wss://[::1]",
     "http://*:3001", "*", "http:", "ws:"];
   for (const variant of variants) assert.ok(isLoopbackCspSource(variant), variant);
-  for (const safe of ["'self'", "'none'", "https:", "data:", "https://inabakumori-site-production.up.railway.app", "https://i.ytimg.com",
+  for (const safe of ["'self'", "'none'", "https:", "data:", "https://inabakumori-backend.vercel.app", "https://i.ytimg.com",
     "https://localhost.example.com", "https://127.0.0.1.example.com", "https://notlocalhost"]) assert.equal(isLoopbackCspSource(safe), false, safe);
-  const policy = `default-src 'self'; connect-src 'self' https://inabakumori-site-production.up.railway.app ${variants.join(" ")}; img-src 'self' data:`;
+  const policy = `default-src 'self'; connect-src 'self' https://inabakumori-backend.vercel.app ${variants.join(" ")}; img-src 'self' data:`;
   assert.equal(loopbackCspSources(policy).length, variants.length);
   const stripped = stripLoopbackCspSources(policy);
-  assert.equal(stripped, "default-src 'self'; connect-src 'self' https://inabakumori-site-production.up.railway.app; img-src 'self' data:");
+  assert.equal(stripped, "default-src 'self'; connect-src 'self' https://inabakumori-backend.vercel.app; img-src 'self' data:");
   assert.deepEqual(loopbackCspSources(stripped), []);
 });
 
@@ -204,7 +204,7 @@ test("check-build rejects loopback CSP sources even with KEEP_LOCAL_API_CSP=1, a
     const box = sandbox(["tools/check-build.mjs", "tools/net-guards.mjs", "tools/x-posts-data.mjs", "tools/x-translations.mjs", "tools/calendar-song.mjs", "tools/safe-fs.mjs"]);
     try {
       fs.mkdirSync(path.join(box.root, "dist"));
-      fs.writeFileSync(path.join(box.root, "dist/index.html"), `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://inabakumori-site-production.up.railway.app ${variant}"/>`);
+      fs.writeFileSync(path.join(box.root, "dist/index.html"), `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://inabakumori-backend.vercel.app ${variant}"/>`);
       for (const env of [{}, { KEEP_LOCAL_API_CSP: "1" }]) {
         const result = run(box.root, "tools/check-build.mjs", [], env);
         assert.notEqual(result.status, 0, variant);
@@ -254,11 +254,11 @@ test("check-build verifies every srcset candidate, not just src and href", () =>
 test("check-build only allows the known connect-src sources, so a loopback alias cannot ship", () => {
   // These names resolve to 127.0.0.1 for a browser but contain no loopback text, so the
   // spelling blocklist cannot see them; the allowlist must reject them all the same.
-  for (const variant of ["http://localtest.me:3001", "http://lvh.me:3001", "http://127-0-0-1.nip.io:3001", "https://cdn.example.com"]) {
+  for (const variant of ["http://localtest.me:3001", "http://lvh.me:3001", "http://127-0-0-1.nip.io:3001", "https://cdn.example.com", "https://inabakumori-backend.vercel.app.evil.example"]) {
     const box = sandbox(["tools/check-build.mjs", "tools/net-guards.mjs", "tools/x-posts-data.mjs", "tools/x-translations.mjs", "tools/calendar-song.mjs", "tools/safe-fs.mjs"]);
     try {
       fs.mkdirSync(path.join(box.root, "dist"));
-      fs.writeFileSync(path.join(box.root, "dist/index.html"), `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://inabakumori-site-production.up.railway.app ${variant}"/>`);
+      fs.writeFileSync(path.join(box.root, "dist/index.html"), `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://inabakumori-backend.vercel.app ${variant}"/>`);
       for (const env of [{}, { KEEP_LOCAL_API_CSP: "1" }]) {
         const result = run(box.root, "tools/check-build.mjs", [], env);
         assert.notEqual(result.status, 0, variant);
@@ -270,7 +270,7 @@ test("check-build only allows the known connect-src sources, so a loopback alias
   const spelled = sandbox(["tools/check-build.mjs", "tools/net-guards.mjs", "tools/x-posts-data.mjs", "tools/x-translations.mjs", "tools/calendar-song.mjs", "tools/safe-fs.mjs"]);
   try {
     fs.mkdirSync(path.join(spelled.root, "dist"));
-    fs.writeFileSync(path.join(spelled.root, "dist/index.html"), `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://inabakumori-site-production.up.railway.app http://127.0.0.1:3001"/>`);
+    fs.writeFileSync(path.join(spelled.root, "dist/index.html"), `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://inabakumori-backend.vercel.app http://127.0.0.1:3001"/>`);
     const result = run(spelled.root, "tools/check-build.mjs");
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /Production CSP must not allow local development APIs/);
@@ -279,7 +279,7 @@ test("check-build only allows the known connect-src sources, so a loopback alias
   const box = sandbox(["tools/check-build.mjs", "tools/net-guards.mjs", "tools/x-posts-data.mjs", "tools/x-translations.mjs", "tools/calendar-song.mjs", "tools/safe-fs.mjs"]);
   try {
     fs.mkdirSync(path.join(box.root, "dist"));
-    fs.writeFileSync(path.join(box.root, "dist/index.html"), `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://inabakumori-site-production.up.railway.app"/>`);
+    fs.writeFileSync(path.join(box.root, "dist/index.html"), `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://inabakumori-backend.vercel.app"/>`);
     const result = run(box.root, "tools/check-build.mjs");
     assert.doesNotMatch(result.stderr, /Unexpected connect-src source/, "the shipped connect-src policy must stay allowed");
   } finally { box.cleanup(); }

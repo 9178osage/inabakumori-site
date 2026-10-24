@@ -66,7 +66,7 @@ test("frontend talks only to the hardcoded HTTPS API and never renders server da
   const context = { window: { location: { hostname: "osagechan.top", protocol: "https:", search: "?api=https://evil.example" } } };
   vm.createContext(context);
   vm.runInContext(read("js/config.js"), context);
-  assert.equal(context.window.APP_CONFIG.apiDomain, "https://inabakumori-site-production.up.railway.app");
+  assert.equal(context.window.APP_CONFIG.apiDomain, "https://inabakumori-backend.vercel.app");
   for (const file of ["script.js", "js/comments.js", "js/experience.js", "js/i18n.js", "js/network.js", "js/preferences.js", "js/nknk-gallery-ui.js", "tools/auth-src.js"]) {
     assert.doesNotMatch(read(file), /innerHTML|outerHTML|insertAdjacentHTML|document\.write|\beval\(|new Function\(/, file);
   }
@@ -74,7 +74,7 @@ test("frontend talks only to the hardcoded HTTPS API and never renders server da
   assert.match(csp, /script-src 'self'(;|$)/);
   assert.match(csp, /object-src 'none'/);
   assert.match(csp, /base-uri 'self'/);
-  assert.match(csp, /connect-src 'self' https:\/\/inabakumori-site-production\.up\.railway\.app/);
+  assert.match(csp, /connect-src 'self' https:\/\/inabakumori-backend\.vercel\.app/);
   assert.doesNotMatch(csp, /unsafe-inline|unsafe-eval|\*/);
   // Trusted Types: any accidental HTML/script sink (innerHTML etc.) throws instead of injecting.
   assert.match(csp, /require-trusted-types-for 'script'/);
