@@ -807,9 +807,17 @@ function getSongThumbnailUrl(href) {
 }
 function formatChineseViews(count) {
   const units = [[100000000, "亿"], [10000, "万"]];
-  const unit = units.find(([minimum]) => count >= minimum);
-  if (!unit) return count.toLocaleString("zh-CN");
-  return new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 1, useGrouping: false }).format(count / unit[0]) + unit[1];
+  const formatter = new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 1, useGrouping: false });
+  for (let index = 0; index < units.length; index++) {
+    const [minimum, label] = units[index];
+    if (count < minimum) continue;
+    const formatted = formatter.format(count / minimum);
+    const larger = units[index - 1];
+    // One decimal can round 99,999,999 up to 10000万. Carry into the next unit instead.
+    if (larger && Number(formatted) * minimum >= larger[0]) return formatter.format(count / larger[0]) + larger[1];
+    return formatted + label;
+  }
+  return count.toLocaleString("zh-CN");
 }
 function renderInlineSongTags(link) {
   if (link.classList.contains("tag-ready")) return;
