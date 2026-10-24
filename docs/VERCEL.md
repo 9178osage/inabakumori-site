@@ -19,7 +19,9 @@ Vercel 支持直接识别 `server.mjs` 导出的 Express 应用，项目根目�
 | Install Command | 默认 npm 安装流程，使用 `backend/package-lock.json` |
 | Build Command / Output Directory | 使用 Express 默认值，不运行根目录的静态网站构建 |
 
-Vercel 只提供 Node 主版本选择，次版本和补丁由平台更新；上线时核对构建日志的实际版本。本地与 CI 仍按仓库规定使用 Node 24。[Node 版本说明](https://vercel.com/docs/functions/runtimes/node-js/node-js-versions)
+Vercel 只提供 Node 主版本选择，次版本和补丁由平台更新；上线时还须核对函数初始化日志中的实际 `process.version`，不能只看构建版本或 `engines`。本地与 CI 仍按仓库规定使用 Node 24.22.1。[Node 版本说明](https://vercel.com/docs/functions/runtimes/node-js/node-js-versions)
+
+本次切换时函数实际为 `v24.21.0`，尚未达到仓库的 24.22.1 安全基线。Vercel 公告说明托管运行时补丁仍在部署，自动 WAF 仅缓解已知入站攻击，不覆盖函数获取的上游响应，也不替代补丁。本站另外以 `inflate: false` 拒绝压缩请求体（415），阻止访客输入进入 Node Brotli 解码器；普通浏览器登录和留言均发送未压缩 JSON。此措施不等同完整运行时修复，后续仍须用实际函数日志确认平台补丁落地。[Vercel 安全公告](https://vercel.com/kb/bulletin/node-js-security-advisory)
 
 使用托管 PostgreSQL，并让数据库与函数区域尽量接近。可由 Vercel Marketplace 关联数据库，使用适合函数并发的连接池地址；应用读取的变量名必须为 `DATABASE_URL`，不能仅因集成注入了其他名称就认为已配置。Preview 使用独立数据库或独立分支，避免预览部署写入生产。[Marketplace 数据库与连接池说明](https://vercel.com/docs/marketplace-storage)
 

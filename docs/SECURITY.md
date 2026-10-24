@@ -8,7 +8,7 @@
 - 后端：`https://inabakumori-backend.vercel.app`（Vercel，项目 `inabakumori-backend`，根目录 `backend`，Express / Node 24.x）。留言和共享限流计数保存在独立 Neon 免费 PostgreSQL，Production 以外的部署没有连接该生产库。身份和管理员 user ID 沿用原 SuperTokens Core。
 - 迁移时的最终 SQLite 快照已导入并逐字段核对：13 条留言（2 条会员、11 条游客），保留原 ID、所有权、时间和历史 ID 序列。原 Railway 卷和私密快照用于恢复演练；重新启用旧入口时，必须保持连接迁移后的 PostgreSQL，不能再启用旧 SQLite 写入。切换和回退步骤见 [迁移说明](VERCEL.md)。
 - `/healthz` 只公开 `{ ok, version }`；`version` 为部署提交前 7 位，优先取 `VERCEL_GIT_COMMIT_SHA`，兼容 `RAILWAY_GIT_COMMIT_SHA`。
-- 三轮审查（2026-10-11）发现的问题均已修复上线：限流按真实访客 IP 计数（当前 Vercel 使用平台覆盖的 `X-Forwarded-For`，Railway 使用 `X-Real-IP`）；认证请求必须为 `application/json`（非 JSON 415，JSON 解压后 ≤20 KB）；生产会话 Cookie 使用 `__Host-station-` 前缀并强制 `Secure`、`Path=/`；CSP 含 Trusted Types、`frame-src/worker-src 'none'`；404 页独立 CSP；防嵌入脚本；GitHub Actions 固定 SHA，Dependabot 每周检查。
+- 三轮审查（2026-10-11）发现的问题均已修复上线：限流按真实访客 IP 计数（当前 Vercel 使用平台覆盖的 `X-Forwarded-For`，Railway 使用 `X-Real-IP`）；认证请求必须为未压缩 `application/json` 且 ≤20 KB（非 JSON 或压缩体均返回 415）；生产会话 Cookie 使用 `__Host-station-` 前缀并强制 `Secure`、`Path=/`；CSP 含 Trusted Types、`frame-src/worker-src 'none'`；404 页独立 CSP；防嵌入脚本；GitHub Actions 固定 SHA，Dependabot 每周检查。
 - 已有防护：SuperTokens 会话（header 传输）；会员只能删除自己的留言，管理接口另查权限；数据库查询参数化；服务端校验留言；前端只用 `textContent` 渲染；生产错误不返回堆栈；密码重置令牌放在 URL fragment 并立即清除。CORS 不是认证，保护操作始终依赖会话与权限。
 - 本地维护工具也按输入边界加固：链接检查器只访问公开 HTTP(S) 地址、逐跳检查重定向并固定到已验证的 DNS 答案；构建、图库生成、播放量更新拒绝符号链接输入/输出，防止访问或覆盖仓库外的文件。
 - 2026-10-17 代码复核补齐：Unicode 行分隔符纳入留言换行限制；本地预览拒绝符号链接文件和目录，产物检查拒绝符号链接及非普通文件，防止白名单文件名掩盖私有内容。根目录及后端依赖在本次 `npm audit` 中均为 0 已知漏洞，不代表不存在未公开漏洞。
@@ -70,9 +70,10 @@
 - SuperTokens 默认允许已撤销的 access token 有效至到期。
 - GitHub、Vercel、Railway、SuperTokens 与 DNS 服务商账号都应开启两步验证；能推 `main`、改后端变量或改 DNS 的人等同网站管理员。
 - 管理员账号应使用长随机密码，并建议与公开联系方式分开。
+- Vercel 切换时实际运行 Node `24.21.0`，平台尚在部署 24.22.1 安全补丁。API 拒绝所有压缩请求体，避免访客触发原生 Brotli 解码；平台 WAF 另有已知入站攻击防护。这些措施不替代运行时补丁，尤其不保护函数获取的上游响应。后续以函数初始化日志核实实际版本，详见 [Vercel 迁移记录](VERCEL.md)。
 
 ## 验证
 
 `npm run check`（测试、后端语法、生产构建、公开产物检查）与 `npm run test:integration`（临时数据库与本机服务，不触碰生产）。回归测试见 `tools/tests/security.test.cjs` 等。
 
-**本地检查请使用 Node 24.x**：`package.json` 的 `engines` 只是声明，未开启 `engine-strict`，所以 Node 22 也能装能跑；但 `node:sqlite` 等 API 在 22 与 24 之间有差异，用旧版本跑出来的结论不能直接对应 CI 与生产。CI 使用 Node 24。（若要让安装阶段直接拒绝，需要在确认 Railway 也运行 24.x 之后再开 `engine-strict=true`。）
+**本地检查请使用 Node 24.22.1**：`package.json` 的 `engines` 只是声明，未开启 `engine-strict`，所以旧版本也可能安装运行；但 API 与安全补丁有差异，不能用旧版本的测试替代 CI 结论。CI 使用精确版本 24.22.1；Vercel 的实际运行版本另查函数日志。

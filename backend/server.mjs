@@ -197,7 +197,9 @@ const corsMiddleware = cors(corsOptions);
 // The backup download is server-to-server only: no CORS headers, so browsers cannot read it.
 app.use((req, res, next) => isBackupPath(req.originalUrl || req.url) ? next() : corsMiddleware(req, res, next));
 app.use(requireJsonRequestBody);
-app.use(express.json({ limit: "20kb", strict: true }));
+// Browser clients send plain JSON. Do not decode untrusted compressed bodies,
+// including Brotli, while managed runtimes control their own security patches.
+app.use(express.json({ limit: "20kb", strict: true, inflate: false }));
 const authSensitiveLimiter = rateLimit({ ...sharedStore("authSensitiveLimiter"), keyGenerator: clientIpKey, windowMs: 15 * 60 * 1e3, limit: 20, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 // emailExistsGET is removed from the SuperTokens APIs, so only POST auth routes need throttling.
 app.use((req, res, next) => {
