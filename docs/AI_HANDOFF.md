@@ -4,6 +4,8 @@
 
 ## 用户意图与当前状态
 
+2026-10-23：用户要求从 Railway 迁到 Vercel，并选用免费 PostgreSQL。代码支持双数据库及共享限流，迁移步骤见 [VERCEL.md](VERCEL.md)。生产是否已切换必须核对 `js/config.js`、CSP、新部署状态及 `/healthz`，不能把支持代码已推送写成迁移已完成。
+
 2026-10-11 安全更新：管理员**只**通过 Railway `ADMIN_USER_IDS`（SuperTokens user ID，逗号分隔）授权，`ADMIN_EMAILS` 已彻底移除；不要恢复按邮箱授权。`/healthz` 只公开 `{ ok, version }`（`version` 为 `RAILWAY_GIT_COMMIT_SHA` 前 7 位）。当前安全状态、Railway 变量、备份与 DNS 清单见 [SECURITY.md](SECURITY.md)；审查过程归档在 [history/](history/)。新域名为 `https://osagechan.top`，Railway `WEBSITE_URL` 已更新。新增解析前总请求限流，并修复 DELETE 大小写路径限流绕过。
 
 用户曾授权对站点做一轮综合优化并可推送 `origin/main`。接手后仍应先确认下一项任务，不要把本文当成新增功能需求。

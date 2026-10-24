@@ -11,20 +11,25 @@ export function requireJsonRequestBody(req, res, next) {
   return res.status(415).json({ error: "请求必须使用 application/json", code: "UNSUPPORTED_MEDIA_TYPE" });
 }
 
-// Client IP for rate limiting and logs. This trusts Railway's public HTTP ingress
-// to set X-Real-IP; direct/private ingress must not accept caller-controlled values.
+// Client IP for rate limiting and logs. Vercel overwrites X-Forwarded-For and
+// Railway's public HTTP ingress sets X-Real-IP; direct/private ingress must not
+// accept caller-controlled values.
 // With TRUST_PROXY=1, Express req.ip can be a shared edge/CDN hop. A configured
 // CLIENT_IP_HEADER requires the same trusted-proxy guarantee ("none" disables it).
 export function clientIpResolver(env) {
   const configured = String(env.CLIENT_IP_HEADER ?? "").trim().toLowerCase();
-  const header = configured === "none" ? "" : configured || (env.RAILWAY_SERVICE_ID ? "x-real-ip" : "");
+  const onVercel = env.VERCEL === "1";
+  const header = configured === "none" ? "" : configured || (onVercel ? "x-forwarded-for" : env.RAILWAY_SERVICE_ID ? "x-real-ip" : "");
   if (header && !/^[a-z0-9-]{1,64}$/u.test(header)) throw new Error("CLIENT_IP_HEADER must be a header name");
   return req => {
     if (header) {
       const value = String(req.get?.(header) ?? "").trim();
       if (isIP(value)) return value;
     }
-    return req.ip;
+    // Reject lists instead of choosing a caller-controlled hop. Express req.ip
+    // may itself use X-Forwarded-For, so a rejected Vercel header must fall back
+    // directly to the socket instead of trusting the same header a second time.
+    return onVercel ? req.socket?.remoteAddress : req.ip;
   };
 }
 
@@ -108,6 +113,9 @@ export function parseAdditionalOrigins(value, { production = false } = {}) {
 }
 
 export function resolveDatabasePath(env, directory) {
+  if (env.VERCEL === "1") {
+    throw new Error("Vercel requires a persistent remote database; local SQLite is not supported");
+  }
   const configured = env.COMMENTS_DB_PATH?.trim();
   const mount = env.RAILWAY_VOLUME_MOUNT_PATH?.trim();
   if (env.NODE_ENV === "production" && env.RAILWAY_SERVICE_ID && !mount) {
@@ -159,8 +167,11 @@ export function createAdminCheck(adminUserIds) {
 
 // Short deploy identifier for /healthz; only a public git commit prefix, never env details.
 export function buildVersion(env) {
-  const sha = String(env.RAILWAY_GIT_COMMIT_SHA ?? "").trim();
-  return /^[0-9a-f]{7,40}$/iu.test(sha) ? sha.slice(0, 7).toLowerCase() : "dev";
+  for (const value of [env.VERCEL_GIT_COMMIT_SHA, env.RAILWAY_GIT_COMMIT_SHA]) {
+    const sha = String(value ?? "").trim();
+    if (/^[0-9a-f]{7,40}$/iu.test(sha)) return sha.slice(0, 7).toLowerCase();
+  }
+  return "dev";
 }
 
 export function normalizeCommentForComparison(value) {
@@ -278,36 +289,66 @@ export function insertFreshComment(db, { duplicate, insert, countMember, memberC
   }
 }
 
+// Remote database calls are asynchronous. Keep every read and the insert in
+// the same write transaction so concurrent requests cannot bypass dedup or cap.
+export async function insertFreshCommentAsync(db, { memberCap = 100, row }) {
+  return db.transaction(async tx => {
+    const normalized = normalizeCommentForComparison(row.content);
+    if (row.userId || Array.from(normalized).length >= GUEST_GLOBAL_DEDUP_MIN_LENGTH) {
+      const recent = row.userId
+        ? await tx.prepare(`SELECT content FROM comments
+          WHERE user_id = ? AND is_guest = 0 AND created_at > ?
+            AND (expires_at IS NULL OR expires_at > ?)`)
+          .all(row.userId, row.createdAt - 10 * 60 * 1000, row.createdAt)
+        : await tx.prepare(`SELECT content FROM comments
+          WHERE is_guest = 1 AND created_at > ?
+            AND (expires_at IS NULL OR expires_at > ?)`)
+          .all(row.createdAt - 5 * 60 * 1000, row.createdAt);
+      if (recent.some(comment => normalizeCommentForComparison(comment.content) === normalized)) {
+        return { ok: false, code: "DUPLICATE_COMMENT" };
+      }
+    }
+    if (row.userId && memberCap > 0) {
+      const count = await tx.prepare("SELECT count(*) AS n FROM comments WHERE user_id = ? AND is_guest = 0").get(row.userId);
+      if (Number(count?.n || 0) >= memberCap) return { ok: false, code: "MEMBER_COMMENT_CAP" };
+    }
+    const result = await tx.prepare(`INSERT INTO comments (nickname, content, user_id, is_guest, created_at, expires_at)
+      VALUES (?, ?, ?, ?, ?, ?)`)
+      .run(row.nickname, row.content, row.userId, row.isGuest ? 1 : 0, row.createdAt, row.expiresAt);
+    return { ok: true, id: Number(result.lastInsertRowid) };
+  });
+}
+
 export function registerCommentManagement(app, db, verifySession) {
   const list = db.prepare(`SELECT id, nickname, content, created_at FROM comments
     WHERE user_id = ? AND is_guest = 0 AND id < ? ORDER BY id DESC LIMIT 21`);
   const owner = db.prepare("SELECT user_id, is_guest FROM comments WHERE id = ?");
   const remove = db.prepare("DELETE FROM comments WHERE id = ? AND user_id = ? AND is_guest = 0");
-  app.get("/api/comments/mine", verifySession(), (req, res) => {
+  app.get("/api/comments/mine", verifySession(), async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
     const before = positiveInteger(req.query.before, Number.MAX_SAFE_INTEGER);
     if (!Number.isSafeInteger(before) || before <= 0) {
       return res.status(400).json({ error: "留言分页参数无效", code: "INVALID_CURSOR" });
     }
-    const rows = list.all(req.session.getUserId(), before);
+    const rows = await list.all(req.session.getUserId(), before);
     const comments = rows.slice(0, 20).map(row => ({
       id: Number(row.id), nickname: row.nickname, content: row.content,
       createdAt: new Date(row.created_at).toISOString()
     }));
     res.json({ comments, nextCursor: rows.length > 20 ? comments.at(-1).id : null });
   });
-  app.delete("/api/comments/:id", verifySession(), (req, res) => {
+  app.delete("/api/comments/:id", verifySession(), async (req, res) => {
     const id = positiveInteger(req.params.id);
     if (!Number.isSafeInteger(id) || id <= 0) {
       return res.status(400).json({ error: "留言 ID 无效", code: "INVALID_COMMENT_ID" });
     }
     const userId = req.session.getUserId();
-    const comment = owner.get(id);
+    const comment = await owner.get(id);
     if (!comment) return res.status(404).json({ error: "找不到该留言", code: "COMMENT_NOT_FOUND" });
     if (Boolean(comment.is_guest) || comment.user_id !== userId) {
       return res.status(403).json({ error: "你没有权限删除这条留言", code: "FORBIDDEN" });
     }
-    if (Number(remove.run(id, userId).changes) !== 1) {
+    if (Number((await remove.run(id, userId)).changes) !== 1) {
       return res.status(404).json({ error: "找不到该留言", code: "COMMENT_NOT_FOUND" });
     }
     res.json({ success: true, deletedCommentId: id });
@@ -330,11 +371,11 @@ export function registerAdminCommentManagement(app, db, verifySession, isAdmin) 
       return res.status(403).json({ error: "管理员权限不足", code: "ADMIN_REQUIRED" });
     }
   };
-  app.get("/api/admin/comments", verifySession(), requireAdmin, (req, res) => {
+  app.get("/api/admin/comments", verifySession(), requireAdmin, async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
     const before = positiveInteger(req.query?.before, Number.MAX_SAFE_INTEGER);
     if (!Number.isSafeInteger(before) || before <= 0) return res.status(400).json({ error: "留言分页参数无效", code: "INVALID_CURSOR" });
-    const rows = list.all(Date.now(), before);
+    const rows = await list.all(Date.now(), before);
     const comments = rows.slice(0, 50).map(row => ({
       id: Number(row.id),
       nickname: row.nickname,
@@ -344,12 +385,12 @@ export function registerAdminCommentManagement(app, db, verifySession, isAdmin) 
     }));
     res.json({ comments, nextCursor: rows.length > 50 ? comments.at(-1).id : null });
   });
-  app.delete("/api/admin/comments/:id", verifySession(), requireAdmin, (req, res) => {
+  app.delete("/api/admin/comments/:id", verifySession(), requireAdmin, async (req, res) => {
     const id = positiveInteger(req.params.id);
     if (!Number.isSafeInteger(id) || id <= 0) {
       return res.status(400).json({ error: "留言 ID 无效", code: "INVALID_COMMENT_ID" });
     }
-    if (Number(remove.run(id).changes) !== 1) {
+    if (Number((await remove.run(id)).changes) !== 1) {
       return res.status(404).json({ error: "找不到该留言", code: "COMMENT_NOT_FOUND" });
     }
     return res.json({ success: true, deletedCommentId: id });

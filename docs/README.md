@@ -4,6 +4,7 @@
 | --- | --- |
 | 安装、运行、了解项目结构 | [项目说明](../README.md) |
 | 修改、发布、核对上线记录、同步文本副本 | [站长手册](MAINTAINER.md) |
+| 将 Railway 后端迁到 Vercel、导入留言和切换 API | [Vercel 迁移](VERCEL.md) |
 | 查构建、检查与数据维护命令 | [工具导航](../tools/README.md) |
 | 了解当前安全边界与部署约束 | [安全与运维说明](SECURITY.md) |
 | 报告安全问题 | [安全报告渠道](../SECURITY.md) |

@@ -17,7 +17,9 @@ test("backend has no shell, eval, dynamic code or SQLite extension loading primi
     assert.doesNotMatch(source, /\bfetch\(|https?\.request\(|https?\.get\(/, `${file}: outbound requests (SSRF)`);
   }
   const server = read("backend/server.mjs");
-  assert.match(server, /new DatabaseSync\(databasePath\)/, "database opened with default options (extensions disabled)");
+  const database = read("backend/database.mjs");
+  assert.match(database, /new DatabaseSync\(databasePath\)/, "database opened with default options (extensions disabled)");
+  assert.doesNotMatch(database, /allowExtension|loadExtension|load_extension/i, "database adapter must not enable SQLite extensions");
   assert.match(server, /app\.set\("query parser", "simple"\)/, "no nested query objects");
   assert.match(server, /express\.json\(\{ limit: "20kb", strict: true \}\)/);
   assert.match(server, /app\.disable\("x-powered-by"\)/);
@@ -121,6 +123,20 @@ test("rate-limit keys use the edge-set client IP on Railway and ignore spoofable
   }
 });
 
+test("Vercel rate-limit keys accept only an edge-set single IP and fall back to the socket", async () => {
+  const { clientIpResolver } = await import("../../backend/services.mjs");
+  const req = headers => ({ ip: "1.2.3.4", socket: { remoteAddress: "127.0.0.1" }, get: name => headers[name.toLowerCase()] });
+  const vercel = clientIpResolver({ VERCEL: "1", RAILWAY_SERVICE_ID: "old-service" });
+  assert.equal(vercel(req({ "x-forwarded-for": "203.0.113.5", "x-real-ip": "198.51.100.3" })), "203.0.113.5");
+  assert.equal(vercel(req({ "x-forwarded-for": " 2001:db8::1 " })), "2001:db8::1");
+  for (const value of [undefined, "invalid", "203.0.113.5, 1.2.3.4", "203.0.113.5:443"]) {
+    assert.equal(vercel(req({ "x-forwarded-for": value })), "127.0.0.1", "invalid headers never fall back to req.ip");
+  }
+  assert.equal(clientIpResolver({ VERCEL: "1", CLIENT_IP_HEADER: "none" })(req({ "x-forwarded-for": "203.0.113.5" })), "127.0.0.1");
+  assert.equal(clientIpResolver({ VERCEL: "1", CLIENT_IP_HEADER: "x-custom-ip" })(req({ "x-custom-ip": "198.51.100.2" })), "198.51.100.2");
+  assert.equal(clientIpResolver({ VERCEL: "0" })(req({ "x-forwarded-for": "203.0.113.5" })), "1.2.3.4");
+});
+
 test("comment validation stays fast on adversarial 500-character inputs (no ReDoS)", async () => {
   const { validateCommentInput } = await import("../../backend/services.mjs");
   const inputs = ["1".repeat(500), "a-".repeat(250), "a.".repeat(250), "1.".repeat(250), "１".repeat(500),
@@ -217,7 +233,7 @@ test("the published contact address never becomes an admin login identifier", ()
 
 test("server.mjs mounts the shared final error handler last and has no inline copy", () => {
   const server = read("backend/server.mjs");
-  assert.match(server, /app\.use\(createFinalErrorHandler\(\{ isProduction: IS_PRODUCTION \}\)\);\s*const server = app\.listen/u);
+  assert.match(server, /app\.use\(createFinalErrorHandler\(\{ isProduction: IS_PRODUCTION \}\)\);\s*export default app;\s*(?:\/\/[^\n]*\n\s*)*if \(!IS_VERCEL\) \{\s*const server = app\.listen/u);
   assert.doesNotMatch(server, /app\.use\(\(err, req, res, next\)/u);
   const services = read("backend/services.mjs");
   const handler = services.slice(services.indexOf("export function createFinalErrorHandler"));

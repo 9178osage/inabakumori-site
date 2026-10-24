@@ -1,0 +1,185 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const { mkdtemp, rm, stat, writeFile, readFile } = require("node:fs/promises");
+const { tmpdir } = require("node:os");
+const path = require("node:path");
+const { DatabaseSync } = require("node:sqlite");
+
+const INSERT = "INSERT INTO comments (nickname, content, user_id, is_guest, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)";
+const deferred = () => {
+  let resolve;
+  const promise = new Promise(done => { resolve = done; });
+  return { promise, resolve };
+};
+
+test("SQL placeholders leave quoted text, escaped quotes, comments and dollar blocks intact", async () => {
+  const { postgresPlaceholders } = await import("../../backend/database.mjs");
+  const source = `SELECT ?, '?', 'it''s ?', "?", $$?$$, $body$?$body$, E'it\\'s ?' /* ? /* ? */ ? */ -- ?\n, ?`;
+  assert.equal(postgresPlaceholders(source), source.replace("SELECT ?", "SELECT $1").replace(/, \?$/u, ", $2"));
+  assert.equal(postgresPlaceholders("SELECT $1, $2"), "SELECT $1, $2");
+});
+
+test("database configuration refuses ephemeral Vercel SQLite and redacts invalid URLs", async () => {
+  const { openDatabase } = await import("../../backend/database.mjs");
+  await assert.rejects(openDatabase({ VERCEL: "1", COMMENTS_DB_PATH: "/tmp/comments.db" }, "/tmp"), error =>
+    error.code === "DATABASE_CONFIG" && /Vercel requires DATABASE_URL/u.test(error.message));
+  await assert.rejects(openDatabase({ DATABASE_URL: "https://private-password@private-host/db" }, "/tmp"), error =>
+    error.code === "DATABASE_CONFIG" && error.message === "DATABASE_URL must be a PostgreSQL connection URL");
+  await assert.rejects(openDatabase({ NODE_ENV: "production" }, "/tmp"), error =>
+    error.code === "DATABASE_CONFIG" && /Production requires/u.test(error.message));
+});
+
+test("SQLite transactions isolate concurrent requests, roll back, and reject escaped transaction handles", async () => {
+  const { openDatabase } = await import("../../backend/database.mjs");
+  const directory = await mkdtemp(path.join(tmpdir(), "station-database-"));
+  const db = await openDatabase({}, directory);
+  const started = deferred();
+  const resume = deferred();
+  let escaped;
+  try {
+    assert.equal(db.kind, "sqlite");
+    const pending = db.transaction(async tx => {
+      escaped = tx.prepare("SELECT count(*) AS n FROM comments");
+      await tx.prepare(INSERT).run("name", "private until commit", null, 1, 1234, 5678);
+      started.resolve();
+      await resume.promise;
+      throw new Error("rollback example");
+    });
+    await started.promise;
+    let observed = false;
+    const read = db.prepare("SELECT count(*) AS n FROM comments").get().then(row => { observed = true; return row.n; });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(observed, false, "outside readers wait for the entire async transaction");
+    resume.resolve();
+    await assert.rejects(pending, /rollback example/u);
+    assert.equal(await read, 0);
+    await assert.rejects(escaped.get(), /already closed/u);
+    await assert.rejects(db.transaction(() => db.prepare("SELECT 1").get()), /transaction-scoped/u);
+    const inserted = await db.prepare(INSERT).run("name", "committed", null, 1, 1234, 5678);
+    assert.equal(inserted.changes, 1);
+    assert.equal(Number(inserted.lastInsertRowid), 1);
+    assert.equal((await db.prepare("SELECT content FROM comments WHERE id = ?").get(1)).content, "committed");
+  } finally {
+    resume.resolve();
+    await db.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("SQLite check-and-insert transactions keep a shared cap under simultaneous requests", async () => {
+  const { openDatabase } = await import("../../backend/database.mjs");
+  const directory = await mkdtemp(path.join(tmpdir(), "station-database-cap-"));
+  const db = await openDatabase({}, directory);
+  try {
+    const accepted = await Promise.all(Array.from({ length: 20 }, (_, index) => db.transaction(async tx => {
+      const count = await tx.prepare("SELECT count(*) AS n FROM comments").get();
+      await new Promise(resolve => setImmediate(resolve));
+      if (count.n >= 5) return false;
+      await tx.prepare(INSERT).run("name", `comment ${index}`, "member", 0, 1234 + index, null);
+      return true;
+    })));
+    assert.equal(accepted.filter(Boolean).length, 5);
+    assert.equal((await db.prepare("SELECT count(*) AS n FROM comments").get()).n, 5);
+  } finally { await db.close(); await rm(directory, { recursive: true, force: true }); }
+});
+
+test("SQLite snapshots include committed data, remain private and never overwrite existing files", async () => {
+  const { openDatabase } = await import("../../backend/database.mjs");
+  const directory = await mkdtemp(path.join(tmpdir(), "station-database-snapshot-"));
+  const db = await openDatabase({}, directory);
+  const destination = path.join(directory, "snapshot.db");
+  try {
+    await db.prepare(INSERT).run("用户", "保留正文\nsecond line", "member-id", 0, 123456, null);
+    await db.snapshot(destination);
+    const copy = new DatabaseSync(destination, { readOnly: true });
+    try {
+      assert.equal(copy.prepare("PRAGMA quick_check").get().quick_check, "ok");
+      assert.equal(copy.prepare("SELECT content FROM comments").get().content, "保留正文\nsecond line");
+    } finally { copy.close(); }
+    assert.equal((await stat(destination)).mode & 0o777, 0o600);
+    const occupied = path.join(directory, "occupied.db");
+    await writeFile(occupied, "preserve existing");
+    await assert.rejects(db.snapshot(occupied), { code: "EEXIST" });
+    assert.equal(await readFile(occupied, "utf8"), "preserve existing");
+    await assert.rejects(db.snapshot(db.databasePath), /must not overwrite/u);
+  } finally { await db.close(); await rm(directory, { recursive: true, force: true }); }
+});
+
+function fakePool(handler = () => ({ rows: [], fields: [], rowCount: 0 })) {
+  const calls = [];
+  let next = 0;
+  const query = async (connection, sql, parameters) => { calls.push({ connection, sql, parameters }); return handler(sql, parameters); };
+  return {
+    calls,
+    query: (sql, parameters) => query("pool", sql, parameters),
+    async connect() {
+      const connection = ++next;
+      return { query: (sql, parameters) => query(connection, sql, parameters), release() { calls.push({ connection, sql: "release" }); } };
+    },
+    async end() { calls.push({ sql: "end" }); }
+  };
+}
+
+test("PostgreSQL binds parameters and converts only safe BIGINT columns", async () => {
+  const { createPostgresDatabase } = await import("../../backend/database.mjs");
+  const pool = fakePool(sql => {
+    if (sql.startsWith("INSERT")) return { rows: [{ id: "12" }], rowCount: 1, fields: [{ name: "id", dataTypeID: 20 }] };
+    if (sql.startsWith("SELECT id")) return { rows: [{ id: "12", nickname: "00123", created_at: "1800000000000" }], rowCount: 1,
+      fields: [{ name: "id", dataTypeID: 20 }, { name: "nickname", dataTypeID: 25 }, { name: "created_at", dataTypeID: 20 }] };
+    if (sql === "SELECT unsafe") return { rows: [{ id: "9007199254740992" }], fields: [{ name: "id", dataTypeID: 20 }] };
+    return { rows: [], fields: [], rowCount: 0 };
+  });
+  const db = await createPostgresDatabase(pool);
+  try {
+    assert.equal(db.kind, "postgres");
+    assert.equal(db.databasePath, null);
+    assert.deepEqual(await db.prepare(INSERT).run("name", "? stays data", null, 1, 123, 456), { changes: 1, lastInsertRowid: 12 });
+    const insertion = pool.calls.find(call => call.sql.startsWith("INSERT"));
+    assert.match(insertion.sql, /VALUES \(\$1, \$2, \$3, \$4, \$5, \$6\) RETURNING id$/u);
+    assert.deepEqual(insertion.parameters, ["name", "? stays data", null, 1, 123, 456]);
+    assert.deepEqual(await db.prepare("SELECT id, nickname, created_at FROM comments").all(), [{ id: 12, nickname: "00123", created_at: 1800000000000 }]);
+    await assert.rejects(db.prepare("SELECT unsafe").get(), /safe JavaScript range/u);
+  } finally { await db.close(); }
+});
+
+test("PostgreSQL transactions keep one client, lock check-and-insert and release after rollback", async () => {
+  const { createPostgresDatabase } = await import("../../backend/database.mjs");
+  const pool = fakePool();
+  const db = await createPostgresDatabase(pool);
+  let escaped;
+  try {
+    await db.transaction(async tx => { escaped = tx; await tx.prepare("SELECT ?").get(7); });
+    const committed = pool.calls.filter(call => call.connection === 2);
+    assert.deepEqual(committed.map(call => call.sql), ["BEGIN", "SELECT pg_advisory_xact_lock($1)", "SELECT $1", "COMMIT", "release"]);
+    await assert.rejects(escaped.prepare("SELECT 1").get(), /already closed/u);
+    await assert.rejects(db.transaction(async tx => { await tx.exec("SELECT 2"); throw new Error("abort write"); }), /abort write/u);
+    assert.deepEqual(pool.calls.filter(call => call.connection === 3).map(call => call.sql), ["BEGIN", "SELECT pg_advisory_xact_lock($1)", "SELECT 2", "ROLLBACK", "release"]);
+    await assert.rejects(db.transaction(() => db.prepare("SELECT 1").get()), /transaction-scoped/u);
+  } finally { await db.close(); }
+});
+
+test("PostgreSQL backup produces a restorable SQLite snapshot with exact IDs and metadata", async () => {
+  const { createPostgresDatabase } = await import("../../backend/database.mjs");
+  const directory = await mkdtemp(path.join(tmpdir(), "station-postgres-snapshot-"));
+  const rows = [{ id: "42", nickname: "ユーザー", content: "完整正文\nmore", user_id: "member", is_guest: 0, created_at: "1800000000000", expires_at: null }];
+  const pool = fakePool(sql => {
+    if (sql.includes("FROM comments ORDER BY id")) return { rows, fields: ["id", "created_at", "expires_at"].map(name => ({ name, dataTypeID: 20 })) };
+    if (sql.includes("pg_sequence_last_value")) return { rows: [{ high_water: "100" }], fields: [{ name: "high_water", dataTypeID: 20 }] };
+    return { rows: [], fields: [], rowCount: 0 };
+  });
+  const db = await createPostgresDatabase(pool);
+  try {
+    const destination = path.join(directory, "snapshot.db");
+    await db.snapshot(destination);
+    const copy = new DatabaseSync(destination, { readOnly: true });
+    try {
+      const copied = copy.prepare("SELECT * FROM comments").get();
+      assert.deepEqual({ ...copied }, { ...rows[0], id: 42, created_at: 1800000000000 });
+      assert.equal(copy.prepare("PRAGMA quick_check").get().quick_check, "ok");
+      assert.equal(copy.prepare("SELECT count(*) AS n FROM sqlite_master WHERE name = 'rate_limit_counters'").get().n, 0);
+      assert.equal(copy.prepare("SELECT seq FROM sqlite_sequence WHERE name = 'comments'").get().seq, 100);
+    } finally { copy.close(); }
+    assert.equal((await stat(destination)).mode & 0o777, 0o600);
+    assert.match(pool.calls.find(call => call.connection === 2).sql, /REPEATABLE READ READ ONLY/u);
+  } finally { await db.close(); await rm(directory, { recursive: true, force: true }); }
+});

@@ -117,7 +117,7 @@ test("wrong or missing token is rejected; correct token streams a valid SQLite s
 // Same file as the cleanup test on purpose: tests in one file run in order, so temp-dir counts never race.
 const ABORT_TOKEN = "c".repeat(48);
 
-async function serveBackup() {
+async function serveBackup(options = {}) {
   const { registerBackupEndpoint } = await import("../../backend/backup-endpoint.mjs");
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "backup-abort-test-"));
   const databasePath = path.join(dir, "comments.db");
@@ -130,7 +130,7 @@ async function serveBackup() {
   const logs = [];
   const log = { log: (...a) => logs.push(["log", ...a]), warn: (...a) => logs.push(["warn", ...a]) };
   const app = express();
-  registerBackupEndpoint(app, { databasePath, token: ABORT_TOKEN, limiter: (_req, _res, next) => next(), log });
+  registerBackupEndpoint(app, { databasePath, token: ABORT_TOKEN, limiter: (_req, _res, next) => next(), log, ...options });
   const server = await listenOnLoopback(app);
   return { port: server.address().port, logs, close: () => new Promise(r => server.close(r)), dir };
 }
@@ -167,5 +167,60 @@ test("1: a client that aborts mid-download is logged as aborted, never as served
     assert.equal(s.logs[0][1], "Backup aborted");
     assert.ok(!s.logs.some(entry => entry[1] === "Backup served"));
   } finally { await s.close(); fs.rmSync(s.dir, { recursive: true, force: true }); }
+});
+
+test("the background completion hook covers streaming and temp-directory removal on success or disconnect", async t => {
+  const { backupDatabase } = await import("../../backend/backup.mjs");
+  for (const disconnect of [false, true]) {
+    await t.test(disconnect ? "client disconnect" : "successful download", async () => {
+      let destination;
+      let completion;
+      let settled = false;
+      let registrations = 0;
+      const s = await serveBackup({
+        async snapshot(file) {
+          destination = file;
+          assert.equal(registrations, 1, "the invocation must be retained before snapshot work begins");
+          await backupDatabase(path.join(s.dir, "comments.db"), file);
+        },
+        onBackgroundTask(task) {
+          registrations++;
+          assert.ok(task instanceof Promise);
+          completion = task.then(() => {
+            assert.equal(fs.existsSync(path.dirname(destination)), false, "completion resolves only after the private temp directory is gone");
+            settled = true;
+          });
+        }
+      });
+      let request;
+      try {
+        const response = await new Promise((resolve, reject) => {
+          request = http.get({ host: "127.0.0.1", port: s.port, path: "/api/admin/backup", headers: { Authorization: `Bearer ${ABORT_TOKEN}` } }, res => {
+            assert.equal(res.statusCode, 200);
+            res.once("data", () => { res.pause(); resolve(res); });
+          });
+          request.on("error", error => { if (error.code !== "ECONNRESET") reject(error); });
+        });
+        assert.equal(registrations, 1);
+        assert.equal(settled, false, "a partially consumed response still owns its background task");
+        assert.equal(fs.existsSync(destination), true, "the snapshot remains available while its stream is active");
+        if (disconnect) request.destroy();
+        else {
+          await new Promise((resolve, reject) => {
+            response.once("end", resolve);
+            response.once("error", reject);
+            response.resume();
+          });
+        }
+        await completion;
+        assert.equal(settled, true);
+      } finally {
+        request?.destroy();
+        await completion;
+        await s.close();
+        fs.rmSync(s.dir, { recursive: true, force: true });
+      }
+    });
+  }
 });
 

@@ -1,0 +1,9 @@
+.env
+.env.*
+!.env.example
+*.db
+*.db-shm
+*.db-wal
+.backups/
+node_modules/
+.DS_Store

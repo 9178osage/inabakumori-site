@@ -32,3 +32,6 @@ inabakumori-site-all-code/
 # Transient X archive import state; never commit a lock that would block builds.
 /data/x-posts/.import-lock
 /data/x-posts/.write-*.tmp
+
+# Local Vercel project link and downloaded deployment environment.
+.vercel/

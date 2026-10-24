@@ -1,10 +1,12 @@
 import "dotenv/config";
-import { normalizeRequestPath, validateCommentInput, websiteLocation, resolveDatabasePath, parseAdditionalOrigins, clientIpResolver, parseAdminUserIds, createAdminCheck, buildVersion, createRecentDuplicateChecker, insertFreshComment, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery, requireJsonRequestBody, revokeSessionsAfterPasswordReset, createFinalErrorHandler } from "./services.mjs";
+import { normalizeRequestPath, validateCommentInput, websiteLocation, parseAdditionalOrigins, clientIpResolver, parseAdminUserIds, createAdminCheck, buildVersion, insertFreshCommentAsync, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery, requireJsonRequestBody, revokeSessionsAfterPasswordReset, createFinalErrorHandler } from "./services.mjs";
 import { randomUUID } from "node:crypto";
-import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { DatabaseSync } from "node:sqlite";
+import { openDatabase } from "./database.mjs";
+import { createPostgresRateLimitStore, cleanupExpiredRateLimits, withRateLimitRequestContext } from "./rate-limit-store.mjs";
+import { commentWriteMaintenance } from "./maintenance.mjs";
+import { waitUntil } from "@vercel/functions";
 import { registerBackupEndpoint, backupTokenFrom, isBackupPath } from "./backup-endpoint.mjs";
 import express from "express";
 import cors from "cors";
@@ -17,6 +19,7 @@ import { middleware, errorHandler } from "supertokens-node/framework/express";
 import { verifySession } from "supertokens-node/recipe/session/framework/express";
 const NODE_ENV = process.env.NODE_ENV === "production" ? "production" : "development";
 const IS_PRODUCTION = NODE_ENV === "production";
+const IS_VERCEL = process.env.VERCEL === "1";
 function requiredEnv(name) {
   const value = process.env[name]?.trim();
   if (!value) {
@@ -64,7 +67,7 @@ if (!HOST) {
   process.exit(1);
 }
 if (IS_PRODUCTION) {
-  if (!process.env.TRUST_PROXY?.trim()) {
+  if (!IS_VERCEL && !process.env.TRUST_PROXY?.trim()) {
     console.error("❌ Production requires TRUST_PROXY set to the trusted proxy hop count (use 1 on Railway)");
     process.exit(1);
   }
@@ -85,9 +88,23 @@ try {
   process.exit(1);
 }
 const clientIpKey = req => ipKeyGenerator(clientIp(req));
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+let db;
+try {
+  db = await openDatabase(process.env, __dirname);
+} catch (error) {
+  // Configuration errors are deliberately public; driver/filesystem messages may contain secrets.
+  console.error(error.code === "DATABASE_CONFIG" ? `❌ ${error.message}` : "❌ Unable to initialize comments database; check COMMENTS_DB_PATH, volume write permissions and database integrity");
+  process.exit(1);
+}
+console.log("✅ Comments database ready");
+const sharedStore = prefix => db.kind === "postgres" ? { store: createPostgresRateLimitStore(db, {
+  prefix: prefix.toLowerCase(), onBackgroundTask: IS_VERCEL ? waitUntil : undefined
+}) } : {};
 const app = express();
 app.disable("x-powered-by");
 app.set("query parser", "simple");
+app.use(withRateLimitRequestContext);
 app.use((req, res, next) => {
   req.requestId = randomUUID();
   res.setHeader("X-Request-Id", req.requestId);
@@ -102,7 +119,7 @@ if (process.env.TRUST_PROXY) {
   }
   app.set("trust proxy", trustProxy);
 }
-// API-only backend: CSP hardens JSON/auth responses on Railway.
+// API-only backend: CSP hardens JSON/auth responses.
 // The GitHub Pages static site is not served here, so frontend YouTube/fonts/scripts are unaffected.
 app.use(helmet({
   contentSecurityPolicy: {
@@ -149,7 +166,7 @@ supertokens.init({
 // JSON parsing or the auth service.
 // This is an application-level limit for one backend instance, not DDoS protection.
 const ALLOWED_ORIGINS = new Set([WEBSITE_DOMAIN, ...ADDITIONAL_WEBSITE_ORIGINS, ...IS_PRODUCTION ? [] : ["http://127.0.0.1:5500", "http://localhost:5500"]]);
-const requestLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 60_000, limit: 180,
+const requestLimiter = rateLimit({ ...sharedStore("requestLimiter"), keyGenerator: clientIpKey, windowMs: 60_000, limit: 180,
   standardHeaders: "draft-7", legacyHeaders: false,
   handler(req, res, _next, options) {
     // The limiter runs before CORS, but trusted pages must still be able to read 429.
@@ -180,7 +197,7 @@ const corsMiddleware = cors(corsOptions);
 app.use((req, res, next) => isBackupPath(req.originalUrl || req.url) ? next() : corsMiddleware(req, res, next));
 app.use(requireJsonRequestBody);
 app.use(express.json({ limit: "20kb", strict: true }));
-const authSensitiveLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 15 * 60 * 1e3, limit: 20, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
+const authSensitiveLimiter = rateLimit({ ...sharedStore("authSensitiveLimiter"), keyGenerator: clientIpKey, windowMs: 15 * 60 * 1e3, limit: 20, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 // emailExistsGET is removed from the SuperTokens APIs, so only POST auth routes need throttling.
 app.use((req, res, next) => {
   if (req.method !== "POST") return next();
@@ -189,10 +206,11 @@ app.use((req, res, next) => {
   return authSensitiveLimiter(req, res, next);
 });
 app.use(middleware());
-const commentLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 60 * 1e3, limit: 10, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "留言发送过于频繁，请稍后再试", code: "RATE_LIMITED" } });
+app.use(commentWriteMaintenance(process.env));
+const commentLimiter = rateLimit({ ...sharedStore("commentLimiter"), keyGenerator: clientIpKey, windowMs: 60 * 1e3, limit: 10, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "留言发送过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 // A 409 duplicate still counts: otherwise a guest could probe (or squat) recent texts for free.
-const guestCommentLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 60 * 60 * 1e3, limit: 3, skipFailedRequests: true, requestWasSuccessful: (_req, res) => res.statusCode < 400 || res.statusCode === 409, standardHeaders: "draft-7", legacyHeaders: false, skip: req => req.session !== undefined, message: { error: "游客每小时最多留言 3 条，请稍后再试", code: "GUEST_RATE_LIMITED" } });
-const memberCommentLimiter = rateLimit({
+const guestCommentLimiter = rateLimit({ ...sharedStore("guestCommentLimiter"), keyGenerator: clientIpKey, windowMs: 60 * 60 * 1e3, limit: 3, skipFailedRequests: true, requestWasSuccessful: (_req, res) => res.statusCode < 400 || res.statusCode === 409, standardHeaders: "draft-7", legacyHeaders: false, skip: req => req.session !== undefined, message: { error: "游客每小时最多留言 3 条，请稍后再试", code: "GUEST_RATE_LIMITED" } });
+const memberCommentLimiter = rateLimit({ ...sharedStore("memberCommentLimiter"),
   windowMs: 60 * 60 * 1e3,
   limit: 20,
   skipFailedRequests: true,
@@ -203,58 +221,6 @@ const memberCommentLimiter = rateLimit({
   validate: false,
   message: { error: "登录用户每小时最多留言 20 条，请稍后再试", code: "MEMBER_RATE_LIMITED" }
 });
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-let databasePath;
-try {
-  databasePath = resolveDatabasePath(process.env, __dirname);
-} catch (error) {
-  console.error(`❌ ${error.message}`);
-  process.exit(1);
-}
-let db;
-try {
-  mkdirSync(path.dirname(databasePath), { recursive: true });
-  db = new DatabaseSync(databasePath);
-  db.exec(`
-    PRAGMA journal_mode = WAL;
-    PRAGMA synchronous = NORMAL;
-    PRAGMA foreign_keys = ON;
-    PRAGMA busy_timeout = 5000;
-`);
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS comments (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nickname TEXT NOT NULL,
-        content TEXT NOT NULL,
-        user_id TEXT,
-        is_guest INTEGER NOT NULL DEFAULT 1,
-        created_at INTEGER NOT NULL,
-        expires_at INTEGER
-    )
-`);
-  db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_comments_created_at
-    ON comments(created_at DESC);
-
-    CREATE INDEX IF NOT EXISTS idx_comments_expiry
-    ON comments(is_guest, expires_at);
-
-    CREATE INDEX IF NOT EXISTS idx_comments_user
-    ON comments(user_id);
-
-    CREATE INDEX IF NOT EXISTS idx_comments_member_cursor ON comments(user_id, id DESC) WHERE is_guest = 0;
-    CREATE INDEX IF NOT EXISTS idx_comments_member_recent ON comments(user_id, created_at DESC) WHERE is_guest = 0;
-    CREATE INDEX IF NOT EXISTS idx_comments_guest_recent ON comments(created_at DESC) WHERE is_guest = 1;
-`);
-} catch {
-  // Filesystem/SQLite errors can include configured paths. Keep startup logs actionable
-  // without exposing those values or an uncaught stack trace.
-  console.error("❌ Unable to initialize comments database; check COMMENTS_DB_PATH, volume write permissions and database integrity");
-  try { db?.close(); } catch {}
-  process.exit(1);
-}
-console.log("✅ Comments database ready");
 const selectRecentCommentsStatement = db.prepare(`
     SELECT
         id,
@@ -268,21 +234,6 @@ const selectRecentCommentsStatement = db.prepare(`
     ORDER BY id DESC
     LIMIT ?
 `);
-const insertCommentStatement = db.prepare(`
-    INSERT INTO comments (
-        nickname,
-        content,
-        user_id,
-        is_guest,
-        created_at,
-        expires_at
-    )
-    VALUES (?, ?, ?, ?, ?, ?)
-`);
-const countMemberCommentsStatement = db.prepare(`
-    SELECT COUNT(*) AS n FROM comments WHERE user_id = ? AND is_guest = 0
-`);
-const hasRecentDuplicateComment = createRecentDuplicateChecker(db);
 const deleteExpiredGuestsStatement = db.prepare(`
     DELETE FROM comments
     WHERE
@@ -300,26 +251,35 @@ function requireJsonContentType(req, res, next) {
   }
   next();
 }
-function deleteExpiredGuestComments() {
-  const result = deleteExpiredGuestsStatement.run(Date.now());
+async function deleteExpiredGuestComments() {
+  if (process.env.COMMENTS_READ_ONLY === "1") return;
+  const result = await deleteExpiredGuestsStatement.run(Date.now());
   const deleted = Number(result.changes);
   if (deleted > 0) {
     console.log(`🧹 Deleted ${deleted} expired guest comment(s)`);
   }
+  await cleanupExpiredRateLimits(db);
 }
-deleteExpiredGuestComments();
-const guestCleanupTimer = setInterval(() => {
-  try { deleteExpiredGuestComments(); }
-  catch (error) { console.error("Guest cleanup failed", { name: error.name, code: error.code }); }
-}, 60 * 60 * 1e3);
-guestCleanupTimer.unref();
+// Cleanup happens inside a request, so it completes before a Vercel invocation ends.
+// One in-flight cleanup per warm instance is enough; the delete itself is idempotent.
+let nextGuestCleanup = 0;
+let guestCleanup;
+app.use(async (_req, _res, next) => {
+  try {
+    if (Date.now() >= nextGuestCleanup) {
+      guestCleanup ||= deleteExpiredGuestComments().then(() => { nextGuestCleanup = Date.now() + 60 * 60 * 1000; }).finally(() => { guestCleanup = undefined; });
+      await guestCleanup;
+    }
+    next();
+  } catch (error) { next(error); }
+});
 app.get("/", (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   res.json({ ok: true });
 });
-app.get("/healthz", (req, res) => {
+app.get("/healthz", async (req, res) => {
   try {
-    db.prepare("SELECT 1").get();
+    await db.prepare("SELECT 1").get();
     res.setHeader("Cache-Control", "no-store");
     // Public: only liveness and the deployed commit prefix (to confirm redeploys).
     return res.json({ ok: true, version: BUILD_VERSION });
@@ -327,9 +287,9 @@ app.get("/healthz", (req, res) => {
     return res.status(503).json({ ok: false, code: "DATABASE_UNAVAILABLE" });
   }
 });
-const commentReadLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 60_000, limit: 120, standardHeaders: "draft-7", legacyHeaders: false,
+const commentReadLimiter = rateLimit({ ...sharedStore("commentReadLimiter"), keyGenerator: clientIpKey, windowMs: 60_000, limit: 120, standardHeaders: "draft-7", legacyHeaders: false,
   message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
-const commentDeleteLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 60_000, limit: 30, standardHeaders: "draft-7", legacyHeaders: false,
+const commentDeleteLimiter = rateLimit({ ...sharedStore("commentDeleteLimiter"), keyGenerator: clientIpKey, windowMs: 60_000, limit: 30, standardHeaders: "draft-7", legacyHeaders: false,
   message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 app.use("/api", commentReadLimiter);
 app.use((req, res, next) => {
@@ -337,13 +297,13 @@ app.use((req, res, next) => {
   const pathname = normalizeRequestPath(req.originalUrl || req.url);
   return /^\/api\/(?:admin\/)?comments(?:\/|$)/u.test(pathname) ? commentDeleteLimiter(req, res, next) : next();
 });
-app.get("/api/comments", (req, res) => {
+app.get("/api/comments", async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
-  const rows = selectRecentCommentsStatement.all(Date.now(), MAX_PUBLIC_COMMENTS);
+  const rows = await selectRecentCommentsStatement.all(Date.now(), MAX_PUBLIC_COMMENTS);
   const comments = rows.map((comment) => ({ id: Number(comment.id), nickname: comment.nickname, content: comment.content, isGuest: Boolean(comment.is_guest), createdAt: new Date(comment.created_at).toISOString(), expiresAt: comment.expires_at === null ? null : new Date(comment.expires_at).toISOString() }));
   res.json({ comments });
 });
-app.post("/api/comments", commentLimiter, requireJsonContentType, verifySession({ sessionRequired: false }), guestCommentLimiter, memberCommentLimiter, (req, res) => {
+app.post("/api/comments", commentLimiter, requireJsonContentType, verifySession({ sessionRequired: false }), guestCommentLimiter, memberCommentLimiter, async (req, res) => {
   const validation = validateCommentInput(req.body);
   if (!validation.ok) {
     return res.status(400).json({ error: validation.error, code: validation.code || "INVALID_COMMENT" });
@@ -354,10 +314,7 @@ app.post("/api/comments", commentLimiter, requireJsonContentType, verifySession(
   const isGuest = !isLoggedIn;
   const createdAt = Date.now();
   const expiresAt = isGuest ? createdAt + GUEST_COMMENT_RETENTION_MS : null;
-  const inserted = insertFreshComment(db, {
-    duplicate: hasRecentDuplicateComment,
-    insert: insertCommentStatement,
-    countMember: countMemberCommentsStatement,
+  const inserted = await insertFreshCommentAsync(db, {
     memberCap: MEMBER_COMMENT_CAP,
     row: { nickname, content, userId, isGuest, createdAt, expiresAt }
   });
@@ -373,9 +330,10 @@ registerCommentManagement(app, db, verifySession);
 registerAdminCommentManagement(app, db, verifySession, createAdminCheck(ADMIN_USER_IDS));
 const BACKUP_TOKEN = backupTokenFrom(process.env);
 if (process.env.BACKUP_TOKEN?.trim() && !BACKUP_TOKEN) console.warn("⚠️ BACKUP_TOKEN is shorter than 32 characters; backup endpoint disabled");
-const backupLimiter = rateLimit({ keyGenerator: clientIpKey, windowMs: 60 * 60 * 1e3, limit: 5, standardHeaders: "draft-7", legacyHeaders: false,
+const backupLimiter = rateLimit({ ...sharedStore("backupLimiter"), keyGenerator: clientIpKey, windowMs: 60 * 60 * 1e3, limit: 5, standardHeaders: "draft-7", legacyHeaders: false,
   message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
-registerBackupEndpoint(app, { databasePath, token: BACKUP_TOKEN, limiter: backupLimiter, clientIp });
+registerBackupEndpoint(app, { snapshot: destination => db.snapshot(destination), token: BACKUP_TOKEN, limiter: backupLimiter, clientIp,
+  onBackgroundTask: IS_VERCEL ? waitUntil : undefined });
 app.use("/api", (req, res) => {
   res.status(404).json({ error: "请求的地址不存在，请刷新页面后重试", code: "NOT_FOUND" });
 });
@@ -384,51 +342,55 @@ app.use((req, res) => {
 });
 app.use(errorHandler());
 app.use(createFinalErrorHandler({ isProduction: IS_PRODUCTION }));
-const server = app.listen(PORT, HOST, () => {
-  console.log(`✅ Backend running at http://${HOST}:${PORT} (version ${BUILD_VERSION})`);
-  console.log(`🔐 Environment: ${NODE_ENV}`);
-  console.log(`💬 Guest comments expire after 6 months (${GUEST_COMMENT_RETENTION_DAYS} days)`);
-  console.log("👤 Logged-in comments do not automatically expire");
-  console.log("🛡️ Core security enabled (lightweight mode)");
-  console.log("🗄️ SQLite comment storage is single-instance; do not run multiple replicas");
-});
-server.requestTimeout = 30_000;
-server.headersTimeout = 15_000;
-server.keepAliveTimeout = 5_000;
-let shuttingDown = false;
-function shutdown(signal) {
-  if (shuttingDown) return;
-  shuttingDown = true;
-  // Railway sends SIGTERM on every redeploy; a clean drain must exit 0 or it is reported as a crash.
-  // After 8s, drop in-flight connections so server.close() still completes and exits 0;
-  // only a close that hangs past 15s exits 1.
-  const drain = setTimeout(() => {
-    console.error("Shutdown drain timeout; closing remaining connections");
-    server.closeAllConnections();
-  }, 8_000);
-  drain.unref();
-  const deadline = setTimeout(() => {
-    console.error("Shutdown deadline exceeded");
-    process.exit(1);
-  }, 15_000);
-  deadline.unref();
-  console.log(`🛑 Received ${signal}. Shutting down...`);
-  clearInterval(guestCleanupTimer);
-  server.close(() => {
-    try {
-      db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
-      db.close();
-      console.log("✅ Database closed safely");
-    } catch (error) {
-      console.error("❌ Failed to close database", error);
-    }
-    clearTimeout(drain);
-    clearTimeout(deadline);
-    console.log("✅ Server shut down safely");
-    process.exit(0);
+export default app;
+
+// Vercel owns the listener and function lifecycle; local/Railway runs retain graceful shutdown.
+if (!IS_VERCEL) {
+  const server = app.listen(PORT, HOST, () => {
+    console.log(`✅ Backend running at http://${HOST}:${PORT} (version ${BUILD_VERSION})`);
+    console.log(`🔐 Environment: ${NODE_ENV}`);
+    console.log(`💬 Guest comments expire after 6 months (${GUEST_COMMENT_RETENTION_DAYS} days)`);
+    console.log("👤 Logged-in comments do not automatically expire");
+    console.log("🛡️ Core security enabled (lightweight mode)");
+    console.log(db.kind === "sqlite" ? "🗄️ SQLite comment storage is single-instance; do not run multiple replicas" : "🗄️ PostgreSQL comment storage and shared rate limits ready");
   });
-  // Keep-alive sockets from the Railway edge would otherwise hold server.close() open.
-  server.closeIdleConnections();
+  server.requestTimeout = 30_000;
+  server.headersTimeout = 15_000;
+  server.keepAliveTimeout = 5_000;
+  let shuttingDown = false;
+  function shutdown(signal) {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    // Railway sends SIGTERM on every redeploy; a clean drain must exit 0 or it is reported as a crash.
+    // After 8s, drop in-flight connections so server.close() still completes and exits 0;
+    // only a close that hangs past 15s exits 1.
+    const drain = setTimeout(() => {
+      console.error("Shutdown drain timeout; closing remaining connections");
+      server.closeAllConnections();
+    }, 8_000);
+    drain.unref();
+    const deadline = setTimeout(() => {
+      console.error("Shutdown deadline exceeded");
+      process.exit(1);
+    }, 15_000);
+    deadline.unref();
+    console.log(`🛑 Received ${signal}. Shutting down...`);
+    server.close(async () => {
+      try {
+        if (db.kind === "sqlite") await db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
+        await db.close();
+        console.log("✅ Database closed safely");
+      } catch (error) {
+        console.error("❌ Failed to close database", { name: error.name, code: error.code });
+      }
+      clearTimeout(drain);
+      clearTimeout(deadline);
+      console.log("✅ Server shut down safely");
+      process.exit(0);
+    });
+    // Keep-alive sockets from the Railway edge would otherwise hold server.close() open.
+    server.closeIdleConnections();
+  }
+  process.on("SIGINT", () => shutdown("SIGINT"));
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
 }
-process.on("SIGINT", () => shutdown("SIGINT"));
-process.on("SIGTERM", () => shutdown("SIGTERM"));

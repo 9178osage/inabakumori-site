@@ -37,7 +37,7 @@ export function backupFilename(now = new Date()) {
   return `comments-${now.toISOString().slice(0, 10).replaceAll("-", "")}.db`;
 }
 
-export function registerBackupEndpoint(app, { databasePath, token, limiter, log = console, clientIp = req => req.ip }) {
+export function registerBackupEndpoint(app, { databasePath, snapshot = destination => backupDatabase(databasePath, destination), token, limiter, log = console, clientIp = req => req.ip, onBackgroundTask = () => {} }) {
   const disabled = (req, res, next) => token ? next() : res.status(404).json({ error: "请求的地址不存在，请刷新页面后重试", code: "NOT_FOUND" });
   app.get(BACKUP_PATH, disabled, limiter, async (req, res, next) => {
     res.setHeader("Cache-Control", "no-store");
@@ -51,11 +51,15 @@ export function registerBackupEndpoint(app, { databasePath, token, limiter, log 
       return res.status(401).json({ error: "未授权", code: "UNAUTHORIZED" });
     }
     let directory;
+    // Keep a Vercel invocation alive through streaming and removal of its private temp copy.
+    let finished;
+    const completion = new Promise(resolve => { finished = resolve; });
+    onBackgroundTask(completion);
     const cleanup = () => directory && rm(directory, { recursive: true, force: true }).catch(() => {});
     try {
       directory = await mkdtemp(path.join(os.tmpdir(), "inabakumori-backup-"));
       const file = path.join(directory, "snapshot.db");
-      await backupDatabase(databasePath, file);
+      await snapshot(file);
       const { size } = await stat(file);
       res.status(200);
       res.setHeader("Content-Type", "application/octet-stream");
@@ -76,6 +80,8 @@ export function registerBackupEndpoint(app, { databasePath, token, limiter, log 
     } catch (error) {
       await cleanup();
       next(error);
+    } finally {
+      finished();
     }
   });
 }

@@ -170,7 +170,7 @@ inabakumori-site/
 │   ├── CHANGELOG.md
 │   ├── SECURITY.md / OPTIMIZATION.md / AI_HANDOFF.md
 │   └── history/            # Archived audit / review reports
-├── backend/                # Railway service root
+├── backend/                # Backend service root
 ├── tools/                  # Commands: tools/README.md; regressions: tests/
 ├── .github/workflows/      # CI + Pages publish from dist/
 │
@@ -332,9 +332,9 @@ Because the account system and message wall are dynamic, they also require a sep
 - `WEBSITE_URL`
 - `SUPERTOKENS_CONNECTION_URI`
 - `SUPERTOKENS_API_KEY`
-- Persistent SQLite storage
+- PostgreSQL (`DATABASE_URL`) on Vercel, or persistent SQLite storage on Railway
 
-The backend is a separate Node.js service. The existing Railway setup uses the `backend/` directory as its service root. Keep SQLite on a persistent volume and set the frontend `API_DOMAIN` to the public backend URL.
+The backend is rooted in `backend/`. Vercel uses PostgreSQL for comments and shared rate limits; local development and the existing Railway deployment can retain SQLite. Follow [the migration guide](docs/VERCEL.md) to import existing comments and verify the new service before switching the frontend API and CSP.
 
 ---
 
@@ -544,7 +544,7 @@ inabakumori-site/
 │   ├── CHANGELOG.md
 │   ├── SECURITY.md / OPTIMIZATION.md / AI_HANDOFF.md
 │   └── history/            # Archived audit / review reports
-├── backend/                # Railway service root
+├── backend/                # Backend service root
 ├── tools/                  # Commands: tools/README.md; regressions: tests/
 ├── .github/workflows/      # CI + Pages publish from dist/
 │
@@ -705,9 +705,9 @@ npm run check:links:strict
 - `WEBSITE_URL`
 - `SUPERTOKENS_CONNECTION_URI`
 - `SUPERTOKENS_API_KEY`
-- 持久化的 SQLite 数据目录
+- Vercel 使用 PostgreSQL（`DATABASE_URL`）；Railway 可继续使用持久化 SQLite
 
-后端是独立的 Node.js 服务，现有 Railway 配置使用 `backend/` 作为服务根目录。生产环境请使用持久化 Volume 保存 SQLite，并将前端的 `API_DOMAIN` 指向公开后端地址。
+后端以 `backend/` 为服务根目录。Vercel 使用 PostgreSQL 保存留言和共享限流计数，本地开发及现有 Railway 可保留 SQLite。按 [Vercel 迁移说明](docs/VERCEL.md) 导入既有留言、核实新服务后，再切换前端 API 地址和 CSP。
 
 ---
 
@@ -915,7 +915,7 @@ inabakumori-site/
 │   ├── CHANGELOG.md
 │   ├── SECURITY.md / OPTIMIZATION.md / AI_HANDOFF.md
 │   └── history/            # Archived audit / review reports
-├── backend/                # Railway service root
+├── backend/                # Backend service root
 ├── tools/                  # Commands: tools/README.md; regressions: tests/
 ├── .github/workflows/      # CI + Pages publish from dist/
 │
@@ -1063,9 +1063,9 @@ npm run check:links:strict
 - `WEBSITE_URL`
 - `SUPERTOKENS_CONNECTION_URI`
 - `SUPERTOKENS_API_KEY`
-- 永続化された SQLite ストレージ
+- Vercel は PostgreSQL（`DATABASE_URL`）、Railway は永続化された SQLite ストレージ
 
-バックエンドには Railway の永続 Volume に対応する処理が含まれています。本番環境では、データベースファイルを一時領域ではなく永続ストレージ上に配置してください。
+`backend/` をサービスルートに指定します。Vercel ではコメントと共有レート制限に PostgreSQL を使い、ローカル開発と既存の Railway では SQLite を引き続き使えます。[移行手順](docs/VERCEL.md) に従って既存コメントを移し、新サービスを検証してからフロントエンドの API URL と CSP を切り替えてください。
 
 ---
 

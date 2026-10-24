@@ -36,6 +36,7 @@
     "node": ">=24.22.1 <25"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.11",
     "eslint": "^10.13.0",
     "globals": "^17.13.0"
   }
