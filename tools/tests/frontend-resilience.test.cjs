@@ -74,6 +74,9 @@ test("zh view counts use 万/亿 with one decimal and no grouping", () => {
   assert.equal(format(99485203), "9948.5万");
   assert.equal(format(123456789), "1.2亿");
   assert.equal(format(9999), "9,999");
+  assert.equal(format(99999999), "1亿", "rounding 9999.9999万 must carry into 亿, not print 10000万");
+  assert.equal(format(100121507), "1亿");
+  assert.equal(format(106789770), "1.1亿");
 });
 
 test("rate-limited message loads show a retry countdown from Retry-After in every language", async () => {
