@@ -203,7 +203,16 @@ async function readRegular(root, file, maximum) {
 async function readArchive(root) {
   let raw;
   try { raw = await readRegular(root, MANIFEST, X_POSTS_SHARD_BYTES); }
-  catch (error) { if (error.code === "ENOENT") return { version: 1, coverage: [], items: [] }; throw error; }
+  catch (error) {
+    if (error.code !== "ENOENT") throw error;
+    let names = [];
+    try { names = await readdir(assertRepoPath(root, DIRECTORY, { mustExist: true })); }
+    catch (directoryError) { if (directoryError.code !== "ENOENT") throw directoryError; }
+    // Missing metadata must never turn retained post bodies into an empty
+    // archive, which an import would then replace and clean up permanently.
+    assert.ok(!names.some(name => SHARD_NAME.test(name)), "X archive manifest is missing while post shards remain");
+    return { version: 1, coverage: [], items: [] };
+  }
   const manifest = record(JSON.parse(raw), "X archive manifest");
   assert.equal(manifest.version, 1, "Unsupported X archive version");
   assert.ok(Number.isSafeInteger(manifest.count) && manifest.count >= 0, "Invalid X archive count");

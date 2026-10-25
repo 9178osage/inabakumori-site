@@ -93,6 +93,21 @@ test("read/write round trip verifies shards, removes superseded shards, and cann
   await assert.rejects(importXPostsScan(root, scan()), { code: "EEXIST" });
 });
 
+test("a missing manifest with retained shards refuses reads and imports without changing any bytes", async t => {
+  const { importXPostsScan, readXPostsArchive } = await load();
+  const root = await sandbox(t);
+  await fs.mkdir(path.join(root, "data/x-posts"), { recursive: true });
+  assert.deepEqual(await readXPostsArchive(root), empty(), "a new empty archive directory can initialize");
+  const result = await importXPostsScan(root, scan());
+  const shard = result.files.find(file => file.includes("posts-"));
+  const before = await fs.readFile(path.join(root, shard));
+  await fs.unlink(path.join(root, "data/x-posts/manifest.json"));
+  await assert.rejects(readXPostsArchive(root), /manifest is missing/u);
+  await assert.rejects(importXPostsScan(root, empty()), /manifest is missing/u);
+  assert.deepEqual(await fs.readdir(path.join(root, "data/x-posts")), [path.basename(shard)]);
+  assert.deepEqual(await fs.readFile(path.join(root, shard)), before);
+});
+
 test("whole-post shards stay under 120000 bytes and retain every original byte", async t => {
   const { importXPostsScan, readXPostsArchive, X_POSTS_SHARD_BYTES } = await load();
   const root = await sandbox(t);

@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const os = require("node:os");
+const { spawnSync } = require("node:child_process");
 const load = () => import("../refresh-creator-updates.mjs");
 const CHANNEL = "UCNElM45JypxqAR73RoUQ10g";
 const VIDEO = "2r4W_LoVFxA";
@@ -168,8 +169,14 @@ test("atomic snapshot failure preserves the previous file and removes temporary 
     await assert.rejects(writeUpdatesSnapshot(directory, { version: 1, sources: [], items: [] }, { renameImpl: async () => { throw new Error("disk full"); } }), /disk full/);
     assert.equal(await fs.readFile(destination, "utf8"), "PREVIOUS");
     assert.deepEqual(await fs.readdir(path.join(directory, "data")), ["creator-updates.json"]);
-    await writeUpdatesSnapshot(directory, { version: 1, sources: [], items: [youtubeItem()] });
+    await writeUpdatesSnapshot(directory, { version: 1, sources: [], items: [youtubeItem()] }, { expectedSource: Buffer.from("PREVIOUS") });
     assert.equal(JSON.parse(await fs.readFile(destination, "utf8")).items[0].title, "ユレール");
+    await fs.unlink(destination);
+    await writeUpdatesSnapshot(directory, { version: 1, sources: [], items: [] }, { expectedSource: null });
+    const initialized = await fs.readFile(destination);
+    await assert.rejects(writeUpdatesSnapshot(directory, { version: 1, sources: [], items: [youtubeItem()] }, { expectedSource: null }), /changed during refresh/u);
+    assert.deepEqual(await fs.readFile(destination), initialized);
+    assert.deepEqual(await fs.readdir(path.join(directory, "data")), ["creator-updates.json"]);
   } finally { await fs.rm(directory, { recursive: true, force: true }); }
 });
 
@@ -183,6 +190,36 @@ test("snapshot writer refuses a symlinked destination before touching the target
     await fs.symlink(victim, path.join(directory, "data/creator-updates.json"));
     await assert.rejects(writeUpdatesSnapshot(directory, { version: 1, sources: [], items: [] }), /symlinked path/);
     assert.equal(await fs.readFile(victim, "utf8"), "KEEP");
+  } finally { await fs.rm(directory, { recursive: true, force: true }); }
+});
+
+test("the creator refresh CLI retains a local edit made during fetch and removes its temporary file", async () => {
+  const directory = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "creator-updates-edit-")));
+  try {
+    await fs.mkdir(path.join(directory, "tools"));
+    await fs.mkdir(path.join(directory, "data"));
+    for (const file of ["refresh-creator-updates.mjs", "safe-fs.mjs", "text-guards.mjs"]) {
+      await fs.copyFile(path.join(__dirname, "..", file), path.join(directory, "tools", file));
+    }
+    const destination = path.join(directory, "data/creator-updates.json");
+    const original = JSON.stringify({ version: 1, sources: [], items: [youtubeItem()] });
+    const edit = original.replace("ユレール", "Local edit 雨") + "\n";
+    await fs.writeFile(destination, original);
+    const replies = [feed(), JSON.stringify(profile()), JSON.stringify(work()), campfire()];
+    await fs.writeFile(path.join(directory, "mock.mjs"), `
+import { writeFileSync } from "node:fs";
+const replies = ${JSON.stringify(replies)};
+globalThis.fetch = async url => {
+  writeFileSync(${JSON.stringify(destination)}, ${JSON.stringify(edit)});
+  return new Response(replies[url.includes("/feeds/") ? 0 : url.endsWith("/profile/all") ? 1 : url.includes("/illust/") ? 2 : 3]);
+};
+`);
+    const result = spawnSync(process.execPath, ["--import", path.join(directory, "mock.mjs"), path.join(directory, "tools/refresh-creator-updates.mjs")], { cwd: directory, encoding: "utf8", timeout: 3000 });
+    assert.ifError(result.error);
+    assert.equal(result.status, 1, result.stdout + result.stderr);
+    assert.match(result.stderr, /changed during refresh/u);
+    assert.equal(await fs.readFile(destination, "utf8"), edit);
+    assert.deepEqual(await fs.readdir(path.join(directory, "data")), ["creator-updates.json"]);
   } finally { await fs.rm(directory, { recursive: true, force: true }); }
 });
 

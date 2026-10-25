@@ -277,7 +277,7 @@ export async function refreshCreatorUpdates(previous, { fetchImpl = fetch, now =
   return { data: normalizeUpdates(data), errors };
 }
 
-export async function writeUpdatesSnapshot(root, data, { renameImpl = rename } = {}) {
+export async function writeUpdatesSnapshot(root, data, { renameImpl = rename, expectedSource } = {}) {
   const directory = assertRepoPath(root, "data");
   const destination = assertRepoPath(root, "data/creator-updates.json");
   await mkdir(directory, { recursive: true });
@@ -290,6 +290,14 @@ export async function writeUpdatesSnapshot(root, data, { renameImpl = rename } =
     await file.close();
     file = null;
     assertRepoPath(root, "data/creator-updates.json");
+    if (expectedSource !== undefined) {
+      let current = null;
+      try { current = await readFile(assertRepoPath(root, "data/creator-updates.json", { mustExist: true })); }
+      catch (error) { if (error.code !== "ENOENT") throw error; }
+      if (current === null ? expectedSource !== null : expectedSource === null || !current.equals(expectedSource)) {
+        throw new Error("Creator updates snapshot changed during refresh; refusing to overwrite local edits");
+      }
+    }
     await renameImpl(temporary, destination);
   } finally {
     await file?.close().catch(() => {});
@@ -330,12 +338,12 @@ export function snapshotNeedsWrite(previous, next, { now = new Date().toISOStrin
 
 async function main() {
   const snapshot = assertRepoPath(ROOT, "data/creator-updates.json");
-  let previous;
-  try { previous = JSON.parse(await readFile(snapshot, "utf8")); }
+  let previous, source = null;
+  try { source = await readFile(snapshot); previous = JSON.parse(source.toString("utf8")); }
   catch (error) { if (error.code !== "ENOENT") throw error; }
   const now = new Date().toISOString();
   const { data, errors } = await refreshCreatorUpdates(previous, { now });
-  if (snapshotNeedsWrite(previous, data, { now })) await writeUpdatesSnapshot(ROOT, data);
+  if (snapshotNeedsWrite(previous, data, { now })) await writeUpdatesSnapshot(ROOT, data, { expectedSource: source });
   else console.log("No update, status or heartbeat change; snapshot left untouched.");
   for (const source of data.sources) console.log(`${source.label}: ${source.status}, ${data.items.filter(item => item.source === source.id).length} retained updates; last successful check ${source.checkedAt || "never"}.`);
   const persistent = new Set(persistentSourceFailures(data, errors, { now }));

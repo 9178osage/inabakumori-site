@@ -148,6 +148,44 @@ test('own message management awaits asynchronous database reads and writes', asy
     assert.equal(db.prepare('SELECT id FROM comments WHERE id = 1').get(), undefined);
   } finally { db.close(); }
 });
+
+test('member and admin pagination include the maximum safe ID on the first page and keep explicit cursors exclusive', async () => {
+  const { registerCommentManagement, registerAdminCommentManagement } = await import('../../backend/services.mjs');
+  for (const asynchronous of [false, true]) {
+    const db = new DatabaseSync(':memory:');
+    try {
+      db.exec('CREATE TABLE comments(id INTEGER PRIMARY KEY, nickname TEXT, content TEXT, created_at INTEGER, user_id TEXT, is_guest INTEGER, expires_at INTEGER)');
+      const insert = db.prepare('INSERT INTO comments VALUES(?,?,?,?,?,?,?)');
+      const highest = Number.MAX_SAFE_INTEGER;
+      for (const id of [1, highest - 1, highest]) insert.run(id, 'test', 'synthetic boundary comment', Date.now(), 'owner', 0, null);
+      const routes = {};
+      const app = {
+        get(path, ...handlers) { routes[path] = handlers.at(-1); },
+        delete() {}
+      };
+      const access = asynchronous ? asynchronousStatements(db) : db;
+      registerCommentManagement(app, access, () => () => {});
+      registerAdminCommentManagement(app, access, () => () => {}, () => true);
+      const call = async (path, before) => {
+        const req = { query: before === undefined ? {} : { before }, session: { getUserId: () => 'owner' } };
+        const res = { code: 200, setHeader() {}, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
+        await routes[path](req, res);
+        return res;
+      };
+      for (const path of ['/api/comments/mine', '/api/admin/comments']) {
+        assert.deepEqual((await call(path)).body.comments.map(row => row.id), [highest, highest - 1, 1]);
+        assert.deepEqual((await call(path, String(highest))).body.comments.map(row => row.id), [highest - 1, 1]);
+        assert.deepEqual((await call(path, String(highest - 1))).body.comments.map(row => row.id), [1]);
+        const last = await call(path, '1');
+        assert.equal(last.code, 200);
+        assert.deepEqual(last.body, { comments: [], nextCursor: null });
+        assert.deepEqual((await call(path, '2')).body.comments.map(row => row.id), [1]);
+        assert.equal((await call(path, '0')).code, 400);
+      }
+    } finally { db.close(); }
+  }
+});
+
 test('reset email redirects to the GitHub Pages homepage and keeps the token in the fragment', async () => {
   const { passwordResetDelivery } = await import('../../backend/services.mjs');
   let sent;

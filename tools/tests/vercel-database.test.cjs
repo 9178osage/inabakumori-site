@@ -114,7 +114,7 @@ function fakePool(handler = () => ({ rows: [], fields: [], rowCount: 0 })) {
     query: (sql, parameters) => query("pool", sql, parameters),
     async connect() {
       const connection = ++next;
-      return { query: (sql, parameters) => query(connection, sql, parameters), release() { calls.push({ connection, sql: "release" }); } };
+      return { query: (sql, parameters) => query(connection, sql, parameters), release(error) { calls.push({ connection, sql: "release", ...(error ? { error } : {}) }); } };
     },
     async end() { calls.push({ sql: "end" }); }
   };
@@ -154,7 +154,83 @@ test("PostgreSQL transactions keep one client, lock check-and-insert and release
     await assert.rejects(escaped.prepare("SELECT 1").get(), /already closed/u);
     await assert.rejects(db.transaction(async tx => { await tx.exec("SELECT 2"); throw new Error("abort write"); }), /abort write/u);
     assert.deepEqual(pool.calls.filter(call => call.connection === 3).map(call => call.sql), ["BEGIN; SELECT pg_advisory_xact_lock(721784230);", "SELECT 2", "ROLLBACK", "release"]);
+    assert.equal(pool.calls.find(call => call.connection === 3 && call.sql === "release").error, undefined, "a successful rollback leaves the connection reusable");
     await assert.rejects(db.transaction(() => db.prepare("SELECT 1").get()), /transaction-scoped/u);
+  } finally { await db.close(); }
+});
+
+test("PostgreSQL discards connections after rollback failures in initialization, writes and snapshots without replacing the original error", async () => {
+  const { createPostgresDatabase } = await import("../../backend/database.mjs");
+  for (const phase of ["initialization", "transaction", "snapshot"]) {
+    const operationError = new Error(`synthetic ${phase} failure`);
+    const rollbackError = new Error("synthetic rollback timeout");
+    let failOperation = phase === "initialization";
+    const pool = fakePool(sql => {
+      if (sql === "ROLLBACK") throw rollbackError;
+      if (failOperation && (phase === "initialization" && sql.includes("CREATE TABLE") || phase === "snapshot" && sql.includes("FROM comments ORDER BY id"))) throw operationError;
+      return { rows: [], fields: [], rowCount: 0 };
+    });
+    let db;
+    try {
+      if (phase === "initialization") {
+        await assert.rejects(createPostgresDatabase(pool), error => error === operationError);
+      } else {
+        db = await createPostgresDatabase(pool);
+        failOperation = true;
+        await assert.rejects(phase === "transaction"
+          ? db.transaction(() => { throw operationError; })
+          : db.snapshot("/unused-synthetic-snapshot.db"), error => error === operationError);
+      }
+      const released = pool.calls.filter(call => call.sql === "release");
+      assert.equal(released.at(-1).error, rollbackError, `${phase}: pg must destroy this connection`);
+      assert.equal(released.length, phase === "initialization" ? 1 : 2, `${phase}: each acquired connection is released once`);
+      assert.equal(pool.calls.filter(call => call.sql === "ROLLBACK").length, 1);
+    } finally { await db?.close(); }
+  }
+});
+
+test("discarding an unknown transaction prevents a later commit from reviving its failed write", async () => {
+  const { PGlite } = require("@electric-sql/pglite");
+  const { createPostgresDatabase } = await import("../../backend/database.mjs");
+  const engine = new PGlite();
+  let rollbackFails = false, discarded = 0;
+  let replacementReady = Promise.resolve();
+  const query = async (sql, parameters) => {
+    await replacementReady;
+    if (sql === "ROLLBACK" && rollbackFails) {
+      rollbackFails = false;
+      throw new Error("synthetic control-query timeout");
+    }
+    if (!parameters?.length && sql.includes(";")) return (await engine.exec(sql)).at(-1);
+    const result = await engine.query(sql, parameters);
+    return { ...result, rowCount: result.affectedRows };
+  };
+  const pool = {
+    query,
+    async connect() {
+      return { query, release(error) {
+        if (!error) return;
+        discarded++;
+        // Simulate PostgreSQL's rollback on physical connection disposal. A
+        // healthy release intentionally leaves this one-session engine as-is.
+        replacementReady = engine.exec("ROLLBACK");
+      } };
+    },
+    async end() { await replacementReady; await engine.close(); }
+  };
+  const db = await createPostgresDatabase(pool);
+  try {
+    rollbackFails = true;
+    const businessError = new Error("synthetic business rejection");
+    await assert.rejects(db.transaction(async tx => {
+      await tx.prepare(INSERT).run("name", "rejected write", null, 1, 1, null);
+      throw businessError;
+    }), error => error === businessError);
+    assert.equal(discarded, 1);
+    assert.equal((await db.prepare("SELECT count(*) AS n FROM comments").get()).n, 0);
+    await db.transaction(tx => tx.prepare(INSERT).run("name", "valid later write", null, 1, 2, null));
+    assert.equal((await db.prepare("SELECT count(*) AS n FROM comments").get()).n, 1);
+    assert.equal((await db.prepare("SELECT content FROM comments").get()).content, "valid later write");
   } finally { await db.close(); }
 });
 

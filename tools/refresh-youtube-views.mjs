@@ -174,8 +174,8 @@ async function fetchStatistics(ids) {
   return map;
 }
 
-const source = await readFile(assertRepoPath(ROOT, SONGS_PATH, { mustExist: true }), "utf8");
-const songs = loadSongs(source);
+const source = await readFile(assertRepoPath(ROOT, SONGS_PATH, { mustExist: true }));
+const songs = loadSongs(source.toString("utf8"));
 const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
 const entries = songs.map((song, index) => ({
@@ -256,7 +256,8 @@ if (withIds.length && statsById.size === 0) {
     await file.sync();
     await file.close();
     file = null;
-    assertRepoPath(ROOT, SONGS_PATH, { mustExist: true });
+    const current = await readFile(assertRepoPath(ROOT, SONGS_PATH, { mustExist: true }));
+    if (!current.equals(source)) throw new Error("js/songs.js changed during refresh; refusing to overwrite local edits");
     await rename(temporary, destination);
   } finally {
     await file?.close().catch(() => {});

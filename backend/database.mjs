@@ -170,6 +170,16 @@ async function sqliteSnapshot(destination, rows, highWater) {
   }
 }
 
+async function rollbackForRelease(client) {
+  try { await client.query("ROLLBACK"); }
+  catch (error) {
+    // A failed control query leaves transaction state unknown. Passing an error
+    // to pg's release destroys that connection instead of returning it to use.
+    return error instanceof Error ? error : new Error("Database rollback failed");
+  }
+  return undefined;
+}
+
 // Exported separately so pool ownership and transaction behaviour can be
 // exercised without a production connection or secret.
 export async function createPostgresDatabase(pool) {
@@ -181,6 +191,7 @@ export async function createPostgresDatabase(pool) {
   // CREATE TABLE IF NOT EXISTS alone can race at cold starts. The same advisory
   // lock serializes schema setup and comment check-and-insert transactions.
   const initializer = await pool.connect();
+  let initializerReleaseError;
   try {
     // This batch contains application constants only. One simple-protocol
     // message retains transaction order, replacing four network round trips with one.
@@ -189,9 +200,9 @@ export async function createPostgresDatabase(pool) {
       ${POSTGRES_SCHEMA}${COMMENT_INDEXES}${RATE_LIMIT_SCHEMA}
       COMMIT;`);
   } catch (error) {
-    try { await initializer.query("ROLLBACK"); } catch {}
+    initializerReleaseError = await rollbackForRelease(initializer);
     throw error;
-  } finally { initializer.release(); }
+  } finally { initializer.release(initializerReleaseError); }
   const access = postgresAccess((sql, parameters) => pool.query(sql, parameters), assertRoot);
   return {
     ...access,
@@ -201,6 +212,7 @@ export async function createPostgresDatabase(pool) {
       assertRoot();
       const client = await pool.connect();
       let active = true;
+      let releaseError;
       const tx = postgresAccess((sql, parameters) => client.query(sql, parameters), () => {
         if (!active) throw new Error("Transaction is already closed");
       });
@@ -214,13 +226,14 @@ export async function createPostgresDatabase(pool) {
         return value;
       } catch (error) {
         active = false;
-        try { await client.query("ROLLBACK"); } catch {}
+        releaseError = await rollbackForRelease(client);
         throw error;
-      } finally { client.release(); }
+      } finally { client.release(releaseError); }
     },
     async snapshot(destination) {
       assertRoot();
       const client = await pool.connect();
+      let releaseError;
       try {
         await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
         const rows = postgresRows(await client.query(SELECT_SNAPSHOT));
@@ -229,9 +242,9 @@ export async function createPostgresDatabase(pool) {
         await client.query("COMMIT");
         return await sqliteSnapshot(destination, rows, highWater);
       } catch (error) {
-        try { await client.query("ROLLBACK"); } catch {}
+        releaseError = await rollbackForRelease(client);
         throw error;
-      } finally { client.release(); }
+      } finally { client.release(releaseError); }
     },
     async close() { assertRoot(); await pool.end(); }
   };

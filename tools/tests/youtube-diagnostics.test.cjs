@@ -36,6 +36,7 @@ globalThis.fetch = async (url, options) => {
     throw new Error("Unsafe credential transport");
   }
   if (!options.signal) throw new Error("Missing request deadline");
+  if (input.edit) writeFileSync("js/songs.js", input.edit);
   if (input.mode === "network") throw new Error(token);
   if (input.mode === "stall") {
     let keepAlive;
@@ -71,6 +72,7 @@ globalThis.fetch = async (url, options) => {
       status: result.status,
       output,
       songs: fs.readFileSync(path.join(root, "js/songs.js"), "utf8"),
+      files: fs.readdirSync(path.join(root, "js")),
       cancelled: fs.existsSync(path.join(root, "cancelled"))
     };
   } finally {
@@ -169,4 +171,13 @@ test("YouTube diagnostics preserve a successful statistics refresh", () => {
   assert.equal(result.status, 0, result.output);
   assert.match(result.songs, /"viewCount": 10/u);
   assert.match(result.songs, new RegExp(`"viewsCheckedAt": "${new Date().toISOString().slice(0, 10)}"`, "u"));
+});
+
+test("a local songs edit during the API request is retained and the temporary refresh file is removed", () => {
+  const edit = ORIGINAL.replace("Synthetic song", "Local edit 雨");
+  const result = runRefresh({ edit, status: 200, body: { items: [{ id: "AAAAAAAAAAA", statistics: { viewCount: "10" } }] } });
+  assert.equal(result.status, 1);
+  assert.match(result.output, /changed during refresh/u);
+  assert.equal(result.songs, edit);
+  assert.deepEqual(result.files, ["songs.js"]);
 });

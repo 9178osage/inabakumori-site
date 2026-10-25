@@ -337,7 +337,7 @@ export async function insertFreshCommentAsync(db, { memberCap = 100, row }) {
 
 export function registerCommentManagement(app, db, verifySession) {
   const list = db.prepare(`SELECT id, nickname, content, created_at FROM comments
-    WHERE user_id = ? AND is_guest = 0 AND id < ? ORDER BY id DESC LIMIT 21`);
+    WHERE user_id = ? AND is_guest = 0 AND id <= ? ORDER BY id DESC LIMIT 21`);
   const owner = db.prepare("SELECT user_id, is_guest FROM comments WHERE id = ?");
   const remove = db.prepare("DELETE FROM comments WHERE id = ? AND user_id = ? AND is_guest = 0");
   app.get("/api/comments/mine", verifySession(), async (req, res) => {
@@ -346,7 +346,8 @@ export function registerCommentManagement(app, db, verifySession) {
     if (!Number.isSafeInteger(before) || before <= 0) {
       return res.status(400).json({ error: "留言分页参数无效", code: "INVALID_CURSOR" });
     }
-    const rows = await list.all(req.session.getUserId(), before);
+    const upperBound = req.query.before === undefined ? Number.MAX_SAFE_INTEGER : before - 1;
+    const rows = await list.all(req.session.getUserId(), upperBound);
     const comments = rows.slice(0, 20).map(row => ({
       id: Number(row.id), nickname: row.nickname, content: row.content,
       createdAt: new Date(row.created_at).toISOString()
@@ -374,7 +375,7 @@ export function registerCommentManagement(app, db, verifySession) {
 export function registerAdminCommentManagement(app, db, verifySession, isAdmin) {
   const list = db.prepare(`SELECT id, nickname, content, is_guest, created_at
     FROM comments
-    WHERE (expires_at IS NULL OR expires_at > ?) AND id < ?
+    WHERE (expires_at IS NULL OR expires_at > ?) AND id <= ?
     ORDER BY id DESC LIMIT 51`);
   const remove = db.prepare("DELETE FROM comments WHERE id = ?");
   const requireAdmin = async (req, res, next) => {
@@ -391,7 +392,8 @@ export function registerAdminCommentManagement(app, db, verifySession, isAdmin) 
     res.setHeader("Cache-Control", "no-store");
     const before = positiveInteger(req.query?.before, Number.MAX_SAFE_INTEGER);
     if (!Number.isSafeInteger(before) || before <= 0) return res.status(400).json({ error: "留言分页参数无效", code: "INVALID_CURSOR" });
-    const rows = await list.all(Date.now(), before);
+    const upperBound = req.query?.before === undefined ? Number.MAX_SAFE_INTEGER : before - 1;
+    const rows = await list.all(Date.now(), upperBound);
     const comments = rows.slice(0, 50).map(row => ({
       id: Number(row.id),
       nickname: row.nickname,

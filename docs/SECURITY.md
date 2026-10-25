@@ -1,6 +1,6 @@
 # 安全与运维现状（唯一当前参考）
 
-更新：2026-10-24。本文只记录**当前**状态和操作清单；最新代码审查见 [2026-10-17 复核记录](history/2026-10-17-full-review.md)，此前审查证据见 [history/2026-10-11-security-audits.md](history/2026-10-11-security-audits.md) 与 [history/2026-10-11-deployment-review.md](history/2026-10-11-deployment-review.md)。如何报告漏洞见根目录 [SECURITY.md](../SECURITY.md)。
+更新：2026-10-25。本文只记录**当前**状态和操作清单；最新代码审查见 [2026-10-25 复核记录](history/2026-10-25-full-review.md)，此前审查证据见 [history/2026-10-17-full-review.md](history/2026-10-17-full-review.md) 与 [history/2026-10-11-security-audits.md](history/2026-10-11-security-audits.md)。如何报告漏洞见根目录 [SECURITY.md](../SECURITY.md)。
 
 ## 当前状态
 
