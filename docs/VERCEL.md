@@ -44,9 +44,11 @@ Vercel 的本地文件系统不能持久保存留言；不得把 Railway 的 `co
 | `ADMIN_USER_IDS` | 沿用现有管理员的稳定 user ID，不用邮箱代替 |
 | `BACKUP_TOKEN` | 如需受保护快照下载，设置至少 32 字符的随机令牌 |
 | `COMMENTS_READ_ONLY` | 仅精确值 `1` 暂停所有留言 `POST` / `DELETE` 并返回 `503 COMMENTS_READ_ONLY`，用于最终备份维护窗口；设置或取消后重新部署 |
-| `TRUST_PROXY` / `CLIENT_IP_HEADER` | 通常留空，使用 Vercel 平台提供并覆盖的访客 IP 头；增加自建代理时重新核对信任链 |
+| `TRUST_PROXY` / `CLIENT_IP_HEADER` | Vercel 通常留空，优先平台专用 `X-Vercel-Forwarded-For`；自定义只允许平台 IP 头或 `none`，增加代理时重新核对信任链 |
 
 `VERCEL`、`VERCEL_GIT_COMMIT_SHA` 由平台提供，不把旧的 `RAILWAY_*` 变量复制过去。Vercel 不使用 `COMMENTS_DB_PATH`。所有生产实例必须连接同一个 PostgreSQL；留言写入与去重在数据库事务内完成，限流计数存入 PostgreSQL 的共享表。不能回到内存限流或为每个实例分配单独的数据库。
+
+缺少 Vercel 必需变量时，启动日志列出缺失的变量名称和重新部署提示，不输出值。连接暂时不可用时，后端仍保留诊断能力：`/healthz` 返回固定 503，并在短暂退避后允许重试连接。只允许 GET/HEAD 在限流存储故障时继续执行，业务数据库查询失败仍返回固定 503；认证、写入、删除和备份限流不放行。后台清理通过 `waitUntil` 独立完成，失败仅记录脱敏元数据，不拖垮读取。
 
 SuperTokens Core 在本次迁移中保留，不创建新 Core、不重新注册已有用户。迁移脚本只处理留言，保留 `user_id` 以维持所有权和管理员授权。API 域名改变后，浏览器可能需要重新登录；用实际账号核对登录、刷新会话、退出和密码重置链接。
 

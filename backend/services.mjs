@@ -11,25 +11,41 @@ export function requireJsonRequestBody(req, res, next) {
   return res.status(415).json({ error: "请求必须使用 application/json", code: "UNSUPPORTED_MEDIA_TYPE" });
 }
 
-// Client IP for rate limiting and logs. Vercel overwrites X-Forwarded-For and
-// Railway's public HTTP ingress sets X-Real-IP; direct/private ingress must not
-// accept caller-controlled values.
-// With TRUST_PROXY=1, Express req.ip can be a shared edge/CDN hop. A configured
-// CLIENT_IP_HEADER requires the same trusted-proxy guarantee ("none" disables it).
+// Vercel's canonical copy takes priority over X-Forwarded-For, which an upstream
+// proxy can overwrite. Only platform IP headers are trusted on Vercel:
+// https://vercel.com/docs/headers/request-headers#x-vercel-forwarded-for
+// Railway's public HTTP ingress sets X-Real-IP. Custom headers elsewhere require
+// an ingress that overwrites them; "none" disables header-based resolution.
 export function clientIpResolver(env) {
   const configured = String(env.CLIENT_IP_HEADER ?? "").trim().toLowerCase();
   const onVercel = env.VERCEL === "1";
-  const header = configured === "none" ? "" : configured || (onVercel ? "x-forwarded-for" : env.RAILWAY_SERVICE_ID ? "x-real-ip" : "");
-  if (header && !/^[a-z0-9-]{1,64}$/u.test(header)) throw new Error("CLIENT_IP_HEADER must be a header name");
+  const vercelHeaders = ["x-vercel-forwarded-for", "x-forwarded-for", "x-real-ip"];
+  if (configured && configured !== "none" && !/^[a-z0-9-]{1,64}$/u.test(configured)) throw new Error("CLIENT_IP_HEADER must be a header name");
+  if (onVercel && configured && configured !== "none" && !vercelHeaders.includes(configured)) {
+    throw new Error("Vercel CLIENT_IP_HEADER must name a platform IP header or none");
+  }
+  const headers = configured === "none" ? [] : onVercel
+    ? [...new Set([vercelHeaders[0], ...(configured ? [configured] : []), ...vercelHeaders])]
+    : [configured || (env.RAILWAY_SERVICE_ID ? "x-real-ip" : "")].filter(Boolean);
   return req => {
-    if (header) {
-      const value = String(req.get?.(header) ?? "").trim();
+    for (const header of headers) {
+      const raw = req.get?.(header);
+      if (raw === undefined || raw === null || raw === "") continue;
+      if (typeof raw !== "string") break;
+      const value = raw.trim();
+      if (!value) continue;
       if (isIP(value)) return value;
+      // A present but malformed canonical header must not cause a downgrade to
+      // another header. In particular, never choose a hop from a comma list.
+      break;
     }
-    // Reject lists instead of choosing a caller-controlled hop. Express req.ip
-    // may itself use X-Forwarded-For, so a rejected Vercel header must fall back
-    // directly to the socket instead of trusting the same header a second time.
-    return onVercel ? req.socket?.remoteAddress : req.ip;
+    // Express req.ip can read the same rejected XFF again when trust proxy is
+    // enabled. Vercel must fall back to the socket directly. Missing identity
+    // shares one conservative bucket instead of generating fresh limiter keys.
+    for (const value of [...(onVercel ? [] : [req.ip]), req.socket?.remoteAddress]) {
+      if (typeof value === "string" && isIP(value.trim())) return value.trim();
+    }
+    return "0.0.0.0";
   };
 }
 
@@ -465,6 +481,10 @@ export function createFinalErrorHandler({ isProduction }) {
   }
   if (err?.message === "Origin not allowed by CORS") {
     return res.status(403).json({ error: "当前网页无法访问此服务，请从本站网址打开", code: "CORS_ORIGIN_DENIED" });
+  }
+  if (err?.code === "DATABASE_UNAVAILABLE") {
+    res.setHeader("Retry-After", "5");
+    return res.status(503).json({ error: "数据库暂时不可用，请稍后重试", code: "DATABASE_UNAVAILABLE" });
   }
   if (err?.type === "entity.too.large") {
     return res.status(413).json({ error: "请求内容过大", code: "PAYLOAD_TOO_LARGE" });

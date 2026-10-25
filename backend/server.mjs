@@ -4,6 +4,9 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { openDatabase } from "./database.mjs";
+import { createDatabaseAccess } from "./database-access.mjs";
+import { createRequestRateLimit } from "./request-rate-limit.mjs";
+import { createRequestMaintenance } from "./request-maintenance.mjs";
 import { createPostgresRateLimitStore, cleanupExpiredRateLimits, withRateLimitRequestContext } from "./rate-limit-store.mjs";
 import { commentWriteMaintenance } from "./maintenance.mjs";
 import { waitUntil } from "@vercel/functions";
@@ -11,7 +14,7 @@ import { registerBackupEndpoint, backupTokenFrom, isBackupPath } from "./backup-
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import { rateLimit, ipKeyGenerator } from "express-rate-limit";
+import { ipKeyGenerator } from "express-rate-limit";
 import supertokens from "supertokens-node";
 import EmailPassword from "supertokens-node/recipe/emailpassword";
 import Session from "supertokens-node/recipe/session";
@@ -20,11 +23,20 @@ import { verifySession } from "supertokens-node/recipe/session/framework/express
 const NODE_ENV = process.env.NODE_ENV === "production" ? "production" : "development";
 const IS_PRODUCTION = NODE_ENV === "production";
 const IS_VERCEL = process.env.VERCEL === "1";
+function failStartup(message) {
+  console.error(`❌ ${message}`);
+  if (IS_VERCEL) throw Object.assign(new Error(message), { code: "BACKEND_CONFIGURATION_ERROR" });
+  process.exit(1);
+}
+if (IS_VERCEL) {
+  const missing = ["SUPERTOKENS_CONNECTION_URI", "SUPERTOKENS_API_KEY", "DATABASE_URL", "API_DOMAIN", "WEBSITE_URL"]
+    .filter(name => !process.env[name]?.trim());
+  if (missing.length) failStartup(`Missing required Vercel environment variables: ${missing.join(", ")}; configure this deployment's environment and redeploy`);
+}
 function requiredEnv(name) {
   const value = process.env[name]?.trim();
   if (!value) {
-    console.error(`❌ Missing required environment variable: ${name}`);
-    process.exit(1);
+    failStartup(`Missing required environment variable: ${name}`);
   }
   return value;
 }
@@ -32,8 +44,7 @@ function normalizeOrigin(value, name) {
   try {
     return websiteLocation(value).origin;
   } catch {
-    console.error(`❌ ${name} must be a full URL`);
-    process.exit(1);
+    failStartup(`${name} must be a full URL`);
   }
 }
 const SUPERTOKENS_CONNECTION_URI = requiredEnv("SUPERTOKENS_CONNECTION_URI");
@@ -48,8 +59,7 @@ if (process.env.ADMIN_EMAILS?.trim()) {
 const BUILD_VERSION = buildVersion(process.env);
 const PORT = Number(process.env.PORT || 3001);
 if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
-  console.error("❌ PORT must be an integer between 1 and 65535");
-  process.exit(1);
+  failStartup("PORT must be an integer between 1 and 65535");
 }
 const API_DOMAIN = normalizeOrigin((process.env.API_DOMAIN || "http://127.0.0.1:3001").trim(), "API_DOMAIN");
 const website = websiteLocation((process.env.WEBSITE_URL || process.env.WEBSITE_DOMAIN || "http://127.0.0.1:5500").trim());
@@ -58,47 +68,47 @@ let ADDITIONAL_WEBSITE_ORIGINS;
 try {
   ADDITIONAL_WEBSITE_ORIGINS = parseAdditionalOrigins(process.env.ADDITIONAL_WEBSITE_ORIGINS, { production: IS_PRODUCTION });
 } catch (error) {
-  console.error(`❌ ${error.message}`);
-  process.exit(1);
+  failStartup(error.message);
 }
 const HOST = (process.env.HOST || (IS_PRODUCTION ? "0.0.0.0" : "127.0.0.1")).trim();
 if (!HOST) {
-  console.error("❌ HOST cannot be empty");
-  process.exit(1);
+  failStartup("HOST cannot be empty");
 }
 if (IS_PRODUCTION) {
   if (!IS_VERCEL && !process.env.TRUST_PROXY?.trim()) {
-    console.error("❌ Production requires TRUST_PROXY set to the trusted proxy hop count (use 1 on Railway)");
-    process.exit(1);
+    failStartup("Non-Vercel production requires TRUST_PROXY set to the trusted proxy hop count");
   }
   if (!API_DOMAIN.startsWith("https://")) {
-    console.error("❌ Production API_DOMAIN must use HTTPS");
-    process.exit(1);
+    failStartup("Production API_DOMAIN must use HTTPS");
   }
   if (!WEBSITE_DOMAIN.startsWith("https://")) {
-    console.error("❌ Production WEBSITE_DOMAIN must use HTTPS");
-    process.exit(1);
+    failStartup("Production WEBSITE_DOMAIN must use HTTPS");
   }
 }
 let clientIp;
 try {
   clientIp = clientIpResolver(process.env);
 } catch (error) {
-  console.error(`❌ ${error.message}`);
-  process.exit(1);
+  failStartup(error.message);
 }
 const clientIpKey = req => ipKeyGenerator(clientIp(req));
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-let db;
+const databaseKind = process.env.DATABASE_URL?.trim() ? "postgres" : "sqlite";
+let db = databaseKind === "postgres" ? createDatabaseAccess({ kind: databaseKind, open: () => openDatabase(process.env, __dirname) }) : undefined;
+let databaseReady = false;
 try {
-  db = await openDatabase(process.env, __dirname);
+  if (db) await db.ready();
+  else db = await openDatabase(process.env, __dirname);
+  databaseReady = true;
 } catch (error) {
-  // Configuration errors are deliberately public; driver/filesystem messages may contain secrets.
-  console.error(error.code === "DATABASE_CONFIG" ? `❌ ${error.message}` : "❌ Unable to initialize comments database; check COMMENTS_DB_PATH, volume write permissions and database integrity");
-  process.exit(1);
+  if (databaseKind === "postgres" && error.code !== "DATABASE_CONFIG") {
+    console.error("❌ PostgreSQL unavailable; check DATABASE_URL, connectivity and provider status. Health checks return 503 until recovery");
+  } else {
+    failStartup(error.code === "DATABASE_CONFIG" ? error.message : "Unable to initialize SQLite comments database; check COMMENTS_DB_PATH, directory write permissions and database integrity");
+  }
 }
-console.log("✅ Comments database ready");
-console.log("✅ Backend initialized", { version: BUILD_VERSION, node: process.version, storage: db.kind });
+if (databaseReady) console.log("✅ Comments database ready");
+console.log("✅ Backend initialized", { version: BUILD_VERSION, node: process.version, storage: db.kind, databaseReady });
 const sharedStore = prefix => db.kind === "postgres" ? { store: createPostgresRateLimitStore(db, {
   prefix: prefix.toLowerCase(), onBackgroundTask: IS_VERCEL ? waitUntil : undefined
 }) } : {};
@@ -115,8 +125,7 @@ app.use((req, res, next) => {
 if (process.env.TRUST_PROXY) {
   const trustProxy = Number(process.env.TRUST_PROXY);
   if (!Number.isInteger(trustProxy) || trustProxy < 1) {
-    console.error("❌ TRUST_PROXY must be a positive integer");
-    process.exit(1);
+    failStartup("TRUST_PROXY must be a positive integer");
   }
   app.set("trust proxy", trustProxy);
 }
@@ -163,44 +172,54 @@ supertokens.init({
     Session.init({ getTokenTransferMethod: () => "header" })
   ]
 });
-// Bound every request (including CORS preflights and rejected origins) before CORS,
-// JSON parsing or the auth service.
-// This is an application-level limit for one backend instance, not DDoS protection.
 const ALLOWED_ORIGINS = new Set([WEBSITE_DOMAIN, ...ADDITIONAL_WEBSITE_ORIGINS, ...IS_PRODUCTION ? [] : ["http://127.0.0.1:5500", "http://localhost:5500"]]);
-const requestLimiter = rateLimit({ ...sharedStore("requestLimiter"), keyGenerator: clientIpKey, windowMs: 60_000, limit: 180,
-  standardHeaders: "draft-7", legacyHeaders: false,
-  handler(req, res, _next, options) {
-    // The limiter runs before CORS, but trusted pages must still be able to read 429.
-    const origin = req.get("origin");
-    if (!isBackupPath(req.originalUrl || req.url) && ALLOWED_ORIGINS.has(origin)) {
-      res.setHeader("Access-Control-Allow-Origin", origin);
-      res.setHeader("Access-Control-Allow-Credentials", "true");
-      res.setHeader("Access-Control-Expose-Headers", "X-Request-Id, Retry-After");
-      res.vary("Origin");
-    }
-    res.status(options.statusCode).json(options.message);
-  },
-  message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
-app.use(requestLimiter);
-// CORS only limits which browser pages may read responses; every protected route still
-// verifies the SuperTokens session (and admin rights) on the server.
 const corsOptions = { origin(origin, callback) {
-  if (!origin) {
-    return callback(null, true);
-  }
-  if (ALLOWED_ORIGINS.has(origin)) {
-    return callback(null, true);
-  }
+  if (!origin) return callback(null, true);
+  if (ALLOWED_ORIGINS.has(origin)) return callback(null, true);
   return callback(new Error("Origin not allowed by CORS"));
 }, exposedHeaders: ["X-Request-Id", "Retry-After"], allowedHeaders: ["content-type", ...supertokens.getAllCORSHeaders()], methods: ["GET", "POST", "DELETE", "OPTIONS"], credentials: true, maxAge: 600 };
 const corsMiddleware = cors(corsOptions);
+// Diagnostics must not depend on shared counters, authentication or maintenance.
+// A temporarily unavailable pool can recover on a later probe, including cold starts.
+app.get("/healthz", corsMiddleware, async (req, res) => {
+  try {
+    await db.prepare("SELECT 1").get();
+    return res.json({ ok: true, version: BUILD_VERSION });
+  } catch {
+    res.setHeader("Retry-After", "5");
+    return res.status(503).json({ ok: false, code: "DATABASE_UNAVAILABLE" });
+  }
+});
+app.options("/healthz", corsMiddleware);
+function exposeLimiterResponse(req, res) {
+  const origin = req.get("origin");
+  if (!isBackupPath(req.originalUrl || req.url) && ALLOWED_ORIGINS.has(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Expose-Headers", "X-Request-Id, Retry-After");
+    res.vary("Origin");
+  }
+}
+// Bound non-diagnostic traffic before parsing/auth. Only reads may continue when
+// counter storage fails; POST/DELETE/OPTIONS still fail closed with a safe 503.
+const requestLimiter = createRequestRateLimit({ ...sharedStore("requestLimiter"), keyGenerator: clientIpKey, windowMs: 60_000, limit: 180,
+  standardHeaders: "draft-7", legacyHeaders: false,
+  handler(req, res, _next, options) {
+    // The limiter runs before CORS, but trusted pages must still be able to read 429.
+    exposeLimiterResponse(req, res);
+    res.status(options.statusCode).json(options.message);
+  },
+  message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } }, { allowReadOnStoreError: true, onUnavailable: exposeLimiterResponse });
+app.use(requestLimiter);
+// CORS only limits which browser pages may read responses; every protected route still
+// verifies the SuperTokens session (and admin rights) on the server.
 // The backup download is server-to-server only: no CORS headers, so browsers cannot read it.
 app.use((req, res, next) => isBackupPath(req.originalUrl || req.url) ? next() : corsMiddleware(req, res, next));
 app.use(requireJsonRequestBody);
 // Browser clients send plain JSON. Do not decode untrusted compressed bodies,
 // including Brotli, while managed runtimes control their own security patches.
 app.use(express.json({ limit: "20kb", strict: true, inflate: false }));
-const authSensitiveLimiter = rateLimit({ ...sharedStore("authSensitiveLimiter"), keyGenerator: clientIpKey, windowMs: 15 * 60 * 1e3, limit: 20, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
+const authSensitiveLimiter = createRequestRateLimit({ ...sharedStore("authSensitiveLimiter"), keyGenerator: clientIpKey, windowMs: 15 * 60 * 1e3, limit: 20, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 // emailExistsGET is removed from the SuperTokens APIs, so only POST auth routes need throttling.
 app.use((req, res, next) => {
   if (req.method !== "POST") return next();
@@ -210,10 +229,10 @@ app.use((req, res, next) => {
 });
 app.use(middleware());
 app.use(commentWriteMaintenance(process.env));
-const commentLimiter = rateLimit({ ...sharedStore("commentLimiter"), keyGenerator: clientIpKey, windowMs: 60 * 1e3, limit: 10, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "留言发送过于频繁，请稍后再试", code: "RATE_LIMITED" } });
+const commentLimiter = createRequestRateLimit({ ...sharedStore("commentLimiter"), keyGenerator: clientIpKey, windowMs: 60 * 1e3, limit: 10, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "留言发送过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 // A 409 duplicate still counts: otherwise a guest could probe (or squat) recent texts for free.
-const guestCommentLimiter = rateLimit({ ...sharedStore("guestCommentLimiter"), keyGenerator: clientIpKey, windowMs: 60 * 60 * 1e3, limit: 3, skipFailedRequests: true, requestWasSuccessful: (_req, res) => res.statusCode < 400 || res.statusCode === 409, standardHeaders: "draft-7", legacyHeaders: false, skip: req => req.session !== undefined, message: { error: "游客每小时最多留言 3 条，请稍后再试", code: "GUEST_RATE_LIMITED" } });
-const memberCommentLimiter = rateLimit({ ...sharedStore("memberCommentLimiter"),
+const guestCommentLimiter = createRequestRateLimit({ ...sharedStore("guestCommentLimiter"), keyGenerator: clientIpKey, windowMs: 60 * 60 * 1e3, limit: 3, skipFailedRequests: true, requestWasSuccessful: (_req, res) => res.statusCode < 400 || res.statusCode === 409, standardHeaders: "draft-7", legacyHeaders: false, skip: req => req.session !== undefined, message: { error: "游客每小时最多留言 3 条，请稍后再试", code: "GUEST_RATE_LIMITED" } });
+const memberCommentLimiter = createRequestRateLimit({ ...sharedStore("memberCommentLimiter"),
   windowMs: 60 * 60 * 1e3,
   limit: 20,
   skipFailedRequests: true,
@@ -263,36 +282,15 @@ async function deleteExpiredGuestComments() {
   }
   await cleanupExpiredRateLimits(db);
 }
-// Cleanup happens inside a request, so it completes before a Vercel invocation ends.
-// One in-flight cleanup per warm instance is enough; the delete itself is idempotent.
-let nextGuestCleanup = 0;
-let guestCleanup;
-app.use(async (_req, _res, next) => {
-  try {
-    if (Date.now() >= nextGuestCleanup) {
-      guestCleanup ||= deleteExpiredGuestComments().then(() => { nextGuestCleanup = Date.now() + 60 * 60 * 1000; }).finally(() => { guestCleanup = undefined; });
-      await guestCleanup;
-    }
-    next();
-  } catch (error) { next(error); }
-});
+app.use(createRequestMaintenance({ work: deleteExpiredGuestComments, env: process.env,
+  onBackgroundTask: IS_VERCEL ? waitUntil : undefined }));
 app.get("/", (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   res.json({ ok: true });
 });
-app.get("/healthz", async (req, res) => {
-  try {
-    await db.prepare("SELECT 1").get();
-    res.setHeader("Cache-Control", "no-store");
-    // Public: only liveness and the deployed commit prefix (to confirm redeploys).
-    return res.json({ ok: true, version: BUILD_VERSION });
-  } catch {
-    return res.status(503).json({ ok: false, code: "DATABASE_UNAVAILABLE" });
-  }
-});
-const commentReadLimiter = rateLimit({ ...sharedStore("commentReadLimiter"), keyGenerator: clientIpKey, windowMs: 60_000, limit: 120, standardHeaders: "draft-7", legacyHeaders: false,
-  message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
-const commentDeleteLimiter = rateLimit({ ...sharedStore("commentDeleteLimiter"), keyGenerator: clientIpKey, windowMs: 60_000, limit: 30, standardHeaders: "draft-7", legacyHeaders: false,
+const commentReadLimiter = createRequestRateLimit({ ...sharedStore("commentReadLimiter"), keyGenerator: clientIpKey, windowMs: 60_000, limit: 120, standardHeaders: "draft-7", legacyHeaders: false,
+  message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } }, { allowReadOnStoreError: true });
+const commentDeleteLimiter = createRequestRateLimit({ ...sharedStore("commentDeleteLimiter"), keyGenerator: clientIpKey, windowMs: 60_000, limit: 30, standardHeaders: "draft-7", legacyHeaders: false,
   message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 app.use("/api", commentReadLimiter);
 app.use((req, res, next) => {
@@ -333,7 +331,7 @@ registerCommentManagement(app, db, verifySession);
 registerAdminCommentManagement(app, db, verifySession, createAdminCheck(ADMIN_USER_IDS));
 const BACKUP_TOKEN = backupTokenFrom(process.env);
 if (process.env.BACKUP_TOKEN?.trim() && !BACKUP_TOKEN) console.warn("⚠️ BACKUP_TOKEN is shorter than 32 characters; backup endpoint disabled");
-const backupLimiter = rateLimit({ ...sharedStore("backupLimiter"), keyGenerator: clientIpKey, windowMs: 60 * 60 * 1e3, limit: 5, standardHeaders: "draft-7", legacyHeaders: false,
+const backupLimiter = createRequestRateLimit({ ...sharedStore("backupLimiter"), keyGenerator: clientIpKey, windowMs: 60 * 60 * 1e3, limit: 5, standardHeaders: "draft-7", legacyHeaders: false,
   message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 registerBackupEndpoint(app, { snapshot: destination => db.snapshot(destination), token: BACKUP_TOKEN, limiter: backupLimiter, clientIp,
   onBackgroundTask: IS_VERCEL ? waitUntil : undefined });
@@ -347,7 +345,7 @@ app.use(errorHandler());
 app.use(createFinalErrorHandler({ isProduction: IS_PRODUCTION }));
 export default app;
 
-// Vercel owns the listener and function lifecycle; local/Railway runs retain graceful shutdown.
+// Vercel owns the listener and function lifecycle; standalone runs drain on shutdown.
 if (!IS_VERCEL) {
   const server = app.listen(PORT, HOST, () => {
     console.log(`✅ Backend running at http://${HOST}:${PORT} (version ${BUILD_VERSION})`);
@@ -364,7 +362,7 @@ if (!IS_VERCEL) {
   function shutdown(signal) {
     if (shuttingDown) return;
     shuttingDown = true;
-    // Railway sends SIGTERM on every redeploy; a clean drain must exit 0 or it is reported as a crash.
+    // Deployment hosts send SIGTERM on replacement; a clean drain exits 0.
     // After 8s, drop in-flight connections so server.close() still completes and exits 0;
     // only a close that hangs past 15s exits 1.
     const drain = setTimeout(() => {

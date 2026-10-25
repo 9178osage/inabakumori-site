@@ -35,7 +35,7 @@ test("invalid database configuration exits with a single actionable line before 
     for (const databasePath of [path.join(blockedParent, "comments.db"), directory, corruptDatabase]) {
       const result = spawnSync(process.execPath, [script], { cwd: directory, env: { ...env, COMMENTS_DB_PATH: databasePath }, encoding: "utf8", timeout: 10_000 });
       assert.equal(result.status, 1, result.stderr);
-      assert.equal(result.stderr.trim(), "❌ Unable to initialize comments database; check COMMENTS_DB_PATH, volume write permissions and database integrity");
+      assert.equal(result.stderr.trim(), "❌ Unable to initialize SQLite comments database; check COMMENTS_DB_PATH, directory write permissions and database integrity");
       assert.doesNotMatch(result.stderr, /private-path-must-not-appear|corrupt-private-database|synthetic-startup-test-key/u);
       assert.doesNotMatch(result.stdout, /database ready|Backend running/u);
     }

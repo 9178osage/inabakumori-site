@@ -115,7 +115,7 @@ test("rate-limit keys use the edge-set client IP on Railway and ignore spoofable
   assert.equal(clientIpResolver({ RAILWAY_SERVICE_ID: "svc", CLIENT_IP_HEADER: "none" })(req({ "x-real-ip": "203.0.113.5" })), "100.64.0.7");
   assert.throws(() => clientIpResolver({ CLIENT_IP_HEADER: "x real ip" }), /CLIENT_IP_HEADER/);
   const server = read("backend/server.mjs");
-  const limiters = [...server.matchAll(/const (\w+Limiter) = rateLimit\(\{([^\n]*)/g)];
+  const limiters = [...server.matchAll(/const (\w+Limiter) = createRequestRateLimit\(\{([^\n]*)/g)];
   assert.ok(limiters.length >= 8);
   for (const [, name, rest] of limiters) {
     if (name === "memberCommentLimiter") continue;
@@ -123,18 +123,39 @@ test("rate-limit keys use the edge-set client IP on Railway and ignore spoofable
   }
 });
 
-test("Vercel rate-limit keys accept only an edge-set single IP and fall back to the socket", async () => {
+test("Vercel rate-limit keys prefer its canonical IP and use only trusted single-IP fallbacks", async () => {
   const { clientIpResolver } = await import("../../backend/services.mjs");
   const req = headers => ({ ip: "1.2.3.4", socket: { remoteAddress: "127.0.0.1" }, get: name => headers[name.toLowerCase()] });
   const vercel = clientIpResolver({ VERCEL: "1", RAILWAY_SERVICE_ID: "old-service" });
+  assert.equal(vercel(req({ "x-vercel-forwarded-for": "192.0.2.9", "x-forwarded-for": "203.0.113.5", "x-real-ip": "198.51.100.3" })), "192.0.2.9");
+  assert.equal(vercel(req({ "x-vercel-forwarded-for": " 2001:db8::1 ", "x-forwarded-for": "caller supplied" })), "2001:db8::1");
   assert.equal(vercel(req({ "x-forwarded-for": "203.0.113.5", "x-real-ip": "198.51.100.3" })), "203.0.113.5");
-  assert.equal(vercel(req({ "x-forwarded-for": " 2001:db8::1 " })), "2001:db8::1");
-  for (const value of [undefined, "invalid", "203.0.113.5, 1.2.3.4", "203.0.113.5:443"]) {
-    assert.equal(vercel(req({ "x-forwarded-for": value })), "127.0.0.1", "invalid headers never fall back to req.ip");
+  assert.equal(vercel(req({ "x-real-ip": "198.51.100.3" })), "198.51.100.3");
+  assert.equal(vercel(req({ "x-vercel-forwarded-for": " ", "x-forwarded-for": " 2001:db8::1 " })), "2001:db8::1");
+  for (const header of ["x-vercel-forwarded-for", "x-forwarded-for", "x-real-ip"]) {
+    for (const value of ["invalid", "203.0.113.5, 1.2.3.4", "203.0.113.5:443", "[2001:db8::1]:443", ["203.0.113.5"]]) {
+      assert.equal(vercel(req({ [header]: value, "x-custom-ip": "198.51.100.2" })), "127.0.0.1", "invalid headers never fall back to req.ip or caller-controlled headers");
+    }
   }
-  assert.equal(clientIpResolver({ VERCEL: "1", CLIENT_IP_HEADER: "none" })(req({ "x-forwarded-for": "203.0.113.5" })), "127.0.0.1");
-  assert.equal(clientIpResolver({ VERCEL: "1", CLIENT_IP_HEADER: "x-custom-ip" })(req({ "x-custom-ip": "198.51.100.2" })), "198.51.100.2");
+  assert.equal(vercel(req({ "x-vercel-forwarded-for": "192.0.2.9, 203.0.113.5", "x-forwarded-for": "198.51.100.2", "x-real-ip": "198.51.100.3" })), "127.0.0.1", "a malformed canonical header cannot downgrade to another header");
+  assert.equal(vercel(req({})), "127.0.0.1");
+  assert.equal(clientIpResolver({ VERCEL: "1", CLIENT_IP_HEADER: "none" })(req({ "x-vercel-forwarded-for": "192.0.2.9", "x-forwarded-for": "203.0.113.5" })), "127.0.0.1");
+  const configured = clientIpResolver({ VERCEL: "1", CLIENT_IP_HEADER: "X-Real-IP" });
+  assert.equal(configured(req({ "x-vercel-forwarded-for": "192.0.2.9", "x-real-ip": "198.51.100.2" })), "192.0.2.9", "configuration cannot override Vercel's canonical IP");
+  assert.equal(configured(req({ "x-real-ip": "198.51.100.2" })), "198.51.100.2");
+  assert.throws(() => clientIpResolver({ VERCEL: "1", CLIENT_IP_HEADER: "x-custom-ip" }), /platform IP header/u);
   assert.equal(clientIpResolver({ VERCEL: "0" })(req({ "x-forwarded-for": "203.0.113.5" })), "1.2.3.4");
+  assert.equal(clientIpResolver({ CLIENT_IP_HEADER: "x-custom-ip" })(req({ "x-custom-ip": "198.51.100.2" })), "198.51.100.2", "explicit custom ingress support remains available off Vercel");
+});
+
+test("missing or invalid IP identities use a stable conservative bucket", async () => {
+  const { clientIpResolver } = await import("../../backend/services.mjs");
+  for (const env of [{ VERCEL: "1" }, {}, { RAILWAY_SERVICE_ID: "svc" }]) {
+    const resolve = clientIpResolver(env);
+    assert.equal(resolve({ get: () => undefined }), "0.0.0.0");
+    assert.equal(resolve({ ip: "not an IP", socket: { remoteAddress: "invalid" }, get: () => "invalid" }), "0.0.0.0");
+    assert.equal(resolve({ socket: { remoteAddress: "::ffff:127.0.0.1" }, get: () => undefined }), "::ffff:127.0.0.1");
+  }
 });
 
 test("comment validation stays fast on adversarial 500-character inputs (no ReDoS)", async () => {

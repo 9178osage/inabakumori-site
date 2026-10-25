@@ -17,7 +17,7 @@ GitHub Pages 提供网页、图片和音乐目录。登录与留言通过 HTTPS 
 5. 将访客可感知的变化补进 [更新日志](CHANGELOG.md)：一行一条，写「症状 → 处理（提交号）」。测试、内部重构和依赖升级留在提交记录中。
 6. 部署验证完成后，同步本地文本副本：运行 `python3 tools/sync-copy.py`，再运行 `python3 tools/sync-copy.py --check`，确认副本与当前已提交源码逐字节一致。保留现有 `.review-base`，除非维护者要求重置。生成器及其回归测试受版本控制；生成的副本仍由 `.gitignore` 排除，不提交、不部署。旧的 `inabakumori-site-all-code/sync.py` 仅为本地兼容入口，以 `realpath(__file__)` 定位实际路径，规则只维护在 `tools/sync-copy.py`。
 
-Vercel 以 `/backend` 为根目录，使用 Express 框架和 PostgreSQL（`DATABASE_URL`）。留言与限流计数使用共享数据库；不得把 SQLite 放到函数临时目录。版本来自 `VERCEL_GIT_COMMIT_SHA`。平台自动维护 Node 主版本内的补丁，须核实实际运行版本，不能用本地精确版本替代线上证据。过期留言与限流旧窗口在请求内清理，不依赖常驻计时器。
+Vercel 以 `/backend` 为根目录，使用 Express 框架和 PostgreSQL（`DATABASE_URL`）。留言与限流计数使用共享数据库；不得把 SQLite 放到函数临时目录。版本来自 `VERCEL_GIT_COMMIT_SHA`。平台自动维护 Node 主版本内的补丁，须核实实际运行版本，不能用本地精确版本替代线上证据。过期留言与旧限流窗口由请求触发后台维护，以 `waitUntil` 保活，不阻塞响应或依赖常驻计时器。`/healthz` 不经过共享限流，数据库暂时不可用时明确返回 503；写入与备份仍要求限流存储可用，不能为恢复读取而关闭写入防护。
 
 本地检查与 CI 使用精确版本 Node `24.22.1`；后端 `package.json` 的 `engines.node` 也保留该精确版本，并同步锁文件。升级时同时核对 CI 配置。Vercel 实际运行版本的核验以 [安全与运维现状](SECURITY.md) 和 [迁移记录](VERCEL.md) 为准，不能仅凭 `engines` 推断。
 

@@ -24,7 +24,8 @@ function commentElement(hidden = false) {
 
 test('auth POST throttling covers tenant paths and URL normalization; disabled email-exists API needs no limiter', async () => {
   const express = require('../../backend/node_modules/express');
-  const { rateLimit, ipKeyGenerator } = require('../../backend/node_modules/express-rate-limit');
+  const { ipKeyGenerator } = require('../../backend/node_modules/express-rate-limit');
+  const { createRequestRateLimit } = await import('../../backend/request-rate-limit.mjs');
   const { IncomingMessage, ServerResponse } = require('node:http');
   const { Duplex } = require('node:stream');
   const app = express();
@@ -34,7 +35,7 @@ test('auth POST throttling covers tenant paths and URL normalization; disabled e
   // The limiter block imports its path normaliser from services.mjs; inject the real one instead of
   // duplicating it, so this harness tests the implementation that ships.
   const { normalizeRequestPath } = await import('../../backend/services.mjs');
-  vm.runInNewContext(setup[0], { app, rateLimit, URL, normalizeRequestPath, sharedStore: () => ({}), clientIpKey: req => ipKeyGenerator(req.ip) });
+  vm.runInNewContext(setup[0], { app, createRequestRateLimit, URL, normalizeRequestPath, sharedStore: () => ({}), clientIpKey: req => ipKeyGenerator(req.ip) });
   app.use((req, res) => res.status(204).end());
   const request = async (method, pathname) => {
     const socket = new Duplex({ read() {}, write(chunk, encoding, callback) { callback(); } });
@@ -718,11 +719,12 @@ test('the global limiter runs before CORS, and duplicate guest posts count again
   assert.ok(limiterAt > 0 && corsAt > limiterAt, 'preflights and rejected origins must be rate limited too');
   assert.ok(limiterAt < backend.indexOf('app.use(requireJsonRequestBody);') && limiterAt < backend.indexOf('app.use(middleware());'));
   assert.ok(backend.indexOf('app.use("/api", commentReadLimiter);') > corsAt, 'the /api read limiter keeps its CORS headers');
-  const definition = backend.match(/const guestCommentLimiter = rateLimit\(\{[^\n]*\}\);/);
+  const definition = backend.match(/const guestCommentLimiter = createRequestRateLimit\(\{[^\n]*\}\);/);
   assert.ok(definition, 'guest limiter definition');
   const express = require('../../backend/node_modules/express');
-  const { rateLimit, ipKeyGenerator } = require('../../backend/node_modules/express-rate-limit');
-  const guestCommentLimiter = vm.runInNewContext(`${definition[0]}; guestCommentLimiter`, { rateLimit, sharedStore: () => ({}), clientIpKey: req => ipKeyGenerator(req.ip) });
+  const { ipKeyGenerator } = require('../../backend/node_modules/express-rate-limit');
+  const { createRequestRateLimit } = await import('../../backend/request-rate-limit.mjs');
+  const guestCommentLimiter = vm.runInNewContext(`${definition[0]}; guestCommentLimiter`, { createRequestRateLimit, sharedStore: () => ({}), clientIpKey: req => ipKeyGenerator(req.ip) });
   const app = express();
   app.post('/comments/:status', guestCommentLimiter, (req, res) => res.status(Number(req.params.status)).json({}));
   const server = app.listen(0, '127.0.0.1');

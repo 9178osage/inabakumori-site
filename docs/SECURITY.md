@@ -1,14 +1,14 @@
 # 安全与运维现状（唯一当前参考）
 
-更新：2026-10-23。本文只记录**当前**状态和操作清单；最新代码审查见 [2026-10-17 复核记录](history/2026-10-17-full-review.md)，此前审查证据见 [history/2026-10-11-security-audits.md](history/2026-10-11-security-audits.md) 与 [history/2026-10-11-deployment-review.md](history/2026-10-11-deployment-review.md)。如何报告漏洞见根目录 [SECURITY.md](../SECURITY.md)。
+更新：2026-10-24。本文只记录**当前**状态和操作清单；最新代码审查见 [2026-10-17 复核记录](history/2026-10-17-full-review.md)，此前审查证据见 [history/2026-10-11-security-audits.md](history/2026-10-11-security-audits.md) 与 [history/2026-10-11-deployment-review.md](history/2026-10-11-deployment-review.md)。如何报告漏洞见根目录 [SECURITY.md](../SECURITY.md)。
 
 ## 当前状态
 
 - 前端：`https://osagechan.top/`（GitHub Pages，只发布 `dist/` 白名单产物）；旧地址 `9178osage.github.io/inabakumori-site/` 301 到新域名。
 - 后端：`https://inabakumori-backend.vercel.app`（Vercel，项目 `inabakumori-backend`，根目录 `backend`，Express / Node 24.x）。留言和共享限流计数保存在独立 Neon 免费 PostgreSQL，Production 以外的部署没有连接该生产库。身份和管理员 user ID 沿用原 SuperTokens Core。
 - 迁移时的最终 SQLite 快照已导入并逐字段核对：13 条留言（2 条会员、11 条游客），保留原 ID、所有权、时间和历史 ID 序列。原 Railway 服务连接同一 PostgreSQL 并核验后已停止，原卷和私密快照保留用于恢复演练；重新启用旧入口时，必须保持连接迁移后的 PostgreSQL，不能再启用旧 SQLite 写入。切换和回退步骤见 [迁移说明](VERCEL.md)。
-- `/healthz` 只公开 `{ ok, version }`；`version` 为部署提交前 7 位，优先取 `VERCEL_GIT_COMMIT_SHA`，兼容 `RAILWAY_GIT_COMMIT_SHA`。
-- 三轮审查（2026-10-11）发现的问题均已修复上线：限流按真实访客 IP 计数（当前 Vercel 使用平台覆盖的 `X-Forwarded-For`，Railway 使用 `X-Real-IP`）；认证请求必须为未压缩 `application/json` 且 ≤20 KB（非 JSON 或压缩体均返回 415）；生产会话 Cookie 使用 `__Host-station-` 前缀并强制 `Secure`、`Path=/`；CSP 含 Trusted Types、`frame-src/worker-src 'none'`；404 页独立 CSP；防嵌入脚本；GitHub Actions 固定 SHA，Dependabot 每周检查。
+- `/healthz` 位于共享限流、认证与后台清理之前。正常只公开 `{ ok, version }`；数据库暂时不可用时返回 `503 { ok: false, code: "DATABASE_UNAVAILABLE" }` 和 `Retry-After: 5`，也覆盖 PostgreSQL 冷启动连接失败。暂时失败会退避后重试，缺失配置仍明确报错并拒绝启动。`version` 为部署提交前 7 位，优先取 `VERCEL_GIT_COMMIT_SHA`，兼容旧提交变量。
+- 三轮审查（2026-10-11）发现的问题均已修复上线：限流按部署平台提供的访客 IP 计数（Vercel 优先 `X-Vercel-Forwarded-For`，旧入口兼容 `X-Real-IP`）；认证请求必须为未压缩 `application/json` 且 ≤20 KB（非 JSON 或压缩体均返回 415）；生产会话 Cookie 使用 `__Host-station-` 前缀并强制 `Secure`、`Path=/`；CSP 含 Trusted Types、`frame-src/worker-src 'none'`；404 页独立 CSP；防嵌入脚本；GitHub Actions 固定 SHA，Dependabot 每周检查。
 - 已有防护：SuperTokens 会话（header 传输）；会员只能删除自己的留言，管理接口另查权限；数据库查询参数化；服务端校验留言；前端只用 `textContent` 渲染；生产错误不返回堆栈；密码重置令牌放在 URL fragment 并立即清除。CORS 不是认证，保护操作始终依赖会话与权限。
 - 本地维护工具也按输入边界加固：链接检查器只访问公开 HTTP(S) 地址、逐跳检查重定向并固定到已验证的 DNS 答案；构建、图库生成、播放量更新拒绝符号链接输入/输出，防止访问或覆盖仓库外的文件。
 - 2026-10-17 代码复核补齐：Unicode 行分隔符纳入留言换行限制；本地预览拒绝符号链接文件和目录，产物检查拒绝符号链接及非普通文件，防止白名单文件名掩盖私有内容。根目录及后端依赖在本次 `npm audit` 中均为 0 已知漏洞，不代表不存在未公开漏洞。
@@ -21,8 +21,8 @@
 | `WEBSITE_URL` | `https://osagechan.top`（CORS、SuperTokens websiteDomain、重置链接都由它决定） |
 | `API_DOMAIN` | 当前后端部署的公网 HTTPS origin |
 | `ADDITIONAL_WEBSITE_ORIGINS` | 可选，逗号分隔的裸 https origin（迁移过渡期用），不接受路径/通配符 |
-| `TRUST_PROXY` | Railway 使用 `1`；Vercel 可省略，代码直接读取平台覆盖的 IP 头 |
-| `CLIENT_IP_HEADER` | 可选，Railway 默认 `X-Real-IP`，Vercel 默认 `X-Forwarded-For`；仅接受单个有效 IP |
+| `TRUST_PROXY` | Vercel 留空；其他生产代理入口必须明确配置实际可信跳数 |
+| `CLIENT_IP_HEADER` | Vercel 优先 `X-Vercel-Forwarded-For`；仅允许平台头或 `none`，只接受单个有效 IP，详见下方边界说明 |
 | `DATABASE_URL` | Vercel 必需的 PostgreSQL 连接串；Preview 必须使用独立数据库，不能复用生产 |
 | `COMMENTS_READ_ONLY` | 正常为 `0`；迁移维护时设为 `1`，冻结留言发布、删除和过期清理，读取及受保护备份仍可用 |
 | `COMMENTS_DB_PATH` | 仅供本地开发与离线 SQLite 工具；Vercel 和生产回退均使用 PostgreSQL，不恢复旧 SQLite 写入 |
@@ -66,8 +66,9 @@
 
 ## 边界与残余风险
 
-- 本地 SQLite 模式的限流计数仍在单进程内存中，只适用于单实例。已迁移的生产和回退服务必须使用当前 PostgreSQL；各限流器使用独立命名空间的共享原子计数，数据库不可用时拒绝请求，不回落到内存。留言去重、会员上限与插入在同一写事务内完成。不防分布式 DDoS。
-- 应用只经部署平台公网 HTTP 入口访问；Vercel 信任平台覆盖的 `X-Forwarded-For`，Railway 信任 `X-Real-IP`。增加代理或私网调用者时需重新核实 IP 信任边界。
+- 本地 SQLite 模式的限流计数仍在单进程内存中，只适用于单实例。生产使用 PostgreSQL 的共享原子计数；只有总请求与 API 读取限流在存储故障时允许 GET/HEAD 继续执行，不切换为新的内存额度。实际数据库读取失败返回固定 503；登录、留言写入、删除、预检和备份限流仍拒绝请求，身份与管理员检查照常执行。正常可用时各方法继续共享原额度，达到阈值仍返回 429。留言去重、会员上限与插入仍在同一事务内，不防分布式 DDoS。
+- Vercel 优先读取平台专用 `X-Vercel-Forwarded-For`。仅在头缺失或空白时按平台 `X-Forwarded-For`、`X-Real-IP` 回退；任何已提供但非法的高优先头均不拆列表或向低优先头降级，改用验证后的 socket IP。仍无法识别时保守共用固定桶，不随机生成身份来绕过限流。`CLIENT_IP_HEADER` 在 Vercel 仅允许上述平台头或 `none`，其他入口的自定义头仍需代理覆盖保证。增加代理或私网入口时重新核实信任边界。[Vercel 请求头说明](https://vercel.com/docs/headers/request-headers#x-vercel-forwarded-for)
+- 过期留言和旧限流窗口由请求触发后台清理，以 `waitUntil` 保持 Vercel 调用存活，不阻塞该请求。每个实例只允许一项维护并发，成功后一小时再触发，失败短暂退避；只读维护时不启动新清理。
 - SuperTokens 默认允许已撤销的 access token 有效至到期。
 - GitHub、Vercel、Railway、SuperTokens 与 DNS 服务商账号都应开启两步验证；能推 `main`、改后端变量或改 DNS 的人等同网站管理员。
 - 管理员账号应使用长随机密码，并建议与公开联系方式分开。
