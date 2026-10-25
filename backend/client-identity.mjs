@@ -10,7 +10,7 @@ export function createClientIdentity({ clientIp, verifySession, isBackupPath, on
     .then(() => {
       res.setHeader("Cache-Control", "no-store");
       res.setHeader("Retry-After", "5");
-      return res.status(503).json({ error: "暂时无法确认客户端身份，请稍后重试", code: "CLIENT_IDENTITY_UNAVAILABLE" });
+      return res.status(503).json({ error: "暂时无法识别访客来源，请稍后重试。", code: "CLIENT_IDENTITY_UNAVAILABLE" });
     }).catch(next);
 
   return (req, res, next) => {

@@ -76,7 +76,7 @@ test("anonymous reads skip only IP limits while writes fail with a retryable 503
   for (const method of ["POST", "DELETE"]) {
     const result = await app.request({ method });
     assert.equal(result.status, 503);
-    assert.equal(result.body.code, "CLIENT_IDENTITY_UNAVAILABLE");
+    assert.deepEqual(result.body, { error: "暂时无法识别访客来源，请稍后重试。", code: "CLIENT_IDENTITY_UNAVAILABLE" });
     assert.equal(result.headers["retry-after"], "5");
     assert.equal(result.headers["cache-control"], "no-store");
     assert.equal(result.next, undefined);

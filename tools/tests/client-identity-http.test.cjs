@@ -103,7 +103,7 @@ test("anonymous HTTP reads and preflights remain usable; anonymous writes fail b
   for (const url of ["/api/comments", "/auth/signin", "/auth/session/refresh"]) {
     const denied = await app.call({ method: "POST", url });
     assert.equal(denied.status, 503);
-    assert.equal(JSON.parse(denied.body).code, "CLIENT_IDENTITY_UNAVAILABLE");
+    assert.deepEqual(JSON.parse(denied.body), { error: "暂时无法识别访客来源，请稍后重试。", code: "CLIENT_IDENTITY_UNAVAILABLE" });
     assert.equal(denied.headers["access-control-allow-origin"], ORIGIN);
     assert.equal(denied.headers["access-control-allow-credentials"], "true");
     assert.equal(denied.headers["retry-after"], "5");

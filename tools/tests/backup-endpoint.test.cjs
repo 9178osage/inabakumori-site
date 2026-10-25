@@ -8,6 +8,7 @@ const { DatabaseSync } = require("node:sqlite");
 const express = require("../../backend/node_modules/express");
 
 const TOKEN = "a".repeat(16) + "0123456789abcdef0123456789abcdef";
+const ABORT_TOKEN = "c".repeat(48);
 
 function listenOnLoopback(app) {
   return new Promise((resolve, reject) => {
@@ -16,6 +17,68 @@ function listenOnLoopback(app) {
       resolve(server);
     });
   });
+}
+
+async function trackBackups(databasePath, options = {}) {
+  const { backupDatabase } = await import("../../backend/backup.mjs");
+  const snapshots = [], completions = [];
+  return {
+    snapshots, completions,
+    options: {
+      ...options,
+      async snapshot(destination) {
+        snapshots.push(destination);
+        return options.snapshot ? options.snapshot(destination) : backupDatabase(databasePath, destination);
+      },
+      onBackgroundTask(task) {
+        completions.push(task);
+        options.onBackgroundTask?.(task);
+      }
+    }
+  };
+}
+
+function holdStreamAfterFirstWrite(app) {
+  let release = () => {};
+  app.use((_req, res, next) => {
+    const write = res.write;
+    const emit = res.emit;
+    let held = true, first = true;
+    // Backpressure is an explicit server-side barrier. Client pause alone does
+    // not prove that the server has not already filled its socket buffers.
+    res.emit = function (event, ...args) {
+      if (held && event === "drain") return false;
+      return emit.call(this, event, ...args);
+    };
+    res.write = function (...args) {
+      const result = write.apply(this, args);
+      if (first) { first = false; return false; }
+      return result;
+    };
+    release = () => {
+      if (!held) return;
+      held = false;
+      res.write = write;
+      res.emit = emit;
+      emit.call(res, "drain");
+    };
+    next();
+  });
+  return () => release();
+}
+
+function pausedBackup(server) {
+  let request;
+  const response = new Promise((resolve, reject) => {
+    request = http.get({ host: "127.0.0.1", port: server.port, path: "/api/admin/backup", headers: { Authorization: `Bearer ${ABORT_TOKEN}` } }, res => {
+      if (res.statusCode !== 200) { res.resume(); reject(new Error("Expected a successful synthetic backup response")); return; }
+      res.once("data", () => { res.pause(); resolve(res); });
+      res.once("end", () => reject(new Error("Synthetic snapshot ended before the pause barrier")));
+      res.on("error", reject);
+    });
+    request.on("error", reject);
+  });
+  return { request, response };
 }
 
 test("a failed listener preserves the original error before reading its address", async () => {
@@ -46,11 +109,13 @@ async function serve(token) {
   const logs = [];
   const log = { log: (...a) => logs.push(JSON.stringify(a)), warn: (...a) => logs.push(JSON.stringify(a)) };
   const app = express();
-  registerBackupEndpoint(app, { databasePath, token, limiter: (_req, _res, next) => next(), log });
+  const tracking = await trackBackups(databasePath);
+  registerBackupEndpoint(app, { databasePath, token, limiter: (_req, _res, next) => next(), log, ...tracking.options });
   app.use((_req, res) => res.status(404).json({ code: "NOT_FOUND" }));
   const server = await listenOnLoopback(app);
   const url = `http://127.0.0.1:${server.address().port}/api/admin/backup`;
-  return { url, logs, dir, close: () => new Promise(resolve => server.close(resolve)) };
+  return { url, logs, dir, snapshots: tracking.snapshots, completions: tracking.completions,
+    async close() { await new Promise(resolve => server.close(resolve)); await Promise.all(tracking.completions); } };
 }
 
 test("backup token must be at least 32 characters, otherwise the endpoint is disabled", async () => {
@@ -88,10 +153,15 @@ test("HEAD is rejected with the allowed method before opening the snapshot sourc
   } finally { await s.close(); fs.rmSync(s.dir, { recursive: true, force: true }); }
 });
 
-test("wrong or missing token is rejected; correct token streams a valid SQLite snapshot and cleans up", async () => {
+test("wrong or missing token is rejected; a valid snapshot cleans up while another backup remains active", async () => {
   const s = await serve(TOKEN);
-  const tmpBefore = fs.readdirSync(os.tmpdir()).filter(name => name.startsWith("inabakumori-backup-")).length;
+  let other, paused;
   try {
+    other = await serveBackup({ holdStream: true });
+    paused = pausedBackup(other);
+    await paused.response;
+    assert.equal(other.snapshots.length, 1);
+    assert.equal(fs.existsSync(other.snapshots[0]), true);
     const unauthenticated = await fetch(s.url);
     assert.equal(unauthenticated.status, 401);
     assert.equal(unauthenticated.headers.get("x-backend-node-version"), null);
@@ -108,17 +178,22 @@ test("wrong or missing token is rejected; correct token streams a valid SQLite s
     const check = new DatabaseSync(copy, { readOnly: true });
     assert.equal(check.prepare("SELECT content FROM comments").get().content, "hello");
     check.close();
-    // Cleanup runs after the response finishes; on a busy CI runner that can take longer than a fixed sleep.
-    const snapshots = () => fs.readdirSync(os.tmpdir()).filter(name => name.startsWith("inabakumori-backup-")).length;
-    for (let waited = 0; snapshots() !== tmpBefore && waited < 5000; waited += 25) await new Promise(resolve => setTimeout(resolve, 25));
-    assert.equal(snapshots(), tmpBefore, "temp snapshot removed");
+    assert.equal(s.snapshots.length, 1, "only the authorized request creates a snapshot");
+    assert.equal(s.completions.length, 1);
+    await Promise.all(s.completions);
+    assert.equal(fs.existsSync(path.dirname(s.snapshots[0])), false, "this request's private snapshot directory is removed");
+    assert.equal(fs.existsSync(other.snapshots[0]), true, "another backup's active snapshot does not affect this request's cleanup check");
     assert.ok(s.logs.length >= 3);
     assert.ok(s.logs.every(line => !line.includes(TOKEN)), "token never logged");
-  } finally { await s.close(); fs.rmSync(s.dir, { recursive: true, force: true }); }
+  } finally {
+    paused?.request.destroy();
+    other?.releaseStream();
+    await Promise.all([...s.completions, ...(other?.completions || [])]);
+    await Promise.all([s.close(), other?.close()]);
+    fs.rmSync(s.dir, { recursive: true, force: true });
+    if (other) fs.rmSync(other.dir, { recursive: true, force: true });
+  }
 });
-
-// Same file as the cleanup test on purpose: tests in one file run in order, so temp-dir counts never race.
-const ABORT_TOKEN = "c".repeat(48);
 
 async function serveBackup(options = {}) {
   const { registerBackupEndpoint } = await import("../../backend/backup-endpoint.mjs");
@@ -126,21 +201,21 @@ async function serveBackup(options = {}) {
   const databasePath = path.join(dir, "comments.db");
   const db = new DatabaseSync(databasePath);
   db.exec("CREATE TABLE comments (id INTEGER PRIMARY KEY, content BLOB)");
-  // Big enough (~8 MB) that the response cannot fit in one socket write, so an abort lands mid-stream.
+  // Use multiple read-stream chunks; the server gate controls pause/abort timing.
   const insert = db.prepare("INSERT INTO comments (content) VALUES (randomblob(?))");
   for (let i = 0; i < 8; i++) insert.run(1024 * 1024);
   db.close();
   const logs = [];
   const log = { log: (...a) => logs.push(["log", ...a]), warn: (...a) => logs.push(["warn", ...a]) };
   const app = express();
-  registerBackupEndpoint(app, { databasePath, token: ABORT_TOKEN, limiter: (_req, _res, next) => next(), log, ...options });
+  const { holdStream, ...endpointOptions } = options;
+  const releaseStream = holdStream ? holdStreamAfterFirstWrite(app) : () => {};
+  const tracking = await trackBackups(databasePath, endpointOptions);
+  registerBackupEndpoint(app, { databasePath, token: ABORT_TOKEN, limiter: (_req, _res, next) => next(), log, ...tracking.options });
   const server = await listenOnLoopback(app);
-  return { port: server.address().port, logs, close: () => new Promise(r => server.close(r)), dir };
+  return { port: server.address().port, logs, dir, releaseStream, snapshots: tracking.snapshots, completions: tracking.completions,
+    async close() { releaseStream(); await new Promise(resolve => server.close(resolve)); await Promise.all(tracking.completions); } };
 }
-const waitFor = async (predicate, ms = 5000) => {
-  const end = Date.now() + ms;
-  while (!predicate()) { if (Date.now() > end) throw new Error("timed out"); await new Promise(r => setTimeout(r, 20)); }
-};
 
 test("1: 'Backup served' is logged only after the whole snapshot was sent", async () => {
   const s = await serveBackup();
@@ -149,27 +224,29 @@ test("1: 'Backup served' is logged only after the whole snapshot was sent", asyn
     assert.equal(res.status, 200);
     const body = Buffer.from(await res.arrayBuffer());
     assert.equal(body.length, Number(res.headers.get("content-length")));
-    await waitFor(() => s.logs.length > 0);
+    await Promise.all(s.completions);
     assert.deepEqual(s.logs.map(entry => entry[1]), ["Backup served"]);
     assert.equal(s.logs[0][2].size, body.length);
   } finally { await s.close(); fs.rmSync(s.dir, { recursive: true, force: true }); }
 });
 
 test("1: a client that aborts mid-download is logged as aborted, never as served", async () => {
-  const s = await serveBackup();
+  const s = await serveBackup({ holdStream: true });
+  const paused = pausedBackup(s);
   try {
-    await new Promise((resolve, reject) => {
-      const req = http.get({ host: "127.0.0.1", port: s.port, path: "/api/admin/backup", headers: { Authorization: `Bearer ${ABORT_TOKEN}` } }, res => {
-        assert.equal(res.statusCode, 200);
-        res.once("data", () => { req.destroy(); resolve(); });
-      });
-      req.on("error", error => { if (error.code !== "ECONNRESET") reject(error); });
-    });
-    await waitFor(() => s.logs.length > 0);
+    await paused.response;
+    paused.request.destroy();
+    await Promise.all(s.completions);
     assert.equal(s.logs[0][0], "warn");
     assert.equal(s.logs[0][1], "Backup aborted");
     assert.ok(!s.logs.some(entry => entry[1] === "Backup served"));
-  } finally { await s.close(); fs.rmSync(s.dir, { recursive: true, force: true }); }
+  } finally {
+    paused.request.destroy();
+    s.releaseStream();
+    await Promise.all(s.completions);
+    await s.close();
+    fs.rmSync(s.dir, { recursive: true, force: true });
+  }
 });
 
 test("the background completion hook covers streaming and temp-directory removal on success or disconnect", async t => {
@@ -181,6 +258,7 @@ test("the background completion hook covers streaming and temp-directory removal
       let settled = false;
       let registrations = 0;
       const s = await serveBackup({
+        holdStream: true,
         async snapshot(file) {
           destination = file;
           assert.equal(registrations, 1, "the invocation must be retained before snapshot work begins");
@@ -195,20 +273,15 @@ test("the background completion hook covers streaming and temp-directory removal
           });
         }
       });
-      let request;
+      const paused = pausedBackup(s);
       try {
-        const response = await new Promise((resolve, reject) => {
-          request = http.get({ host: "127.0.0.1", port: s.port, path: "/api/admin/backup", headers: { Authorization: `Bearer ${ABORT_TOKEN}` } }, res => {
-            assert.equal(res.statusCode, 200);
-            res.once("data", () => { res.pause(); resolve(res); });
-          });
-          request.on("error", error => { if (error.code !== "ECONNRESET") reject(error); });
-        });
+        const response = await paused.response;
         assert.equal(registrations, 1);
         assert.equal(settled, false, "a partially consumed response still owns its background task");
         assert.equal(fs.existsSync(destination), true, "the snapshot remains available while its stream is active");
-        if (disconnect) request.destroy();
+        if (disconnect) paused.request.destroy();
         else {
+          s.releaseStream();
           await new Promise((resolve, reject) => {
             response.once("end", resolve);
             response.once("error", reject);
@@ -218,10 +291,13 @@ test("the background completion hook covers streaming and temp-directory removal
         await completion;
         assert.equal(settled, true);
       } finally {
-        request?.destroy();
-        await completion;
-        await s.close();
-        fs.rmSync(s.dir, { recursive: true, force: true });
+        paused.request.destroy();
+        s.releaseStream();
+        try { await completion; }
+        finally {
+          await s.close();
+          fs.rmSync(s.dir, { recursive: true, force: true });
+        }
       }
     });
   }

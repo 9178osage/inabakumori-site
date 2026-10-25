@@ -545,6 +545,26 @@ test("member rate-limit and comment-cap codes are localized in zh, en and ja", (
   }
 });
 
+test("the identity 503 response matches its Chinese UI text and keeps English and Japanese translations", async () => {
+  const { createClientIdentity } = await import("../../backend/client-identity.mjs");
+  const identity = createClientIdentity({ clientIp: () => "0.0.0.0", isBackupPath: () => false,
+    verifySession: () => (_req, _res, next) => next() });
+  const body = await new Promise((resolve, reject) => identity({ method: "POST", url: "/api/comments" }, {
+    setHeader() {}, status(code) { assert.equal(code, 503); return this; }, json: resolve
+  }, reject));
+  assert.equal(body.error, "暂时无法识别访客来源，请稍后重试。");
+  assert.equal(body.code, "CLIENT_IDENTITY_UNAVAILABLE");
+  const { run, context } = setup();
+  context.result = body;
+  context.response = { status: 503 };
+  for (const [language, expected] of Object.entries({ zh: body.error,
+    en: "Your request source could not be identified. Please try again later.",
+    ja: "アクセス元を確認できません。しばらくしてから再試行してください。" })) {
+    run(`currentLanguage=${JSON.stringify(language)}`);
+    assert.equal(run("commentErrorMessage(result, response)"), expected);
+  }
+});
+
 test("unknown comment errors fall back to localized generic text", () => {
   const { run, context } = setup();
   context.result = { error: "某个未知的服务器错误", code: "SOMETHING_NEW" };
