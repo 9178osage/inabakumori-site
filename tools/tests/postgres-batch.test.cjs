@@ -53,7 +53,7 @@ async function postgresFixture() {
   };
 }
 
-test("pg sends one schema message and batches the write lock before parameterized user work", async () => {
+test("pg sends one schema message and batches the shared compatibility gate before bound user work", async () => {
   const { createPostgresDatabase } = await import("../../backend/database.mjs");
   const fixture = await postgresFixture();
   try {
@@ -65,15 +65,15 @@ test("pg sends one schema message and batches the write lock before parameterize
     await db.transaction(async tx => {
       const setup = fixture.messages.slice(start);
       assert.equal(setup.length, 1);
-      assert.equal(setup[0].sql, "BEGIN; SELECT pg_advisory_xact_lock(721784230);");
-      const lock = await tx.prepare("SELECT count(*) AS n FROM pg_locks WHERE locktype = 'advisory' AND granted").get();
+      assert.equal(setup[0].sql, "BEGIN ISOLATION LEVEL READ COMMITTED; SELECT pg_advisory_xact_lock_shared(721784230);");
+      const lock = await tx.prepare("SELECT count(*) AS n FROM pg_locks WHERE locktype = 'advisory' AND granted AND mode = 'ShareLock'").get();
       assert.equal(lock.n, 1, "the advisory lock is held when the callback starts");
       await tx.prepare("INSERT INTO comments (nickname, content, is_guest, created_at) VALUES (?, ?, ?, ?)").run("name", text, 1, 1800000000000);
     });
     const writeMessages = fixture.messages.slice(start);
     assert.deepEqual(writeMessages.filter(message => message.type === "Q").map(message => message.sql), [
-      "BEGIN; SELECT pg_advisory_xact_lock(721784230);",
-      "SELECT count(*) AS n FROM pg_locks WHERE locktype = 'advisory' AND granted",
+      "BEGIN ISOLATION LEVEL READ COMMITTED; SELECT pg_advisory_xact_lock_shared(721784230);",
+      "SELECT count(*) AS n FROM pg_locks WHERE locktype = 'advisory' AND granted AND mode = 'ShareLock'",
       "COMMIT"
     ]);
     assert.ok(writeMessages.some(message => message.type === "P"), "user INSERT still uses PostgreSQL parameter binding");
@@ -119,7 +119,7 @@ test("a failed write callback rolls back bound values and releases its transacti
       throw failure;
     }), error => error === failure);
     assert.deepEqual(fixture.messages.slice(start).filter(message => message.type === "Q").map(message => message.sql), [
-      "BEGIN; SELECT pg_advisory_xact_lock(721784230);", "ROLLBACK"
+      "BEGIN ISOLATION LEVEL READ COMMITTED; SELECT pg_advisory_xact_lock_shared(721784230);", "ROLLBACK"
     ], "one setup message and one rollback message surround bound work");
     assert.equal((await db.prepare("SELECT count(*) AS n FROM comments").get()).n, 0);
     assert.equal((await db.prepare("SELECT count(*) AS n FROM pg_locks WHERE locktype = 'advisory' AND granted").get()).n, 0);

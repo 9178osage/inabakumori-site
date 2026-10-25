@@ -4,7 +4,7 @@ import { mkdir, open, chmod, rm } from "node:fs/promises";
 import path from "node:path";
 import { resolveDatabasePath } from "./services.mjs";
 
-const COMMENT_TRANSACTION_LOCK = 721784230;
+const SCHEMA_COMPATIBILITY_LOCK = 721784230;
 const SQLITE_SCHEMA = `
   CREATE TABLE IF NOT EXISTS comments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -188,15 +188,16 @@ export async function createPostgresDatabase(pool) {
   const assertRoot = () => {
     if (context.getStore() === marker) throw new Error("Use the transaction-scoped database inside its callback");
   };
-  // CREATE TABLE IF NOT EXISTS alone can race at cold starts. The same advisory
-  // lock serializes schema setup and comment check-and-insert transactions.
+  // Serialize schema setup and exclude transactions from older deployments
+  // that still take this key exclusively. New writers share this compatibility
+  // gate and use separate business-domain locks for comment checks/inserts.
   const initializer = await pool.connect();
   let initializerReleaseError;
   try {
     // This batch contains application constants only. One simple-protocol
     // message retains transaction order, replacing four network round trips with one.
     await initializer.query(`BEGIN;
-      SELECT pg_advisory_xact_lock(${COMMENT_TRANSACTION_LOCK});
+      SELECT pg_advisory_xact_lock(${SCHEMA_COMPATIBILITY_LOCK});
       ${POSTGRES_SCHEMA}${COMMENT_INDEXES}${RATE_LIMIT_SCHEMA}
       COMMIT;`);
   } catch (error) {
@@ -217,9 +218,9 @@ export async function createPostgresDatabase(pool) {
         if (!active) throw new Error("Transaction is already closed");
       });
       try {
-        // The lock ID is fixed in this module; request data stays parameterized
-        // in tx.prepare(). Complete the lock acquisition before user work runs.
-        await client.query(`BEGIN; SELECT pg_advisory_xact_lock(${COMMENT_TRANSACTION_LOCK});`);
+        // Sharing the old lock key allows independent new writers to proceed
+        // together while preserving exclusion with older deployed writers.
+        await client.query(`BEGIN ISOLATION LEVEL READ COMMITTED; SELECT pg_advisory_xact_lock_shared(${SCHEMA_COMPATIBILITY_LOCK});`);
         const value = await context.run(marker, () => callback(tx));
         active = false;
         await client.query("COMMIT");
@@ -234,17 +235,20 @@ export async function createPostgresDatabase(pool) {
       assertRoot();
       const client = await pool.connect();
       let releaseError;
+      let rows, highWater;
       try {
         await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
-        const rows = postgresRows(await client.query(SELECT_SNAPSHOT));
+        rows = postgresRows(await client.query(SELECT_SNAPSHOT));
         const sequence = postgresRows(await client.query("SELECT pg_sequence_last_value(pg_get_serial_sequence('comments', 'id')::regclass) AS high_water"))[0];
-        const highWater = Math.max(rows.at(-1)?.id || 0, safeInteger(sequence?.high_water ?? 0));
+        highWater = Math.max(rows.at(-1)?.id || 0, safeInteger(sequence?.high_water ?? 0));
         await client.query("COMMIT");
-        return await sqliteSnapshot(destination, rows, highWater);
       } catch (error) {
         releaseError = await rollbackForRelease(client);
         throw error;
       } finally { client.release(releaseError); }
+      // Local serialization no longer owns a database transaction or client.
+      // A file error must neither send ROLLBACK nor delay returning the client.
+      return sqliteSnapshot(destination, rows, highWater);
     },
     async close() { assertRoot(); await pool.end(); }
   };

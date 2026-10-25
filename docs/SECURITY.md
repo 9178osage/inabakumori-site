@@ -66,8 +66,8 @@
 
 ## 边界与残余风险
 
-- 本地 SQLite 模式的限流计数仍在单进程内存中，只适用于单实例。生产使用 PostgreSQL 的共享原子计数；只有总请求与 API 读取限流在存储故障时允许 GET/HEAD 继续执行，不切换为新的内存额度。实际数据库读取失败返回固定 503；登录、留言写入、删除、预检和备份限流仍拒绝请求，身份与管理员检查照常执行。正常可用时各方法继续共享原额度，达到阈值仍返回 429。留言去重、会员上限与插入仍在同一事务内，不防分布式 DDoS。
-- Vercel 优先读取平台专用 `X-Vercel-Forwarded-For`。仅在头缺失或空白时按平台 `X-Forwarded-For`、`X-Real-IP` 回退；任何已提供但非法的高优先头均不拆列表或向低优先头降级，改用验证后的 socket IP。仍无法识别时保守共用固定桶，不随机生成身份来绕过限流。`CLIENT_IP_HEADER` 在 Vercel 仅允许上述平台头或 `none`，其他入口的自定义头仍需代理覆盖保证。增加代理或私网入口时重新核实信任边界。[Vercel 请求头说明](https://vercel.com/docs/headers/request-headers#x-vercel-forwarded-for)
+- 本地 SQLite 模式的限流计数仍在单进程内存中，只适用于单实例。生产使用 PostgreSQL 的共享原子计数；已识别访客的总请求与 API 读取限流在存储故障时允许 GET/HEAD 继续执行，不切换为新的内存额度。实际数据库读取失败返回固定 503，写入和备份限流仍拒绝请求。留言去重、会员上限与插入在同一 READ COMMITTED 事务内：会员按 user ID 排他，长游客正文按相同归一化文本排他；不同保护域可并行。通用事务保留旧全局键的共享锁，与旧版本排他锁及初始化兼容，不防分布式 DDoS。
+- Vercel 优先读取平台专用 `X-Vercel-Forwarded-For`。仅在头缺失或空白时按平台 `X-Forwarded-For`、`X-Real-IP` 回退；非法高优先头不拆列表或降级，运行时代理的 socket 地址也不冒充访客。没有可信 IP 时，真正经过 SuperTokens 验证的会话按 user ID 限流；匿名 GET/HEAD 跳过 IP 计数但照常执行路由权限检查，OPTIONS 交由原 CORS 白名单处理。匿名写入和 `/auth` 操作返回 `503 CLIENT_IDENTITY_UNAVAILABLE`、`Retry-After: 5`，因此缺失来源期间无法匿名登录、刷新或发言；已有会话的留言操作仍可用。备份另用专桶并保留令牌校验和每小时 5 次限额。没有用随机 ID、UA 或可重领 Cookie 生成新额度；匿名请求缺乏可信身份时无法安全实现个人配额。`CLIENT_IP_HEADER=none` 在 Vercel 也会触发此降级，其他入口保留原可信代理配置。[Vercel 请求头说明](https://vercel.com/docs/headers/request-headers#x-vercel-forwarded-for)
 - 过期留言和旧限流窗口由请求触发后台清理，以 `waitUntil` 保持 Vercel 调用存活，不阻塞该请求。每个实例只允许一项维护并发，成功后一小时再触发，失败短暂退避；只读维护时不启动新清理。
 - SuperTokens 默认允许已撤销的 access token 有效至到期。
 - GitHub、Vercel、Railway、SuperTokens 与 DNS 服务商账号都应开启两步验证；能推 `main`、改后端变量或改 DNS 的人等同网站管理员。

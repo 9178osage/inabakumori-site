@@ -39,21 +39,26 @@ export function createRequestRateLimit(options, { allowReadOnStoreError = false,
   const limiter = rateLimit({ ...options, ...(store ? { store } : {}), passOnStoreError: false });
   const configuredPrefix = options.store?.prefix;
   const prefix = typeof configuredPrefix === "string" && /^[a-z][a-z0-9:_-]{0,79}$/u.test(configuredPrefix) ? configuredPrefix : "requests";
-  const middleware = (req, res, next) => limiter(req, res, error => {
-    if (!error) return next();
-    const details = storeFailures.get(error);
-    if (!details) return next(error);
-    try {
-      log.error("Rate limit store unavailable", { prefix, method: METHODS.has(req.method) ? req.method : "OTHER", ...details });
-      if (allowReadOnStoreError === true && ["GET", "HEAD"].includes(req.method)) return next();
-    } catch (failure) { return next(failure); }
-    // A trusted-origin hook can add CORS before the global CORS middleware.
-    return Promise.resolve().then(() => onUnavailable?.(req, res)).then(() => {
-      res.setHeader("Cache-Control", "no-store");
-      res.setHeader("Retry-After", "5");
-      res.status(503).json({ error: "数据库暂时不可用，请稍后重试", code: "DATABASE_UNAVAILABLE" });
-    }).catch(next);
-  });
+  const middleware = (req, res, next) => {
+    // Only the identity middleware sets this flag. Keep public reads and CORS
+    // preflights usable without assigning unrelated visitors one shared key.
+    if (req.skipIpRateLimits === true && ["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
+    return limiter(req, res, error => {
+      if (!error) return next();
+      const details = storeFailures.get(error);
+      if (!details) return next(error);
+      try {
+        log.error("Rate limit store unavailable", { prefix, method: METHODS.has(req.method) ? req.method : "OTHER", ...details });
+        if (allowReadOnStoreError === true && ["GET", "HEAD"].includes(req.method)) return next();
+      } catch (failure) { return next(failure); }
+      // A trusted-origin hook can add CORS before the global CORS middleware.
+      return Promise.resolve().then(() => onUnavailable?.(req, res)).then(() => {
+        res.setHeader("Cache-Control", "no-store");
+        res.setHeader("Retry-After", "5");
+        res.status(503).json({ error: "数据库暂时不可用，请稍后重试", code: "DATABASE_UNAVAILABLE" });
+      }).catch(next);
+    });
+  };
   middleware.resetKey = limiter.resetKey;
   middleware.getKey = limiter.getKey;
   return middleware;

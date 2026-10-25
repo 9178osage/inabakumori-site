@@ -142,7 +142,7 @@ test("PostgreSQL binds parameters and converts only safe BIGINT columns", async 
   } finally { await db.close(); }
 });
 
-test("PostgreSQL transactions keep one client, lock check-and-insert and release after rollback", async () => {
+test("PostgreSQL transactions keep one client, share the compatibility gate and release after rollback", async () => {
   const { createPostgresDatabase } = await import("../../backend/database.mjs");
   const pool = fakePool();
   const db = await createPostgresDatabase(pool);
@@ -150,10 +150,10 @@ test("PostgreSQL transactions keep one client, lock check-and-insert and release
   try {
     await db.transaction(async tx => { escaped = tx; await tx.prepare("SELECT ?").get(7); });
     const committed = pool.calls.filter(call => call.connection === 2);
-    assert.deepEqual(committed.map(call => call.sql), ["BEGIN; SELECT pg_advisory_xact_lock(721784230);", "SELECT $1", "COMMIT", "release"]);
+    assert.deepEqual(committed.map(call => call.sql), ["BEGIN ISOLATION LEVEL READ COMMITTED; SELECT pg_advisory_xact_lock_shared(721784230);", "SELECT $1", "COMMIT", "release"]);
     await assert.rejects(escaped.prepare("SELECT 1").get(), /already closed/u);
     await assert.rejects(db.transaction(async tx => { await tx.exec("SELECT 2"); throw new Error("abort write"); }), /abort write/u);
-    assert.deepEqual(pool.calls.filter(call => call.connection === 3).map(call => call.sql), ["BEGIN; SELECT pg_advisory_xact_lock(721784230);", "SELECT 2", "ROLLBACK", "release"]);
+    assert.deepEqual(pool.calls.filter(call => call.connection === 3).map(call => call.sql), ["BEGIN ISOLATION LEVEL READ COMMITTED; SELECT pg_advisory_xact_lock_shared(721784230);", "SELECT 2", "ROLLBACK", "release"]);
     assert.equal(pool.calls.find(call => call.connection === 3 && call.sql === "release").error, undefined, "a successful rollback leaves the connection reusable");
     await assert.rejects(db.transaction(() => db.prepare("SELECT 1").get()), /transaction-scoped/u);
   } finally { await db.close(); }
@@ -234,13 +234,13 @@ test("discarding an unknown transaction prevents a later commit from reviving it
   } finally { await db.close(); }
 });
 
-test("a pending or failed PostgreSQL lock batch never starts the write callback", async () => {
+test("a pending or failed PostgreSQL compatibility gate never starts the write callback", async () => {
   const { createPostgresDatabase } = await import("../../backend/database.mjs");
   const started = deferred();
   const resume = deferred();
   const failure = Object.assign(new Error("synthetic advisory lock timeout"), { code: "57014" });
   const pool = fakePool(async sql => {
-    if (sql === "BEGIN; SELECT pg_advisory_xact_lock(721784230);") {
+    if (sql === "BEGIN ISOLATION LEVEL READ COMMITTED; SELECT pg_advisory_xact_lock_shared(721784230);") {
       started.resolve();
       await resume.promise;
       throw failure;
@@ -257,7 +257,7 @@ test("a pending or failed PostgreSQL lock batch never starts the write callback"
     await assert.rejects(pending, error => error === failure);
     assert.equal(called, false, "a failed lock batch never enters user work");
     assert.deepEqual(pool.calls.filter(call => call.connection === 2).map(call => call.sql), [
-      "BEGIN; SELECT pg_advisory_xact_lock(721784230);", "ROLLBACK", "release"
+      "BEGIN ISOLATION LEVEL READ COMMITTED; SELECT pg_advisory_xact_lock_shared(721784230);", "ROLLBACK", "release"
     ]);
   } finally { resume.resolve(); await db.close(); }
 });
@@ -286,6 +286,36 @@ test("PostgreSQL backup produces a restorable SQLite snapshot with exact IDs and
     assert.equal((await stat(destination)).mode & 0o777, 0o600);
     assert.match(pool.calls.find(call => call.connection === 2).sql, /REPEATABLE READ READ ONLY/u);
   } finally { await db.close(); await rm(directory, { recursive: true, force: true }); }
+});
+
+test("PostgreSQL snapshots release the committed client before local file errors and never roll back that completed transaction", async () => {
+  const { createPostgresDatabase } = await import("../../backend/database.mjs");
+  const directory = await mkdtemp(path.join(tmpdir(), "station-postgres-local-snapshot-"));
+  try {
+    for (const occupied of [true, false]) {
+      const destination = path.join(directory, occupied ? "preserve.db" : "invalid-row.db");
+      if (occupied) await writeFile(destination, "preserve prior backup");
+      const pool = fakePool(sql => {
+        if (sql.includes("FROM comments ORDER BY id")) return { rows: occupied ? [] : [{ id: 1, nickname: {}, content: "synthetic", user_id: null, is_guest: 1, created_at: 1, expires_at: null }], fields: [] };
+        if (sql.includes("pg_sequence_last_value")) return { rows: [{ high_water: "1" }], fields: [{ name: "high_water", dataTypeID: 20 }] };
+        return { rows: [], fields: [], rowCount: 0 };
+      });
+      const db = await createPostgresDatabase(pool);
+      try {
+        await assert.rejects(db.snapshot(destination));
+        const calls = pool.calls.filter(call => call.connection === 2);
+        assert.deepEqual(calls.map(call => call.sql), [
+          "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY",
+          "SELECT id, nickname, content, user_id, is_guest, created_at, expires_at FROM comments ORDER BY id",
+          "SELECT pg_sequence_last_value(pg_get_serial_sequence('comments', 'id')::regclass) AS high_water",
+          "COMMIT", "release"
+        ]);
+        assert.equal(calls.at(-1).error, undefined, "local serialization errors do not discard a healthy committed client");
+        if (occupied) assert.equal(await readFile(destination, "utf8"), "preserve prior backup");
+        else await assert.rejects(stat(destination), { code: "ENOENT" });
+      } finally { await db.close(); }
+    }
+  } finally { await rm(directory, { recursive: true, force: true }); }
 });
 
 test("PostgreSQL snapshots preserve integer MAX_SAFE_INTEGER sequence metadata with rows or an empty table", async () => {

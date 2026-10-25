@@ -1,5 +1,6 @@
 import path from "node:path";
 import { isIP } from "node:net";
+import { createHash } from "node:crypto";
 
 // SuperTokens can parse an unparsed request itself, without Express's body limit.
 // Require JSON before either parser sees a body, including chunked requests and
@@ -39,10 +40,10 @@ export function clientIpResolver(env) {
       // another header. In particular, never choose a hop from a comma list.
       break;
     }
-    // Express req.ip can read the same rejected XFF again when trust proxy is
-    // enabled. Vercel must fall back to the socket directly. Missing identity
-    // shares one conservative bucket instead of generating fresh limiter keys.
-    for (const value of [...(onVercel ? [] : [req.ip]), req.socket?.remoteAddress]) {
+    // Runtime sockets on Vercel identify proxies, not a trusted visitor. Return
+    // a missing-identity sentinel for the caller's identity middleware instead.
+    if (onVercel) return "0.0.0.0";
+    for (const value of [req.ip, req.socket?.remoteAddress]) {
       if (typeof value === "string" && isIP(value.trim())) return value.trim();
     }
     return "0.0.0.0";
@@ -310,7 +311,17 @@ export function insertFreshComment(db, { duplicate, insert, countMember, memberC
 export async function insertFreshCommentAsync(db, { memberCap = 100, row }) {
   return db.transaction(async tx => {
     const normalized = normalizeCommentForComparison(row.content);
-    if (row.userId || Array.from(normalized).length >= GUEST_GLOBAL_DEDUP_MIN_LENGTH) {
+    const needsDedup = Boolean(row.userId) || Array.from(normalized).length >= GUEST_GLOBAL_DEDUP_MIN_LENGTH;
+    if (db.kind === "postgres" && needsDedup) {
+      // Members share a lock across all their text to protect the account cap.
+      // Guests only conflict with equivalent long text. Separate prefixes keep
+      // those scopes independent; negative keys cannot hit the positive schema gate.
+      const identity = row.userId ? `member\0${row.userId}` : `guest\0${normalized}`;
+      const digest = createHash("sha256").update(identity).digest();
+      const lock = (digest.readBigInt64BE(0) | -(1n << 63n)).toString();
+      await tx.prepare("SELECT pg_advisory_xact_lock(?)").get(lock);
+    }
+    if (needsDedup) {
       const recent = row.userId
         ? await tx.prepare(`SELECT content FROM comments
           WHERE user_id = ? AND is_guest = 0 AND created_at > ?

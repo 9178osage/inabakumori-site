@@ -25,12 +25,13 @@ function counterStore({ offline = false } = {}) {
   return { store, counts };
 }
 
-async function serve(t, { store, options = {}, policy = {}, requireSession = false } = {}) {
+async function serve(t, { store, options = {}, policy = {}, requireSession = false, unidentified = false } = {}) {
   const { createRequestRateLimit } = await import("../../backend/request-rate-limit.mjs");
   const app = express();
   const logs = [];
   const errors = [];
   let handlers = 0;
+  if (unidentified) app.use((req, _res, next) => { req.skipIpRateLimits = true; next(); });
   const limiter = createRequestRateLimit({ store, windowMs: 60_000, limit: 2, keyGenerator: () => "visitor", validate: false, ...options },
     { log: { error: (...args) => logs.push(args) }, ...policy });
   app.use(limiter);
@@ -139,6 +140,16 @@ test("class stores retain private-field receivers through initialization and eve
   await app.limiter.resetKey("visitor");
   assert.deepEqual(await app.limiter.getKey("visitor"), { totalHits: 0 });
   assert.deepEqual(app.errors, []);
+});
+
+test("unidentified reads and preflights avoid shared quotas while a skip flag never exempts writes", async t => {
+  const { store, counts } = counterStore();
+  const app = await serve(t, { store, unidentified: true });
+  for (const method of ["GET", "HEAD", "OPTIONS"]) assert.equal((await app.request(method)).status, 200);
+  assert.equal(counts.size, 0);
+  assert.equal((await app.request("POST")).status, 200);
+  assert.equal((await app.request("POST")).status, 200);
+  assert.equal((await app.request("POST")).status, 429);
 });
 
 test("key, limit and normal 429 handler errors are forwarded and never mistaken for store failures", async t => {

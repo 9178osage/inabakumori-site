@@ -10,6 +10,7 @@ function commentErrorMessage(data, response) {
     GUEST_RATE_LIMITED: ["游客每小时最多留言 3 条，请稍后再试", "Guests can post up to 3 messages per hour. Please try again later."],
     RATE_LIMITED: ["留言发送过于频繁，请稍后再试", "Messages are being sent too quickly. Please try again later."],
     MEMBER_RATE_LIMITED: ["登录用户每小时最多留言 20 条，请稍后再试", "Signed-in members can post up to 20 messages per hour. Please try again later."],
+    CLIENT_IDENTITY_UNAVAILABLE: ["暂时无法识别访客来源，请稍后重试。", "Your request source could not be identified. Please try again later."],
     TOO_MANY_LINE_BREAKS: ["留言换行太多，最多 15 个换行。", "Your message has too many line breaks (up to 15)."],
     MEMBER_COMMENT_CAP: ["每个账号最多保留 100 条留言，请先删除旧留言", "Each account can keep up to 100 messages. Please delete some older ones first."]
   };

@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { openDatabase } from "./database.mjs";
 import { createDatabaseAccess } from "./database-access.mjs";
 import { createRequestRateLimit } from "./request-rate-limit.mjs";
+import { createClientIdentity } from "./client-identity.mjs";
 import { createRequestMaintenance } from "./request-maintenance.mjs";
 import { createPostgresRateLimitStore, cleanupExpiredRateLimits, withRateLimitRequestContext } from "./rate-limit-store.mjs";
 import { commentWriteMaintenance } from "./maintenance.mjs";
@@ -14,7 +15,6 @@ import { registerBackupEndpoint, backupTokenFrom, isBackupPath } from "./backup-
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import { ipKeyGenerator } from "express-rate-limit";
 import supertokens from "supertokens-node";
 import EmailPassword from "supertokens-node/recipe/emailpassword";
 import Session from "supertokens-node/recipe/session";
@@ -91,7 +91,7 @@ try {
 } catch (error) {
   failStartup(error.message);
 }
-const clientIpKey = req => ipKeyGenerator(clientIp(req));
+const clientIpKey = req => req.clientRateLimitKey;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const databaseKind = process.env.DATABASE_URL?.trim() ? "postgres" : "sqlite";
 let db = databaseKind === "postgres" ? createDatabaseAccess({ kind: databaseKind, open: () => openDatabase(process.env, __dirname) }) : undefined;
@@ -200,7 +200,12 @@ function exposeLimiterResponse(req, res) {
     res.vary("Origin");
   }
 }
-// Bound non-diagnostic traffic before parsing/auth. Only reads may continue when
+const identifyClient = createClientIdentity({ clientIp, verifySession, isBackupPath, onUnavailable: exposeLimiterResponse });
+app.use((req, res, next) => identifyClient(req, res, error => {
+  if (error) exposeLimiterResponse(req, res);
+  next(error);
+}));
+// Bound non-diagnostic traffic before parsing. Only reads may continue when
 // counter storage fails; POST/DELETE/OPTIONS still fail closed with a safe 503.
 const requestLimiter = createRequestRateLimit({ ...sharedStore("requestLimiter"), keyGenerator: clientIpKey, windowMs: 60_000, limit: 180,
   standardHeaders: "draft-7", legacyHeaders: false,
