@@ -2687,3 +2687,7 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
   .home-updates .x-post-text { margin-top: 10px; line-height: 1.8; }
   .home-updates .x-post-translation { margin-top: 6px; font-size: 12px; line-height: 1.7; }
 }
+
+/* Links to the generated song archive and post search pages. */
+.songs-archive-links { display: flex; flex-wrap: wrap; gap: 4px 22px; margin: -14px 0 22px; font-size: 13px; }
+.songs-archive-links a { display: inline-flex; align-items: center; min-height: 44px; text-underline-offset: 4px; }

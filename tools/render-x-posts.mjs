@@ -147,7 +147,14 @@ export function createXPostsRenderer(archive, translations = new Map()) {
   };
   return Object.freeze({
     renderHome: () => renderHome(posts, groups, status, renderItem),
-    renderArchive: options => renderArchive(groups, status, renderItem, options)
+    renderArchive: options => renderArchive(groups, status, renderItem, options),
+    // Song archive pages reuse the same escaped article markup for linked posts.
+    renderPost: id => {
+      const post = posts.find(item => item.id === id);
+      assert.ok(post, "Unknown X post");
+      return renderItem(post);
+    },
+    posts: () => posts.map(post => ({ ...post, translation: translationOf.get(post) ?? null }))
   });
 }
 

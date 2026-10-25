@@ -68,7 +68,7 @@ ${emptyXPostsMeta}<div class="station-brand"><a class="station-mark" href="#upda
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self';"/>
 <article class="calendar-sheet" data-release="2026-03-08T10:00:07.000Z"></article>`);
   box.write("dist/CNAME", "osagechan.top\n"); box.write("dist/site.webmanifest", '{"icons":[]}');
-  box.write("dist/sitemap.xml", `<urlset>${["", "updates.html", "updates-inabakumori.html", "updates-nknk.html"].map(name => `<url><loc>https://osagechan.top/${name}</loc></url>`).join("")}</urlset>\n`);
+  box.write("dist/sitemap.xml", `<urlset>${["", "updates.html", "updates-inabakumori.html", "updates-nknk.html", "search.html", "songs.html", "song-2r4W_LoVFxA.html"].map(name => `<url><loc>https://osagechan.top/${name}</loc></url>`).join("")}</urlset>\n`);
   // An empty X archive (no data/x-posts) still yields one archive page per author filter.
   const slices = { "updates.html": "", "updates-inabakumori.html": "稲葉曇的 X 帖子", "updates-nknk.html": "NKNK 的 X 帖子" };
   for (const name of ["updates.html", "updates-inabakumori.html", "updates-nknk.html"]) box.write(`dist/${name}`, `${slices[name] ? `<html lang="zh-CN" data-archive-creator="${name.slice(8, -5)}" data-archive-page="1">` : '<html lang="zh-CN">'}
@@ -81,6 +81,9 @@ ${emptyXPostsMeta}<div class="station-brand"><a class="station-mark" href="#upda
 <meta property="og:url" content="https://osagechan.top/${name}"/>
 ${emptyXPostsMeta}
 <article class="source-status"></article><article class="source-status"></article><article class="source-status"></article>`);
+  // Generated song archive and search pages share the archive CSP; the empty index has no chunks.
+  for (const name of ["search.html", "songs.html", "song-2r4W_LoVFxA.html"]) box.write(`dist/${name}`, `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self';"/>\n<main></main>`);
+  box.write("dist/search-index/manifest.json", JSON.stringify({ version: 1, count: 0, translated: 0, years: [] }));
   box.write("dist/js/songs.js", 'const SONGS = [{ "title": "ユレール", "youtube": "https://youtu.be/2r4W_LoVFxA" }];\n');
   box.write("dist/js/nknk-gallery.js", 'const NKNK_GALLERY = [{id:1,thumb:"images/picture.webp",full:"images/picture.webp"}];\n');
   box.write("dist/images/picture.webp", "PUBLIC_IMAGE");

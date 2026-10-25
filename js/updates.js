@@ -163,9 +163,110 @@
     // bfcache can restore this document after preferences changed in another page.
     window.addEventListener("pageshow", resumePage);
     resumePage();
+    initReadingPosition(storage, () => language);
     document.querySelector(".page-controls")?.removeAttribute("hidden");
     if (!document.querySelector("[data-works-list-link]")) document.querySelector(".updates-filters")?.removeAttribute("hidden");
   }
+  // Reading position and "new since last visit" for the X archive pages. Stored only in this
+  // browser (siteStorage → localStorage, or memory when storage is blocked); never sent anywhere.
+  const READING_KEY = "xArchiveReading";
+  const SEEN_KEY = "xArchiveSeen";
+  const BADGE_WINDOW = 30 * 60 * 1000;
+  const ARCHIVE_PAGE = /^updates(?:-(?:inabakumori|nknk))?(?:-page-[1-9]\d{0,4})?\.html$/u;
+  const STAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/u;
+  const validMark = mark => Boolean(mark) && typeof mark === "object" && typeof mark.at === "string" && STAMP.test(mark.at) && typeof mark.id === "string" && /^\d{1,30}$/u.test(mark.id);
+  const compareMarks = (a, b) => a.at < b.at ? -1 : a.at > b.at ? 1 : a.id.length - b.id.length || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  function readRecord(storage, key) {
+    try {
+      const value = JSON.parse(storage.getItem(key) || "null");
+      return value && typeof value === "object" && !Array.isArray(value) ? value : null;
+    } catch { return null; }
+  }
+  function writeRecord(storage, key, value) {
+    try { storage.setItem(key, JSON.stringify(value)); } catch { /* Storage blocked: the feature quietly does nothing. */ }
+  }
+  // The baseline stays fixed for a short while so a reload within the same visit keeps its badges.
+  function nextSeenState(previous, newest, now) {
+    const through = validMark(previous?.through) ? previous.through : null;
+    const recent = through && Number.isFinite(previous.since) && now - previous.since >= 0 && now - previous.since < BADGE_WINDOW;
+    const baseline = recent ? (validMark(previous.baseline) ? previous.baseline : null) : through;
+    const latest = !through || (newest && compareMarks(newest, through) > 0) ? newest : through;
+    return { baseline, record: { through: latest, baseline, since: recent ? previous.since : now } };
+  }
+  function pageLabel(page) {
+    const creator = /^updates-(inabakumori|nknk)/u.exec(page)?.[1];
+    const number = Number(/-page-(\d+)\.html$/u.exec(page)?.[1] || 1);
+    const who = creator === "inabakumori" ? ["稲葉曇 · ", "Inabakumori · ", "稲葉曇 · "] : creator === "nknk" ? ["NKNK · ", "NKNK · ", "NKNK · "] : ["", "", ""];
+    return { zh: `${who[0]}第 ${number} 页`, en: `${who[1]}page ${number}`, ja: `${who[2]}${number}ページ目` };
+  }
+  function initReadingPosition(storage, currentLanguage) {
+    const feed = document.querySelector(".x-posts-archive .x-posts-feed");
+    if (!feed || !storage) return;
+    const page = String(window.location?.pathname || "").split("/").pop() || "updates.html";
+    if (!ARCHIVE_PAGE.test(page)) return;
+    const articles = [...feed.querySelectorAll("article.x-post[data-x-post-id]")];
+    const markOf = article => ({ at: article.querySelector("time[datetime]")?.getAttribute("datetime") || "", id: article.dataset.xPostId || "" });
+    const tri = (tag, className, values) => {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      node.dataset.zh = values.zh; node.dataset.en = values.en; node.dataset.ja = values.ja;
+      node.textContent = values[currentLanguage()];
+      return node;
+    };
+    // New-post badges compare against the newest post this browser had seen before.
+    const meta = document.querySelector('meta[name="x-posts-newest"]')?.getAttribute("content")?.split(" ") || [];
+    const newest = validMark({ at: meta[0], id: meta[1] }) ? { at: meta[0], id: meta[1] } : null;
+    const { baseline, record } = nextSeenState(readRecord(storage, SEEN_KEY), newest, Date.now());
+    if (baseline) {
+      for (const article of articles) {
+        const mark = markOf(article);
+        if (!validMark(mark) || compareMarks(mark, baseline) <= 0) continue;
+        article.dataset.newPost = "";
+        article.querySelector(".x-post-header h3")?.append(tri("span", "x-post-new", { zh: "新", en: "NEW", ja: "新着" }));
+      }
+    }
+    if (newest) writeRecord(storage, SEEN_KEY, record);
+    const scrollToPost = () => {
+      const id = /^#x-post-(\d{1,30})$/u.exec(window.location?.hash || "")?.[1];
+      const target = id && articles.find(article => article.dataset.xPostId === id);
+      if (!target) return false;
+      target.scrollIntoView({ block: "start" });
+      target.setAttribute("tabindex", "-1");
+      target.focus({ preventScroll: true });
+      return true;
+    };
+    // Continue-reading link, unless this visit already opened that exact spot.
+    const saved = readRecord(storage, READING_KEY);
+    const savedValid = saved && typeof saved.page === "string" && ARCHIVE_PAGE.test(saved.page) && typeof saved.id === "string" && /^\d{1,30}$/u.test(saved.id);
+    const arrivedAtSaved = savedValid && saved.page === page && (window.location.hash === `#x-post-${saved.id}` || articles[0]?.dataset.xPostId === saved.id);
+    if (savedValid && !arrivedAtSaved) {
+      const label = pageLabel(saved.page);
+      const box = document.createElement("p");
+      box.className = "x-reading-resume";
+      box.setAttribute("role", "note");
+      const link = tri("a", "", { zh: `继续上次阅读 →（${label.zh}）`, en: `Continue where you left off → (${label.en})`, ja: `前回の続きから読む →（${label.ja}）` });
+      link.href = `${saved.page}#x-post-${saved.id}`;
+      const dismiss = tri("button", "", { zh: "不用了", en: "Dismiss", ja: "閉じる" });
+      dismiss.type = "button";
+      dismiss.addEventListener("click", () => { box.remove(); writeRecord(storage, READING_KEY, null); });
+      box.append(link, dismiss);
+      feed.before(box);
+    }
+    // Save the first post still on screen, but only once the reader has actually scrolled into
+    // the list, so simply arriving at the top never overwrites the previous position.
+    let timer = null;
+    const save = () => {
+      timer = null;
+      if ((window.scrollY || 0) < 300) return;
+      const current = articles.find(article => article.getBoundingClientRect().bottom > 80);
+      if (current) writeRecord(storage, READING_KEY, { page, id: current.dataset.xPostId, savedAt: new Date().toISOString() });
+    };
+    window.addEventListener("scroll", () => { if (timer === null) timer = window.setTimeout(save, 400); }, { passive: true });
+    window.addEventListener("pagehide", save);
+    window.addEventListener("hashchange", scrollToPost);
+    scrollToPost();
+  }
+  window.xArchiveReading = Object.freeze({ nextSeenState, compareMarks, validMark, pageLabel, readRecord });
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initializeUpdates, { once: true });
   else initializeUpdates();
 })();

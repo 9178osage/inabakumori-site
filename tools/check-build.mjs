@@ -36,6 +36,7 @@ function distFile(reference) {
 let bytes = 0, archiveBytes = 0;
 // Paginated X archive pages are pre-rendered HTML that grows with the archive; they get their
 // own budget so the 12 MiB guard on every other public file (images, fonts, scripts) stays tight.
+const SONG_PAGE = /^song-[A-Za-z0-9_-]{11}\.html$/u;
 const ARCHIVE_PAGE = /^updates(?:-(?:inabakumori|nknk))?(?:-page-[0-9]+)?\.html$/u;
 async function checkFolder(folder) {
   for (const entry of await readdir(folder, { withFileTypes: true })) {
@@ -49,7 +50,8 @@ async function checkFolder(folder) {
     if (entry.isDirectory()) await checkFolder(path.join(folder, entry.name));
     else {
       const size = (await stat(path.join(folder, entry.name))).size;
-      if (folder === root && ARCHIVE_PAGE.test(entry.name)) archiveBytes += size; else bytes += size;
+      // Song pages and the post search index grow with the archive too, so they share its budget.
+      if ((folder === root && (ARCHIVE_PAGE.test(entry.name) || SONG_PAGE.test(entry.name))) || name.startsWith(`search-index${path.sep}`)) archiveBytes += size; else bytes += size;
       if (name.endsWith(".js")) new vm.Script(await readFile(path.join(root, name), "utf8"), { filename: name });
     }
   }
@@ -180,7 +182,8 @@ const sitemapLocations = [...sitemap.matchAll(/<loc>https:\/\/osagechan\.top\/([
 assert.equal(sitemapLocations.length, new Set(sitemapLocations).size, "Sitemap must not repeat a page");
 assert.ok(sitemapLocations.includes(""), "Sitemap must list the homepage");
 for (const name of expectedPages) assert.ok(sitemapLocations.includes(name), `Sitemap must list archive page: ${name}`);
-for (const name of sitemapLocations) assert.ok(name === "" || expectedPages.has(name) || name === "index.html", `Sitemap lists an unknown page: ${name}`);
+const generatedPages = new Set(["search.html", "songs.html", ...vm.runInContext("SONGS", songContext).map(song => `song-${/youtu\.be\/([A-Za-z0-9_-]{11})/u.exec(song.youtube)?.[1]}.html`)]);
+for (const name of sitemapLocations) assert.ok(name === "" || expectedPages.has(name) || generatedPages.has(name) || name === "index.html", `Sitemap lists an unknown page: ${name}`);
 // Translations: every pre-rendered post with a gist carries exactly one zh/en line (ja shows none).
 const xTranslations = await readXTranslations(path.resolve(root, ".."), xArchive);
 // Every pre-rendered page that shows posts (homepage and each archive page) is checked.
@@ -208,6 +211,33 @@ for (const value of htmlReferences(calendarHtml)) {
   if (/^(https?:|mailto:|#)/u.test(value)) continue;
   assert.ok((await stat(distFile(value.split(/[?#]/u)[0]))).isFile(), `Missing calendar asset: ${value}`);
 }
+// Song archive and post search: one page per song, same CSP as the archive, no inline scripts,
+// every local reference present, and a chunked search index within its per-chunk limit.
+const archiveCsp = updatesHtml.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)"/)?.[1];
+assert.deepEqual(new Set((await readdir(root)).filter(name => SONG_PAGE.test(name) || name === "search.html" || name === "songs.html")), generatedPages, "Song archive pages must match js/songs.js");
+for (const name of generatedPages) {
+  assert.ok(sitemapLocations.includes(name), `Sitemap must list ${name}`);
+  const pageHtml = await readFile(path.join(root, name), "utf8");
+  assert.equal(pageHtml.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)"/)?.[1], archiveCsp, `${name} must reuse the archive CSP`);
+  assert.doesNotMatch(pageHtml, /<script(?![^>]*\bsrc=)[^>]*>/u, `${name} must not use inline scripts`);
+  assert.doesNotMatch(pageHtml, /\son[a-z]+=/u, `${name} must not use inline handlers`);
+  for (const value of htmlReferences(pageHtml)) {
+    if (/^(https?:|mailto:|#)/u.test(value)) continue;
+    assert.ok((await stat(distFile(value.split(/[?#]/u)[0]))).isFile(), `Missing reference in ${name}: ${value}`);
+  }
+}
+const searchManifest = JSON.parse(await readFile(path.join(root, "search-index/manifest.json"), "utf8"));
+assert.equal(searchManifest.count, xArchive.items.length, "Search index must cover every X post");
+let indexed = 0;
+for (const entry of searchManifest.years) {
+  assert.match(entry.file, /^posts-\d{4}-[a-f0-9]{12}\.json$/u);
+  const chunk = await readFile(path.join(root, "search-index", entry.file));
+  assert.equal(chunk.length, entry.bytes, `Search chunk size mismatch: ${entry.file}`);
+  assert.ok(chunk.length < 600000, `Search chunk too large: ${entry.file}`);
+  indexed += JSON.parse(chunk).records.length;
+}
+assert.equal(indexed, searchManifest.count, "Search chunks must hold every post exactly once");
+assert.deepEqual((await readdir(path.join(root, "search-index"))).sort(), ["manifest.json", ...searchManifest.years.map(entry => entry.file)].sort(), "Search index must not contain stale chunks");
 assert.ok(bytes < 12 * 1024 * 1024, `Public build (excluding archive pages) exceeds 12 MiB: ${bytes}`);
 assert.ok(archiveBytes < 20 * 1024 * 1024, `Archive pages exceed 20 MiB: ${archiveBytes}`);
 console.log(`Public build verified: references, anchors, JS syntax, metadata, pre-rendering, privacy allowlist; ${(bytes / 1024 / 1024).toFixed(2)} MiB + ${(archiveBytes / 1024 / 1024).toFixed(2)} MiB archive pages.`);

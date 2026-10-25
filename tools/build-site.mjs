@@ -11,6 +11,7 @@ import { readXPostsArchive } from "./x-posts-data.mjs";
 import { readXTranslations } from "./x-translations.mjs";
 import { createXPostsRenderer, xPostsPageUrl, xPostsPageTitle } from "./render-x-posts.mjs";
 import { newestSongRelease } from "./calendar-song.mjs";
+import { renderArchivePages } from "./render-archive-pages.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const out = path.join(root, "dist");
@@ -29,8 +30,8 @@ await build({ entryPoints: [source("tools/auth-src.js")], bundle: true, platform
 // dist is generated exclusively by this script. Only explicitly public assets are copied.
 await rm(output("dist"), { recursive: true, force: true });
 await mkdir(out, { recursive: true });
-const scripts = ["script.js", ...["preferences", "config", "network", "i18n", "auth", "songs", "nknk-gallery", "nknk-gallery-ui", "experience", "comments", "updates", "home-updates", "x-posts-home", "calendar"].map(name => `js/${name}.js`)];
-const css = ["style.css", "updates.css", "calendar.css", "fonts/fonts.css"];
+const scripts = ["script.js", ...["preferences", "config", "network", "i18n", "auth", "songs", "nknk-gallery", "nknk-gallery-ui", "experience", "comments", "updates", "home-updates", "x-posts-home", "calendar", "post-search-core", "archive-pages"].map(name => `js/${name}.js`)];
+const css = ["style.css", "updates.css", "calendar.css", "archive.css", "fonts/fonts.css"];
 const hashes = new Map();
 for (const file of [...scripts, ...css]) {
   const text = await readFile(source(file), "utf8");
@@ -88,7 +89,10 @@ function fillOnce(template, marker, content) {
   if (template.split(placeholder).length !== 2) throw new Error(`Expected one ${marker} placeholder`);
   return template.replace(placeholder, () => content);
 }
-const fingerprintXPosts = template => template.replace("</head>", `<meta name="x-posts-version" content="${xPostsVersion}"/>\n</head>`);
+const newestXPost = [...xPosts.items].sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt) || (BigInt(a.id) < BigInt(b.id) ? 1 : -1))[0];
+// Archive pages compare against this to badge posts added since the reader's last visit.
+const newestXPostMeta = newestXPost ? `<meta name="x-posts-newest" content="${new Date(newestXPost.publishedAt).toISOString()} ${newestXPost.id}"/>\n` : "";
+const fingerprintXPosts = template => template.replace("</head>", `<meta name="x-posts-version" content="${xPostsVersion}"/>\n${newestXPostMeta}</head>`);
 function fillUpdates(template, prefix, items = updates.items) {
   for (const [marker, content] of [["STATUS", updates.status], ["ITEMS", items]]) {
     const placeholder = `<!-- ${prefix}:${marker} -->`;
@@ -180,13 +184,24 @@ const calendarSheet = `<section class="calendar-stack" aria-labelledby="calendar
 let calendarHtml = fillOnce(await readFile(source("calendar.html"), "utf8"), "CALENDAR:SHEET", calendarSheet);
 calendarHtml = calendarHtml.replace(/(src|href)="([^"?]+)(?:\?[^"\s]*)?"/g, (match, attribute, file) => hashes.has(file) ? `${attribute}="${file}?v=${hashes.get(file)}"` : match);
 await writeFile(output("dist/calendar.html"), calendarHtml);
+// Song archive, post search and its year-chunked index are regenerated from the same
+// sources on every build, so daily X imports and translation batches flow in automatically.
+const archiveExtras = renderArchivePages({ songs, xPosts, xTranslations, xPostsRenderer, songDetailsSource: JSON.parse(await readFile(source("data/song-archive.json"), "utf8")), updatesHtml: updatesSourceHtml });
+const extraPageNames = [];
+for (const [name, content] of archiveExtras.files) {
+  await mkdir(output(path.dirname(`dist/${name}`)), { recursive: true });
+  const body = name.endsWith(".html") ? content.replace(/(src|href)="([^"?]+)(?:\?[^"\s]*)?"/g, (match, attribute, file) => hashes.has(file) ? `${attribute}="${file}?v=${hashes.get(file)}"` : match) : content;
+  await writeFile(output(`dist/${name}`), body);
+  if (name.endsWith(".html")) extraPageNames.push(name);
+}
+console.log(`Post search index: ${archiveExtras.index.manifest.years.length} year chunks, ${(archiveExtras.index.totalBytes / 1024).toFixed(0)} KiB raw / ${(archiveExtras.index.totalGzipBytes / 1024).toFixed(0)} KiB gzip.`);
 // The source sitemap lists the hand-maintained pages; every generated archive page is appended
 // with the date its newest post was collected, so search engines can find the paginated history.
 const sitemapSource = await readFile(source("sitemap.xml"), "utf8");
 if (sitemapSource.split("</urlset>").length !== 2) throw new Error("Expected one </urlset> in sitemap.xml");
 const archiveLastmod = (xPosts.items.map(item => item.collectedAt).sort().at(-1) ?? "").slice(0, 10);
-const sitemapEntries = archivePageNames.filter(name => !sitemapSource.includes(`<loc>https://osagechan.top/${name}</loc>`)).map(name =>
-  `  <url>\n    <loc>https://osagechan.top/${name}</loc>\n${archiveLastmod ? `    <lastmod>${archiveLastmod}</lastmod>\n` : ""}    <changefreq>weekly</changefreq>\n    <priority>${/-page-/u.test(name) ? "0.3" : "0.6"}</priority>\n  </url>\n`).join("");
+const sitemapEntries = [...archivePageNames, ...extraPageNames].filter(name => !sitemapSource.includes(`<loc>https://osagechan.top/${name}</loc>`)).map(name =>
+  `  <url>\n    <loc>https://osagechan.top/${name}</loc>\n${archiveLastmod ? `    <lastmod>${archiveLastmod}</lastmod>\n` : ""}    <changefreq>weekly</changefreq>\n    <priority>${/-page-/u.test(name) ? "0.3" : /^song-/u.test(name) ? "0.4" : "0.6"}</priority>\n  </url>\n`).join("");
 await writeFile(output("dist/sitemap.xml"), sitemapSource.replace("</urlset>", () => `${sitemapEntries}</urlset>`));
 let bytes = 0, files = 0;
 async function measure(folder) {

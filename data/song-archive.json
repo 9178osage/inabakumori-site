@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "note": "Only fields checked against an official source are listed. Anything missing is shown as unverified on the site; never fill a credit from memory.",
+  "songs": {
+    "DeKLpgzh-qQ": {
+      "aliases": ["Lost Umbrella"],
+      "releasedAt": "2018-02-27T13:00:36Z",
+      "releaseNote": { "zh": "YouTube 公开时间；ニコニコ动画（sm32801250）同日投稿，见作者 2019-02-27 的一周年帖。", "en": "YouTube publication time; also posted to niconico (sm32801250) the same day, per the creator’s first-anniversary post on 2019-02-27.", "ja": "YouTube の公開日時。作者の 2019-02-27 の1周年投稿によると、ニコニコ動画（sm32801250）にも同日投稿。" },
+      "albumRelease": "2019-11-17",
+      "vocal": "歌愛ユキ",
+      "credits": [
+        { "role": "music", "name": "稲葉曇" },
+        { "role": "illustration", "name": "ぬくぬくにぎりめし", "url": "https://x.com/NKNK_NGRMS" }
+      ],
+      "unverified": ["movie"],
+      "sources": [
+        { "label": "YouTube", "url": "https://www.youtube.com/watch?v=DeKLpgzh-qQ" },
+        { "label": "X @inabakumori 2019-02-27", "url": "https://x.com/inabakumori/status/1100697819034185729" }
+      ],
+      "checkedAt": "2026-10-25"
+    },
+    "UnIhRpIT7nc": {
+      "aliases": ["Lagtrain"],
+      "releasedAt": "2020-07-16T11:00:13Z",
+      "releaseNote": { "zh": "YouTube 首映公开时间；作者同日帖子确认 niconico 与 YouTube 同时投稿。", "en": "YouTube premiere time; the creator’s post that day confirms niconico and YouTube uploads.", "ja": "YouTube のプレミア公開日時。同日の作者投稿でニコニコ動画と YouTube への投稿を確認。" },
+      "albumRelease": "2022-03-23",
+      "vocal": "歌愛ユキ",
+      "credits": [
+        { "role": "music", "name": "稲葉曇" },
+        { "role": "illustration", "name": "ぬくぬくにぎりめし", "url": "https://x.com/NKNK_NGRMS" },
+        { "role": "animation", "name": "ぬくぬくにぎりめし", "url": "https://x.com/NKNK_NGRMS" },
+        { "role": "movie", "name": "稲葉曇" }
+      ],
+      "unverified": [],
+      "sources": [
+        { "label": "YouTube", "url": "https://www.youtube.com/watch?v=UnIhRpIT7nc" },
+        { "label": "X @inabakumori 2020-07-16", "url": "https://x.com/inabakumori/status/1283718018527186944" }
+      ],
+      "checkedAt": "2026-10-25"
+    }
+  }
+}
