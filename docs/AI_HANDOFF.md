@@ -6,6 +6,8 @@
 
 2026-10-23：后端迁往 `https://inabakumori-backend.vercel.app`，使用 Vercel 的 `inabakumori-backend` 项目及独立 Neon 免费 PostgreSQL。最终快照的 13 条留言已逐字段核对，保留原 ID、会员归属和历史序列；SuperTokens Core 与管理员 ID 保持一致。迁移与回退步骤见 [VERCEL.md](VERCEL.md)。回退旧入口时须使用同一 PostgreSQL，不能恢复旧 SQLite 写入。每次仍须核对线上配置、对应部署及 `/healthz`，不能把 Git 推送等同已发布。
 
+运维分工（2026-10-24 维护者确认）：独立异地备份主机、每日巡检及每日备份由另一助手管理，已改为 Vercel 地址并手动验证成功。本地执行者不再寻找或接管该主机；现有 Mac 每日备份保持原配置，除非维护者另有明确要求。
+
 2026-10-11 安全更新：管理员**只**通过 `ADMIN_USER_IDS`（SuperTokens user ID，逗号分隔）授权，`ADMIN_EMAILS` 已彻底移除；不要恢复按邮箱授权。`/healthz` 只公开 `{ ok, version }`（当前优先取 `VERCEL_GIT_COMMIT_SHA` 前 7 位，兼容 Railway 提交变量）。当前安全状态、后端变量、备份与 DNS 清单见 [SECURITY.md](SECURITY.md)；审查过程归档在 [history/](history/)。新域名为 `https://osagechan.top`。新增解析前总请求限流，并修复 DELETE 大小写路径限流绕过。
 
 用户曾授权对站点做一轮综合优化并可推送 `origin/main`。接手后仍应先确认下一项任务，不要把本文当成新增功能需求。

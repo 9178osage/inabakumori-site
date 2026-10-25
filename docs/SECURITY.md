@@ -41,7 +41,7 @@
 
 - 远程快照：`GET /api/admin/backup`，`Authorization: Bearer <BACKUP_TOKEN>`；每 IP 每小时 5 次、无 CORS、`no-store`，日志不记录令牌。返回 `comments-YYYYMMDD.db`。
 - PostgreSQL 模式仍导出一致性 SQLite 留言快照，保留全部留言字段，不含共享限流计数。`npm --prefix backend run backup` 是 SQLite 本机备份入口；PostgreSQL 使用受保护快照接口和数据库提供商备份。
-- 备份脚本：`tools/remote-backup.py` 使用私有配置，拒绝重定向，并在下载后校验 SQLite 完整性、留言字段及历史 ID 序列；失败非零退出且保留旧快照，成功后只清理其自有命名的过期文件。维护者 Mac 的私有安装副本每日执行，保留 30 天；需要机器开机、用户登录且联网，旧备份主机当前无法访问，不能将它当作已验证的持续备份。令牌、实际路径和调度维护方式记录在私有运维手册，不放入公开仓库。
+- 备份脚本：`tools/remote-backup.py` 使用私有配置，拒绝重定向，并在下载后校验 SQLite 完整性、留言字段及历史 ID 序列；失败非零退出且保留旧快照，成功后只清理其自有命名的过期文件。维护者 Mac 的私有安装副本每日执行，保留 30 天；需要机器开机、用户登录且联网。独立异地备份和每日巡检由另一助手管理；维护者于 2026-10-24 确认其地址已改为 Vercel、手动备份成功，当前本地执行环境不接管该主机或任务。令牌、实际路径和调度维护方式记录在私有运维手册，不放入公开仓库。
 - Neon Free 的恢复历史最多 6 小时且不含定时备份，不能代替上述独立快照。受保护备份响应额外提供实际 Node 版本，供私有日志留存，未授权响应不返回该信息。详见 [迁移后的备份说明](VERCEL.md#回退与后续备份)。
 - 本机/卷内快照：`npm --prefix backend run backup`（见 [OPTIMIZATION.md](OPTIMIZATION.md#数据库备份)）。
 - 快照含全部留言与会员 user ID（无邮箱、密码、令牌、IP），按私密数据保管。令牌泄露时在 Vercel Production 换新值并重新部署；如旧回退入口仍启用，同步轮换。
