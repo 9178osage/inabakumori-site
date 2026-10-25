@@ -57,7 +57,7 @@ test("preview refuses allowlisted symlink files, parent directories and linked 4
 
 const emptyXPostsMeta = `<meta name="x-posts-version" content="${require("node:crypto").createHash("sha256").update(JSON.stringify({ version: 1, coverage: [], items: [] })).digest("hex")}"/>`;
 function publicBuild(box) {
-  for (const file of ["tools/check-build.mjs", "tools/net-guards.mjs", "tools/x-posts-data.mjs", "tools/x-translations.mjs", "tools/calendar-song.mjs", "tools/safe-fs.mjs"]) box.copy(file);
+  for (const file of ["tools/check-build.mjs", "tools/net-guards.mjs", "tools/x-posts-data.mjs", "tools/x-translations.mjs", "tools/calendar-song.mjs", "tools/safe-fs.mjs", "tools/song-archive.mjs", "js/post-search-core.js"]) box.copy(file);
   box.write("dist/index.html", `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://inabakumori-backend.vercel.app"/>
 <link rel="canonical" href="https://osagechan.top/"/>
 <script type="application/ld+json">{"@type":"WebSite"}</script>
@@ -111,6 +111,25 @@ test("public build check rejects symlinked assets and directories before publica
       else {
         assert.notEqual(result.status, 0, kind); assert.match(result.stderr, /symlink|non-regular/iu, kind);
         assert.doesNotMatch(result.stdout, /Public build verified/u, kind);
+      }
+    } finally { box.close(); }
+  }
+});
+
+test("the real build gate accepts trusted watch links and rejects an untrusted video host", () => {
+  for (const youtube of ["https://www.youtube.com/watch?v=2r4W_LoVFxA", "https://m.youtube.com/watch?v=2r4W_LoVFxA", "https://evil.example/?v=2r4W_LoVFxA"]) {
+    const box = fixture();
+    try {
+      publicBuild(box);
+      box.write("dist/js/songs.js", `const SONGS = ${JSON.stringify([{ title: "ユレール", youtube }])};\n`);
+      const result = spawnSync(process.execPath, [path.join(box.root, "tools/check-build.mjs")], { cwd: box.root, encoding: "utf8", timeout: 10000 });
+      assert.ifError(result.error);
+      if (youtube.includes("evil.example")) {
+        assert.notEqual(result.status, 0);
+        assert.match(result.stderr, /Invalid YouTube URL/u);
+      } else {
+        assert.equal(result.status, 0, result.stderr);
+        assert.match(result.stdout, /Public build verified/u);
       }
     } finally { box.close(); }
   }

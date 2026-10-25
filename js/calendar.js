@@ -68,6 +68,7 @@
       applyTheme();
     });
     window.addEventListener("storage", event => {
+      try { if (event.storageArea !== window.localStorage) return; } catch { return; }
       if (event.key === "language" || event.key === null) { language = readLanguage(); applyLanguage(); }
       else if (event.key === "theme") applyTheme();
     });

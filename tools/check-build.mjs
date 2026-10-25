@@ -7,6 +7,7 @@ import { loopbackCspSources } from "./net-guards.mjs";
 import { readXPostsArchive } from "./x-posts-data.mjs";
 import { readXTranslations } from "./x-translations.mjs";
 import { newestSongRelease } from "./calendar-song.mjs";
+import { songPageName } from "./song-archive.mjs";
 import { createHash } from "node:crypto";
 
 // Local references in built HTML: src/href values plus every URL inside srcset candidate lists.
@@ -182,7 +183,7 @@ const sitemapLocations = [...sitemap.matchAll(/<loc>https:\/\/osagechan\.top\/([
 assert.equal(sitemapLocations.length, new Set(sitemapLocations).size, "Sitemap must not repeat a page");
 assert.ok(sitemapLocations.includes(""), "Sitemap must list the homepage");
 for (const name of expectedPages) assert.ok(sitemapLocations.includes(name), `Sitemap must list archive page: ${name}`);
-const generatedPages = new Set(["search.html", "songs.html", ...vm.runInContext("SONGS", songContext).map(song => `song-${/youtu\.be\/([A-Za-z0-9_-]{11})/u.exec(song.youtube)?.[1]}.html`)]);
+const generatedPages = new Set(["search.html", "songs.html", ...vm.runInContext("SONGS", songContext).map(songPageName)]);
 for (const name of sitemapLocations) assert.ok(name === "" || expectedPages.has(name) || generatedPages.has(name) || name === "index.html", `Sitemap lists an unknown page: ${name}`);
 // Translations: every pre-rendered post with a gist carries exactly one zh/en line (ja shows none).
 const xTranslations = await readXTranslations(path.resolve(root, ".."), xArchive);

@@ -13,6 +13,45 @@ const songs = () => {
 const data = () => JSON.parse(fs.readFileSync(path.join(repo, "data/song-archive.json"), "utf8"));
 const post = (id, publishedAt, text, links = []) => ({ id, publishedAt, text, links });
 
+test("song video IDs accept trusted short/watch links and reject deceptive origins or URL forms", async () => {
+  const { youtubeId, songPageName } = await import("../song-archive.mjs");
+  const id = "UnIhRpIT7nc";
+  for (const url of [
+    `https://youtu.be/${id}`, `https://youtu.be/${id}?t=20`,
+    `https://youtube.com/watch?v=${id}`, `https://www.youtube.com/watch?v=${id}&t=20`,
+    `https://m.youtube.com/watch?v=${id}`
+  ]) {
+    assert.equal(youtubeId(url), id, url);
+    assert.equal(songPageName({ youtube: url }), `song-${id}.html`);
+  }
+  for (const url of [
+    `https://evil.example/?v=${id}`, `https://youtube.com.evil.example/watch?v=${id}`,
+    `https://evil.example/youtu.be/${id}`, `https://www.youtu.be/${id}`,
+    `https://youtu.be.evil.example/${id}`, `https://www.youtube.com/playlist?v=${id}`,
+    `https://youtube.com/?v=${id}`, `https://youtu.be/${id}/extra`,
+    `https://user@youtu.be/${id}`, `https://user:password@www.youtube.com/watch?v=${id}`,
+    `https://youtube.com@evil.example/watch?v=${id}`, `https://www.youtube.com:444/watch?v=${id}`,
+    `http://youtu.be/${id}`, `ftp://www.youtube.com/watch?v=${id}`,
+    `javascript:alert(1)?v=${id}`, `https://www.youtube.com/watch?v=${id}&v=AAAAAAAAAAA`
+  ]) assert.throws(() => youtubeId(url), /Invalid YouTube URL/u, url);
+  const current = songs();
+  assert.ok(current.length > 0);
+  assert.equal(new Set(current.map(songPageName)).size, current.length, "all current links retain distinct page paths as songs are added");
+});
+
+test("a legal watch link generates the same song page and index path as its short form", async () => {
+  const { renderArchivePages } = await import("../render-archive-pages.mjs");
+  const song = { title: "Synthetic song", youtube: "https://www.youtube.com/watch?v=UnIhRpIT7nc", singers: [], album: "SINGLES" };
+  const result = renderArchivePages({ songs: [song], xPosts: { version: 1, coverage: [], items: [] },
+    xTranslations: new Map(), xPostsRenderer: { posts: () => [], renderPost: () => "" },
+    songDetailsSource: { version: 1, songs: {} },
+    updatesHtml: fs.readFileSync(path.join(repo, "updates.html"), "utf8") });
+  assert.ok(result.files.has("song-UnIhRpIT7nc.html"));
+  assert.match(result.files.get("songs.html"), /href="song-UnIhRpIT7nc\.html"/u);
+  assert.match(result.files.get("song-UnIhRpIT7nc.html"), /data-song-id="UnIhRpIT7nc"/u);
+  assert.ok(![...result.files.keys()].some(name => name.includes("undefined")));
+});
+
 test("verified details exist only for checked songs and carry official sources", async () => {
   const { validateSongDetails } = await import("../song-archive.mjs");
   const details = validateSongDetails(data(), songs());

@@ -37,9 +37,15 @@
     function applyLanguage() {
       root.lang = { zh: "zh-CN", en: "en", ja: "ja" }[language];
       const title = root.getAttribute(`data-title-${language}`);
-      if (title) document.title = title;
+      if (title) {
+        document.title = title;
+        document.querySelector('meta[property="og:title"]')?.setAttribute("content", title);
+      }
       const description = root.getAttribute(`data-description-${language}`);
-      if (description) document.querySelector('meta[name="description"]')?.setAttribute("content", description);
+      if (description) {
+        document.querySelector('meta[name="description"]')?.setAttribute("content", description);
+        document.querySelector('meta[property="og:description"]')?.setAttribute("content", description);
+      }
       document.querySelectorAll("[data-zh][data-en][data-ja]").forEach(element => { element.textContent = element.dataset[language]; });
       document.querySelectorAll("[data-aria-zh]").forEach(element => element.setAttribute("aria-label", element.dataset[`aria${language[0].toUpperCase()}${language.slice(1)}`] || element.dataset.ariaZh));
       document.querySelectorAll("time[data-local-time]").forEach(element => {
@@ -63,6 +69,7 @@
       applyTheme();
     });
     window.addEventListener("storage", event => {
+      try { if (event.storageArea !== window.localStorage) return; } catch { return; }
       if (event.key === "language" || event.key === null) { language = readLanguage(); applyLanguage(); }
       else if (event.key === "theme") applyTheme();
     });

@@ -201,7 +201,7 @@ test("every loopback spelling is detected and stripped from CSP source lists", a
 
 test("check-build rejects loopback CSP sources even with KEEP_LOCAL_API_CSP=1, and CI refuses local-CSP builds", () => {
   for (const variant of ["http://[::1]:3001", "http://LOCALHOST:3001", "http://127.1:3001", "http://0.0.0.0:3001", "http://localhost:3001"]) {
-    const box = sandbox(["tools/check-build.mjs", "tools/net-guards.mjs", "tools/x-posts-data.mjs", "tools/x-translations.mjs", "tools/calendar-song.mjs", "tools/safe-fs.mjs"]);
+    const box = sandbox(["tools/check-build.mjs", "tools/net-guards.mjs", "tools/x-posts-data.mjs", "tools/x-translations.mjs", "tools/calendar-song.mjs", "tools/safe-fs.mjs", "tools/song-archive.mjs", "js/post-search-core.js"]);
     try {
       fs.mkdirSync(path.join(box.root, "dist"));
       fs.writeFileSync(path.join(box.root, "dist/index.html"), `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://inabakumori-backend.vercel.app ${variant}"/>`);
@@ -225,7 +225,7 @@ test("check-build rejects loopback CSP sources even with KEEP_LOCAL_API_CSP=1, a
 
 test("check-build rejects asset references that resolve outside dist/", () => {
   for (const reference of ["../outside.png", "%2e%2e/outside.png", "/../outside.png", "images/../../outside.png"]) {
-    const box = sandbox(["tools/check-build.mjs", "tools/net-guards.mjs", "tools/x-posts-data.mjs", "tools/x-translations.mjs", "tools/calendar-song.mjs", "tools/safe-fs.mjs"]);
+    const box = sandbox(["tools/check-build.mjs", "tools/net-guards.mjs", "tools/x-posts-data.mjs", "tools/x-translations.mjs", "tools/calendar-song.mjs", "tools/safe-fs.mjs", "tools/song-archive.mjs", "js/post-search-core.js"]);
     try {
       fs.mkdirSync(path.join(box.root, "dist"));
       fs.writeFileSync(path.join(box.root, "outside.png"), "x");
@@ -239,7 +239,7 @@ test("check-build rejects asset references that resolve outside dist/", () => {
 
 test("check-build verifies every srcset candidate, not just src and href", () => {
   for (const [html, missing] of [['<img src="a.png" srcset="a.png 1x, missing-2x.png 2x" alt="">', "missing-2x.png"], ['<picture><source srcset="missing.webp?v=3"><img src="a.png" alt=""></picture>', "missing.webp"]]) {
-    const box = sandbox(["tools/check-build.mjs", "tools/net-guards.mjs", "tools/x-posts-data.mjs", "tools/x-translations.mjs", "tools/calendar-song.mjs", "tools/safe-fs.mjs"]);
+    const box = sandbox(["tools/check-build.mjs", "tools/net-guards.mjs", "tools/x-posts-data.mjs", "tools/x-translations.mjs", "tools/calendar-song.mjs", "tools/safe-fs.mjs", "tools/song-archive.mjs", "js/post-search-core.js"]);
     try {
       fs.mkdirSync(path.join(box.root, "dist"));
       fs.writeFileSync(path.join(box.root, "dist/a.png"), "x");
@@ -255,7 +255,7 @@ test("check-build only allows the known connect-src sources, so a loopback alias
   // These names resolve to 127.0.0.1 for a browser but contain no loopback text, so the
   // spelling blocklist cannot see them; the allowlist must reject them all the same.
   for (const variant of ["http://localtest.me:3001", "http://lvh.me:3001", "http://127-0-0-1.nip.io:3001", "https://cdn.example.com", "https://inabakumori-backend.vercel.app.evil.example"]) {
-    const box = sandbox(["tools/check-build.mjs", "tools/net-guards.mjs", "tools/x-posts-data.mjs", "tools/x-translations.mjs", "tools/calendar-song.mjs", "tools/safe-fs.mjs"]);
+    const box = sandbox(["tools/check-build.mjs", "tools/net-guards.mjs", "tools/x-posts-data.mjs", "tools/x-translations.mjs", "tools/calendar-song.mjs", "tools/safe-fs.mjs", "tools/song-archive.mjs", "js/post-search-core.js"]);
     try {
       fs.mkdirSync(path.join(box.root, "dist"));
       fs.writeFileSync(path.join(box.root, "dist/index.html"), `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://inabakumori-backend.vercel.app ${variant}"/>`);
@@ -267,7 +267,7 @@ test("check-build only allows the known connect-src sources, so a loopback alias
     } finally { box.cleanup(); }
   }
   // A spelled-out loopback host is caught even earlier, by the loopback assertion.
-  const spelled = sandbox(["tools/check-build.mjs", "tools/net-guards.mjs", "tools/x-posts-data.mjs", "tools/x-translations.mjs", "tools/calendar-song.mjs", "tools/safe-fs.mjs"]);
+  const spelled = sandbox(["tools/check-build.mjs", "tools/net-guards.mjs", "tools/x-posts-data.mjs", "tools/x-translations.mjs", "tools/calendar-song.mjs", "tools/safe-fs.mjs", "tools/song-archive.mjs", "js/post-search-core.js"]);
   try {
     fs.mkdirSync(path.join(spelled.root, "dist"));
     fs.writeFileSync(path.join(spelled.root, "dist/index.html"), `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://inabakumori-backend.vercel.app http://127.0.0.1:3001"/>`);
@@ -276,7 +276,7 @@ test("check-build only allows the known connect-src sources, so a loopback alias
     assert.match(result.stderr, /Production CSP must not allow local development APIs/);
   } finally { spelled.cleanup(); }
   // The allowed policy must still pass this assertion (checked via the shipped dist in CI).
-  const box = sandbox(["tools/check-build.mjs", "tools/net-guards.mjs", "tools/x-posts-data.mjs", "tools/x-translations.mjs", "tools/calendar-song.mjs", "tools/safe-fs.mjs"]);
+  const box = sandbox(["tools/check-build.mjs", "tools/net-guards.mjs", "tools/x-posts-data.mjs", "tools/x-translations.mjs", "tools/calendar-song.mjs", "tools/safe-fs.mjs", "tools/song-archive.mjs", "js/post-search-core.js"]);
   try {
     fs.mkdirSync(path.join(box.root, "dist"));
     fs.writeFileSync(path.join(box.root, "dist/index.html"), `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://inabakumori-backend.vercel.app"/>`);
