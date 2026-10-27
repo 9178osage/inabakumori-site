@@ -52,6 +52,35 @@ test("a legal watch link generates the same song page and index path as its shor
   assert.ok(![...result.files.keys()].some(name => name.includes("undefined")));
 });
 
+test("each generated song share card uses its own official MV cover and escaped song title", async () => {
+  const { renderArchivePages } = await import("../render-archive-pages.mjs");
+  const list = songs();
+  list.push({ title: 'A <song> & "cover"', youtube: "https://www.youtube.com/watch?v=AAAAAAAAAAA", singers: [], album: "SINGLES" });
+  const result = renderArchivePages({ songs: list, xPosts: { version: 1, coverage: [], items: [] },
+    xTranslations: new Map(), xPostsRenderer: { posts: () => [], renderPost: () => "" },
+    songDetailsSource: { version: 1, songs: {} },
+    updatesHtml: fs.readFileSync(path.join(repo, "updates.html"), "utf8") });
+  for (const song of list) {
+    const url = new URL(song.youtube);
+    const id = url.hostname === "youtu.be" ? url.pathname.slice(1) : url.searchParams.get("v");
+    const page = result.files.get(`song-${id}.html`);
+    const expectedCover = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+    assert.equal(page.match(/<meta property="og:image" content="([^"]*)"/u)?.[1], expectedCover, song.title);
+    assert.equal(page.match(/<meta name="twitter:image" content="([^"]*)"/u)?.[1], expectedCover, song.title);
+    assert.match(page, /<meta name="twitter:card" content="summary_large_image"/u);
+    assert.match(page, /<meta property="og:image:width" content="480"/u);
+    assert.match(page, /<meta property="og:image:height" content="360"/u);
+    const alt = page.match(/<meta property="og:image:alt" content="([^"]*)"/u)?.[1];
+    assert.equal(page.match(/<meta name="twitter:image:alt" content="([^"]*)"/u)?.[1], alt);
+    assert.ok(alt?.endsWith(" · 稲葉曇"), "share image identifies the song and artist");
+    assert.equal(page.match(/<meta property="og:title" content="([^"]*)"/u)?.[1], `${alt.slice(0, -" · 稲葉曇".length)} · 歌曲观测档案`);
+  }
+  assert.match(result.files.get("song-AAAAAAAAAAA.html"), /content="A &lt;song&gt; &amp; &quot;cover&quot; · 稲葉曇"/u);
+  for (const name of ["songs.html", "search.html"]) {
+    assert.doesNotMatch(result.files.get(name), /(?:og:image|twitter:image|twitter:card)/u, `${name} keeps its default metadata`);
+  }
+});
+
 test("verified details exist only for checked songs and carry official sources", async () => {
   const { validateSongDetails } = await import("../song-archive.mjs");
   const details = validateSongDetails(data(), songs());

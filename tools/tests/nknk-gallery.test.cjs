@@ -13,12 +13,20 @@ test("NKNK gallery config is sequential and points at optimized webp assets", ()
   assert.equal(gallery.length, context.window.NKNK_GALLERY.length);
   assert.ok(gallery.length >= 1);
   let total = 0;
+  let mobileBytes = 0;
+  let desktopBytes = 0;
   gallery.forEach((item, index) => {
     assert.equal(item.id, index + 1);
     assert.match(item.thumb, /^images\/optimized\/nknk\/\d+\.webp$/);
     assert.match(item.full, /^images\/optimized\/nknk\/full\/\d+\.webp$/);
+    assert.match(item.mobileThumb, /^images\/optimized\/nknk\/mobile\/\d+\.webp$/);
     assert.ok(fs.existsSync(item.thumb), item.thumb);
     assert.ok(fs.existsSync(item.full), item.full);
+    const mobile = fs.readFileSync(item.mobileThumb);
+    assert.equal(mobile.toString("ascii", 0, 4), "RIFF");
+    assert.equal(mobile.readUInt16LE(26) & 0x3fff, 220, `mobile thumb ${item.id} width`);
+    mobileBytes += mobile.length;
+    desktopBytes += fs.statSync(item.thumb).size;
     total += fs.statSync(item.thumb).size + fs.statSync(item.full).size;
     const stem = path.basename(item.thumb, ".webp");
     assert.equal(stem, String(item.id));
@@ -26,6 +34,7 @@ test("NKNK gallery config is sequential and points at optimized webp assets", ()
     assert.ok(originals.some((file) => fs.existsSync(file)), `missing original for ${item.id}`);
   });
   assert.ok(total < 5 * 1024 * 1024, `gallery assets should stay under 5 MiB, got ${(total / 1024 / 1024).toFixed(2)} MiB`);
+  assert.ok(mobileBytes < desktopBytes * 0.7, `mobile thumbs should save at least 30%: ${mobileBytes} vs ${desktopBytes}`);
 });
 
 test("NKNK gallery uses a single-row marquee with accessible lightbox and CSP-safe bindings", () => {

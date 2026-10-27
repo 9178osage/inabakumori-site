@@ -19,7 +19,8 @@ class Element {
     }
   }
   before() {}
-  focus() {}
+  focus() { this.focused = true; }
+  scrollIntoView() {}
   querySelectorAll() { return this.children; }
 }
 
@@ -34,12 +35,12 @@ function loadLibrary(search = "") {
   }));
   const list = byId("song-list");
   list.children = links.slice();
-  const ready = [], listeners = {}, saved = new Map();
+  const ready = [], listeners = {}, documentListeners = {}, saved = new Map();
   const storage = { getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key, value), removeItem: key => saved.delete(key) };
   const fire = (type, event = {}) => { for (const handler of listeners[type] || []) handler(event); };
   const context = {
     document: {
-      addEventListener(type, handler) { if (type === "DOMContentLoaded") ready.push(handler); },
+      addEventListener(type, handler) { if (type === "DOMContentLoaded") ready.push(handler); else documentListeners[type] = handler; },
       getElementById: byId, createElement: () => new Element(),
       querySelector: selector => selector === ".glitch" ? byId("title") : null,
       querySelectorAll: () => []
@@ -59,8 +60,37 @@ function loadLibrary(search = "") {
   context.history.replaceState = (_state, _title, url) => { context.location = new URL(url, context.location); };
   context.window = context;
   vm.runInNewContext(fs.readFileSync("js/experience.js", "utf8"), context);
-  return { elements, list, ready, saved, storage, fire, context };
+  return { elements, list, ready, saved, storage, fire, context, documentListeners };
 }
+
+test("the search keyboard shortcut opens a compact phone library before focusing its field", () => {
+  const { elements, ready, documentListeners } = loadLibrary();
+  ready.forEach(handler => handler());
+  const lightbox = new Element();
+  lightbox.hidden = true;
+  elements.set("nknk-lightbox", lightbox);
+  const expand = new Element();
+  elements.set("mobile-songs-expand", expand);
+  let expanded = false;
+  expand.addEventListener("click", () => { expanded = true; });
+  elements.get("tag-filter-input").focus = () => assert.equal(expanded, true, "expand must precede focus");
+  let prevented = false;
+  documentListeners.keydown({ key: "/", target: { closest: () => null }, preventDefault() { prevented = true; } });
+  assert.equal(prevented, true);
+  assert.equal(expanded, true);
+});
+
+test("changing a library sort also recomputes the visible song set", () => {
+  const { elements, ready, context } = loadLibrary();
+  ready.forEach(handler => handler());
+  let refreshed = 0;
+  const update = context.updateTagFilter;
+  context.updateTagFilter = () => { refreshed++; update(); };
+  elements.get("song-sort").value = "popular";
+  elements.get("song-sort").listeners.change[0]();
+  assert.equal(refreshed, 1);
+  assert.equal(context.location.search, "?sort=popular");
+});
 
 test("share succeeds with clipboard support and falls back when the API is absent", async () => {
   const { elements, ready, context } = loadLibrary("?favorites=1&icons=2");

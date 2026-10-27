@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
 
-function setup(creators = [...Array(6).fill("inabakumori"), ...Array(6).fill("nknk")], totals = { xTotal: "1852", xTotalInabakumori: "1120", xTotalNknk: "732" }, { legacyObject = false } = {}) {
+function setup(creators = [...Array(6).fill("inabakumori"), ...Array(6).fill("nknk")], totals = { xTotal: "1852", xTotalInabakumori: "1120", xTotalNknk: "732" }, { legacyObject = false, mobile = null } = {}) {
   const events = new Map();
   const element = (dataset = {}) => ({
     dataset, hidden: true, textContent: "", attributes: {}, listeners: {},
@@ -24,7 +24,7 @@ function setup(creators = [...Array(6).fill("inabakumori"), ...Array(6).fill("nk
     querySelectorAll: selector => selector === ".x-post[data-creator]" ? posts : selector === "[data-x-home-creator]" ? buttons : []
   };
   const document = { readyState: "complete", querySelector: selector => selector === "[data-x-posts-home]" ? section : null };
-  const context = vm.createContext({ document, currentLanguage: "zh", Number, Object: legacyObject ? { prototype: Object.prototype } : Object, String, window: { addEventListener(type, handler) { events.set(type, handler); } } });
+  const context = vm.createContext({ document, currentLanguage: "zh", Number, Object: legacyObject ? { prototype: Object.prototype } : Object, String, window: { matchMedia: () => mobile, addEventListener(type, handler) { events.set(type, handler); } } });
   vm.runInContext(fs.readFileSync("js/x-posts-home.js", "utf8"), context);
   return { context, posts, buttons, filters, count, archiveLink, empty, events, visible: () => posts.filter(post => !post.hidden) };
 }
@@ -37,6 +37,26 @@ test("homepage X filters appear only after the script runs and show at most thre
   assert.equal(app.count.textContent, "显示最近 3 条 · 已收录 1852 条");
   assert.equal(app.buttons[0].attributes["aria-pressed"], "true");
   assert.equal(app.archiveLink.attributes.href, "updates.html");
+});
+
+test("phone posts show two and resize restores three without losing the creator or translated count", () => {
+  const mobile = { matches: true, addEventListener(type, handler) { this[type] = handler; } };
+  const app = setup(undefined, undefined, { mobile });
+  assert.equal(app.visible().length, 2);
+  assert.equal(app.count.textContent, "显示最近 2 条 · 已收录 1852 条");
+  app.buttons[2].listeners.click();
+  app.context.currentLanguage = "en";
+  app.events.get("languagechange")();
+  assert.equal(app.count.textContent, "Showing the latest 2 · 732 collected");
+  mobile.matches = false;
+  mobile.change();
+  assert.equal(app.visible().length, 3);
+  assert.ok(app.visible().every(post => post.dataset.creator === "nknk"));
+  assert.equal(app.count.textContent, "Showing the latest 3 · 732 collected");
+  mobile.matches = true;
+  mobile.change();
+  assert.equal(app.visible().length, 2);
+  assert.equal(app.archiveLink.attributes.href, "updates-nknk.html");
 });
 
 test("choosing a creator shows only their posts and points the archive link at their pages", () => {

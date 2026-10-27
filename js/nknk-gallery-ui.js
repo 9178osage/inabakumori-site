@@ -2,6 +2,8 @@
   const SPEED_PX_PER_SEC = 30;
   const DRAG_THRESHOLD = 6;
   const ROW_COUNT = 1;
+  const COMPACT_PREVIEW_COUNT = 6;
+  const COMPACT_QUERY = "(max-width: 700px), (pointer: coarse) and (max-width: 1000px)";
   // Thumbs for the first EAGER_THUMBS illustrations load immediately; the rest load once they
   // come within THUMB_LOOKAHEAD_PX of the marquee viewport (≈50 s ahead at 30 px/s).
   const EAGER_THUMBS = 15;
@@ -27,7 +29,7 @@
   };
 
   if (typeof window !== "undefined") {
-    window.NKNKGalleryUI = Object.freeze({ isKeyboardActivation, focusTrapTarget, EAGER_THUMBS, THUMB_LOOKAHEAD_PX });
+    window.NKNKGalleryUI = Object.freeze({ isKeyboardActivation, focusTrapTarget, EAGER_THUMBS, THUMB_LOOKAHEAD_PX, COMPACT_PREVIEW_COUNT });
   }
 
   const altFor = (id) => {
@@ -77,6 +79,10 @@
     let sectionVisible = false;
     let pageVisible = !document.hidden;
     let reduced = prefersReducedMotion();
+    const compactQuery = window.matchMedia?.(COMPACT_QUERY);
+    let compact = compactQuery?.matches === true;
+    let compactExpanded = false;
+    let compactToggle = null;
     const preloadCache = new Map();
     const rows = [];
     let inertState = [];
@@ -93,6 +99,14 @@
       closeBtn?.setAttribute("aria-label", chromeLabel("close"));
       prevBtn?.setAttribute("aria-label", chromeLabel("prev"));
       nextBtn?.setAttribute("aria-label", chromeLabel("next"));
+      if (compactToggle) {
+        const lang = typeof currentLanguage === "string" ? currentLanguage : "zh";
+        const labels = compactExpanded
+          ? { zh: "收起画廊", en: "Show fewer illustrations", ja: "イラストを折りたたむ" }
+          : { zh: `查看全部 ${items.length} 幅`, en: `View all ${items.length} illustrations`, ja: `全 ${items.length} 点を見る` };
+        compactToggle.textContent = labels[lang] || labels.zh;
+        compactToggle.setAttribute("aria-expanded", String(compactExpanded));
+      }
       root.querySelectorAll(".nknk-marquee-item[data-gallery-id]:not([aria-hidden='true'])").forEach((button) => {
         const id = Number(button.dataset.galleryId);
         const img = button.querySelector("img");
@@ -232,14 +246,14 @@
       }
       syncPauseState();
     }
-    function galleryTrackOf(button) { return button.closest?.(".nknk-marquee-track"); }
+    function galleryTrackOf(button) { return button.closest?.(".nknk-marquee-track, .nknk-compact-grid"); }
     // Clones are aria-hidden duplicates for the seamless loop; focus the original with the same index.
     const originalButton = (button) => {
       if (!button || button.getAttribute("aria-hidden") !== "true") return button;
       return galleryTrackOf(button)?.querySelector(`.nknk-marquee-item:not([aria-hidden='true'])[data-gallery-index="${button.dataset.galleryIndex}"]`) || null;
     };
 
-    const createButton = (item, absoluteIndex, { clone = false } = {}) => {
+    const createButton = (item, absoluteIndex, { clone = false, compactThumb = false } = {}) => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "nknk-marquee-item";
@@ -262,7 +276,12 @@
         img.height = item.h;
         img.style.aspectRatio = `${item.w} / ${item.h}`;
       }
-      if (!canDeferThumbs || (!clone && absoluteIndex < EAGER_THUMBS)) {
+      if (compactThumb) {
+        // The mobile grid is static, so native lazy loading works without animation polling.
+        img.loading = "lazy";
+        img.fetchPriority = "low";
+        img.src = item.mobileThumb || item.thumb;
+      } else if (!canDeferThumbs || (!clone && absoluteIndex < EAGER_THUMBS)) {
         // The illustrations a visitor reaches first. They cannot be left to native lazy loading:
         // CSS-transform motion does not count as "near the viewport", so the browser would keep them
         // unfetched while they are already on screen. fetchPriority keeps them cheap for first paint.
@@ -595,8 +614,66 @@
       if (mounted) return;
       mounted = true;
       reduced = prefersReducedMotion();
+      compact = compactQuery?.matches === true;
       root.classList.toggle("is-reduced", reduced);
+      root.classList.toggle("is-compact", compact);
       root.replaceChildren();
+      compactToggle = null;
+
+      if (compact) {
+        const grid = document.createElement("div");
+        grid.className = "nknk-compact-grid";
+        grid.id = "nknk-compact-grid";
+        const appendItems = (from, to) => {
+          const fragment = document.createDocumentFragment();
+          for (let index = from; index < to; index++) {
+            fragment.appendChild(createButton(items[index], index, { compactThumb: true }));
+          }
+          grid.appendChild(fragment);
+        };
+        appendItems(0, compactExpanded ? items.length : Math.min(items.length, COMPACT_PREVIEW_COUNT));
+        grid.addEventListener("click", (event) => {
+          const button = event.target.closest?.(".nknk-marquee-item");
+          if (!button) return;
+          openAt(Number(button.dataset.galleryIndex), button, isKeyboardActivation(event));
+        });
+        grid.addEventListener("focusin", (event) => {
+          const focused = event.target.closest?.(".nknk-marquee-item");
+          if (focused) [...grid.children].forEach(button => { button.tabIndex = button === focused ? 0 : -1; });
+        });
+        grid.addEventListener("keydown", (event) => {
+          const current = event.target.closest?.(".nknk-marquee-item");
+          if (!current || event.altKey || event.ctrlKey || event.metaKey) return;
+          const buttons = [...grid.children];
+          const index = buttons.indexOf(current);
+          const next = { ArrowRight: index + 1, ArrowDown: index + 3, ArrowLeft: index - 1, ArrowUp: index - 3, Home: 0, End: buttons.length - 1 }[event.key];
+          if (next === undefined) return;
+          event.preventDefault();
+          buttons[(next + buttons.length) % buttons.length].focus();
+        });
+        root.appendChild(grid);
+        if (items.length > COMPACT_PREVIEW_COUNT) {
+          compactToggle = document.createElement("button");
+          compactToggle.type = "button";
+          compactToggle.className = "nknk-compact-toggle";
+          compactToggle.setAttribute("aria-controls", grid.id);
+          compactToggle.addEventListener("click", () => {
+            compactExpanded = !compactExpanded;
+            if (compactExpanded) {
+              appendItems(grid.children.length, items.length);
+              grid.children[COMPACT_PREVIEW_COUNT]?.focus({ preventScroll: true });
+            } else {
+              [...grid.children].slice(COMPACT_PREVIEW_COUNT).forEach(button => button.remove());
+              [...grid.children].forEach((button, index) => { button.tabIndex = index === 0 ? 0 : -1; });
+              compactToggle.focus({ preventScroll: true });
+            }
+            syncChromeLabels();
+          });
+          root.appendChild(compactToggle);
+        }
+        syncChromeLabels();
+        return;
+      }
 
       const buckets = splitRows();
       buckets.forEach((bucket, rowIndex) => {
@@ -724,17 +801,27 @@
       syncPauseState();
     });
 
-    const motionQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)");
-    motionQuery?.addEventListener?.("change", () => {
-      // Rebuild to switch between marquee loop and scroll-snap row.
+    const remount = () => {
+      // Preserve the active illustration, including a lightbox's return target, across a resize.
+      const activeIndex = root.contains(document.activeElement) ? document.activeElement.dataset.galleryIndex : null;
+      const returnIndex = previousFocus?.dataset?.galleryIndex;
+      if (compactQuery?.matches && [activeIndex, returnIndex].some(index => index != null && Number(index) >= COMPACT_PREVIEW_COUNT)) compactExpanded = true;
       mounted = false;
       stopThumbLoadTimer();
       stopLoop();
+      thumbObserver?.disconnect();
+      thumbObserver = null;
       rows.forEach(row => row.animation?.cancel());
       rows.length = 0;
       mount();
+      const findButton = index => root.querySelector(`.nknk-marquee-item:not([aria-hidden='true'])[data-gallery-index="${index}"]`);
+      if (returnIndex != null) previousFocus = findButton(returnIndex);
+      if (activeIndex != null) findButton(activeIndex)?.focus({ preventScroll: true });
       syncPauseState();
-    });
+    };
+    const motionQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    motionQuery?.addEventListener?.("change", remount);
+    compactQuery?.addEventListener?.("change", remount);
 
     window.addEventListener("languagechange", syncChromeLabels);
 

@@ -126,7 +126,7 @@
         }
       }
     });
-    sort.addEventListener("change", () => { sortRows(); refreshLibraryState(); });
+    sort.addEventListener("change", () => { sortRows(); updateTagFilter(); });
     favoriteFilter.addEventListener("click", () => {
       favoritesOnly = !favoritesOnly;
       favoriteFilter.setAttribute("aria-pressed", String(favoritesOnly));
@@ -174,6 +174,8 @@
       if (lightbox && !lightbox.hidden) return;
       if (document.getElementById("easter-egg-overlay")?.classList.contains("show")) return;
       event.preventDefault();
+      const expand = document.getElementById("mobile-songs-expand");
+      if (expand && !expand.hidden) expand.click();
       input.focus();
       input.scrollIntoView({ block: "center", behavior: reducedMotionQuery?.matches ? "instant" : "smooth" });
     });

@@ -12,6 +12,7 @@ import { readXTranslations } from "./x-translations.mjs";
 import { createXPostsRenderer, xPostsPageUrl, xPostsPageTitle } from "./render-x-posts.mjs";
 import { newestSongRelease } from "./calendar-song.mjs";
 import { renderArchivePages } from "./render-archive-pages.mjs";
+import { youtubeId } from "./song-archive.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const out = path.join(root, "dist");
@@ -30,7 +31,7 @@ await build({ entryPoints: [source("tools/auth-src.js")], bundle: true, platform
 // dist is generated exclusively by this script. Only explicitly public assets are copied.
 await rm(output("dist"), { recursive: true, force: true });
 await mkdir(out, { recursive: true });
-const scripts = ["script.js", ...["preferences", "config", "network", "i18n", "auth", "songs", "nknk-gallery", "nknk-gallery-ui", "experience", "comments", "updates", "home-updates", "x-posts-home", "calendar", "post-search-core", "archive-pages"].map(name => `js/${name}.js`)];
+const scripts = ["script.js", ...["preferences", "config", "network", "i18n", "auth", "songs", "nknk-gallery", "nknk-gallery-ui", "experience", "comments", "updates", "home-updates", "x-posts-home", "home-mobile", "calendar", "post-search-core", "archive-pages"].map(name => `js/${name}.js`)];
 const css = ["style.css", "updates.css", "calendar.css", "archive.css", "fonts/fonts.css"];
 const hashes = new Map();
 for (const file of [...scripts, ...css]) {
@@ -112,7 +113,8 @@ const cleanSongUrl = value => {
   return url.href;
 };
 // Real links are present before JS starts and remain available without JavaScript.
-const archive = songs.map((song, index) => `<a href="${escape(cleanSongUrl(song.youtube))}" target="_blank" rel="noopener noreferrer" data-album="${escape(song.album)}" data-song-title="${escape(song.title)}">${String(index + 1).padStart(2, "0")}　${escape(song.title)}</a>`).join("\n");
+const featuredSongs = new Set(["DeKLpgzh-qQ", "UnIhRpIT7nc", "G5hScSFkib4", "NRQRC_0ZQ00", "b56xjtP6Qac", "2r4W_LoVFxA"]);
+const archive = songs.map((song, index) => `<a href="${escape(cleanSongUrl(song.youtube))}" target="_blank" rel="noopener noreferrer" data-album="${escape(song.album)}" data-song-title="${escape(song.title)}"${featuredSongs.has(youtubeId(song.youtube)) ? ' data-mobile-featured="true"' : ""}>${String(index + 1).padStart(2, "0")}　${escape(song.title)}</a>`).join("\n");
 html = html.replace('<div class="song-scroll song-list" id="song-list"></div>', `<div class="song-scroll song-list" id="song-list">${archive}</div>`);
 if (!keepLocalApiCsp) {
   // Parse every source expression: any loopback spelling ([::1], LOCALHOST, 127.1, *.localhost, ...) is removed.

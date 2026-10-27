@@ -229,6 +229,77 @@ test("unified search matches titles and tags with required keywords", () => {
   assert.equal(run('songMatchesTitle("ラグトレイン", "  ﾗｸﾞ  ")'), true);
   assert.equal(run('songMatchesTitle("Song (album ver.)", "ALBUM")'), true);
 });
+
+function phoneLibrary() {
+  const app = setup({ window: { matchMedia: () => ({ matches: false, addEventListener(type, handler) { this[type] = handler; } }) } });
+  const { context, elements, run } = app;
+  context.URL = URL;
+  vm.runInContext(fs.readFileSync("js/songs.js", "utf8"), context);
+  const songs = Array.from(run("SONGS"), song => ({ href: song.youtube, dataset: { songTitle: song.title }, _songTags: [], hidden: false }));
+  const classes = new Map();
+  elements.songs = { classList: { toggle: (name, state) => classes.set(name, state) } };
+  elements[".song-library"] = { classList: { toggle() {} } };
+  const input = elements["tag-filter-input"] = { value: "", focus() { this.focused = true; }, addEventListener() {} };
+  const expand = elements["mobile-songs-expand"] = { hidden: true, attributes: {}, setAttribute(name, value) { this.attributes[name] = value; }, addEventListener(type, handler) { this[type] = handler; } };
+  elements["tag-result-count"] = {};
+  const sort = elements["song-sort"] = { value: "original" };
+  const favorite = elements["favorites-filter"] = { pressed: false, getAttribute() { return String(this.pressed); } };
+  context.document.querySelectorAll = selector => selector === ".song-scroll a" ? songs : [];
+  const media = run("mobileSongsQuery");
+  media.matches = true;
+  run("renderSongs = () => true; initTagFilter()");
+  return { ...app, songs, input, expand, sort, favorite, media, classes, visible: () => songs.filter(song => !song.hidden) };
+}
+
+test("phone song preview has six real songs and resizing restores the complete desktop library", () => {
+  const app = phoneLibrary();
+  assert.equal(app.visible().length, 6);
+  assert.equal(app.expand.hidden, false);
+  assert.equal(app.classes.get("song-library-expanded"), false);
+  app.media.matches = false;
+  app.media.change();
+  assert.equal(app.visible().length, app.songs.length);
+  assert.equal(app.expand.hidden, true);
+  app.media.matches = true;
+  app.media.change();
+  assert.equal(app.visible().length, 6);
+  app.expand.click();
+  assert.equal(app.visible().length, app.songs.length);
+  assert.equal(app.input.focused, true);
+  app.run('currentLanguage = "ja"; updateTagLanguage()');
+  assert.equal(app.visible().length, app.songs.length, "language changes keep the user's expanded library");
+});
+
+test("a phone search can find an unfeatured song and clearing it leaves the controls open", () => {
+  const app = phoneLibrary();
+  const unfeatured = app.songs.find(song => song.hidden);
+  app.input.value = unfeatured.dataset.songTitle;
+  app.run("updateTagFilter()");
+  assert.ok(app.visible().includes(unfeatured));
+  assert.equal(app.classes.get("song-library-expanded"), true);
+  app.input.value = "";
+  app.run("updateTagFilter()");
+  assert.equal(app.visible().length, app.songs.length);
+  assert.equal(app.classes.get("song-library-expanded"), true, "clearing a shared search must not hide the focused search box");
+});
+
+test("phone favorites and incoming sort reveal all eligible songs, including unfeatured ones", () => {
+  const app = phoneLibrary();
+  const unfeatured = app.songs.find(song => song.hidden);
+  app.favorite.pressed = true;
+  app.context.window.includeFavoriteSong = song => !app.favorite.pressed || song === unfeatured;
+  app.run("updateTagFilter()");
+  assert.deepEqual(app.visible(), [unfeatured]);
+  assert.equal(app.classes.get("song-library-expanded"), true);
+  app.favorite.pressed = false;
+  app.run("updateTagFilter()");
+  assert.equal(app.visible().length, app.songs.length);
+  const sorted = phoneLibrary();
+  sorted.sort.value = "popular";
+  sorted.run("updateTagFilter()");
+  assert.equal(sorted.visible().length, sorted.songs.length);
+  assert.equal(sorted.classes.get("song-library-expanded"), true);
+});
 test("late load preserves old and newly posted messages", async () => {
   const { elements, context, run } = setup();
   elements["floating-wall"] = {};

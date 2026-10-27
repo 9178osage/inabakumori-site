@@ -85,7 +85,7 @@ ${emptyXPostsMeta}
   for (const name of ["search.html", "songs.html", "song-2r4W_LoVFxA.html"]) box.write(`dist/${name}`, `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self';"/>\n<main></main>`);
   box.write("dist/search-index/manifest.json", JSON.stringify({ version: 1, count: 0, translated: 0, years: [] }));
   box.write("dist/js/songs.js", 'const SONGS = [{ "title": "ユレール", "youtube": "https://youtu.be/2r4W_LoVFxA" }];\n');
-  box.write("dist/js/nknk-gallery.js", 'const NKNK_GALLERY = [{id:1,thumb:"images/picture.webp",full:"images/picture.webp"}];\n');
+  box.write("dist/js/nknk-gallery.js", 'const NKNK_GALLERY = [{id:1,thumb:"images/picture.webp",mobileThumb:"images/picture.webp",full:"images/picture.webp"}];\n');
   box.write("dist/images/picture.webp", "PUBLIC_IMAGE");
 }
 

@@ -2106,7 +2106,8 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
 .home-updates .home-updates-header h2 {
   margin-bottom: 22px;
 }
-.home-updates .home-updates-header > p:not(.section-kicker) {
+.home-updates .home-updates-header > p:not(.section-kicker),
+.home-updates .home-updates-header .home-mobile-fold-content > p {
   margin: 0;
   color: var(--ui-muted);
   font-size: 15px;
@@ -2338,7 +2339,8 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
   .home-updates .home-updates-header h2 {
     margin-bottom: 18px;
   }
-  .home-updates .home-updates-header > p:not(.section-kicker) {
+  .home-updates .home-updates-header > p:not(.section-kicker),
+  .home-updates .home-updates-header .home-mobile-fold-content > p {
     font-size: 14px;
   }
   .home-updates .home-updates-accounts {
@@ -2691,3 +2693,69 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
 /* Links to the generated song archive and post search pages. */
 .songs-archive-links { display: flex; flex-wrap: wrap; gap: 4px 22px; margin: -14px 0 22px; font-size: 13px; }
 .songs-archive-links a { display: inline-flex; align-items: center; min-height: 44px; text-underline-offset: 4px; }
+
+/* Disclosures only compact the phone homepage. Desktop retains the original section layout. */
+.home-mobile-fold, .home-mobile-fold-content { display: contents; }
+.home-mobile-fold::details-content { display: contents; }
+.home-mobile-fold > summary, .mobile-song-intro, .mobile-songs-expand { display: none; }
+footer .home-mobile-fold-content > p { max-width: 720px; margin: 16px auto; font-size: 13px; }
+@media (max-width: 700px), (pointer: coarse) and (max-width: 1000px) {
+  html.home-page, html.home-page:lang(zh-CN) {
+    --font-body: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "PingFang SC", "Microsoft YaHei", sans-serif;
+    --font-heading: "Songti SC", "Yu Mincho", "Hiragino Mincho ProN", ui-serif, serif;
+    --font-song: "Songti SC", "Yu Mincho", "Hiragino Mincho ProN", ui-serif, serif;
+    --font-data: "Station Mono", ui-monospace, "SFMono-Regular", monospace;
+  }
+  html.home-page:lang(zh-CN) .hero-content nav { font-family: var(--font-heading); }
+  .home-page .hero { min-height: 78svh; padding-block: calc(140px + env(safe-area-inset-top)) calc(56px + env(safe-area-inset-bottom)); }
+  .home-page .hero-content nav { gap: 0; }
+  .home-page .hero-content nav a { min-height: 44px; }
+  .home-page .section-nav .back-top { display: none; }
+  .home-page .section-nav a { padding-inline: 9px; }
+  .home-page main > section, .home-page #intro, .home-page #about, .home-page .home-updates { padding-block: 26px; }
+  .home-page h2 { margin-bottom: 16px; font-size: 26px; }
+  .home-page .section-kicker { margin-bottom: 10px; }
+  .home-page .artist-intro { font-size: 15px; line-height: 1.75; }
+  .home-page .unofficial-note { margin-top: 12px; }
+  .home-page .home-updates-overview { margin-bottom: 16px; }
+  .home-page .home-updates .home-updates-accounts { margin-top: 12px; }
+  .home-page .home-updates .home-updates-accounts a { min-height: 44px; padding: 8px 10px; }
+  .home-page .home-updates .home-updates-accounts a > span:last-child { display: none; }
+  .home-page .home-updates .x-post { padding-block: 14px; }
+  .home-page .home-updates .x-post-text { margin-top: 8px; line-height: 1.65; }
+  .home-page .home-updates .x-post-translation { line-height: 1.6; }
+  .home-mobile-fold, .home-mobile-fold-content { display: block; }
+  .home-mobile-fold::details-content { display: block; }
+  .home-mobile-fold > summary { display: list-item; min-height: 44px; padding-block: 12px; cursor: pointer; font-size: 14px; line-height: 1.5; }
+  .home-mobile-fold:not([open]) > .home-mobile-fold-content { display: none; }
+  .home-mobile-fold[open] > summary { margin-bottom: 8px; }
+  .home-mobile-fold > summary:focus-visible { outline: 2px solid var(--ui-border-strong); outline-offset: 3px; }
+  .home-page #about { padding-block: 8px; }
+  .home-page .artwork-intro { margin-bottom: 16px; font-size: 15px; }
+  .home-page .artwork-links { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+  .home-page .artwork-link { min-height: 52px; padding: 10px; gap: 8px; }
+  .home-page .artwork-link img { width: 24px; height: 24px; }
+  .home-page .artwork-link > span > span { display: none; }
+  .nknk-gallery.is-compact { overflow-anchor: none; margin-top: 12px; }
+  .nknk-compact-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .nknk-compact-grid .nknk-marquee-item { width: 100%; height: auto; min-width: 0; margin: 0; aspect-ratio: 1; }
+  .nknk-compact-grid .nknk-marquee-item img { width: 100%; height: 100%; object-fit: contain; }
+  .nknk-compact-toggle, .mobile-songs-expand { min-height: 44px; padding: 10px 14px; border: 1px solid var(--ui-border); border-radius: 6px; color: var(--ui-text); background: var(--ui-surface); font-size: 14px; cursor: pointer; }
+  .nknk-compact-toggle { display: block; width: 100%; margin-top: 10px; }
+  .mobile-songs-expand:not([hidden]) { display: block; width: 100%; margin-bottom: 16px; }
+  .mobile-song-intro { display: block; margin: 0 0 12px; font-size: 14px; color: var(--ui-muted); }
+  #songs:not(.song-library-expanded) .tag-filter-panel,
+  #songs:not(.song-library-expanded) #song-list > a:not([data-mobile-featured]),
+  #songs.song-library-expanded .mobile-song-intro { display: none; }
+  .home-page .songs-heading { margin-bottom: 12px; }
+  .home-page .songs-archive-links { margin: 0 0 12px; gap: 0 16px; }
+  .home-page .song-row a.tag-ready { padding: 10px; }
+  .home-page .song-thumbnail { width: 64px; flex-basis: 64px; }
+  #songs:not(.song-library-expanded) .song-inline-tag { font-size: 11px; padding: 2px 6px; }
+  #songs:not(.song-library-expanded) .song-views { display: none; }
+  .home-page #floating-wall { height: 240px; }
+  .home-page .message-compose-fold { margin-top: 14px; border-bottom: 1px solid var(--link-border); }
+  .home-page #my-comments { padding-block: 22px; }
+  .home-page footer { padding-block: 28px; }
+  .home-page footer > p { margin-block: 10px; }
+}

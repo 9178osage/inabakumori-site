@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 
-<html lang="zh-CN">
+<html lang="zh-CN" class="home-page">
 <head>
 <meta charset="utf-8"/>
 <meta name="referrer" content="no-referrer"/>
@@ -32,6 +32,7 @@
 <meta property="og:title" content="气象观测站 · 稲葉曇"/>
 <meta property="og:description" content="歌曲、MV、创作链接与留言墙。"/>
 <title>气象观测站 · 稲葉曇</title>
+<link rel="preload" href="fonts/station-mono.woff2" as="font" type="font/woff2" crossorigin media="(max-width: 700px), (pointer: coarse) and (max-width: 1000px)"/>
 <link href="fonts/fonts.css?v=20261011domain" rel="stylesheet"/>
 <link href="style.css?v=20261011domain" rel="stylesheet"/>
 <link href="site.webmanifest?v=3" rel="manifest"/>
@@ -171,7 +172,9 @@
 <div class="home-updates-header">
 <p class="section-kicker">02 / LATEST OBSERVATIONS</p>
 <h2 id="home-updates-title" data-zh="最新动态" data-en="LATEST UPDATES" data-ja="最新情報">最新动态</h2>
+<details class="home-mobile-fold" data-mobile-fold open><summary data-zh="创作者与来源" data-en="Creators and sources" data-ja="作者と公開元">创作者与来源</summary><div class="home-mobile-fold-content">
 <p data-zh="稲葉曇与 NKNK 的公开帖子，在本站直接阅读。正文保留原语言，并附发布时间与原帖链接。" data-en="Read public posts from Inabakumori and NKNK right here. The text stays in its original language, with publication times and source links." data-ja="稲葉曇さんとNKNKさんの公開投稿を、サイト内で。本文は原文のまま、投稿日時と元の投稿へのリンクを添えて掲載しています。">稲葉曇与 NKNK 的公开帖子，在本站直接阅读。正文保留原语言，并附发布时间与原帖链接。</p>
+</div></details>
 </div>
 <div class="home-updates-accounts">
 <a href="https://x.com/inabakumori" target="_blank" rel="noopener noreferrer"><strong>稲葉曇</strong><span>@inabakumori</span><span data-zh="本人 X 账号 ↗" data-en="Official X account ↗" data-ja="ご本人のX ↗">本人 X 账号 ↗</span></a>
@@ -214,6 +217,7 @@
 </section>
 
 <section id="about" aria-labelledby="about-title">
+<details class="home-mobile-fold" data-mobile-fold open><summary data-zh="关于本站与相关链接" data-en="About this site and related links" data-ja="このサイトについて・関連リンク">关于本站与相关链接</summary><div class="home-mobile-fold-content">
 <div class="site-about" id="site-about">
 <h2 id="about-title" data-zh="关于" data-ja="このサイトについて" data-en="ABOUT">关于</h2>
 <p data-en="A website made because I really love Inabakumori. Here you’ll find playlists, album information, and materials I’ve gathered. It may not be professional, but everything here was put together with care." data-zh="一个因为太喜欢稲葉曇所以做出来的网站。这里包含一些歌单、专辑信息和我找到的资料。内容不一定专业，但都是我认真整理的。" data-ja="稲葉曇さんが大好きで作ったファンサイトです。楽曲やアルバムの情報、集めた資料を紹介しています。専門的な内容ではありませんが、一つひとつ丁寧にまとめました。">
@@ -264,6 +268,7 @@
     <img loading="lazy" decoding="async" src="images/fandom.png?v=3" alt="" width="48" height="48"><span>VOCALOID Wiki</span></a>
 </div>
 </div>
+</div></details>
 </section>
 <section id="artwork" aria-labelledby="artwork-title">
 <p class="section-kicker">03 / THE ARTWORK</p>
@@ -284,7 +289,9 @@
     <button id="random-song-button" type="button"
         data-zh="随机一首" data-ja="ランダム再生" data-en="Random Song">随机一首</button>
 </div>
-<p class="songs-archive-links"><a href="songs.html" data-zh="逐曲观测档案 →" data-en="Song-by-song archive →" data-ja="1曲ずつの観測アーカイブ →">逐曲观测档案 →</a><a href="search.html" data-zh="搜索 X 帖子 →" data-en="Search X posts →" data-ja="X投稿を検索 →">搜索 X 帖子 →</a></p>
+<p class="songs-archive-links"><a href="songs.html" data-zh="全部歌曲与档案 →" data-en="All songs and archives →" data-ja="すべての楽曲・アーカイブ →">全部歌曲与档案 →</a><a href="search.html" data-zh="搜索 X 帖子 →" data-en="Search X posts →" data-ja="X投稿を検索 →">搜索 X 帖子 →</a></p>
+<p class="mobile-song-intro" data-zh="从这 6 首开始听。" data-en="Start listening with these six songs." data-ja="まずは、この6曲から。">从这 6 首开始听。</p>
+<button id="mobile-songs-expand" class="mobile-songs-expand" type="button" aria-controls="tag-filter-panel song-list" aria-expanded="false" data-zh="搜索／收藏全部歌曲" data-en="Search / save all songs" data-ja="全曲を検索・お気に入りに追加" hidden>搜索／收藏全部歌曲</button>
 
 <div class="tag-filter-panel" id="tag-filter-panel">
 
@@ -391,6 +398,7 @@
 <div class="wall-toolbar"><button type="button" id="wall-mode" class="tag-clear-button" aria-controls="floating-wall" data-zh="静态阅读" data-en="Read as a list" data-ja="一覧で読む">静态阅读</button><span class="wall-note" data-zh="来自喜欢同一片雨的人。" data-en="From people who love the same rain." data-ja="同じ雨が好きな人たちから。">来自喜欢同一片雨的人。</span></div>
 <div id="floating-wall" role="region" aria-label="留言 / Messages" aria-busy="false" tabindex="0"></div>
 
+<details class="home-mobile-fold message-compose-fold" data-mobile-fold open><summary data-zh="发布留言" data-en="Leave a message" data-ja="メッセージを投稿">发布留言</summary><div class="home-mobile-fold-content">
 <div class="message-box">
 <label for="message-name" data-zh="昵称" data-en="Nickname" data-ja="ニックネーム">昵称</label>
 <input id="message-name" name="nickname" maxlength="60" placeholder="你的昵称" type="text" autocomplete="nickname" autocapitalize="off" autocorrect="off" enterkeyhint="send" data-max-code-points="30"/>
@@ -402,6 +410,7 @@
             贴到墙上
         </button>
 </div>
+</div></details>
 </section>
 <section id="my-comments" aria-labelledby="my-comments-title">
   <h2 id="my-comments-title" data-zh="我的留言" data-ja="自分のメッセージ" data-en="My Messages">我的留言</h2>
@@ -426,8 +435,10 @@
 <footer>
 <p class="footer-brand">稲葉曇 / WEATHER OBSERVATION STATION</p>
 <p data-zh="非官方 · 非商业 · 因为喜欢" data-en="Unofficial · Non-commercial · Made out of love" data-ja="非公式 · 非営利 · 好きだから">非官方 · 非商业 · 因为喜欢</p>
+<details class="home-mobile-fold" data-mobile-fold open><summary data-zh="意见反馈与版权说明" data-en="Feedback and copyright information" data-ja="ご意見・著作権について">意见反馈与版权说明</summary><div class="home-mobile-fold-content">
 <p data-zh="如果你对这个网站有任何建议、想法、内容补充，或者发现了需要修改的地方，也欢迎联系我。我很乐意听听你的意见，并继续把这个网站做得更好。" data-en="Have any suggestions, ideas, corrections, or something you think could make this website better? I’d be happy to hear from you." data-ja="このサイトへのご意見、ご提案、情報の追加や訂正などがありましたら、お気軽にご連絡ください。皆さまの声を参考に、より良いサイトにしていきたいと思っています。">如果你对这个网站有任何建议、想法、内容补充，或者发现了需要修改的地方，也欢迎联系我。我很乐意听听你的意见，并继续把这个网站做得更好。</p>
 <p data-zh="如果您是相关版权方或权利人，并认为本站中的任何内容需要修改、补充署名或删除，也请联系我，我会尽快进行处理。" data-en="If you are a copyright or rights holder and believe that any material on this website should be corrected, credited differently, or removed, please contact me." data-ja="著作権者・権利者の方で、掲載内容の修正、クレジットの追加・変更、削除をご希望の場合はご連絡ください。できるだけ早く対応いたします。">如果您是相关版权方或权利人，并认为本站中的任何内容需要修改、补充署名或删除，也请联系我，我会尽快进行处理。</p>
+</div></details>
 <p>
     <span data-zh="联系：" data-en="Contact: " data-ja="お問い合わせ：">联系：</span>
 
@@ -474,5 +485,6 @@
 <script src="js/comments.js?v=20261011domain" defer></script>
 <script src="js/home-updates.js" defer></script>
 <script src="js/x-posts-home.js" defer></script>
+<script src="js/home-mobile.js" defer></script>
 </body>
 </html>

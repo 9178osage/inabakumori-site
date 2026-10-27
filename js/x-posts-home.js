@@ -13,6 +13,7 @@
     const empty = section.querySelector("[data-x-home-empty]");
     if (!filters || !count || !posts.length) return;
     let creator = "all";
+    const mobile = window.matchMedia?.("(max-width: 700px), (pointer: coarse) and (max-width: 1000px)");
     const language = () => (typeof currentLanguage === "string" ? currentLanguage : document.documentElement.lang || "zh");
     const text = (zh, en, ja) => {
       const value = language();
@@ -25,7 +26,7 @@
     };
 
     function render() {
-      const selected = new Set(posts.filter(post => creator === "all" || post.dataset.creator === creator).slice(0, 3));
+      const selected = new Set(posts.filter(post => creator === "all" || post.dataset.creator === creator).slice(0, mobile?.matches ? 2 : 3));
       posts.forEach(post => {
         post.hidden = !selected.has(post);
       });
@@ -53,6 +54,8 @@
     }));
     // script.js fires languagechange after rewriting [data-zh] text; re-apply the filter-specific labels.
     window.addEventListener("languagechange", render);
+    if (mobile?.addEventListener) mobile.addEventListener("change", render);
+    else mobile?.addListener?.(render);
     filters.hidden = false;
     render();
   }

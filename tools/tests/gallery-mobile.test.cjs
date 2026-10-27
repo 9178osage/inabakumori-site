@@ -1,0 +1,168 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const vm = require("node:vm");
+
+// Small event-capable DOM fixture: run the actual gallery initializer and its event handlers.
+// Image src assignment is observable, so hidden duplicate thumbnails cannot pass these checks.
+function galleryFixture() {
+  let document;
+  class Element {
+    constructor(tag = "div") {
+      this.tagName = tag.toUpperCase(); this.children = []; this.dataset = {}; this.style = {};
+      this.attributes = {}; this.listeners = {}; this.className = ""; this.hidden = false;
+      this.offsetWidth = 100; this.offsetLeft = 0; this.clientWidth = 330; this.scrollWidth = 24000;
+      this.classList = {
+        contains: name => this.className.split(" ").includes(name),
+        toggle: (name, on) => { const all = new Set(this.className.split(" ").filter(Boolean)); if (on) all.add(name); else all.delete(name); this.className = [...all].join(" "); },
+        add: name => this.classList.toggle(name, true), remove: name => this.classList.toggle(name, false)
+      };
+    }
+    addEventListener(type, fn) { (this.listeners[type] ||= []).push(fn); }
+    dispatch(type, options = {}) {
+      const event = { type, target: this, preventDefault() {}, ...options };
+      for (let node = this; node; node = node.parentNode) for (const fn of node.listeners[type] || []) fn(event);
+    }
+    appendChild(child) {
+      if (child.tagName === "FRAGMENT") { for (const item of [...child.children]) this.appendChild(item); return child; }
+      child.remove(); child.parentNode = this; this.children.push(child); return child;
+    }
+    replaceChildren(...children) { for (const child of [...this.children]) child.remove(); children.forEach(child => this.appendChild(child)); }
+    remove() { if (this.parentNode) this.parentNode.children = this.parentNode.children.filter(child => child !== this); this.parentNode = null; }
+    setAttribute(name, value) { this.attributes[name] = String(value); }
+    getAttribute(name) {
+      if (name.startsWith("data-")) return this.dataset[name.slice(5).replace(/-([a-z])/g, (_, ch) => ch.toUpperCase())] ?? null;
+      return this.attributes[name] ?? this[name] ?? null;
+    }
+    removeAttribute(name) { delete this.attributes[name]; if (name.startsWith("data-")) delete this.dataset[name.slice(5)]; else delete this[name]; }
+    matches(selector) {
+      return selector.split(",").some(part => {
+        let rule = part.trim();
+        const excluded = [...rule.matchAll(/:not\(([^)]+)\)/g)];
+        if (excluded.some(match => this.matches(match[1]))) return false;
+        rule = rule.replace(/:not\([^)]+\)/g, "");
+        const tag = /^[a-z]+/i.exec(rule)?.[0];
+        if (tag && this.tagName !== tag.toUpperCase()) return false;
+        if ([...rule.matchAll(/\.([\w-]+)/g)].some(match => !this.classList.contains(match[1]))) return false;
+        return [...rule.matchAll(/\[([\w-]+)(?:=['"]([^'"]*)['"])?\]/g)].every(([, name, value]) => value === undefined ? this.getAttribute(name) !== null : this.getAttribute(name) === value);
+      });
+    }
+    closest(selector) { for (let node = this; node; node = node.parentNode) if (node.matches(selector)) return node; return null; }
+    querySelectorAll(selector) { return this.children.flatMap(child => [...(child.matches(selector) ? [child] : []), ...child.querySelectorAll(selector)]); }
+    querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
+    contains(child) { return child === this || this.children.some(node => node.contains(child)); }
+    focus() { document.activeElement = this; this.dispatch("focusin"); }
+    getBoundingClientRect() { return { left: 0, right: 100, width: 100 }; }
+  }
+  const ids = Object.fromEntries(["artwork", "nknk-gallery", "nknk-lightbox", "nknk-lightbox-image", "nknk-lightbox-caption", "nknk-lightbox-close", "nknk-lightbox-prev", "nknk-lightbox-next"].map(id => [id, new Element()]));
+  const body = new Element("body"); body.appendChild(ids.artwork); ids.artwork.appendChild(ids["nknk-gallery"]); body.appendChild(ids["nknk-lightbox"]);
+  for (const id of ["image", "caption", "close", "prev", "next"]) ids["nknk-lightbox"].appendChild(ids[`nknk-lightbox-${id}`]);
+  ids["nknk-lightbox"].hidden = true;
+  const docEvents = {}, windowEvents = {}, scheduled = [];
+  document = { body, activeElement: body, hidden: false, getElementById: id => ids[id], createElement: tag => new Element(tag), createDocumentFragment: () => new Element("fragment"), addEventListener: (type, fn) => { docEvents[type] = fn; } };
+  const media = new Map();
+  const window = { scrollY: 0, scrollTo() {}, addEventListener: (type, fn) => { windowEvents[type] = fn; }, matchMedia: query => {
+    if (!media.has(query)) media.set(query, { matches: query.includes("max-width"), addEventListener(type, fn) { this.changed = fn; } });
+    return media.get(query);
+  } };
+  let intervals = 0;
+  const history = { state: {}, scrollRestoration: "auto", pushState(state) { this.state = state; }, back() { this.state = {}; windowEvents.popstate(); } };
+  const context = { window, document, history, location: { href: "https://example.test/#artwork" }, currentLanguage: "zh", performance: { now: () => 1000 }, Image: Element,
+    setTimeout: fn => { scheduled.push(fn); }, clearTimeout() {}, setInterval: () => { intervals++; return intervals; }, clearInterval() {}, queueMicrotask: fn => fn(), requestAnimationFrame: fn => fn(), getComputedStyle: () => ({ gap: "12px" }) };
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync("js/nknk-gallery.js", "utf8"), context);
+  vm.runInContext(fs.readFileSync("js/nknk-gallery-ui.js", "utf8"), context);
+  const flushTasks = () => { while (scheduled.length) scheduled.shift()(); };
+  docEvents.DOMContentLoaded(); flushTasks();
+  return { ids, document, window, context, media, docEvents, history, flushTasks, root: ids["nknk-gallery"], intervalCount: () => intervals };
+}
+
+test("mobile gallery creates only six lazy small thumbnails until the visitor expands it", () => {
+  const { root, document, window, context, intervalCount } = galleryFixture();
+  let buttons = root.querySelectorAll(".nknk-marquee-item");
+  assert.equal(buttons.length, 6);
+  assert.equal(root.querySelectorAll("[aria-hidden='true']").length, 0);
+  assert.equal(intervalCount(), 0, "static mobile gallery needs no marquee polling timer");
+  for (const image of root.querySelectorAll("img")) {
+    assert.match(image.src, /\/nknk\/mobile\//);
+    assert.equal(image.loading, "lazy");
+  }
+  const toggle = root.querySelector(".nknk-compact-toggle");
+  assert.equal(toggle.getAttribute("aria-expanded"), "false");
+  toggle.dispatch("click", { detail: 0 });
+  buttons = root.querySelectorAll(".nknk-marquee-item");
+  assert.equal(buttons.length, window.NKNK_GALLERY.length);
+  assert.equal(document.activeElement, buttons[6]);
+  assert.equal(toggle.getAttribute("aria-expanded"), "true");
+  context.currentLanguage = "en";
+  toggle.dispatch("click", { detail: 0 });
+  assert.equal(root.querySelectorAll(".nknk-marquee-item").length, 6);
+  assert.equal(document.activeElement, toggle);
+  assert.equal(toggle.textContent, "View all 107 illustrations");
+  assert.equal(root.querySelectorAll(".nknk-marquee-item").filter(button => button.tabIndex === 0).length, 1);
+});
+
+test("compact gallery keeps keyboard navigation, all lightbox images and focus return", () => {
+  const { root, ids, document, window, docEvents } = galleryFixture();
+  const buttons = root.querySelectorAll(".nknk-marquee-item");
+  buttons[0].focus();
+  buttons[0].dispatch("keydown", { key: "ArrowDown" });
+  assert.equal(document.activeElement, buttons[3], "arrow down advances one grid row");
+  buttons[5].dispatch("click", { detail: 1 });
+  assert.equal(ids["nknk-lightbox"].hidden, false);
+  assert.equal(ids["nknk-lightbox-image"].src, window.NKNK_GALLERY[5].full);
+  ids["nknk-lightbox-next"].dispatch("click");
+  assert.equal(ids["nknk-lightbox-image"].src, window.NKNK_GALLERY[6].full, "lightbox can view beyond the six-item preview");
+  docEvents.keydown({ key: "Escape", preventDefault() {} });
+  assert.equal(ids["nknk-lightbox"].hidden, true);
+  assert.equal(document.activeElement, buttons[5]);
+  assert.equal(root.querySelectorAll(".nknk-marquee-item").filter(button => button.tabIndex === 0).length, 1);
+});
+
+test("crossing the mobile breakpoint preserves the lightbox return target", () => {
+  const { root, ids, document, media } = galleryFixture();
+  const compactMedia = [...media.values()].find(query => query.matches);
+  root.querySelectorAll(".nknk-marquee-item")[3].dispatch("click", { detail: 1 });
+  compactMedia.matches = false; compactMedia.changed();
+  assert.equal(root.querySelectorAll(".nknk-marquee-item").length, 214, "desktop keeps its full seamless marquee");
+  ids["nknk-lightbox-close"].dispatch("click");
+  assert.equal(document.activeElement.dataset.galleryIndex, "3");
+  assert.equal(document.activeElement.getAttribute("aria-hidden"), null);
+  compactMedia.matches = true; compactMedia.changed();
+  assert.equal(root.querySelectorAll(".nknk-marquee-item").length, 6);
+  assert.equal(document.activeElement.dataset.galleryIndex, "3");
+});
+
+test("browser Back closes the compact lightbox and restores focus, scrolling and background access", () => {
+  const { root, ids, document, history, flushTasks } = galleryFixture();
+  const source = root.querySelectorAll(".nknk-marquee-item")[2];
+  source.dispatch("click", { detail: 0 });
+  assert.equal(history.scrollRestoration, "manual");
+  assert.equal(ids.artwork.inert, true);
+  history.back();
+  flushTasks();
+  assert.equal(ids["nknk-lightbox"].hidden, true);
+  assert.equal(history.scrollRestoration, "auto");
+  assert.equal(document.activeElement, source);
+  assert.equal(ids.artwork.inert, undefined, "restore the original background state");
+  assert.equal(root.querySelectorAll(".nknk-marquee-item").length, 6);
+});
+
+test("an illustration beyond the mobile preview remains a reachable return target after resize", () => {
+  const { root, ids, document, media, window } = galleryFixture();
+  const compactMedia = [...media.values()].find(query => query.matches);
+  compactMedia.matches = false; compactMedia.changed();
+  const source = root.querySelectorAll(".nknk-marquee-item:not([aria-hidden='true'])")[42];
+  source.focus();
+  source.dispatch("click", { detail: 0 });
+  compactMedia.matches = true; compactMedia.changed();
+  assert.equal(ids["nknk-lightbox"].hidden, false);
+  assert.equal(root.querySelectorAll(".nknk-marquee-item").length, window.NKNK_GALLERY.length);
+  assert.equal(root.querySelector(".nknk-compact-toggle").getAttribute("aria-expanded"), "true");
+  ids["nknk-lightbox-close"].dispatch("click");
+  assert.equal(document.activeElement.dataset.galleryIndex, "42");
+  assert.equal(root.contains(document.activeElement), true, "focus must not return to a removed desktop node");
+  root.querySelector(".nknk-compact-toggle").dispatch("click", { detail: 0 });
+  assert.equal(root.querySelectorAll(".nknk-marquee-item").length, 6);
+  assert.equal(document.activeElement, root.querySelector(".nknk-compact-toggle"));
+});

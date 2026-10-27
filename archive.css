@@ -55,4 +55,14 @@ span.song-fact-note{display:inline}
 .song-index-list{columns:1}
 .song-posts .feed-heading{flex-direction:column;align-items:start}
 .archive-navigation{gap:6px 18px}
+.song-index-page .updates-header{flex-wrap:wrap;padding-block:16px}
+.song-index-page .page-controls button{font-size:14px}
+.song-index-page .archive-navigation{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 12px;font-size:14px}
+.song-index-page .archive-navigation a{display:flex;align-items:center;min-height:48px;padding-block:10px;overflow-wrap:anywhere}
+.song-index-page .updates-description{max-width:none;font-size:15px}
+.song-index-page .song-index-list{padding-left:2em}
+.song-index-page .song-index-list li{font-size:14px}
+.song-index-page .song-index-list a{display:flex;align-items:center;min-height:48px;padding-block:6px;margin-right:0;font-size:18px;line-height:1.55;overflow-wrap:anywhere}
+.song-index-page .song-index-count{font-size:13px}
+.song-index-page .song-unverified,.song-index-page .song-checked{font-size:12px;margin:4px 0}
 }

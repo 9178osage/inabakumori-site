@@ -29,7 +29,8 @@ let currentSlide = 0;
 const COMMENTS_API = `${window.APP_CONFIG.apiDomain}/api/comments`;
 function applyLanguage() {
   document.querySelectorAll("[data-zh][data-en]").forEach((element) => {
-    element.innerText = element.dataset[currentLanguage] ?? pageText(element.dataset.zh, element.dataset.en);
+    const text = element.dataset[currentLanguage] ?? pageText(element.dataset.zh, element.dataset.en);
+    if (element.textContent !== text) element.textContent = text;
   });
   document.querySelectorAll("[data-href-zh][data-href-en]").forEach((element) => {
     const href = currentLanguage === "ja" ? (element.dataset.hrefJa || element.dataset.hrefEn) : currentLanguage === "zh" ? element.dataset.hrefZh : element.dataset.hrefEn;
@@ -732,6 +733,13 @@ function getCleanSongTitle(link) {
   const raw = link.dataset.songTitle || link.textContent || "";
   return raw.replace(/^\s*\d+\s*[　\s]+/, "").trim();
 }
+const MOBILE_FEATURED_SONG_IDS = new Set(["DeKLpgzh-qQ", "UnIhRpIT7nc", "G5hScSFkib4", "NRQRC_0ZQ00", "b56xjtP6Qac", "2r4W_LoVFxA"]);
+const mobileSongsQuery = window.matchMedia?.("(max-width: 700px), (pointer: coarse) and (max-width: 1000px)");
+let mobileSongsExpanded = false;
+function isFeaturedSong(link) {
+  const thumbnail = getSongThumbnailUrl(link.href);
+  return thumbnail ? MOBILE_FEATURED_SONG_IDS.has(thumbnail.split("/")[4]) : false;
+}
 function renderSongs() {
   const list = document.getElementById("song-list");
   if (!list || !songsAvailable()) return;
@@ -746,6 +754,7 @@ function renderSongs() {
     link.rel = "noopener noreferrer";
     link.dataset.album = song.album;
     link.dataset.songTitle = song.title;
+    if (isFeaturedSong(link)) link.dataset.mobileFeatured = "true";
     link._songData = song;
     link.textContent = String(index + 1).padStart(2, "0") + "　" + song.title;
     (fragment || list).appendChild(link);
@@ -1029,11 +1038,22 @@ function updateTagFilter() {
   const query = parseTagQuery(input.value);
   const filtering = query.plain.length > 0 || query.required.length > 0;
   const favoritesOnly = document.getElementById("favorites-filter")?.getAttribute("aria-pressed") === "true";
+  const sorted = ["popular", "title"].includes(document.getElementById("song-sort")?.value);
+  // An incoming search/favorites/sort URL always reveals the full library, even on a phone.
+  // Keep the controls open after the query is cleared so keyboard focus and the next search survive.
+  if (mobileSongsQuery?.matches && (filtering || favoritesOnly || sorted)) mobileSongsExpanded = true;
+  const compact = Boolean(mobileSongsQuery?.matches && !mobileSongsExpanded && !filtering && !favoritesOnly && !sorted);
+  document.getElementById("songs")?.classList.toggle("song-library-expanded", !compact);
+  const expand = document.getElementById("mobile-songs-expand");
+  if (expand) {
+    expand.hidden = !compact;
+    expand.setAttribute("aria-expanded", String(!compact));
+  }
   let visibleSongs = 0;
   let totalSongs = 0;
   document.querySelectorAll(".song-scroll a").forEach((link) => {
     totalSongs++;
-    const matched = songMatchesSearch(link, query) && (window.includeFavoriteSong?.(link) ?? true);
+    const matched = (!compact || isFeaturedSong(link)) && songMatchesSearch(link, query) && (window.includeFavoriteSong?.(link) ?? true);
     link.hidden = !matched;
     if (matched) {
       visibleSongs++;
@@ -1082,6 +1102,14 @@ function initTagFilter() {
     return;
   }
   if (!renderSongs()) prepareSongTags();
+  const expand = document.getElementById("mobile-songs-expand");
+  expand?.addEventListener("click", () => {
+    mobileSongsExpanded = true;
+    updateTagFilter();
+    input.focus();
+  });
+  if (mobileSongsQuery?.addEventListener) mobileSongsQuery.addEventListener("change", updateTagFilter);
+  else mobileSongsQuery?.addListener?.(updateTagFilter);
   input.addEventListener("input", scheduleTagFilter);
   if (clear) {
     clear.addEventListener("click", () => {

@@ -101,6 +101,7 @@ assert.equal(nknk.length, new Set(nknk.map(item => item.id)).size, "NKNK gallery
 for (const item of nknk) {
   assert.equal(item.id, Number(item.id));
   await stat(distFile(item.thumb));
+  await stat(distFile(item.mobileThumb));
   await stat(distFile(item.full));
 }
 assert.ok(html.includes('id="nknk-gallery"'), "NKNK gallery mount missing");

@@ -50,6 +50,7 @@ export function renderArchivePages({ songs, xPosts, xTranslations, xPostsRendere
     files.set(name, archivePageShell({ csp, name,
       title: { zh: `${song.title} · 歌曲观测档案`, en: `${song.title} · Song archive`, ja: `${song.title} · 楽曲観測アーカイブ` },
       description: { zh: `${song.title} 的发布资料与相关 X 帖子。`, en: `Release details and related X posts for ${song.title}.`, ja: `${song.title} の公開情報と関連するX投稿。` },
+      shareImage: { url: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, alt: `${song.title} · 稲葉曇` },
       body: renderSongPage(song, position, { details: details[id], linked: linked.get(id), renderPost: xPostsRenderer.renderPost }) }));
   });
   return { files, index, linked, details };
