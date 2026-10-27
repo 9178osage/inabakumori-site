@@ -41,7 +41,7 @@ export function validateSongDetails(data, songs) {
     assert.ok(Number.isFinite(Date.parse(entry.releasedAt)), `Invalid release time for ${id}`);
     assert.ok(Array.isArray(entry.credits) && entry.credits.every(credit => Object.hasOwn(ROLES, credit.role) && typeof credit.name === "string" && credit.name), `Invalid credits for ${id}`);
     for (const credit of entry.credits) if (credit.url) assert.match(credit.url, /^https:\/\/x\.com\/[A-Za-z0-9_]{1,15}$/u, `Invalid credit link for ${id}`);
-    assert.ok(Array.isArray(entry.sources) && entry.sources.length && entry.sources.every(source => /^https:\/\/(?:www\.youtube\.com|x\.com)\//u.test(source.url)), `Every verified song needs an official source: ${id}`);
+    assert.ok(Array.isArray(entry.sources) && entry.sources.length && entry.sources.every(source => /^https:\/\/(?:www\.youtube\.com|www\.nicovideo\.jp|x\.com)\//u.test(source.url)), `Every verified song needs an official source: ${id}`);
     assert.ok(Array.isArray(entry.unverified) && entry.unverified.every(role => Object.hasOwn(ROLES, role) && !entry.credits.some(credit => credit.role === role)), `Invalid unverified list for ${id}`);
     assert.match(entry.checkedAt, /^\d{4}-\d{2}-\d{2}$/u, `Invalid check date for ${id}`);
   }
@@ -89,7 +89,7 @@ export function renderSongPage(song, index, { details, linked, renderPost }) {
   const album = ALBUMS[song.album];
   const verified = Boolean(details);
   const releaseValue = verified
-    ? `<time datetime="${escape(new Date(details.releasedAt).toISOString())}" data-local-time>${escape(date(details.releasedAt))} JST</time>${details.releaseNote ? tri("small", [details.releaseNote.zh, details.releaseNote.en, details.releaseNote.ja], ' class="song-fact-note"') : ""}`
+    ? `<time datetime="${escape(details.releasedAt)}" data-local-time>${escape(date(details.releasedAt))} JST</time>${details.releaseNote ? tri("small", [details.releaseNote.zh, details.releaseNote.en, details.releaseNote.ja], ' class="song-fact-note"') : ""}`
     : `<span>—</span> ${UNVERIFIED}`;
   const albumValue = album
     ? `<span lang="ja">${escape(album.name)}</span> ${tri("span", album.kind, ' class="song-fact-note"')}${verified && details.albumRelease ? ` <span class="song-fact-note">${escape(details.albumRelease)}</span>` : ""}`

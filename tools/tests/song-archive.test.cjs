@@ -77,9 +77,23 @@ test("validation refuses invented or unsourced credits", async () => {
     ["non-official credit link", entry => { entry.credits[1].url = "https://example.com/artist"; }],
     ["no sources", entry => { entry.sources = []; }],
     ["fan-wiki source", entry => { entry.sources = [{ label: "wiki", url: "https://example.com/wiki" }]; }],
+    ["deceptive niconico source", entry => { entry.sources = [{ label: "niconico", url: "https://www.nicovideo.jp.example.com/watch/sm42576236" }]; }],
     ["credited and unverified", entry => { entry.unverified = ["movie"]; }],
     ["bad date", entry => { entry.releasedAt = "soon"; }]
   ]) assert.throws(() => validateSongDetails(mutate(change), list), undefined, name);
+  assert.doesNotThrow(() => validateSongDetails(mutate(entry => {
+    entry.sources = [{ label: "niconico", url: "https://www.nicovideo.jp/watch/sm37198038" }];
+  }), list));
+});
+
+test("release dates keep source precision and the Japanese day at midnight", async () => {
+  const { renderSongPage } = await import("../song-archive.mjs");
+  const song = songs()[0];
+  const details = data().songs["UnIhRpIT7nc"];
+  for (const [releasedAt, day] of [["2025-08-01", "2025-08-01"], ["2023-08-05T00:00:00+09:00", "2023-08-05"]]) {
+    const page = renderSongPage(song, 0, { details: { ...details, releasedAt }, linked: [], renderPost: () => "" });
+    assert.ok(page.includes(`<time datetime="${releasedAt}" data-local-time>${day} JST</time>`), "do not invent a time for day-only evidence or move Japanese midnight to the previous date");
+  }
 });
 
 test("posts link by video ID or title, short titles only in quotes, and are categorised", async () => {
