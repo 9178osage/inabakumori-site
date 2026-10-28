@@ -5,7 +5,7 @@
   "main": "server.mjs",
   "scripts": {
     "start": "node server.mjs",
-    "check": "node --check server.mjs && node --check services.mjs && node --check backup.mjs && node --check backup-endpoint.mjs && node --check database.mjs && node --check database-access.mjs && node --check rate-limit-store.mjs && node --check request-rate-limit.mjs && node --check request-maintenance.mjs && node --check client-identity.mjs && node --check migrate-comments.mjs && node --check maintenance.mjs",
+    "check": "node --check server.mjs && node --check services.mjs && node --check backup.mjs && node --check backup-endpoint.mjs && node --check database.mjs && node --check database-access.mjs && node --check rate-limit-store.mjs && node --check request-rate-limit.mjs && node --check request-maintenance.mjs && node --check public-comments-cache.mjs && node --check client-identity.mjs && node --check migrate-comments.mjs && node --check maintenance.mjs",
     "backup": "node backup.mjs",
     "migrate:comments": "node migrate-comments.mjs"
   },

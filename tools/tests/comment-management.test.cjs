@@ -496,7 +496,7 @@ test('admin rights come only from ADMIN_USER_IDS, never from emails', async () =
   assert.equal(await createAdminCheck(parseAdminUserIds(undefined))(''), false);
   const server = require('node:fs').readFileSync('backend/server.mjs', 'utf8');
   assert.doesNotMatch(server, /ADMIN_EMAILS\s*=|hasVerifiedAdminEmail|supertokens\.getUser\(/);
-  assert.match(server, /registerAdminCommentManagement\(app, db, verifySession, createAdminCheck\(ADMIN_USER_IDS\)\)/);
+  assert.match(server, /registerAdminCommentManagement\(app, db, verifySession, createAdminCheck\(ADMIN_USER_IDS\), publicComments\.invalidate\)/);
   assert.match(server, /ADMIN_USER_IDS is empty/);
   assert.equal(buildVersion({ RAILWAY_GIT_COMMIT_SHA: '7270D91ABCDEF0123456789abcdef0123456789a' }), '7270d91');
   assert.equal(buildVersion({ VERCEL_GIT_COMMIT_SHA: 'ABC1234abc1234', RAILWAY_GIT_COMMIT_SHA: '7270d91' }), 'abc1234');

@@ -292,6 +292,7 @@ let messageSubmitting = false;
 let wallRevision = 0;
 let messageLoadId = 0;
 let messageLoadState = "idle";
+const PUBLIC_COMMENT_CACHE_MS = 30_000;
 const pendingWallMessages = new Map();
 const deletedWallMessages = new Set();
 window.removeWallMessage = (id) => {
@@ -437,7 +438,7 @@ async function addMessage() {
     if (nameInput.value === originalName) nameInput.value = "";
     if (messageInput.value === originalContent) messageInput.value = "";
     wallRevision++;
-    pendingWallMessages.set(data.comment.id, { revision: wallRevision, message: data.comment });
+    pendingWallMessages.set(data.comment.id, { revision: wallRevision, message: data.comment, retainUntil: Date.now() + PUBLIC_COMMENT_CACHE_MS });
     // A successful post also clears an earlier load error: the wall now shows a message.
     if (messageLoadState === "empty" || messageLoadState === "error" || messageLoadState === "ratelimited") messageLoadState = "ready";
     updateMessageLoadStatus();
@@ -457,6 +458,7 @@ async function addMessage() {
 const messageTracks = [];
 async function loadMessages() {
   const revision = wallRevision;
+  const startedAt = Date.now();
   const loadId = ++messageLoadId;
   messageLoadState = "loading";
   updateMessageLoadStatus();
@@ -478,13 +480,15 @@ async function loadMessages() {
     document.querySelectorAll(".floating-message").forEach((element) => element.disposeMessage());
     messageTracks.length = 0;
     const merged = new Map(data.comments.map((message) => [message.id, message]));
-    pendingWallMessages.forEach((entry) => {
-      if (entry.revision > revision) merged.set(entry.message.id, entry.message);
+    pendingWallMessages.forEach((entry, id) => {
+      // Another server instance can return its older public-list cache, even
+      // after a previous response already included our successfully posted row.
+      if (entry.revision > revision || entry.retainUntil > startedAt) merged.set(id, entry.message);
+      if (entry.retainUntil <= Date.now()) pendingWallMessages.delete(id);
     });
     const comments = [...merged.values()].filter((message) => !deletedWallMessages.has(message.id) && (!message.expiresAt || Date.parse(message.expiresAt) > Date.now()));
     const created = comments.map((message) => createFloatingMessage(message, true, true)).filter(Boolean);
     created.forEach((element) => element.refreshLayout());
-    pendingWallMessages.clear();
     messageLoadState = comments.length ? "ready" : "empty";
     updateMessageLoadStatus();
   } catch (error) {

@@ -319,6 +319,82 @@ test("late load preserves old and newly posted messages", async () => {
   await loading;
   assert.deepEqual([...rendered.keys()], [1, 2]);
 });
+function cachedMessageWall() {
+  const app = setup();
+  let now = 1_000;
+  app.context.Date = class extends Date { static now() { return now; } };
+  app.elements["floating-wall"] = {};
+  app.elements["message-name"] = { value: "tester" };
+  app.elements["message-input"] = { value: "new message" };
+  const rendered = new Map();
+  app.context.capture = message => { rendered.set(message.id, message); };
+  app.context.document.querySelectorAll = selector => selector === ".floating-message" ? [...rendered.keys()].map(id => ({
+    dataset: { commentId: String(id) },
+    disposeMessage() { rendered.delete(id); }
+  })) : [];
+  app.run("createFloatingMessage=capture");
+  const posted = { id: 2, content: "new message" };
+  const reply = comments => ({ ok: true, json: async () => ({ comments }) });
+  return { ...app, rendered, posted, reply, setNow(value) { now = value; },
+    async post() {
+      app.context.fetch = async () => ({ ok: true, json: async () => ({ comment: posted }) });
+      await app.run("addMessage()");
+    },
+    async load(comments) {
+      app.context.fetch = async () => reply(comments);
+      await app.run("loadMessages()");
+    }
+  };
+}
+test("recent successful posts survive later stale public lists, including after acknowledgment", async () => {
+  const app = cachedMessageWall();
+  await app.post();
+  app.setNow(2_000);
+  await app.load([{ id: 1 }]);
+  assert.deepEqual([...app.rendered.keys()], [1, 2]);
+  await app.load([app.posted, { id: 1 }]);
+  assert.equal(app.run("pendingWallMessages.size"), 1, "one server acknowledgment cannot clear another instance's stale-cache protection");
+  app.setNow(30_999);
+  await app.load([{ id: 1 }]);
+  assert.deepEqual([...app.rendered.keys()], [1, 2]);
+  app.setNow(31_000);
+  await app.load([{ id: 1 }]);
+  assert.deepEqual([...app.rendered.keys()], [1], "a fresh read after the cache window may reflect deletion elsewhere");
+  assert.equal(app.run("pendingWallMessages.size"), 0);
+});
+test("a read begun during the cache window preserves a post even when its response arrives later", async () => {
+  const app = cachedMessageWall();
+  await app.post();
+  app.setNow(30_999);
+  let finish;
+  app.context.fetch = () => new Promise(resolve => { finish = resolve; });
+  const loading = app.run("loadMessages()");
+  app.setNow(40_000);
+  finish(app.reply([{ id: 1 }]));
+  await loading;
+  assert.deepEqual([...app.rendered.keys()], [1, 2]);
+  assert.equal(app.run("pendingWallMessages.size"), 0, "expired protection is released after resolving the old read");
+});
+test("concurrent post protection survives a slow pre-post read beyond the cache window", async () => {
+  const app = cachedMessageWall();
+  let finish;
+  app.context.fetch = () => new Promise(resolve => { finish = resolve; });
+  const loading = app.run("loadMessages()");
+  await app.post();
+  app.setNow(40_000);
+  finish(app.reply([{ id: 1 }]));
+  await loading;
+  assert.deepEqual([...app.rendered.keys()], [1, 2]);
+  assert.equal(app.run("pendingWallMessages.size"), 0);
+});
+test("deleting a recent post removes cache protection and stale responses cannot restore it", async () => {
+  const app = cachedMessageWall();
+  await app.post();
+  app.context.window.removeWallMessage(app.posted.id);
+  assert.equal(app.run("pendingWallMessages.size"), 0);
+  await app.load([app.posted, { id: 1 }]);
+  assert.deepEqual([...app.rendered.keys()], [1]);
+});
 test("failed load shows retry and successful retry clears it", async () => {
   const { elements, context, run } = setup();
   elements["floating-wall"] = {};

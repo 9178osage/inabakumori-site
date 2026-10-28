@@ -87,6 +87,9 @@ try {
   const legacy = await request(`${api}/api/comments`, { headers: { Origin: "https://old-site.example" } });
   assert.equal(legacy.status, 200);
   assert.equal(legacy.headers.get("access-control-allow-origin"), "https://old-site.example");
+  assert.equal(legacy.headers.get("cache-control"), "no-store");
+  assert.notEqual(legacy.headers.get("x-request-id"), get.headers.get("x-request-id"), "cached data must not reuse request-specific headers");
+  assert.deepEqual((await legacy.json()).comments, [], "warm public cache works for a different allowed origin");
   // An allowed Origin is not authentication: protected routes still need a session.
   assert.equal((await request(`${api}/api/comments/mine`, { headers: { Origin: "https://old-site.example" } })).status, 401);
   assert.equal((await request(`${api}/api/admin/comments/1`, { method: "DELETE", headers: { Origin: previewUrl } })).status, 401);
@@ -103,6 +106,9 @@ try {
   const created = await post({ nickname: "测试", content: "稲葉曇的音乐很好听 ☔" });
   assert.equal(created.status, 201, await created.clone().text());
   const { comment } = await created.json();
+  const afterPost = await request(`${api}/api/comments`, { headers: { Origin: previewUrl } });
+  assert.equal(afterPost.headers.get("cache-control"), "no-store");
+  assert.deepEqual((await afterPost.json()).comments.map(item => item.id), [comment.id], "posting invalidates the cached empty list immediately");
   assert.equal(comment.isGuest, true);
   const createdAt = Date.parse(comment.createdAt);
   const expiresAt = Date.parse(comment.expiresAt);

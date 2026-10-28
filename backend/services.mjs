@@ -346,7 +346,7 @@ export async function insertFreshCommentAsync(db, { memberCap = 100, row }) {
   });
 }
 
-export function registerCommentManagement(app, db, verifySession) {
+export function registerCommentManagement(app, db, verifySession, onDeleted = () => {}) {
   const list = db.prepare(`SELECT id, nickname, content, created_at FROM comments
     WHERE user_id = ? AND is_guest = 0 AND id <= ? ORDER BY id DESC LIMIT 21`);
   const owner = db.prepare("SELECT user_id, is_guest FROM comments WHERE id = ?");
@@ -379,11 +379,12 @@ export function registerCommentManagement(app, db, verifySession) {
     if (Number((await remove.run(id, userId)).changes) !== 1) {
       return res.status(404).json({ error: "找不到该留言", code: "COMMENT_NOT_FOUND" });
     }
+    onDeleted();
     res.json({ success: true, deletedCommentId: id });
   });
 }
 
-export function registerAdminCommentManagement(app, db, verifySession, isAdmin) {
+export function registerAdminCommentManagement(app, db, verifySession, isAdmin, onDeleted = () => {}) {
   const list = db.prepare(`SELECT id, nickname, content, is_guest, created_at
     FROM comments
     WHERE (expires_at IS NULL OR expires_at > ?) AND id <= ?
@@ -422,6 +423,7 @@ export function registerAdminCommentManagement(app, db, verifySession, isAdmin) 
     if (Number((await remove.run(id)).changes) !== 1) {
       return res.status(404).json({ error: "找不到该留言", code: "COMMENT_NOT_FOUND" });
     }
+    onDeleted();
     return res.json({ success: true, deletedCommentId: id });
   });
 }

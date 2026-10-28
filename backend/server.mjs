@@ -8,6 +8,7 @@ import { createDatabaseAccess } from "./database-access.mjs";
 import { createRequestRateLimit } from "./request-rate-limit.mjs";
 import { createClientIdentity } from "./client-identity.mjs";
 import { createRequestMaintenance } from "./request-maintenance.mjs";
+import { createPublicCommentsCache } from "./public-comments-cache.mjs";
 import { createPostgresRateLimitStore, cleanupExpiredRateLimits, withRateLimitRequestContext } from "./rate-limit-store.mjs";
 import { commentWriteMaintenance } from "./maintenance.mjs";
 import { waitUntil } from "@vercel/functions";
@@ -269,6 +270,7 @@ const deleteExpiredGuestsStatement = db.prepare(`
         AND expires_at <= ?
 `);
 const MAX_PUBLIC_COMMENTS = 100;
+const publicComments = createPublicCommentsCache({ load: now => selectRecentCommentsStatement.all(now, MAX_PUBLIC_COMMENTS) });
 const MEMBER_COMMENT_CAP = 100;
 const GUEST_COMMENT_RETENTION_DAYS = 182;
 const GUEST_COMMENT_RETENTION_MS = GUEST_COMMENT_RETENTION_DAYS * 24 * 60 * 60 * 1e3;
@@ -283,6 +285,7 @@ async function deleteExpiredGuestComments() {
   const result = await deleteExpiredGuestsStatement.run(Date.now());
   const deleted = Number(result.changes);
   if (deleted > 0) {
+    publicComments.invalidate();
     console.log(`🧹 Deleted ${deleted} expired guest comment(s)`);
   }
   await cleanupExpiredRateLimits(db);
@@ -305,8 +308,7 @@ app.use((req, res, next) => {
 });
 app.get("/api/comments", async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
-  const rows = await selectRecentCommentsStatement.all(Date.now(), MAX_PUBLIC_COMMENTS);
-  const comments = rows.map((comment) => ({ id: Number(comment.id), nickname: comment.nickname, content: comment.content, isGuest: Boolean(comment.is_guest), createdAt: new Date(comment.created_at).toISOString(), expiresAt: comment.expires_at === null ? null : new Date(comment.expires_at).toISOString() }));
+  const comments = await publicComments.read();
   res.json({ comments });
 });
 app.post("/api/comments", commentLimiter, requireJsonContentType, verifySession({ sessionRequired: false }), guestCommentLimiter, memberCommentLimiter, async (req, res) => {
@@ -330,10 +332,11 @@ app.post("/api/comments", commentLimiter, requireJsonContentType, verifySession(
   if (!inserted.ok) {
     return res.status(409).json({ error: "每个账号最多保留 100 条留言，请先删除旧留言", code: "MEMBER_COMMENT_CAP" });
   }
+  publicComments.invalidate();
   return res.status(201).json({ success: true, comment: { id: inserted.id, nickname, content, isGuest, createdAt: new Date(createdAt).toISOString(), expiresAt: expiresAt === null ? null : new Date(expiresAt).toISOString() } });
 });
-registerCommentManagement(app, db, verifySession);
-registerAdminCommentManagement(app, db, verifySession, createAdminCheck(ADMIN_USER_IDS));
+registerCommentManagement(app, db, verifySession, publicComments.invalidate);
+registerAdminCommentManagement(app, db, verifySession, createAdminCheck(ADMIN_USER_IDS), publicComments.invalidate);
 const BACKUP_TOKEN = backupTokenFrom(process.env);
 if (process.env.BACKUP_TOKEN?.trim() && !BACKUP_TOKEN) console.warn("⚠️ BACKUP_TOKEN is shorter than 32 characters; backup endpoint disabled");
 const backupLimiter = createRequestRateLimit({ ...sharedStore("backupLimiter"), keyGenerator: clientIpKey, windowMs: 60 * 60 * 1e3, limit: 5, standardHeaders: "draft-7", legacyHeaders: false,
