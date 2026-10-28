@@ -1,57 +1,59 @@
-# Cloudflare 接入准备
+# Cloudflare Pages 静态资源试点
 
-2026-10-28：尚未切换 DNS，当前仍由 DNSPod 解析、GitHub Pages 直连提供网页。下文是已核对的接入方案，不代表 Cloudflare 已启用；完成控制台配置和线上验证后再更新本节状态。
+2026-10-28：原整站 DNS 切换方案已撤回。`osagechan.top` 借用自朋友，继续使用原有 DNSPod 解析、GitHub Pages 和 TLS 设置；本轮只在当前 Cloudflare 账号部署独立的 Pages 静态资源项目。登录优化和公开留言缓存继续保留，API 仍使用 Vercel。
 
-## 切换前的已知记录
+## 当前接入范围
 
-公开权威 DNS 检查得到：
+手机首页画廊前 6 张缩略图可从独立 `pages.dev` 地址读取，图片加载失败时自动回到本站原路径。其余图片、桌面画廊、大图、网页和认证请求继续使用原入口。试点不需要更换 NS、操作注册商或绑定自定义域名。
 
-| 名称／类型 | 当前值 |
+2026-10-28 已通过 CLI 部署并以实际 HTTPS 响应核对资源：
+
+| 项目 | 本轮核对结果 |
 | --- | --- |
-| NS | `leaf.dnspod.net`、`slick.dnspod.net` |
-| 根域 A | `185.199.108.153`、`185.199.109.153` |
-| 根域 AAAA | `2606:50c0:8000::153`、`2606:50c0:8001::153` |
-| 根域 CAA | `0 issue "letsencrypt.org"` |
-| GitHub 验证 TXT | `_github-pages-challenge-9178osage.osagechan.top`，原值须从 DNSPod 完整保留 |
+| Pages 生产地址 | <https://inabakumori-assets.pages.dev> |
+| Pages 部署标识／验证日期 | `328415c5-5daa-42c4-b156-dfe12d0dcb8a`，2026-10-28 |
+| 临时待激活域名区域 | 已删除；控制台返回未添加域名的账户首页 |
+| DNSPod／原域名 | 未执行 NS 切换，继续原设置 |
+| 本轮 Wrangler 会话 | 部署验证后已执行 `wrangler logout`，返回 `Successfully logged out` |
 
-注册商为 DNSPod／腾讯；当时未发现 DS 或 DNSKEY，注册局 RDAP 也显示未签名。根域未发现 MX／TXT，`www`、`mail` 无解析。这不是完整区域导出，切换前必须从 DNSPod 控制台导出所有记录，逐条核对 Cloudflare 自动扫描，尤其是 GitHub 验证 TXT 和其他未公开列举的子域。保留原 NS 和导出文件用于回退。
+## 公开资源包
 
-## 免费接入和缓存规则
+在仓库根目录运行：
 
-在 Cloudflare 添加现有域名并选 Free，先以 DNS-only 导入和核对记录，再将注册商 NS 改为 Cloudflare 实际分配的两条 NS。网页源站继续使用现有 GitHub Pages，API 继续使用现有 Vercel 域名。
-
-TLS 使用 Full (strict)。只有 Cloudflare Universal 证书状态 Active、源站证书有效且主机名匹配时，才开启根域 A／AAAA 的代理。保留 Let’s Encrypt 的 CAA；如果边缘证书因 CAA 等待签发，按实际 CA 和控制台诊断处理。官方说明 Cloudflare DNS 会为支持的 CA 添加所需 CAA，不能凭猜测删除源站授权。[严格 TLS](https://developers.cloudflare.com/ssl/origin-configuration/ssl-modes/full-strict/)、[CA 与 CAA](https://developers.cloudflare.com/ssl/reference/certificate-authorities/)
-
-只为优化后的 WebP 图片和 WOFF2 字体延长边缘缓存。浏览器保持源站当前的 600 秒，避免固定文件名被浏览器保留数天。Free 支持 Cache Response Rules；创建一条 `set_cache_control` 规则，匹配表达式为：
-
-```text
-http.host eq "osagechan.top"
-and http.request.method in {"GET" "HEAD"}
-and http.response.code eq 200
-and (
-  (starts_with(http.request.uri.path, "/images/optimized/") and ends_with(http.request.uri.path, ".webp"))
-  or (starts_with(http.request.uri.path, "/fonts/") and ends_with(http.request.uri.path, ".woff2"))
-)
+```sh
+node tools/build-asset-pilot.mjs
 ```
 
-操作参数：
+生成的上传目录是 `artifacts/cloudflare-assets-pilot/public/`，另有可交接的 `artifacts/cloudflare-assets-pilot/pilot.zip`。它们属于被 Git 忽略的本地构建产物，不进入本站 `dist/` 或文本源码副本。
 
-```json
-{
-  "s-maxage": {
-    "operation": "set",
-    "value": 2592000,
-    "cloudflare_only": true
-  }
-}
+打包器只导出白名单中的公开资源：6 张手机画廊缩略图、1 张手机首屏图和 Station Mono 字体，以及字体许可证、资源清单、缓存头和独立的最小提示页。本站本轮仅接入 6 张缩略图；首屏图和字体保留为资源校验样本。包中不含后端、环境变量、数据库、凭据或整站源码。
+
+`asset-manifest.json` 记录原路径、上传路径、SHA-256 和字节数。资源文件名带内容哈希，修改字节后会生成新 URL；`/assets/*` 使用 `Cache-Control: public, max-age=31536000, immutable`。清单、提示页和 404 页面不保留长期缓存，缺失图片返回真正的 404，不回退为提示页 HTML。公开资源允许跨域读取，字体许可证一并保留。
+
+## 部署与前端开关
+
+使用已授权的 Wrangler 会话，将 `public/` 部署到独立 Pages 项目 `inabakumori-assets`：
+
+```sh
+wrangler pages deploy artifacts/cloudflare-assets-pilot/public --project-name=inabakumori-assets --branch=main
 ```
 
-这只把成功响应在 Cloudflare 的有效期设为 30 天；不修改浏览器指令、不剥离 ETag、Last-Modified 或 Set-Cookie，保留包含查询串的默认缓存键。全局 Browser Cache TTL 选择 Respect Existing Headers。HTML、脚本、登录和留言 API 不匹配此规则；错误响应不获得长缓存。[响应规则](https://developers.cloudflare.com/cache/how-to/cache-response-rules/)、[规则字段与参数](https://developers.cloudflare.com/cache/how-to/cache-response-rules/settings/)
+记录 CLI 返回的实际生产 URL，再以 HTTPS 核对资源清单、图片字节和缓存头；确认后才填写前端配置。部署完成并验证后执行 `wrangler logout`。本轮临时授权已退出，后续维护需重新登录。
 
-## 发布核对与回退
+前端使用 `APP_CONFIG.assetPilot`：
 
-启用后核对权威 NS、HTTPS、`cf-ray` 和资源字节；对同一图片、字体重复 GET，观察 `cf-cache-status: HIT`／Age。Cloudflare 不保证每次都命中或保留至完整 TTL，不能把配置成功当成实际命中。另查首页没有获得 30 天缓存，Vercel `/healthz` 和留言接口仍正常。
+- `enabled`：是否启用手机画廊试点；设为 `false` 并按正常流程发布，即恢复全部本地缩略图。
+- `origin`：已核实的独立 Pages HTTPS origin。
+- `thumbnails`：6 个原始缩略图路径到已核实哈希 URL 的映射。
 
-以后替换固定路径的图片／字体，须更新引用 URL 的 `v` 版本并重新发布，或在发布时清除 Cloudflare 对应 URL 的边缘缓存并计入浏览器的 600 秒等待；默认缓存键保留查询串，不开启 Ignore Query String。[缓存键](https://developers.cloudflare.com/cache/how-to/cache-keys/)
+前端只接受同一 Pages origin 下的资源路径。远端图片出错后回退到原有本地缩略图，本页不再为该图反复尝试远端地址。原始本地文件始终保留，便于快速关闭试点。
 
-若代理异常，先关闭根域代理恢复源站直连；若需撤回 DNS 托管，在注册商恢复原 DNSPod NS。切换与回退都要保留完整记录并等待实际 DNS 生效。以后若启用 DNSSEC，再迁移必须先按服务商流程处理 DS，不能照搬当前未签名状态。[完整区域切换说明](https://developers.cloudflare.com/dns/zone-setups/full-setup/setup/)
+## 每次更新时核对
+
+重新打包后，对照清单逐一检查已上传资源的 SHA-256、字节数和响应类型；哈希文件应返回一年 `immutable` 缓存，缺失路径应为 404。只有实际响应可以证明资源已可用，不能以 ZIP 生成或 CLI 上传成功代替。
+
+核对手机画廊前 6 张图正常读取，并验证远端失败后的本地回退；桌面画廊和大图维持原入口。清单更新后同步 `thumbnails` 映射，保留旧哈希资源供已有页面访问。按项目规定完成提交、推送、发布、线上检查和完整文本副本同步。
+
+这是一项可关闭的小范围资源试点；是否扩展到字体、首屏图或其他资源，待实际效果和稳定性验证后再决定。域名托管、TLS 和 Vercel API 不属于本轮试点的变更范围。
+
+本轮 8 个二进制的 SHA-256、字节数、跨域头和一年缓存头均符合清单；实际缺失资源返回 404 和 `no-store`。用同一张 1,776 字节缩略图在本机各读取三次，Cloudflare 总耗时约 102–109 ms，原站约 64–540 ms；后两次原站反而更快。这个小样本不代表用户分布、浏览器持久缓存或整页性能，没有据此宣称提速，也未扩大首屏图和字体接入。

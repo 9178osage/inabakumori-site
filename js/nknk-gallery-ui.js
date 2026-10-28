@@ -88,6 +88,7 @@
     let inertState = [];
     let imageFallbackTried = false;
     let thumbObserver = null;
+    const failedPilotThumbnails = new Set();
     // Deferred thumbs need known dimensions so their slots do not collapse before loading.
     const canDeferThumbs = items.every(item => item.w > 0 && item.h > 0);
 
@@ -253,6 +254,34 @@
       return galleryTrackOf(button)?.querySelector(`.nknk-marquee-item:not([aria-hidden='true'])[data-gallery-index="${button.dataset.galleryIndex}"]`) || null;
     };
 
+    const pilotThumbnail = (source) => {
+      const pilot = window.APP_CONFIG?.assetPilot;
+      if (pilot?.enabled !== true || failedPilotThumbnails.has(source) || !/^images\/optimized\/nknk\/mobile\/[1-6]\.webp$/u.test(source)) return null;
+      try {
+        const origin = new URL(pilot.origin);
+        if (origin.protocol !== "https:" || origin.username || origin.password || origin.port ||
+            origin.pathname !== "/" || origin.search || origin.hash || !/^[a-z0-9-]+\.pages\.dev$/u.test(origin.hostname)) return null;
+        const target = new URL(pilot.thumbnails?.[source]);
+        if (target.origin !== origin.origin || target.username || target.password || target.hash || !target.pathname.startsWith("/assets/")) return null;
+        return target.href;
+      } catch { return null; }
+    };
+
+    const setCompactThumbnail = (img, source) => {
+      const remote = pilotThumbnail(source);
+      if (!remote) { img.src = source; return; }
+      let fallbackTried = false;
+      img.addEventListener("error", () => {
+        if (fallbackTried) return;
+        fallbackTried = true;
+        failedPilotThumbnails.add(source);
+        img.src = source;
+      }, { once: true });
+      // Native lazy loading decides when to request it. A timer started here
+      // would expire while this below-fold image has not been requested yet.
+      img.src = remote;
+    };
+
     const createButton = (item, absoluteIndex, { clone = false, compactThumb = false } = {}) => {
       const button = document.createElement("button");
       button.type = "button";
@@ -280,7 +309,7 @@
         // The mobile grid is static, so native lazy loading works without animation polling.
         img.loading = "lazy";
         img.fetchPriority = "low";
-        img.src = item.mobileThumb || item.thumb;
+        setCompactThumbnail(img, item.mobileThumb || item.thumb);
       } else if (!canDeferThumbs || (!clone && absoluteIndex < EAGER_THUMBS)) {
         // The illustrations a visitor reaches first. They cannot be left to native lazy loading:
         // CSS-transform motion does not count as "near the viewport", so the browser would keep them
