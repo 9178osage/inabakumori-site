@@ -178,7 +178,7 @@ test("the real SuperTokens Session bridge preserves header login, session metada
     assert.doesNotMatch(cookie, /;domain=/i);
   }
   assert.ok(app.writes.some(cookie => cookie.startsWith("__Host-station-sIRTFrontend=;expires=Thu, 01 Jan 1970")));
-  assert.match(authSource, /cookieHandler: secureSessionCookieHandler/);
+  assert.match(authSource, /cookieHandler: original => anonymousSessionCookieHandler\(secureSessionCookieHandler\(original\)\)/);
 });
 
 test("Secure is not duplicated and HTTP is exempted only for loopback development", async () => {

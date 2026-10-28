@@ -58,8 +58,14 @@ test("preview refuses allowlisted symlink files, parent directories and linked 4
 const emptyXPostsMeta = `<meta name="x-posts-version" content="${require("node:crypto").createHash("sha256").update(JSON.stringify({ version: 1, coverage: [], items: [] })).digest("hex")}"/>`;
 function publicBuild(box) {
   for (const file of ["tools/check-build.mjs", "tools/net-guards.mjs", "tools/x-posts-data.mjs", "tools/x-translations.mjs", "tools/calendar-song.mjs", "tools/safe-fs.mjs", "tools/song-archive.mjs", "js/post-search-core.js"]) box.copy(file);
+  const authBundle = "/* synthetic public auth bundle */";
+  const fingerprint = value => require("node:crypto").createHash("sha256").update(value).digest("hex").slice(0, 12);
+  const authLoader = `const bundleUrl = new URL("./auth.js?v=${fingerprint(authBundle)}", document.currentScript.src);`;
+  box.write("dist/js/auth.js", authBundle);
+  box.write("dist/js/auth-loader.js", authLoader);
   box.write("dist/index.html", `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://inabakumori-backend.vercel.app"/>
 <link rel="canonical" href="https://osagechan.top/"/>
+<script src="js/auth-loader.js?v=${fingerprint(authLoader)}" defer></script>
 <script type="application/ld+json">{"@type":"WebSite"}</script>
 <div id="nknk-gallery"></div><div id="nknk-lightbox"></div><section id="updates"></section><a href="#updates">Updates</a>
 ${emptyXPostsMeta}<div class="station-brand"><a class="station-mark" href="#updates">INABAKUMORI</a><a class="station-calendar" href="calendar.html">calendar</a></div><a data-song-title="ユレール">ユレール</a>`);

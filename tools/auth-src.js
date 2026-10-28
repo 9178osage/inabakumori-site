@@ -64,10 +64,30 @@ function secureSessionCookieHandler(original) {
     }
   };
 }
+// In header mode every recoverable credential is readable through this handler.
+// An empty jar is signed out; the SDK's default MAY_EXIST probe is unnecessary.
+// This virtual marker never writes a cookie or suppresses refresh for a saved token.
+function anonymousSessionCookieHandler(original) {
+  return {
+    ...original,
+    async getCookie() {
+      const cookies = await original.getCookie();
+      const pairs = cookies.split(";").map(part => part.trim());
+      const hasValue = name => pairs.some(pair => pair.startsWith(`${name}=`) && pair.slice(name.length + 1) !== "");
+      if (["st-access-token", "st-refresh-token", "sFrontToken", "st-last-access-token-update"].some(hasValue)) return cookies;
+      return `${cookies}${cookies ? "; " : ""}st-last-access-token-update=0`;
+    }
+  };
+}
 let resetToken = "";
 let resetTenantId = "public";
 let resetLinkRequested = false;
-{
+if (window.siteAuthReset?.requested) {
+  resetLinkRequested = true;
+  resetToken = window.siteAuthReset.token;
+  resetTenantId = window.siteAuthReset.tenantId;
+  delete window.siteAuthReset;
+} else {
   const url = new URL(window.location.href);
   const hashText = url.hash.replace(/^#/, "");
   const hashParams = hashText.includes("token=") ? new URLSearchParams(hashText) : null;
@@ -90,7 +110,7 @@ let resetLinkRequested = false;
 }
 SuperTokens.init({
   appInfo: { appName: "Inabakumori Fanswall", apiDomain: window.APP_CONFIG.apiDomain, websiteDomain: window.location.origin, apiBasePath: "/auth", websiteBasePath: "/auth" },
-  cookieHandler: secureSessionCookieHandler,
+  cookieHandler: original => anonymousSessionCookieHandler(secureSessionCookieHandler(original)),
   recipeList: [EmailPassword.init({ preAPIHook: authRequestDeadline, override: { functions: (original) => ({
     ...original,
     getResetPasswordTokenFromURL: (input) => resetLinkRequested ? resetToken : original.getResetPasswordTokenFromURL(input),
@@ -436,13 +456,15 @@ window.switchAuthMode = switchAuthMode;
 window.forgotPassword = forgotPassword;
 window.submitAuth = submitAuth;
 window.hasCommentSession = () => doesSessionExist();
-document.addEventListener("DOMContentLoaded", async () => {
+async function initializeAuth() {
   if (resetLinkRequested) {
     showAuthModal("reset");
     if (!resetToken) showAuthError("重置链接不完整，请重新获取重置邮件。", "The reset link is incomplete. Please request another reset email.");
   }
   await updateAuthButton();
-});
+}
+if (document.readyState === "loading" || document.readyState === undefined) document.addEventListener("DOMContentLoaded", initializeAuth);
+else initializeAuth();
 window.addEventListener("languagechange", () => {
   updateAuthButton();
   updateAuthModal();

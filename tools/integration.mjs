@@ -49,6 +49,10 @@ try {
   const previewConnections = previewCsp.split(";").map(directive => directive.trim().split(/\s+/u)).find(([name]) => name === "connect-src");
   assert.deepEqual(previewConnections, ["connect-src", "'self'", "https://inabakumori-backend.vercel.app", "http://127.0.0.1:3001", "http://localhost:3001"], "preview permits the current API and both local backend hostnames");
   const homeHtml = await page.text();
+  assert.match(homeHtml, /<script src="js\/auth-loader\.js\?v=[a-f0-9]{12}" defer><\/script>/u, "the lightweight auth loader is fingerprinted and served by the preview");
+  assert.doesNotMatch(homeHtml, /<script[^>]+src="js\/auth\.js(?:[?"])/u, "the homepage must not eagerly load the SDK bundle");
+  assert.equal((await request(`${previewUrl}/js/auth-loader.js`)).status, 200);
+  assert.equal((await request(`${previewUrl}/js/auth.js`)).status, 200, "the SDK bundle remains available for on-demand imports");
   assert.match(homeHtml, /data-song-title=/);
   assert.match(homeHtml, /id="updates"/u);
   assert.match(homeHtml, /href="#updates"/u);

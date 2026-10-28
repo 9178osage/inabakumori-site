@@ -31,11 +31,12 @@ await build({ entryPoints: [source("tools/auth-src.js")], bundle: true, platform
 // dist is generated exclusively by this script. Only explicitly public assets are copied.
 await rm(output("dist"), { recursive: true, force: true });
 await mkdir(out, { recursive: true });
-const scripts = ["script.js", ...["preferences", "config", "network", "i18n", "auth", "songs", "nknk-gallery", "nknk-gallery-ui", "experience", "comments", "updates", "home-updates", "x-posts-home", "home-mobile", "calendar", "post-search-core", "archive-pages"].map(name => `js/${name}.js`)];
+const scripts = ["script.js", ...["preferences", "config", "network", "i18n", "auth", "auth-loader", "songs", "nknk-gallery", "nknk-gallery-ui", "experience", "comments", "updates", "home-updates", "x-posts-home", "home-mobile", "calendar", "post-search-core", "archive-pages"].map(name => `js/${name}.js`)];
 const css = ["style.css", "updates.css", "calendar.css", "archive.css", "fonts/fonts.css"];
 const hashes = new Map();
 for (const file of [...scripts, ...css]) {
-  const text = await readFile(source(file), "utf8");
+  let text = await readFile(source(file), "utf8");
+  if (file === "js/auth-loader.js") text = text.replace(/\.\/auth\.js\?v=[A-Za-z0-9]+/u, `./auth.js?v=${hashes.get("js/auth.js")}`);
   const { code } = await transform(text, { loader: file.endsWith(".css") ? "css" : "js", minifyWhitespace: true, minifySyntax: true, minifyIdentifiers: false, legalComments: "inline", target: ["es2022"] });
   await mkdir(output(path.dirname(`dist/${file}`)), { recursive: true });
   await writeFile(output(`dist/${file}`), code);

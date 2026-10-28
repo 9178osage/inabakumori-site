@@ -75,6 +75,12 @@ const CONNECT_SRC_ALLOWED = new Set(["'self'", "https://inabakumori-backend.verc
 for (const source of (/connect-src([^;]*)/u.exec(csp)?.[1] ?? "").trim().split(/\s+/u).filter(Boolean)) {
   assert.ok(CONNECT_SRC_ALLOWED.has(source), `Unexpected connect-src source: ${source}`);
 }
+assert.match(html, /src="js\/auth-loader\.js\?v=[a-f0-9]{12}"/u, "Homepage must fingerprint its small auth loader");
+assert.doesNotMatch(html, /<script[^>]*src="js\/auth\.js/u, "The heavy auth bundle must load only when needed");
+const authLoader = await readFile(path.join(root, "js/auth-loader.js"), "utf8");
+const authBundle = await readFile(path.join(root, "js/auth.js"));
+assert.equal(authLoader.match(/["']\.\/auth\.js\?v=([a-f0-9]{12})["']/u)?.[1],
+  createHash("sha256").update(authBundle).digest("hex").slice(0, 12), "Lazy auth import must fingerprint the actual published bundle");
 assert.match(html, /<link rel="canonical" href="https:\/\/osagechan\.top\/"\/>/, "canonical must point at the custom domain");
 assert.ok(!html.includes("9178osage.github.io"), "old GitHub Pages URL must not remain in index.html");
 assert.equal((await readFile(path.join(root, "CNAME"), "utf8")).trim(), "osagechan.top", "dist/CNAME must name the custom domain");
