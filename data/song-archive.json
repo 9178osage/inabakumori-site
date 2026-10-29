@@ -277,6 +277,378 @@
         }
       ],
       "checkedAt": "2026-10-27"
+    },
+    "2_93SNGYgYs": {
+      "releasedAt": "2019-11-04T11:00:00Z",
+      "releaseNote": { "zh": "YouTube 公开时间。", "en": "YouTube publication time.", "ja": "YouTube の公開日時。" },
+      "albumRelease": "2019-11-17",
+      "vocal": "歌愛ユキ",
+      "credits": [
+        { "role": "music", "name": "稲葉曇" },
+        { "role": "illustration", "name": "ぬくぬくにぎりめし", "url": "https://x.com/NKNK_NGRMS" }
+      ],
+      "unverified": ["animation", "movie"],
+      "sources": [
+        { "label": "YouTube", "url": "https://www.youtube.com/watch?v=2_93SNGYgYs" }
+      ],
+      "checkedAt": "2026-10-28"
+    },
+    "M8ZGGCqJduU": {
+      "releasedAt": "2016-08-22T11:37:08Z",
+      "releaseNote": { "zh": "YouTube 公开时间。", "en": "YouTube publication time.", "ja": "YouTube の公開日時。" },
+      "albumRelease": "2019-11-17",
+      "vocal": "歌愛ユキ",
+      "credits": [
+        { "role": "music", "name": "稲葉曇" },
+        { "role": "illustration", "name": "稲葉曇" }
+      ],
+      "unverified": ["animation", "movie"],
+      "sources": [
+        { "label": "YouTube", "url": "https://www.youtube.com/watch?v=M8ZGGCqJduU" }
+      ],
+      "checkedAt": "2026-10-28"
+    },
+    "r8Lrrx6TMMY": {
+      "releasedAt": "2016-03-12T12:52:11Z",
+      "releaseNote": { "zh": "YouTube 公开时间。", "en": "YouTube publication time.", "ja": "YouTube の公開日時。" },
+      "albumRelease": "2019-11-17",
+      "vocal": "歌愛ユキ",
+      "credits": [
+        { "role": "music", "name": "稲葉曇" },
+        { "role": "illustration", "name": "稲葉曇" }
+      ],
+      "unverified": ["animation", "movie"],
+      "sources": [
+        { "label": "YouTube", "url": "https://www.youtube.com/watch?v=r8Lrrx6TMMY" }
+      ],
+      "checkedAt": "2026-10-28"
+    },
+    "ffGcA4Kj-rk": {
+      "releasedAt": "2016-05-02T15:58:36Z",
+      "releaseNote": { "zh": "YouTube 公开时间。", "en": "YouTube publication time.", "ja": "YouTube の公開日時。" },
+      "albumRelease": "2019-11-17",
+      "vocal": "歌愛ユキ",
+      "credits": [
+        { "role": "music", "name": "稲葉曇" },
+        { "role": "illustration", "name": "稲葉曇" }
+      ],
+      "unverified": ["animation", "movie"],
+      "sources": [
+        { "label": "YouTube", "url": "https://www.youtube.com/watch?v=ffGcA4Kj-rk" }
+      ],
+      "checkedAt": "2026-10-28"
+    },
+    "vyfNM-tIfiw": {
+      "releasedAt": "2016-05-28T11:24:41Z",
+      "releaseNote": { "zh": "YouTube 公开时间。", "en": "YouTube publication time.", "ja": "YouTube の公開日時。" },
+      "albumRelease": "2019-11-17",
+      "vocal": "歌愛ユキ",
+      "credits": [
+        { "role": "music", "name": "稲葉曇" },
+        { "role": "illustration", "name": "稲葉曇" }
+      ],
+      "unverified": ["animation", "movie"],
+      "sources": [
+        { "label": "YouTube", "url": "https://www.youtube.com/watch?v=vyfNM-tIfiw" }
+      ],
+      "checkedAt": "2026-10-28"
+    },
+    "3NWuC2UF0u0": {
+      "releasedAt": "2016-11-26T15:32:51Z",
+      "releaseNote": { "zh": "YouTube 公开时间。", "en": "YouTube publication time.", "ja": "YouTube の公開日時。" },
+      "albumRelease": "2019-11-17",
+      "vocal": "歌愛ユキ",
+      "credits": [
+        { "role": "music", "name": "稲葉曇" },
+        { "role": "illustration", "name": "稲葉曇" }
+      ],
+      "unverified": ["animation", "movie"],
+      "sources": [
+        { "label": "YouTube", "url": "https://www.youtube.com/watch?v=3NWuC2UF0u0" }
+      ],
+      "checkedAt": "2026-10-28"
+    },
+    "Jhw7Hum-eLw": {
+      "releasedAt": "2018-12-21T11:00:02Z",
+      "releaseNote": { "zh": "YouTube 公开时间。", "en": "YouTube publication time.", "ja": "YouTube の公開日時。" },
+      "albumRelease": "2019-11-17",
+      "vocal": "歌愛ユキ",
+      "credits": [
+        { "role": "music", "name": "稲葉曇" },
+        { "role": "illustration", "name": "ぬくぬくにぎりめし", "url": "https://x.com/NKNK_NGRMS" }
+      ],
+      "unverified": ["animation", "movie"],
+      "sources": [
+        { "label": "YouTube", "url": "https://www.youtube.com/watch?v=Jhw7Hum-eLw" }
+      ],
+      "checkedAt": "2026-10-28"
+    },
+    "MZvTr20tkro": {
+      "releasedAt": "2017-04-25T11:46:02Z",
+      "releaseNote": { "zh": "YouTube 公开时间。", "en": "YouTube publication time.", "ja": "YouTube の公開日時。" },
+      "albumRelease": "2019-11-17",
+      "vocal": "歌愛ユキ",
+      "credits": [
+        { "role": "music", "name": "稲葉曇" },
+        { "role": "illustration", "name": "稲葉曇" }
+      ],
+      "unverified": ["animation", "movie"],
+      "sources": [
+        { "label": "YouTube", "url": "https://www.youtube.com/watch?v=MZvTr20tkro" }
+      ],
+      "checkedAt": "2026-10-28"
+    },
+    "-5T-L0b43no": {
+      "releasedAt": "2019-05-11T13:00:00Z",
+      "releaseNote": { "zh": "YouTube 公开时间。概要栏署名为「Illustration & Movie : ぬくぬくにぎりめし & 稲葉曇」；是 2017 年专辑「モノカラーガールスーパーノヴァ」所收《ノンユース》的重制版。", "en": "YouTube publication time.The description credits “Illustration & Movie : ぬくぬくにぎりめし & 稲葉曇”; a retake of “ノンユース” from the 2017 album “モノカラーガールスーパーノヴァ”.", "ja": "YouTube の公開日時。概要欄の表記は「Illustration & Movie : ぬくぬくにぎりめし & 稲葉曇」。2017年のアルバム「モノカラーガールスーパーノヴァ」収録『ノンユース』のリテイク版。" },
+      "albumRelease": "2019-11-17",
+      "vocal": "歌愛ユキ & 初音ミク",
+      "credits": [
+        { "role": "music", "name": "稲葉曇" },
+        { "role": "illustration", "name": "ぬくぬくにぎりめし", "url": "https://x.com/NKNK_NGRMS" },
+        { "role": "illustration", "name": "稲葉曇" },
+        { "role": "movie", "name": "ぬくぬくにぎりめし", "url": "https://x.com/NKNK_NGRMS" },
+        { "role": "movie", "name": "稲葉曇" }
+      ],
+      "unverified": ["animation"],
+      "sources": [
+        { "label": "YouTube", "url": "https://www.youtube.com/watch?v=-5T-L0b43no" }
+      ],
+      "checkedAt": "2026-10-28"
+    },
+    "sXc204xHj8g": {
+      "releasedAt": "2016-02-22T10:02:57Z",
+      "releaseNote": { "zh": "YouTube 公开时间。", "en": "YouTube publication time.", "ja": "YouTube の公開日時。" },
+      "albumRelease": "2019-11-17",
+      "vocal": "歌愛ユキ",
+      "credits": [
+        { "role": "music", "name": "稲葉曇" },
+        { "role": "illustration", "name": "稲葉曇" }
+      ],
+      "unverified": ["animation", "movie"],
+      "sources": [
+        { "label": "YouTube", "url": "https://www.youtube.com/watch?v=sXc204xHj8g" }
+      ],
+      "checkedAt": "2026-10-28"
+    },
+    "wdUCRDvFv3Q": {
+      "releasedAt": "2019-12-04T14:00:08Z",
+      "releaseNote": { "zh": "YouTube 公开时间。", "en": "YouTube publication time.", "ja": "YouTube の公開日時。" },
+      "albumRelease": "2022-03-23",
+      "vocal": "歌愛ユキ",
+      "credits": [
+        { "role": "music", "name": "稲葉曇" },
+        { "role": "illustration", "name": "ぬくぬくにぎりめし", "url": "https://x.com/NKNK_NGRMS" }
+      ],
+      "unverified": ["animation", "movie"],
+      "sources": [
+        { "label": "YouTube", "url": "https://www.youtube.com/watch?v=wdUCRDvFv3Q" }
+      ],
+      "checkedAt": "2026-10-28"
+    },
+    "g6sYNwl1EWg": {
+      "releasedAt": "2021-11-20T11:00:12Z",
+      "releaseNote": { "zh": "YouTube 首映（Premiere）开始时间。", "en": "YouTube Premiere start time.", "ja": "YouTube プレミア公開の開始日時。" },
+      "albumRelease": "2022-03-23",
+      "vocal": "歌愛ユキ & 初音ミク",
+      "credits": [
+        { "role": "music", "name": "稲葉曇" },
+        { "role": "illustration", "name": "ぬくぬくにぎりめし", "url": "https://x.com/NKNK_NGRMS" }
+      ],
+      "unverified": ["animation", "movie"],
+      "sources": [
+        { "label": "YouTube", "url": "https://www.youtube.com/watch?v=g6sYNwl1EWg" }
+      ],
+      "checkedAt": "2026-10-28"
+    },
+    "mFih47l1pVI": {
+      "releasedAt": "2021-05-13T03:00:12Z",
+      "releaseNote": { "zh": "YouTube 公开时间。", "en": "YouTube publication time.", "ja": "YouTube の公開日時。" },
+      "albumRelease": "2022-03-23",
+      "vocal": "弦巻マキ (Synthesizer V AI)",
+      "credits": [
+        { "role": "music", "name": "稲葉曇" },
+        { "role": "illustration", "name": "ぬくぬくにぎりめし", "url": "https://x.com/NKNK_NGRMS" }
+      ],
+      "unverified": ["animation", "movie"],
+      "sources": [
+        { "label": "YouTube", "url": "https://www.youtube.com/watch?v=mFih47l1pVI" }
+      ],
+      "checkedAt": "2026-10-28"
+    },
+    "kYwB-kZyNU4": {
+      "releasedAt": "2022-01-29T11:00:15Z",
+      "releaseNote": { "zh": "YouTube 首映（Premiere）开始时间。", "en": "YouTube Premiere start time.", "ja": "YouTube プレミア公開の開始日時。" },
+      "albumRelease": "2022-03-23",
+      "vocal": "弦巻マキ (Synthesizer V Standard)",
+      "credits": [
+        { "role": "music", "name": "稲葉曇" },
+        { "role": "illustration", "name": "ぬくぬくにぎりめし", "url": "https://x.com/NKNK_NGRMS" }
+      ],
+      "unverified": ["animation", "movie"],
+      "sources": [
+        { "label": "YouTube", "url": "https://www.youtube.com/watch?v=kYwB-kZyNU4" }
+      ],
+      "checkedAt": "2026-10-28"
+    },
+    "3NLsyjOH92k": {
+      "releasedAt": "2022-03-26T11:00:14Z",
+      "releaseNote": { "zh": "YouTube 首映（Premiere）开始时间。", "en": "YouTube Premiere start time.", "ja": "YouTube プレミア公開の開始日時。" },
+      "albumRelease": "2022-03-23",
+      "vocal": "歌愛ユキ",
+      "credits": [
+        { "role": "music", "name": "稲葉曇" },
+        { "role": "illustration", "name": "ぬくぬくにぎりめし", "url": "https://x.com/NKNK_NGRMS" },
+        { "role": "animation", "name": "ぬくぬくにぎりめし", "url": "https://x.com/NKNK_NGRMS" },
+        { "role": "movie", "name": "稲葉曇" }
+      ],
+      "unverified": [],
+      "sources": [
+        { "label": "YouTube", "url": "https://www.youtube.com/watch?v=3NLsyjOH92k" }
+      ],
+      "checkedAt": "2026-10-28"
+    },
+    "8Rq6dVpEUS4": {
+      "releasedAt": "2022-06-03T11:00:14Z",
+      "releaseNote": { "zh": "YouTube 首映（Premiere）开始时间。", "en": "YouTube Premiere start time.", "ja": "YouTube プレミア公開の開始日時。" },
+      "vocal": "星界",
+      "credits": [
+        { "role": "music", "name": "稲葉曇" },
+        { "role": "illustration", "name": "ぬくぬくにぎりめし", "url": "https://x.com/NKNK_NGRMS" }
+      ],
+      "unverified": ["animation", "movie"],
+      "sources": [
+        { "label": "YouTube", "url": "https://www.youtube.com/watch?v=8Rq6dVpEUS4" }
+      ],
+      "checkedAt": "2026-10-28"
+    },
+    "xn4qndSd3vs": {
+      "releasedAt": "2022-08-25T11:00:16Z",
+      "releaseNote": { "zh": "YouTube 首映（Premiere）开始时间。", "en": "YouTube Premiere start time.", "ja": "YouTube プレミア公開の開始日時。" },
+      "vocal": "裏命",
+      "credits": [
+        { "role": "music", "name": "稲葉曇" },
+        { "role": "illustration", "name": "ぬくぬくにぎりめし", "url": "https://x.com/NKNK_NGRMS" }
+      ],
+      "unverified": ["animation", "movie"],
+      "sources": [
+        { "label": "YouTube", "url": "https://www.youtube.com/watch?v=xn4qndSd3vs" }
+      ],
+      "checkedAt": "2026-10-28"
+    },
+    "o14pj9CsNVY": {
+      "releasedAt": "2023-06-23T11:00:08Z",
+      "releaseNote": { "zh": "YouTube 首映（Premiere）开始时间。", "en": "YouTube Premiere start time.", "ja": "YouTube プレミア公開の開始日時。" },
+      "vocal": "音街ウナ (VOCALOID6 AI 音街ウナ Sugar, Spicy)",
+      "credits": [
+        { "role": "music", "name": "稲葉曇" },
+        { "role": "illustration", "name": "ぬくぬくにぎりめし", "url": "https://x.com/NKNK_NGRMS" }
+      ],
+      "unverified": ["animation", "movie"],
+      "sources": [
+        { "label": "YouTube", "url": "https://www.youtube.com/watch?v=o14pj9CsNVY" }
+      ],
+      "checkedAt": "2026-10-28"
+    },
+    "Imcr7rsBxsc": {
+      "releasedAt": "2023-10-06T09:30:11Z",
+      "releaseNote": { "zh": "YouTube 首映（Premiere）开始时间。", "en": "YouTube Premiere start time.", "ja": "YouTube プレミア公開の開始日時。" },
+      "vocal": "初音ミク",
+      "credits": [
+        { "role": "music", "name": "稲葉曇" },
+        { "role": "illustration", "name": "ぬくぬくにぎりめし", "url": "https://x.com/NKNK_NGRMS" }
+      ],
+      "unverified": ["animation", "movie"],
+      "sources": [
+        { "label": "YouTube", "url": "https://www.youtube.com/watch?v=Imcr7rsBxsc" }
+      ],
+      "checkedAt": "2026-10-28"
+    },
+    "uZdnPgDaOpk": {
+      "releasedAt": "2023-10-20T10:00:09Z",
+      "releaseNote": { "zh": "YouTube 首映（Premiere）开始时间。", "en": "YouTube Premiere start time.", "ja": "YouTube プレミア公開の開始日時。" },
+      "vocal": "nagiβ & カゼヒキβ",
+      "credits": [
+        { "role": "music", "name": "稲葉曇" },
+        { "role": "illustration", "name": "ぬくぬくにぎりめし", "url": "https://x.com/NKNK_NGRMS" }
+      ],
+      "unverified": ["animation", "movie"],
+      "sources": [
+        { "label": "YouTube", "url": "https://www.youtube.com/watch?v=uZdnPgDaOpk" }
+      ],
+      "checkedAt": "2026-10-28"
+    },
+    "EEk4JGzqoFg": {
+      "releasedAt": "2024-04-19T11:00:19Z",
+      "releaseNote": { "zh": "YouTube 首映（Premiere）开始时间。", "en": "YouTube Premiere start time.", "ja": "YouTube プレミア公開の開始日時。" },
+      "vocal": "歌愛ユキ（Backing Vocal: 初音ミク）",
+      "credits": [
+        { "role": "music", "name": "稲葉曇" },
+        { "role": "illustration", "name": "ぬくぬくにぎりめし", "url": "https://x.com/NKNK_NGRMS" },
+        { "role": "animation", "name": "ぬくぬくにぎりめし", "url": "https://x.com/NKNK_NGRMS" },
+        { "role": "movie", "name": "稲葉曇" }
+      ],
+      "unverified": [],
+      "sources": [
+        { "label": "YouTube", "url": "https://www.youtube.com/watch?v=EEk4JGzqoFg" }
+      ],
+      "checkedAt": "2026-10-28"
+    },
+    "9x7t1s4xMw4": {
+      "releasedAt": "2024-12-03T15:00:07Z",
+      "releaseNote": { "zh": "YouTube 首映（Premiere）开始时间。", "en": "YouTube Premiere start time.", "ja": "YouTube プレミア公開の開始日時。" },
+      "vocal": "歌愛ユキ",
+      "credits": [
+        { "role": "music", "name": "稲葉曇" },
+        { "role": "illustration", "name": "ぬくぬくにぎりめし", "url": "https://x.com/NKNK_NGRMS" }
+      ],
+      "unverified": ["animation", "movie"],
+      "sources": [
+        { "label": "YouTube", "url": "https://www.youtube.com/watch?v=9x7t1s4xMw4" }
+      ],
+      "checkedAt": "2026-10-28"
+    },
+    "IJN0piNZhBE": {
+      "releasedAt": "2025-07-26T13:00:07Z",
+      "releaseNote": { "zh": "YouTube 首映（Premiere）开始时间。", "en": "YouTube Premiere start time.", "ja": "YouTube プレミア公開の開始日時。" },
+      "vocal": "歌愛ユキ",
+      "credits": [
+        { "role": "music", "name": "稲葉曇" },
+        { "role": "illustration", "name": "ぬくぬくにぎりめし", "url": "https://x.com/NKNK_NGRMS" }
+      ],
+      "unverified": ["animation", "movie"],
+      "sources": [
+        { "label": "YouTube", "url": "https://www.youtube.com/watch?v=IJN0piNZhBE" }
+      ],
+      "checkedAt": "2026-10-28"
+    },
+    "L38M7qK1Yv4": {
+      "releasedAt": "2024-11-13T10:00:08Z",
+      "releaseNote": { "zh": "YouTube 首映（Premiere）开始时间。原曲作曲为いよわ，本版由稲葉曇 Remix（概要栏「Remixed by 稲葉曇」）。", "en": "YouTube Premiere start time.Original music by いよわ; this version is remixed by 稲葉曇 (“Remixed by 稲葉曇” in the description).", "ja": "YouTube プレミア公開の開始日時。原曲の作曲はいよわ、本バージョンは稲葉曇によるリミックス（概要欄「Remixed by 稲葉曇」）。" },
+      "vocal": "初音ミク",
+      "credits": [
+        { "role": "music", "name": "いよわ" },
+        { "role": "illustration", "name": "ぬくぬくにぎりめし", "url": "https://x.com/NKNK_NGRMS" }
+      ],
+      "unverified": ["animation", "movie"],
+      "sources": [
+        { "label": "YouTube", "url": "https://www.youtube.com/watch?v=L38M7qK1Yv4" }
+      ],
+      "checkedAt": "2026-10-28"
+    },
+    "LqlD2Btv0KI": {
+      "releasedAt": "2022-03-16T10:00:12Z",
+      "releaseNote": { "zh": "YouTube 首映（Premiere）开始时间。宮下遊官方频道发布；概要栏署名「作詞・作曲・編曲：稲葉曇」「映像：薬屋」。", "en": "YouTube Premiere start time.Published on 宮下遊’s official channel; the description credits “作詞・作曲・編曲：稲葉曇” and “映像：薬屋”.", "ja": "YouTube プレミア公開の開始日時。宮下遊の公式チャンネルで公開。概要欄の表記は「作詞・作曲・編曲：稲葉曇」「映像：薬屋」。" },
+      "vocal": "宮下遊",
+      "credits": [
+        { "role": "music", "name": "稲葉曇" },
+        { "role": "movie", "name": "薬屋", "url": "https://x.com/shioc621" }
+      ],
+      "unverified": ["illustration", "animation"],
+      "sources": [
+        { "label": "YouTube（宮下遊 miy_yuu / Official Channel）", "url": "https://www.youtube.com/watch?v=LqlD2Btv0KI" }
+      ],
+      "checkedAt": "2026-10-28"
     }
   }
 }

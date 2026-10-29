@@ -153,7 +153,7 @@ test("song pages show blanks as unverified and never fabricate credits", async (
   const page = renderSongPage(lost, 0, { details: details["DeKLpgzh-qQ"], linked: [], renderPost: () => "" });
   assert.match(page, /ぬくぬくにぎりめし/u);
   assert.match(page, /data-zh="影像"[\s\S]*?未核对/u);
-  const other = list.find(song => !details[song.youtube.slice(-11)]);
+  const other = list.find(song => !details[song.youtube.slice(-11)] && song.singers.length);
   const plain = renderSongPage(other, 1, { details: undefined, linked: [], renderPost: () => "" });
   assert.doesNotMatch(plain, /ぬくぬくにぎりめし|<time/u);
   assert.equal((plain.match(/class="song-unverified"/gu) || []).length, 4, "release date and three credits stay blank");
