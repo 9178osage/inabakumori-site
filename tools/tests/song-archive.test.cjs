@@ -52,7 +52,7 @@ test("a legal watch link generates the same song page and index path as its shor
   assert.ok(![...result.files.keys()].some(name => name.includes("undefined")));
 });
 
-test("each generated song share card uses its own official MV cover and escaped song title", async () => {
+test("each generated song share card uses its linked video's cover and escaped song title", async () => {
   const { renderArchivePages } = await import("../render-archive-pages.mjs");
   const list = songs();
   list.push({ title: 'A <song> & "cover"', youtube: "https://www.youtube.com/watch?v=AAAAAAAAAAA", singers: [], album: "SINGLES" });
@@ -94,6 +94,23 @@ test("verified details exist only for checked songs and carry official sources",
   }
   assert.deepEqual(lost.unverified, ["movie"], "Lost Umbrella's movie credit was not confirmed and stays blank");
   assert.ok(!lost.credits.some(credit => credit.role === "movie"));
+});
+
+test("all current songs have a reviewed record without inventing missing release dates or vocals", async () => {
+  const { validateSongDetails, renderSongPage, renderSongIndex } = await import("../song-archive.mjs");
+  const list = songs(), details = validateSongDetails(data(), list);
+  assert.equal(Object.keys(details).length, list.length);
+  for (const [i, song] of list.entries()) {
+    const entry = details[song.youtube.slice(-11)];
+    assert.ok(entry, song.title);
+    const page = renderSongPage(song, i, { details: entry, linked: [], renderPost: () => "" });
+    assert.doesNotMatch(page, /undefined|Invalid Date/u, song.title);
+    if (!entry.releasedAt) assert.doesNotMatch(page, /<time/u, song.title);
+  }
+  assert.equal((renderSongIndex(list, details, new Map()).match(/class="song-checked"/gu) || []).length, list.length);
+  assert.equal(details.KK9nXYdmkiM.releasedAt, undefined, "a known year is not expanded to a made-up day");
+  assert.equal(details.QpKaP3oGBXE.vocal, undefined, "hearing a familiar voice is not a vocal credit");
+  assert.equal(details.FRFgNWBAa8k.videoKind, "reupload");
 });
 
 test("validation refuses invented or unsourced credits", async () => {
@@ -143,6 +160,8 @@ test("posts link by video ID or title, short titles only in quotes, and are cate
   assert.deepEqual(linked.get("UnIhRpIT7nc").map(item => [item.id, item.category]), [["1", "release"], ["2", "milestone"], ["3", "note"]]);
   assert.deepEqual(linked.get("BBBBBBBBBBB").map(item => item.id), ["5"]);
   assert.deepEqual(linked.get("CCCCCCCCCCC"), [], "versions match by video ID only");
+  const sourced = linkPosts(list, posts, { CCCCCCCCCCC: { sources: [{ url: "https://x.com/inabakumori/status/3" }] } });
+  assert.deepEqual(sourced.get("CCCCCCCCCCC").map(item => item.id), ["3"], "explicit source posts link a version without broadening its title matches");
 });
 
 test("song pages show blanks as unverified and never fabricate credits", async () => {
@@ -153,11 +172,48 @@ test("song pages show blanks as unverified and never fabricate credits", async (
   const page = renderSongPage(lost, 0, { details: details["DeKLpgzh-qQ"], linked: [], renderPost: () => "" });
   assert.match(page, /ぬくぬくにぎりめし/u);
   assert.match(page, /data-zh="影像"[\s\S]*?未核对/u);
-  const other = list.find(song => !details[song.youtube.slice(-11)] && song.singers.length);
+  const other = { ...list.find(song => song.singers.length), title: "Unreviewed test song" };
   const plain = renderSongPage(other, 1, { details: undefined, linked: [], renderPost: () => "" });
   assert.doesNotMatch(plain, /ぬくぬくにぎりめし|<time/u);
   assert.equal((plain.match(/class="song-unverified"/gu) || []).length, 4, "release date and three credits stay blank");
   assert.match(plain, /站内歌曲表/u);
   const hostile = renderSongPage({ ...other, title: '<img src=x onerror=alert(1)>"' }, 1, { details: undefined, linked: [], renderPost: () => "" });
   assert.doesNotMatch(hostile, /<img src=x/u);
+});
+
+test("reviewed songs retain unknown fields and distinguish reuploads, audio and scoped credits", async () => {
+  const { renderSongPage, validateSongDetails } = await import("../song-archive.mjs");
+  const song = songs()[0];
+  const entry = { checkedAt: "2026-10-29", videoKind: "reupload",
+    releaseNote: { zh: "只确认早期收录，未确认首发日期。", en: "Only an early album appearance is confirmed.", ja: "初出の日付は未確認。" },
+    creditNote: { zh: "原作与改编分别署名。", en: "Original and arrangement credits are separate.", ja: "原作と編曲を区別。" },
+    credits: [{ role: "music", name: "Original creator" }, { role: "remix", name: "Remixer" }],
+    unverified: ["illustration", "animation", "movie"],
+    sources: [{ label: "Artist release", url: "https://booth.pm/en/items/3896396" }] };
+  assert.doesNotThrow(() => validateSongDetails({ version: 1, songs: { [song.youtube.slice(-11)]: entry } }, [song]));
+  const page = renderSongPage(song, 0, { details: entry, linked: [], renderPost: () => "" });
+  assert.doesNotMatch(page, /undefined|<time|站内歌曲表/u);
+  assert.match(page, /只确认早期收录/u);
+  assert.match(page, /视频（非官方转载）/u);
+  assert.match(page, /作曲[\s\S]*?Original creator/u);
+  assert.match(page, /重混[\s\S]*?Remixer/u);
+  assert.equal((page.match(/class="song-unverified"/gu) || []).length, 5);
+  const audio = renderSongPage(song, 0, { details: { ...entry, videoKind: "topic" }, linked: [], renderPost: () => "" });
+  assert.match(audio, /专辑音轨/u);
+});
+
+test("new first-party source hosts reject lookalikes, credentials and invalid field values", async () => {
+  const { validateSongDetails } = await import("../song-archive.mjs");
+  for (const change of [
+    entry => { entry.sources = [{ label: "lookalike", url: "https://booth.pm.evil.example/items/1" }]; },
+    entry => { entry.sources = [{ label: "userinfo", url: "https://user:password@booth.pm/items/1" }]; },
+    entry => { entry.sources = [{ label: "port", url: "https://soundcloud.com:444/inabakumori/track" }]; },
+    entry => { entry.vocal = {}; },
+    entry => { entry.creditNote = { zh: "note" }; },
+    entry => { entry.videoKind = "fan-wiki"; }
+  ]) {
+    const copy = data();
+    change(copy.songs["UnIhRpIT7nc"]);
+    assert.throws(() => validateSongDetails(copy, songs()));
+  }
 });

@@ -83,7 +83,9 @@ const SONGS = [
     "title": "絶体暗星",
     "youtube": "https://youtu.be/lYtZ5oMs3_8",
     "album": "ANTICYCLONE",
-    "singers": [],
+    "singers": [
+      "歌爱雪"
+    ],
     "viewCount": 1176464,
     "viewsCheckedAt": "2026-10-26"
   },
@@ -109,7 +111,9 @@ const SONGS = [
     "title": "さかさま少女感",
     "youtube": "https://youtu.be/n8O_gZ0Ebbs",
     "album": "ANTICYCLONE",
-    "singers": [],
+    "singers": [
+      "歌爱雪"
+    ],
     "viewCount": 817801,
     "viewsCheckedAt": "2026-10-26"
   },
@@ -190,6 +194,7 @@ const SONGS = [
     "youtube": "https://youtu.be/FRFgNWBAa8k",
     "album": "WEATHER STATION",
     "singers": [
+      "歌爱雪",
       "鸣花Hime"
     ],
     "viewCount": 2658,
@@ -199,7 +204,9 @@ const SONGS = [
     "title": "レーダー",
     "youtube": "https://youtu.be/xyrUvwVpDRI",
     "album": "WEATHER STATION",
-    "singers": [],
+    "singers": [
+      "歌爱雪"
+    ],
     "viewCount": 547543,
     "viewsCheckedAt": "2026-10-26"
   },
@@ -207,7 +214,9 @@ const SONGS = [
     "title": "かたむすび",
     "youtube": "https://youtu.be/n9xlE973OMs",
     "album": "WEATHER STATION",
-    "singers": [],
+    "singers": [
+      "歌爱雪"
+    ],
     "viewCount": 715708,
     "viewsCheckedAt": "2026-10-26"
   },
@@ -215,7 +224,9 @@ const SONGS = [
     "title": "天泣",
     "youtube": "https://youtu.be/1_8pQVYJtwQ",
     "album": "WEATHER STATION",
-    "singers": [],
+    "singers": [
+      "歌爱雪"
+    ],
     "viewCount": 784059,
     "viewsCheckedAt": "2026-10-26"
   },
@@ -392,7 +403,7 @@ const SONGS = [
     "viewsCheckedAt": "2026-10-26"
   },
   {
-    "title": "僕のサイノウ (稲葉曇 Arrange)",
+    "title": "僕のサイノウ (稲葉曇 Cover)",
     "youtube": "https://youtu.be/v03uVgQZOOM",
     "album": "SINGLES",
     "singers": [
@@ -435,6 +446,7 @@ const SONGS = [
     "youtube": "https://youtu.be/17xSzYLQVKQ",
     "album": "SINGLES",
     "singers": [
+      "稲葉曇",
       "歌爱雪"
     ],
     "viewCount": 197824,

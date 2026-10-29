@@ -10,6 +10,9 @@ const escape = value => String(value).replace(/[&<>"']/gu, character => ({ "&": 
 const tri = (tag, [zh, en, ja], attributes = "") => `<${tag}${attributes} data-zh="${escape(zh)}" data-en="${escape(en)}" data-ja="${escape(ja)}">${escape(zh)}</${tag}>`;
 const ROLES = {
   music: ["作曲", "Music", "作曲"],
+  lyrics: ["作词", "Lyrics", "作詞"],
+  arrangement: ["编曲 / 改编", "Arrangement", "編曲・アレンジ"],
+  remix: ["重混", "Remix", "リミックス"],
   illustration: ["插画", "Illustration", "イラスト"],
   animation: ["动画", "Animation", "アニメーション"],
   movie: ["影像", "Movie", "映像"]
@@ -33,15 +36,33 @@ export function youtubeId(url) {
 }
 export const songPageName = song => `song-${youtubeId(song.youtube)}.html`;
 
+// Exact hosts only: sources include the artists' release projects, shops,
+// licensed song metadata and first-person interviews as well as their posts.
+const SOURCE_HOSTS = new Set(["www.youtube.com", "www.nicovideo.jp", "x.com", "soundcloud.com",
+  "booth.pm", "inabakumori.booth.pm", "dokotana.booth.pm", "nbcuni-music.com", "subcul-rise.jp",
+  "realsound.jp", "chimera12.com", "youth-compilation.wixsite.com", "trudist.tumblr.com",
+  "joysound.com", "www.joysound.com", "prtimes.jp", "www.tunecore.co.jp", "otoiro.co.jp", "piapro.jp", "utaten.com"]);
+function sourceUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password && !url.port && SOURCE_HOSTS.has(url.hostname);
+  } catch { return false; }
+}
+
 export function validateSongDetails(data, songs) {
   assert.equal(data?.version, 1, "Unsupported song archive data");
   const known = new Set(songs.map(song => youtubeId(song.youtube)));
   for (const [id, entry] of Object.entries(data.songs)) {
     assert.ok(known.has(id), `Song details for unknown video ${id}`);
-    assert.ok(Number.isFinite(Date.parse(entry.releasedAt)), `Invalid release time for ${id}`);
+    assert.ok(entry.releasedAt == null || Number.isFinite(Date.parse(entry.releasedAt)), `Invalid release time for ${id}`);
+    assert.ok(entry.vocal == null || typeof entry.vocal === "string" && entry.vocal.trim(), `Invalid vocal for ${id}`);
+    for (const field of ["releaseNote", "creditNote", "videoNote"]) if (entry[field] !== undefined) {
+      assert.ok(entry[field] && ["zh", "en", "ja"].every(language => typeof entry[field][language] === "string" && entry[field][language].trim()), `Invalid ${field} for ${id}`);
+    }
+    assert.ok(entry.videoKind === undefined || ["official", "topic", "reupload", "medley"].includes(entry.videoKind), `Invalid video kind for ${id}`);
     assert.ok(Array.isArray(entry.credits) && entry.credits.every(credit => Object.hasOwn(ROLES, credit.role) && typeof credit.name === "string" && credit.name), `Invalid credits for ${id}`);
     for (const credit of entry.credits) if (credit.url) assert.match(credit.url, /^https:\/\/x\.com\/[A-Za-z0-9_]{1,15}$/u, `Invalid credit link for ${id}`);
-    assert.ok(Array.isArray(entry.sources) && entry.sources.length && entry.sources.every(source => /^https:\/\/(?:www\.youtube\.com|www\.nicovideo\.jp|x\.com)\//u.test(source.url)), `Every verified song needs an official source: ${id}`);
+    assert.ok(Array.isArray(entry.sources) && entry.sources.length && entry.sources.every(source => typeof source.label === "string" && source.label.trim() && sourceUrl(source.url)), `Every verified song needs an official source: ${id}`);
     assert.ok(Array.isArray(entry.unverified) && entry.unverified.every(role => Object.hasOwn(ROLES, role) && !entry.credits.some(credit => credit.role === role)), `Invalid unverified list for ${id}`);
     assert.match(entry.checkedAt, /^\d{4}-\d{2}-\d{2}$/u, `Invalid check date for ${id}`);
   }
@@ -56,19 +77,23 @@ function matchers(song, details) {
   const quoted = plain.length ? [`『${foldText(song.title)}』`] : [];
   const loose = plain.filter(title => Array.from(title).length >= 4);
   const aliases = (details?.aliases ?? []).map(foldText);
-  return { id, terms: [...loose, ...quoted, ...aliases] };
+  const sourcePosts = new Set((details?.sources ?? []).flatMap(source => {
+    const match = /^https:\/\/x\.com\/[A-Za-z0-9_]+\/status\/(\d+)(?:[/?#]|$)/u.exec(source.url);
+    return match ? [match[1]] : [];
+  }));
+  return { id, sourcePosts, terms: [...loose, ...quoted, ...aliases] };
 }
 
 export function linkPosts(songs, posts, details = {}) {
   const prepared = posts.map(post => ({ post, folded: foldText(post.text), refs: post.links.map(link => `${link.label} ${link.url}`).join(" ") + post.text }));
   const result = new Map();
   for (const song of songs) {
-    const { id, terms } = matchers(song, details[youtubeId(song.youtube)]);
+    const { id, sourcePosts, terms } = matchers(song, details[youtubeId(song.youtube)]);
     const released = details[id] ? Date.parse(details[id].releasedAt) : NaN;
     const linked = [];
     for (const { post, folded, refs } of prepared) {
       const byId = refs.includes(id);
-      if (!byId && !terms.some(term => folded.includes(term))) continue;
+      if (!byId && !sourcePosts.has(post.id) && !terms.some(term => folded.includes(term))) continue;
       const at = Date.parse(post.publishedAt);
       const category = MILESTONE.test(folded) ? "milestone"
         : RELEASE.test(folded) || (Number.isFinite(released) && at >= released - 86_400_000 && at <= released + 2 * 86_400_000) ? "release" : "note";
@@ -88,22 +113,27 @@ export function renderSongPage(song, index, { details, linked, renderPost }) {
   const id = youtubeId(song.youtube);
   const album = ALBUMS[song.album];
   const verified = Boolean(details);
-  const releaseValue = verified
-    ? `<time datetime="${escape(details.releasedAt)}" data-local-time>${escape(date(details.releasedAt))} JST</time>${details.releaseNote ? tri("small", [details.releaseNote.zh, details.releaseNote.en, details.releaseNote.ja], ' class="song-fact-note"') : ""}`
-    : `<span>—</span> ${UNVERIFIED}`;
+  const releaseValue = (details?.releasedAt
+    ? `<time datetime="${escape(details.releasedAt)}" data-local-time>${escape(date(details.releasedAt))} JST</time>`
+    : `<span>—</span> ${UNVERIFIED}`) + (details?.releaseNote ? tri("small", [details.releaseNote.zh, details.releaseNote.en, details.releaseNote.ja], ' class="song-fact-note"') : "");
   const albumValue = album
     ? `<span lang="ja">${escape(album.name)}</span> ${tri("span", album.kind, ' class="song-fact-note"')}${verified && details.albumRelease ? ` <span class="song-fact-note">${escape(details.albumRelease)}</span>` : ""}`
     : tri("span", ["单曲 / 其他", "Single / other", "シングル・その他"]);
-  const vocalValue = verified ? `<span lang="ja">${escape(details.vocal)}</span>`
-    : song.singers.length ? `${escape(song.singers.join(" / "))} ${tri("span", ["站内歌曲表", "site song list", "サイト楽曲表"], ' class="song-fact-note"')}` : `<span>—</span> ${UNVERIFIED}`;
-  const creditRows = Object.entries(ROLES).filter(([role]) => role !== "music").map(([role, label]) => {
+  const vocalValue = details?.vocal ? `<span lang="ja">${escape(details.vocal)}</span>`
+    : !verified && song.singers.length ? `${escape(song.singers.join(" / "))} ${tri("span", ["站内歌曲表", "site song list", "サイト楽曲表"], ' class="song-fact-note"')}` : `<span>—</span> ${UNVERIFIED}`;
+  const creditRows = Object.entries(ROLES).filter(([role]) => ["illustration", "animation", "movie"].includes(role) || details?.unverified.includes(role) || details?.credits.some(credit => credit.role === role)).map(([role, label]) => {
     const credit = details?.credits.filter(entry => entry.role === role) ?? [];
     const value = credit.length
       ? credit.map(entry => entry.url ? `<a href="${escape(entry.url)}" target="_blank" rel="noopener noreferrer" lang="ja">${escape(entry.name)} <span aria-hidden="true">↗</span></a>` : `<span lang="ja">${escape(entry.name)}</span>`).join(" / ")
       : `<span>—</span> ${UNVERIFIED}`;
     return row(label, value);
   }).join("");
-  const facts = `<dl class="song-facts">${row(["发布日期", "Released", "公開日"], releaseValue)}${row(["收录", "Album", "収録"], albumValue)}${row(["演唱", "Vocal", "ボーカル"], vocalValue)}${row(["MV", "MV", "MV"], `<a href="${escape(`https://www.youtube.com/watch?v=${id}`)}" target="_blank" rel="noopener noreferrer">YouTube <span aria-hidden="true">↗</span></a>`)}${creditRows}</dl>`;
+  const videoLabel = details?.videoKind === "reupload" ? ["视频（非官方转载）", "Video (unofficial reupload)", "動画（非公式転載）"]
+    : details?.videoKind === "topic" ? ["专辑音轨", "Album audio", "アルバム音源"]
+      : details?.videoKind === "medley" ? ["合作串烧", "Collaborative medley", "合作メドレー"] : ["MV", "MV", "MV"];
+  const videoNote = details?.videoNote ? tri("small", [details.videoNote.zh, details.videoNote.en, details.videoNote.ja], ' class="song-fact-note"') : "";
+  const facts = `<dl class="song-facts">${row(["发布日期", "Released", "公開日"], releaseValue)}${row(["收录", "Album", "収録"], albumValue)}${row(["演唱", "Vocal", "ボーカル"], vocalValue)}${row(videoLabel, `<a href="${escape(`https://www.youtube.com/watch?v=${id}`)}" target="_blank" rel="noopener noreferrer">YouTube <span aria-hidden="true">↗</span></a>${videoNote}`)}${creditRows}</dl>`;
+  const creditNote = details?.creditNote ? tri("p", [details.creditNote.zh, details.creditNote.en, details.creditNote.ja], ' class="song-sources"') : "";
   const sources = verified
     ? `<p class="song-sources">${tri("span", [`核对于 ${details.checkedAt}，来源：`, `Checked ${details.checkedAt}. Sources: `, `${details.checkedAt} 確認。出典：`])}${details.sources.map(source => `<a href="${escape(source.url)}" target="_blank" rel="noopener noreferrer">${escape(source.label)} <span aria-hidden="true">↗</span></a>`).join(" · ")}</p>`
     : tri("p", ["这首歌尚未逐项核对官方资料：标为“未核对”的栏目暂时留空，演唱来自本站歌曲表。", "This song has not been checked field by field yet: “Unverified” fields stay blank, and the vocal comes from this site’s song list.", "この曲は公式情報をまだ項目ごとに確認していません。「未確認」の欄は空欄で、ボーカルはサイトの楽曲表によるものです。"], ' class="song-sources"');
@@ -116,12 +146,13 @@ export function renderSongPage(song, index, { details, linked, renderPost }) {
   const searchLink = `search.html?q=${encodeURIComponent(song.title)}`;
   const more = linked.length > shown.length ? tri("p", [`另有 ${linked.length - shown.length} 条匹配帖子未在此列出。`, `${linked.length - shown.length} more matching posts are not listed here.`, `ほかに一致した投稿が${linked.length - shown.length}件あります。`], ' class="song-posts-more"') : "";
   const posts = linked.length
-    ? `${tri("p", ["按视频 ID 或曲名从已收录的 X 帖子中自动匹配，分类依据帖子用词，可能包含同名专辑等其他话题。", "Matched automatically from the collected X posts by video ID or title; categories follow the wording of each post and may include other topics such as an album of the same name.", "収録済みのX投稿から動画IDや曲名で自動的に抽出し、投稿の言葉づかいで分類しています。同名アルバムなど別の話題を含む場合があります。"], ' class="song-posts-note"')}${postSections}${more}`
+    ? `${tri("p", ["按视频 ID、已核对的来源帖或曲名从已收录的 X 帖子中匹配，分类依据帖子用词，可能包含同名专辑等其他话题。", "Matched from collected X posts by video ID, checked source posts or title; categories follow the wording and may include other topics such as a same-named album.", "収録済みのX投稿から動画ID・確認済みの出典投稿・曲名で抽出しています。分類は投稿の言葉づかいによるもので、同名アルバムなど別の話題を含む場合があります。"], ' class="song-posts-note"')}${postSections}${more}`
     : tri("p", ["已收录的 X 帖子中暂未找到与这首歌明确相关的帖子。", "No collected X post clearly mentions this song yet.", "収録済みのX投稿に、この曲に明確に関連するものはまだありません。"], ' class="x-posts-empty"');
   return `<article class="song-record" data-song-id="${id}">
 <div class="observation-label"><span class="observation-dot" aria-hidden="true"></span><span>SONG OBSERVATION</span><span class="observation-number" aria-hidden="true">NO. ${String(index + 1).padStart(2, "0")}</span></div>
 <h1 class="song-title" lang="ja">${escape(song.title)}</h1>
 ${facts}
+${creditNote}
 ${sources}
 <section class="song-posts" aria-labelledby="song-posts-title"><div class="feed-heading"><div><p class="section-kicker">X / LINKED POSTS</p>${tri("h2", ["相关帖子", "Linked posts", "関連する投稿"], ' id="song-posts-title"')}</div>${tri("a", ["在帖子搜索中查看 →", "Open in post search →", "投稿検索で見る →"], ` class="song-search-link" href="${escape(searchLink)}"`)}</div>${posts}</section>
 </article>`;

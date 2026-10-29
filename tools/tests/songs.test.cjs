@@ -98,8 +98,8 @@ test("all songs retain their exact order, titles, URLs, albums, and singers", ()
   const digest = createHash("sha256")
     .update(JSON.stringify(songs.map(song => [song.title, song.youtube, song.album, song.singers])))
     .digest("hex");
-  // Covers every song; includes the officially verified Anticyclone / Non-Use singer corrections.
-  assert.equal(digest, "7b6388123232c9d2186a95d103064e8d719e14e879fe823719a5e578ef9ef4cb");
+  // Covers every song, including the vocal/version corrections from the complete source review.
+  assert.equal(digest, "f3ea95d99a9dde66c2c44ee9fcf66e1e885bb458c167e8cfde3af9478df92716");
   for (const song of songs) {
     const url = new URL(song.youtube);
     assert.deepEqual([...url.searchParams.keys()].filter(key => key !== "v"), [], `${song.title}: no tracking parameters`);

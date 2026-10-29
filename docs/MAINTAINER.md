@@ -8,6 +8,8 @@ GitHub Pages 提供网页、图片和音乐目录。登录与留言通过 HTTPS 
 
 目录与命令入口见[文档导航](README.md)和[工具导航](../tools/README.md)。`data/` 保存经过校验的发布数据；本地报告、日志、采集原件与测量结果按用途归入被忽略的 `artifacts/` 子目录。该目录根下的 `changelog-api-cache.json` 是联网门禁的现用缓存，应保留原路径。整理时保留原始图片、字体、环境配置、数据库及备份；确认无文件的旧构建目录才可用 `rmdir` 移除。
 
+历史清理须同时检查普通分支与 GitHub 的 PR 引用，不能只看本地对象包或 `refs/heads/` 就宣称全部远端对象已清除。NKNK 原图的普通分支清理已完成，GitHub 仍保留 3 个只读旧 PR 引用；具体范围与平台限制见[历史复查](history/2026-10-29-git-history.md)。
+
 ## 每次改完看什么
 
 1. 本地运行 `npm test`、`npm run check`、`npm run test:integration`、`npm run check:changelog`，都成功再提交。最后一项单独联网核对上线记录；`npm run check` 本身不查询 GitHub API。测试失败时先找原因，不要删除安全检查来通过测试。
