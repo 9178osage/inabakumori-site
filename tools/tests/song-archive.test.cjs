@@ -108,7 +108,10 @@ test("all current songs have a reviewed record without inventing missing release
     if (!entry.releasedAt) assert.doesNotMatch(page, /<time/u, song.title);
   }
   assert.equal((renderSongIndex(list, details, new Map()).match(/class="song-checked"/gu) || []).length, list.length);
-  assert.equal(details.KK9nXYdmkiM.releasedAt, undefined, "a known year is not expanded to a made-up day");
+  assert.equal(details.KK9nXYdmkiM.releasedAt, "2019-04-12", "the 2019 day comes from a dated source, not the 2023 reupload");
+  assert.ok(details.KK9nXYdmkiM.sources.some(source => source.url.includes("/status/1116676713637761024")), "the dated source is listed");
+  assert.equal(details.QpKaP3oGBXE.releasedAt, "2020-03-19", "the 2020 day comes from the creator's post, not the 2023 reupload");
+  for (const id of ["e5d-DvD55OI", "io5HEdBNqWk", "v03uVgQZOOM", "dmG60q44PJQ", "KK9nXYdmkiM", "QpKaP3oGBXE", "Vb-z6AR-2F0"]) assert.equal(details[id].vocal, undefined, `unofficial vocal records stay out of the verified field: ${id}`);
   assert.equal(details.QpKaP3oGBXE.vocal, undefined, "hearing a familiar voice is not a vocal credit");
   assert.equal(details.FRFgNWBAa8k.videoKind, "reupload");
 });
