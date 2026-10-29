@@ -144,7 +144,10 @@ test("a failed pilot thumbnail falls back once and future mobile mounts keep tha
   Object.defineProperty(image, "src", { get: () => current, set(value) { current = value; assignments.push(value); } });
   image.dispatch("error");
   image.dispatch("error");
-  assert.deepEqual(assignments, ["images/optimized/nknk/mobile/1.webp"], "a failed local fallback must not restart a retry loop");
+  image.dispatch("error");
+  image.dispatch("error");
+  assert.deepEqual(assignments, ["images/optimized/nknk/mobile/1.webp", "images/optimized/nknk/1.webp"],
+    "Pages failure falls back to the local mobile file, then the original thumbnail, and never loops");
   const compact = [...app.media.values()].find(query => query.matches);
   compact.matches = false; compact.changed();
   compact.matches = true; compact.changed();
@@ -283,4 +286,15 @@ test("an illustration beyond the mobile preview remains a reachable return targe
   root.querySelector(".nknk-compact-toggle").dispatch("click", { detail: 0 });
   assert.equal(root.querySelectorAll(".nknk-marquee-item").length, 6);
   assert.equal(document.activeElement, root.querySelector(".nknk-compact-toggle"));
+});
+
+test("without the pilot a broken local mobile thumbnail falls back once to the original thumbnail", () => {
+  const app = galleryFixture({ assetPilot: undefined });
+  const image = app.root.querySelectorAll("img")[0];
+  assert.equal(image.src, "images/optimized/nknk/mobile/1.webp");
+  let current = image.src;
+  const assignments = [];
+  Object.defineProperty(image, "src", { get: () => current, set(value) { current = value; assignments.push(value); } });
+  for (let attempt = 0; attempt < 5; attempt++) image.dispatch("error");
+  assert.deepEqual(assignments, ["images/optimized/nknk/1.webp"], "one bounded fallback, no retry loop");
 });

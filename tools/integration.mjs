@@ -83,7 +83,18 @@ try {
   const get = await request(`${api}/api/comments`, { headers: { Origin: previewUrl } });
   assert.equal(get.status, 200);
   assert.equal(get.headers.get("access-control-allow-origin"), previewUrl);
-  assert.equal(get.headers.get("cache-control"), "no-store");
+  assert.equal(get.headers.get("cache-control"), "public, max-age=0, s-maxage=30, stale-while-revalidate=30", "credential-free list reads are CDN-cacheable");
+  assert.equal(get.headers.get("vercel-cache-tag"), "public-comments");
+  assert.match(get.headers.get("vary"), /\bOrigin\b/);
+  assert.doesNotMatch(get.headers.get("vary"), /Cookie/);
+  assert.equal(get.headers.get("ratelimit"), null, "per-client limiter state is not shared through the CDN");
+  for (const credential of [{ Authorization: "Bearer not-a-session" }, { Cookie: "sAccessToken=not-a-session" }]) {
+    const signed = await request(`${api}/api/comments`, { headers: { Origin: previewUrl, ...credential } });
+    assert.equal(signed.status, 200);
+    assert.equal(signed.headers.get("cache-control"), "no-store", "credentialed list reads stay out of shared caches");
+    assert.equal(signed.headers.get("vercel-cache-tag"), null);
+    assert.equal(signed.headers.get("access-control-allow-origin"), previewUrl);
+  }
   assert.match(get.headers.get("content-security-policy"), /default-src 'none'/);
   assert.ok(get.headers.get("x-request-id"));
   assert.deepEqual((await get.json()).comments, []);
@@ -91,7 +102,7 @@ try {
   const legacy = await request(`${api}/api/comments`, { headers: { Origin: "https://old-site.example" } });
   assert.equal(legacy.status, 200);
   assert.equal(legacy.headers.get("access-control-allow-origin"), "https://old-site.example");
-  assert.equal(legacy.headers.get("cache-control"), "no-store");
+  assert.match(legacy.headers.get("vary"), /\bOrigin\b/, "each allowed origin gets its own CDN entry");
   assert.notEqual(legacy.headers.get("x-request-id"), get.headers.get("x-request-id"), "cached data must not reuse request-specific headers");
   assert.deepEqual((await legacy.json()).comments, [], "warm public cache works for a different allowed origin");
   // An allowed Origin is not authentication: protected routes still need a session.
@@ -111,7 +122,7 @@ try {
   assert.equal(created.status, 201, await created.clone().text());
   const { comment } = await created.json();
   const afterPost = await request(`${api}/api/comments`, { headers: { Origin: previewUrl } });
-  assert.equal(afterPost.headers.get("cache-control"), "no-store");
+  assert.equal(afterPost.headers.get("vercel-cache-tag"), "public-comments");
   assert.deepEqual((await afterPost.json()).comments.map(item => item.id), [comment.id], "posting invalidates the cached empty list immediately");
   assert.equal(comment.isGuest, true);
   const createdAt = Date.parse(comment.createdAt);

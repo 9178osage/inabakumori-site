@@ -3,15 +3,15 @@ import { normalizeRequestPath, validateCommentInput, websiteLocation, parseAddit
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { openDatabase } from "./database.mjs";
+import { openDatabase, SELECT_COMMENT_LIST_VERSION } from "./database.mjs";
 import { createDatabaseAccess } from "./database-access.mjs";
 import { createRequestRateLimit } from "./request-rate-limit.mjs";
 import { createClientIdentity } from "./client-identity.mjs";
 import { createRequestMaintenance } from "./request-maintenance.mjs";
-import { createPublicCommentsCache } from "./public-comments-cache.mjs";
+import { createPublicCommentsCache, applyPublicCommentsCacheHeaders, PUBLIC_COMMENTS_CACHE_TAG } from "./public-comments-cache.mjs";
 import { createPostgresRateLimitStore, cleanupExpiredRateLimits, withRateLimitRequestContext } from "./rate-limit-store.mjs";
 import { commentWriteMaintenance } from "./maintenance.mjs";
-import { waitUntil } from "@vercel/functions";
+import { waitUntil, dangerouslyDeleteByTag } from "@vercel/functions";
 import { registerBackupEndpoint, backupTokenFrom, isBackupPath } from "./backup-endpoint.mjs";
 import express from "express";
 import cors from "cors";
@@ -270,7 +270,18 @@ const deleteExpiredGuestsStatement = db.prepare(`
         AND expires_at <= ?
 `);
 const MAX_PUBLIC_COMMENTS = 100;
-const publicComments = createPublicCommentsCache({ load: now => selectRecentCommentsStatement.all(now, MAX_PUBLIC_COMMENTS) });
+const selectCommentListVersionStatement = db.prepare(SELECT_COMMENT_LIST_VERSION);
+const publicComments = createPublicCommentsCache({ load: now => selectRecentCommentsStatement.all(now, MAX_PUBLIC_COMMENTS),
+  version: async () => (await selectCommentListVersionStatement.get())?.version });
+// Same-instance memory is cleared at once; the shared CDN copy is deleted by tag
+// (Hobby plans include tag purges). A failed purge is bounded by s-maxage.
+function invalidatePublicComments() {
+  publicComments.invalidate();
+  if (!IS_VERCEL) return;
+  const purge = Promise.resolve().then(() => dangerouslyDeleteByTag(PUBLIC_COMMENTS_CACHE_TAG))
+    .catch(error => console.error("Public comments CDN purge failed", { name: error?.name, code: error?.code }));
+  waitUntil(purge);
+}
 const MEMBER_COMMENT_CAP = 100;
 const GUEST_COMMENT_RETENTION_DAYS = 182;
 const GUEST_COMMENT_RETENTION_MS = GUEST_COMMENT_RETENTION_DAYS * 24 * 60 * 60 * 1e3;
@@ -285,7 +296,7 @@ async function deleteExpiredGuestComments() {
   const result = await deleteExpiredGuestsStatement.run(Date.now());
   const deleted = Number(result.changes);
   if (deleted > 0) {
-    publicComments.invalidate();
+    invalidatePublicComments();
     console.log(`🧹 Deleted ${deleted} expired guest comment(s)`);
   }
   await cleanupExpiredRateLimits(db);
@@ -309,6 +320,7 @@ app.use((req, res, next) => {
 app.get("/api/comments", async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   const comments = await publicComments.read();
+  applyPublicCommentsCacheHeaders(req, res);
   res.json({ comments });
 });
 app.post("/api/comments", commentLimiter, requireJsonContentType, verifySession({ sessionRequired: false }), guestCommentLimiter, memberCommentLimiter, async (req, res) => {
@@ -332,11 +344,11 @@ app.post("/api/comments", commentLimiter, requireJsonContentType, verifySession(
   if (!inserted.ok) {
     return res.status(409).json({ error: "每个账号最多保留 100 条留言，请先删除旧留言", code: "MEMBER_COMMENT_CAP" });
   }
-  publicComments.invalidate();
+  invalidatePublicComments();
   return res.status(201).json({ success: true, comment: { id: inserted.id, nickname, content, isGuest, createdAt: new Date(createdAt).toISOString(), expiresAt: expiresAt === null ? null : new Date(expiresAt).toISOString() } });
 });
-registerCommentManagement(app, db, verifySession, publicComments.invalidate);
-registerAdminCommentManagement(app, db, verifySession, createAdminCheck(ADMIN_USER_IDS), publicComments.invalidate);
+registerCommentManagement(app, db, verifySession, invalidatePublicComments);
+registerAdminCommentManagement(app, db, verifySession, createAdminCheck(ADMIN_USER_IDS), invalidatePublicComments);
 const BACKUP_TOKEN = backupTokenFrom(process.env);
 if (process.env.BACKUP_TOKEN?.trim() && !BACKUP_TOKEN) console.warn("⚠️ BACKUP_TOKEN is shorter than 32 characters; backup endpoint disabled");
 const backupLimiter = createRequestRateLimit({ ...sharedStore("backupLimiter"), keyGenerator: clientIpKey, windowMs: 60 * 60 * 1e3, limit: 5, standardHeaders: "draft-7", legacyHeaders: false,

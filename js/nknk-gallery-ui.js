@@ -267,19 +267,24 @@
       } catch { return null; }
     };
 
-    const setCompactThumbnail = (img, source) => {
+    // Pages pilot -> local mobile thumbnail -> original local thumbnail. Each
+    // candidate is tried at most once, so a broken file can never loop.
+    const setCompactThumbnail = (img, source, original) => {
       const remote = pilotThumbnail(source);
-      if (!remote) { img.src = source; return; }
-      let fallbackTried = false;
-      img.addEventListener("error", () => {
-        if (fallbackTried) return;
-        fallbackTried = true;
-        failedPilotThumbnails.add(source);
-        img.src = source;
-      }, { once: true });
+      const candidates = [remote, source, original].filter((value, index, list) => value && list.indexOf(value) === index);
+      let step = 0;
+      if (candidates.length > 1) {
+        img.addEventListener("error", function fallback() {
+          if (candidates[step] === remote) failedPilotThumbnails.add(source);
+          if (step >= candidates.length - 1) return;
+          step++;
+          if (step === candidates.length - 1) img.removeEventListener?.("error", fallback);
+          img.src = candidates[step];
+        });
+      }
       // Native lazy loading decides when to request it. A timer started here
       // would expire while this below-fold image has not been requested yet.
-      img.src = remote;
+      img.src = candidates[0];
     };
 
     const createButton = (item, absoluteIndex, { clone = false, compactThumb = false } = {}) => {
@@ -309,7 +314,7 @@
         // The mobile grid is static, so native lazy loading works without animation polling.
         img.loading = "lazy";
         img.fetchPriority = "low";
-        setCompactThumbnail(img, item.mobileThumb || item.thumb);
+        setCompactThumbnail(img, item.mobileThumb || item.thumb, item.thumb);
       } else if (!canDeferThumbs || (!clone && absoluteIndex < EAGER_THUMBS)) {
         // The illustrations a visitor reaches first. They cannot be left to native lazy loading:
         // CSS-transform motion does not count as "near the viewport", so the browser would keep them

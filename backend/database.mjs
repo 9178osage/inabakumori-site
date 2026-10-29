@@ -32,6 +32,45 @@ const COMMENT_INDEXES = `
   CREATE INDEX IF NOT EXISTS idx_comments_member_cursor ON comments(user_id, id DESC) WHERE is_guest = 0;
   CREATE INDEX IF NOT EXISTS idx_comments_member_recent ON comments(user_id, created_at DESC) WHERE is_guest = 0;
   CREATE INDEX IF NOT EXISTS idx_comments_guest_recent ON comments(created_at DESC) WHERE is_guest = 1;`;
+// One row counts committed comment changes. Row triggers bump it inside the
+// writing transaction, so every insert/update/delete path (posts, owner and
+// admin deletes, expiry cleanup, migrations) is covered without app calls.
+// Every statement is idempotent; existing data and objects are never dropped.
+const SQLITE_COMMENT_LIST_VERSION = `
+  CREATE TABLE IF NOT EXISTS comment_list_version (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    version INTEGER NOT NULL
+  );
+  INSERT OR IGNORE INTO comment_list_version (id, version) VALUES (1, 0);
+  CREATE TRIGGER IF NOT EXISTS comments_list_version_insert AFTER INSERT ON comments
+    BEGIN UPDATE comment_list_version SET version = version + 1 WHERE id = 1; END;
+  CREATE TRIGGER IF NOT EXISTS comments_list_version_update AFTER UPDATE ON comments
+    BEGIN UPDATE comment_list_version SET version = version + 1 WHERE id = 1; END;
+  CREATE TRIGGER IF NOT EXISTS comments_list_version_delete AFTER DELETE ON comments
+    BEGIN UPDATE comment_list_version SET version = version + 1 WHERE id = 1; END;`;
+const POSTGRES_COMMENT_LIST_VERSION = `
+  CREATE TABLE IF NOT EXISTS comment_list_version (
+    id SMALLINT PRIMARY KEY CHECK (id = 1),
+    version BIGINT NOT NULL
+  );
+  INSERT INTO comment_list_version (id, version) VALUES (1, 0) ON CONFLICT (id) DO NOTHING;
+  DO $comment_list_version$
+  BEGIN
+    IF to_regprocedure('bump_comment_list_version()') IS NULL THEN
+      CREATE FUNCTION bump_comment_list_version() RETURNS trigger LANGUAGE plpgsql AS $bump$
+      BEGIN
+        UPDATE comment_list_version SET version = version + 1 WHERE id = 1;
+        RETURN NULL;
+      END
+      $bump$;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'comments'::regclass AND tgname = 'comments_list_version') THEN
+      CREATE TRIGGER comments_list_version AFTER INSERT OR UPDATE OR DELETE ON comments
+        FOR EACH ROW EXECUTE FUNCTION bump_comment_list_version();
+    END IF;
+  END
+  $comment_list_version$;`;
+export const SELECT_COMMENT_LIST_VERSION = "SELECT version FROM comment_list_version WHERE id = 1";
 const RATE_LIMIT_SCHEMA = `
   CREATE TABLE IF NOT EXISTS rate_limit_counters (
     prefix TEXT NOT NULL,
@@ -198,7 +237,7 @@ export async function createPostgresDatabase(pool) {
     // message retains transaction order, replacing four network round trips with one.
     await initializer.query(`BEGIN;
       SELECT pg_advisory_xact_lock(${SCHEMA_COMPATIBILITY_LOCK});
-      ${POSTGRES_SCHEMA}${COMMENT_INDEXES}${RATE_LIMIT_SCHEMA}
+      ${POSTGRES_SCHEMA}${COMMENT_INDEXES}${POSTGRES_COMMENT_LIST_VERSION}${RATE_LIMIT_SCHEMA}
       COMMIT;`);
   } catch (error) {
     initializerReleaseError = await rollbackForRelease(initializer);
@@ -261,7 +300,7 @@ async function openSqliteDatabase(env, directory) {
   await mkdir(path.dirname(databasePath), { recursive: true });
   const database = new DatabaseSync(databasePath);
   try {
-    database.exec(`PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000; ${SQLITE_SCHEMA}${COMMENT_INDEXES}`);
+    database.exec(`PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000; ${SQLITE_SCHEMA}${COMMENT_INDEXES}${SQLITE_COMMENT_LIST_VERSION}`);
   } catch (error) { try { database.close(); } catch {} throw error; }
   let tail = Promise.resolve();
   const context = new AsyncLocalStorage();
