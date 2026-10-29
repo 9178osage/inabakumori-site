@@ -112,7 +112,9 @@ export function parseChangelogTable(markdown) {
   return rows;
 }
 
-function parseRun(data, id) {
+const EMPTY_REWRITES = new Map();
+
+function parseRun(data, id, rewrites = EMPTY_REWRITES) {
   if (!data || typeof data !== "object" || data.id !== Number(id) ||
       typeof data.name !== "string" || typeof data.event !== "string" || typeof data.head_branch !== "string" ||
       typeof data.head_sha !== "string" || !/^[0-9a-f]{40}$/iu.test(data.head_sha) ||
@@ -121,7 +123,33 @@ function parseRun(data, id) {
       new Date(data.created_at).toISOString().replace(".000Z", "Z") !== data.created_at) {
     throw new Error(`Run ${id}: missing or invalid GitHub run fields`);
   }
-  return { ...data, head_sha: data.head_sha.toLowerCase(), createdMs: Date.parse(data.created_at) };
+  const recorded = data.head_sha.toLowerCase();
+  // GitHub keeps each historical run's original head_sha after a history rewrite;
+  // translate it through the tracked old->new commit map so rows, the baseline
+  // and ancestry coverage all compare against the current history.
+  return { ...data, head_sha: rewrites.get(recorded) || recorded, createdMs: Date.parse(data.created_at) };
+}
+
+// Validates tools/changelog-history-rewrites.json: { "commits": { "<old full SHA>": "<new full SHA>" } }.
+// Mappings must be one-to-one and unchained, so a run can never resolve ambiguously.
+export function parseHistoryRewrites(data) {
+  if (data === undefined) return EMPTY_REWRITES;
+  if (!data || typeof data !== "object" || Array.isArray(data) || Object.keys(data).length !== 1 || !Object.hasOwn(data, "commits") ||
+      !data.commits || typeof data.commits !== "object" || Array.isArray(data.commits)) {
+    throw new Error("Invalid changelog history rewrite map");
+  }
+  const map = new Map();
+  for (const [from, to] of Object.entries(data.commits)) {
+    if (!/^[0-9a-f]{40}$/u.test(from) || typeof to !== "string" || !/^[0-9a-f]{40}$/u.test(to) || from === to) {
+      throw new Error("Invalid changelog history rewrite entry");
+    }
+    map.set(from, to);
+  }
+  const targets = new Set(map.values());
+  if (targets.size !== map.size || [...map.keys()].some(from => targets.has(from))) {
+    throw new Error("Changelog history rewrite map must be one-to-one and unchained");
+  }
+  return map;
 }
 
 function pacificDate(time) {
@@ -175,7 +203,7 @@ export function localChangelogCoverage({ directory, since, baselineRunIds, githu
 export async function verifyChangelogTable(markdown, {
   fetchImpl = globalThis.fetch, repo = DEFAULT_REPO, token = "", deadlineMs = 12_000, concurrency = 4,
   lookup = "direct", maxPages = 10, cache, stats, maxRetries = 2, retryBaseMs = 250, maxRetryWaitMs = 2000,
-  coverage
+  coverage, rewrites = EMPTY_REWRITES
 } = {}) {
   const rows = parseChangelogTable(markdown);
   const scope = coverageScope(coverage);
@@ -218,7 +246,7 @@ export async function verifyChangelogTable(markdown, {
           }
           for (const run of data.workflow_runs) {
             const id = String(run.id);
-            const parsed = scope || wanted.has(id) ? parseRun(run, id) : null;
+            const parsed = scope || wanted.has(id) ? parseRun(run, id, rewrites) : null;
             if (scope) {
               if (listed.has(id) || parsed.createdMs > previousCreated) throw new PaginationChangedError("GitHub run pagination changed or is out of order; coverage is incomplete");
               listed.add(id);
@@ -267,7 +295,7 @@ export async function verifyChangelogTable(markdown, {
   await Promise.all(Array.from({ length: Math.min(concurrency, missing.length) }, async () => {
     while (next < missing.length) {
       const id = missing[next++];
-      runs.set(id, parseRun(await requestGithubJson(`/${id}`, `Run ${id}`, requestOptions), id));
+      runs.set(id, parseRun(await requestGithubJson(`/${id}`, `Run ${id}`, requestOptions), id, rewrites));
     }
   }));
   if (runs.size !== ids.length || !runs.size) throw new Error("Incomplete or zero GitHub run coverage");
@@ -405,10 +433,14 @@ async function main() {
       typeof configuration.since !== "string" || !FULL_SHA.test(configuration.since)) {
     throw new Error("Invalid tracked changelog coverage baseline");
   }
+  let rewriteSource;
+  try { rewriteSource = await readFile(new URL("./changelog-history-rewrites.json", import.meta.url), "utf8"); }
+  catch (error) { if (error.code !== "ENOENT") throw error; }
+  const rewrites = parseHistoryRewrites(rewriteSource === undefined ? undefined : JSON.parse(rewriteSource));
   const coverage = localChangelogCoverage({ directory: fileURLToPath(new URL("../", import.meta.url)),
     since: configuration.since, baselineRunIds: configuration.baselineRunIds, githubSha: process.env.GITHUB_SHA || "" });
   let result, failure;
-  try { result = await verifyChangelogTable(markdown, { repo, token, lookup: "paginated", cache, stats, coverage }); }
+  try { result = await verifyChangelogTable(markdown, { repo, token, lookup: "paginated", cache, stats, coverage, rewrites }); }
   catch (error) { failure = error; }
   try { if (cache) await saveCache(cache); }
   catch (error) {

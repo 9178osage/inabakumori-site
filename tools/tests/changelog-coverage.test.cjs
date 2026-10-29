@@ -343,3 +343,18 @@ test("a pagination change preserves anonymous rate-limit cooldown before restart
   assert.deepEqual(calls, [1, 2], "no HTTP request during the preserved cooldown");
   assert.equal(cache.cooldownUntil, reset * 1000);
 });
+
+test("history rewrite map translates original run head_sha values to rewritten commits", async () => {
+  const { verifyChangelogTable, parseHistoryRewrites } = await load();
+  const oldSince = sha("1111111"), oldHead = sha("2222222"), head = sha("bbbbbbb");
+  const rewrites = parseHistoryRewrites({ commits: { [oldSince]: since, [oldHead]: head } });
+  const runs = [...pair(300, oldHead), ...pair(101, oldSince, "2026-10-16T20:00:00Z")];
+  const markdown = table([row(head, 300), row(since, 101, "10-16")]);
+  const result = await verifyChangelogTable(markdown, { coverage: scope([head]), fetchImpl: api([runs]), rewrites });
+  assert.equal(result.coverage.recorded, 1);
+  await assert.rejects(verifyChangelogTable(markdown, { coverage: scope([head]), fetchImpl: api([runs]) }), /commit mismatch|baseline anchor/u);
+  assert.throws(() => parseHistoryRewrites({ commits: { [oldSince]: since, [oldHead]: since } }), /one-to-one/u);
+  assert.throws(() => parseHistoryRewrites({ commits: { [oldSince]: oldHead, [oldHead]: head } }), /unchained/u);
+  assert.throws(() => parseHistoryRewrites({ commits: { abc: since } }), /entry/u);
+  assert.throws(() => parseHistoryRewrites({ commits: {}, extra: 1 }), /Invalid/u);
+});
