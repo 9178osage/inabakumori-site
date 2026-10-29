@@ -24,10 +24,15 @@ export function createPublicCommentsCache({ load, version, now = Date.now }) {
     if (cached && startedAt < cached.until) {
       const entry = cached;
       if (!version) return entry.comments;
+      const generationAtProbe = generation;
       let latest;
-      try { latest = await currentVersion(); } catch { return entry.comments; }
-      if (latest === entry.version) return entry.comments;
-      if (cached === entry) cached = undefined;
+      let probeFailed = false;
+      try { latest = await currentVersion(); } catch { probeFailed = true; }
+      // The probe can finish after a write, another refill, or the expiry
+      // boundary. Neither a matching version nor a failed probe revives it.
+      if (generationAtProbe !== generation || cached !== entry || now() >= entry.until) return read();
+      if (probeFailed || latest === entry.version) return entry.comments;
+      cached = undefined;
     }
     if (pending) return pending;
     const generationAtStart = generation;

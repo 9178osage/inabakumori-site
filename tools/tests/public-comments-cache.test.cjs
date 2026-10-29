@@ -93,6 +93,52 @@ test("a committed mutation invalidates both the warm list and a pre-write in-fli
   assert.equal(calls, 3, "a warm snapshot is invalidated as well");
 });
 
+test("a warm version probe cannot return an invalidated snapshot, even if the probe fails", async t => {
+  const { createPublicCommentsCache } = await import("../../backend/public-comments-cache.mjs");
+  for (const probeFails of [false, true]) await t.test(probeFails ? "failed probe" : "matching old version", async () => {
+    const probe = deferred();
+    let versionCalls = 0, loads = 0;
+    const cache = createPublicCommentsCache({
+      version: () => ++versionCalls === 2 ? probe.promise : versionCalls === 1 ? 1 : 2,
+      load: () => ++loads === 1 ? [row(1)] : []
+    });
+    await cache.read();
+    const beforeDelete = cache.read();
+    assert.equal(versionCalls, 2, "the warm read is waiting for the old version query");
+    cache.invalidate();
+    const afterDelete = cache.read();
+    if (probeFails) probe.reject(new Error("old version query failed"));
+    else probe.resolve(1);
+    const [before, after] = await Promise.all([beforeDelete, afterDelete]);
+    assert.deepEqual(before, [], "the in-flight read must not revive a deleted comment");
+    assert.equal(before, after, "the invalidated read joins the fresh load");
+    assert.equal(loads, 2);
+  });
+});
+
+test("a warm version probe crossing the TTL or guest expiry refills before returning", async t => {
+  const { createPublicCommentsCache } = await import("../../backend/public-comments-cache.mjs");
+  for (const boundary of ["TTL", "guest expiry"]) for (const probeFails of [false, true]) {
+    await t.test(`${boundary}, ${probeFails ? "failed probe" : "unchanged version"}`, async () => {
+      const probe = deferred();
+      let now = 1000, versionCalls = 0, loads = 0;
+      const expiresAt = boundary === "guest expiry" ? 1500 : null;
+      const cache = createPublicCommentsCache({ now: () => now,
+        version: () => ++versionCalls === 2 ? probe.promise : 1,
+        load: () => ++loads === 1 ? [row(1, expiresAt)] : [row(2)]
+      });
+      await cache.read();
+      const read = cache.read();
+      assert.equal(versionCalls, 2);
+      now = boundary === "guest expiry" ? 1500 : 31_000;
+      if (probeFails) probe.reject(new Error("slow version query failed"));
+      else probe.resolve(1);
+      assert.deepEqual((await read).map(item => item.id), [2], "expired data never escapes a delayed probe");
+      assert.equal(loads, 2);
+    });
+  }
+});
+
 test("owner and admin deletion invalidate only after a successful, authorized database delete", async t => {
   const { registerCommentManagement, registerAdminCommentManagement } = await import("../../backend/services.mjs");
   for (const admin of [false, true]) await t.test(admin ? "admin" : "owner", async () => {

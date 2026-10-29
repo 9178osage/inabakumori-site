@@ -121,7 +121,8 @@ async function readSourceNames() {
   // The originals folder must not live inside the repository, so they cannot be committed again.
   const realRoot = await realpath(root);
   const relative = path.relative(realRoot, await realpath(sourceDir));
-  if (!relative.startsWith("..") && !path.isAbsolute(relative)) throw new Error(`Refusing NKNK source inside the repository: ${sourceDir}`);
+  const outside = relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative);
+  if (!outside) throw new Error(`Refusing NKNK source inside the repository: ${sourceDir}`);
   return readdir(sourceDir);
 }
 

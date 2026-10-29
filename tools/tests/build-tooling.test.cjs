@@ -173,11 +173,54 @@ test("NKNK generator reads originals only from an external folder and explains a
     const missing = run(box.root, "tools/generate-nknk-gallery.mjs", [], { NKNK_SOURCE_DIR: path.join(box.outside, "absent") });
     assert.notEqual(missing.status, 0);
     assert.match(missing.stderr, /NKNK originals not found .*NKNK_SOURCE_DIR/u);
-    fs.mkdirSync(path.join(box.root, "NKNK"));
-    fs.writeFileSync(path.join(box.root, "NKNK/1.jpg"), "not really a jpeg");
-    const inside = run(box.root, "tools/generate-nknk-gallery.mjs", [], { NKNK_SOURCE_DIR: path.join(box.root, "NKNK") });
-    assert.notEqual(inside.status, 0);
-    assert.match(inside.stderr, /Refusing NKNK source inside the repository/u);
+    for (const name of ["NKNK", "..originals"]) {
+      const source = path.join(box.root, name);
+      fs.mkdirSync(source);
+      fs.writeFileSync(path.join(source, "1.jpg"), "not really a jpeg");
+      const inside = run(box.root, "tools/generate-nknk-gallery.mjs", [], { NKNK_SOURCE_DIR: source });
+      assert.notEqual(inside.status, 0, name);
+      assert.match(inside.stderr, /Refusing NKNK source inside the repository/u, name);
+      assert.equal(fs.readFileSync(path.join(source, "1.jpg"), "utf8"), "not really a jpeg", name);
+    }
+  } finally { box.cleanup(); }
+});
+
+test("NKNK generator accepts an external source and creates gallery assets with an isolated encoder", () => {
+  const box = sandbox(["tools/generate-nknk-gallery.mjs", "tools/safe-fs.mjs"]);
+  try {
+    fs.mkdirSync(path.join(box.root, "js"));
+    fs.mkdirSync(path.join(box.root, "bin"));
+    const source = path.join(box.outside, "1.png");
+    const original = Buffer.alloc(24);
+    original.write("PNG", 1);
+    original.writeUInt32BE(640, 16);
+    original.writeUInt32BE(480, 20);
+    fs.writeFileSync(source, original);
+    // The stand-in emits only the WebP dimension header the generator reads;
+    // no installed encoder or real gallery originals are used by this test.
+    fs.writeFileSync(path.join(box.root, "bin/cwebp"), `#!/usr/bin/env node
+const fs = require("node:fs");
+const args = process.argv.slice(2);
+const width = Number(args[args.indexOf("-resize") + 1]);
+const output = args[args.indexOf("-o") + 1];
+const data = Buffer.alloc(30);
+data.write("RIFF", 0);
+data.write("WEBPVP8X", 8);
+data.writeUIntLE(width - 1, 24, 3);
+data.writeUIntLE(99, 27, 3);
+fs.writeFileSync(output, data);
+`, { mode: 0o755 });
+    const result = run(box.root, "tools/generate-nknk-gallery.mjs", [], {
+      NKNK_SOURCE_DIR: box.outside,
+      PATH: `${path.join(box.root, "bin")}${path.delimiter}${process.env.PATH}`
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /NKNK gallery: 1 images/u);
+    for (const file of ["images/optimized/nknk/1.webp", "images/optimized/nknk/mobile/1.webp", "images/optimized/nknk/full/1.webp"]) {
+      assert.equal(fs.readFileSync(path.join(box.root, file)).toString("ascii", 0, 4), "RIFF", file);
+    }
+    assert.match(fs.readFileSync(path.join(box.root, "js/nknk-gallery.js"), "utf8"), /id: 1,.*w: 300, h: 100/u);
+    assert.deepEqual(fs.readFileSync(source), original, "the external original is only read");
   } finally { box.cleanup(); }
 });
 

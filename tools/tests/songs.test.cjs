@@ -98,8 +98,8 @@ test("all songs retain their exact order, titles, URLs, albums, and singers", ()
   const digest = createHash("sha256")
     .update(JSON.stringify(songs.map(song => [song.title, song.youtube, song.album, song.singers])))
     .digest("hex");
-  // Covers every song (not just the first 37); 52 since ユレール (2026-03-08). ?si= share trackers removed.
-  assert.equal(digest, "e3fbcf9162308cc800723888fe3a50c03bffe24fc718ab7896df7494647e6602");
+  // Covers every song; includes the officially verified Anticyclone / Non-Use singer corrections.
+  assert.equal(digest, "7b6388123232c9d2186a95d103064e8d719e14e879fe823719a5e578ef9ef4cb");
   for (const song of songs) {
     const url = new URL(song.youtube);
     assert.deepEqual([...url.searchParams.keys()].filter(key => key !== "v"), [], `${song.title}: no tracking parameters`);
@@ -113,6 +113,21 @@ test("all songs retain their exact order, titles, URLs, albums, and singers", ()
     assert.deepEqual(row.querySelectorAll(".song-inline-tag").map(tag => tag.dataset.rawTag), [song.album, ...song.singers]);
     assert.equal(row.querySelector("img").src, `https://i.ytimg.com/vi/${new URL(song.youtube).pathname.slice(1)}/mqdefault.jpg`);
   });
+});
+
+test("verified Anticyclone and Non-Use vocals agree with homepage Miku filtering", () => {
+  const { run, list, elements, flush } = setup();
+  const songs = JSON.parse(run("JSON.stringify(SONGS)"));
+  const archive = JSON.parse(fs.readFileSync("data/song-archive.json", "utf8")).songs;
+  const singerNames = { "歌愛ユキ": "歌爱雪", "初音ミク": "初音未来" };
+  for (const id of ["2_93SNGYgYs", "-5T-L0b43no"]) {
+    const song = songs.find(entry => entry.youtube.endsWith(id));
+    assert.deepEqual(song.singers, archive[id].vocal.split(" & ").map(name => singerNames[name]), song.title);
+  }
+  elements["tag-filter-input"].value = "初音ミク";
+  elements["tag-filter-input"].dispatch("input"); flush();
+  assert.equal(list.children.find(row => row.href.endsWith("2_93SNGYgYs")).hidden, true, "Anticyclone is sung only by Yuki");
+  assert.equal(list.children.find(row => row.href.endsWith("-5T-L0b43no")).hidden, false, "Non-Use includes Miku");
 });
 
 test("an additional data-only song renders and participates in search, singer counts, and random play", () => {

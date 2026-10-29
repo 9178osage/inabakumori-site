@@ -4,8 +4,7 @@ const SONGS = [
     "youtube": "https://youtu.be/2_93SNGYgYs",
     "album": "ANTICYCLONE",
     "singers": [
-      "歌爱雪",
-      "初音未来"
+      "歌爱雪"
     ],
     "viewCount": 3043603,
     "viewsCheckedAt": "2026-10-26"
@@ -119,7 +118,8 @@ const SONGS = [
     "youtube": "https://youtu.be/-5T-L0b43no",
     "album": "ANTICYCLONE",
     "singers": [
-      "歌爱雪"
+      "歌爱雪",
+      "初音未来"
     ],
     "viewCount": 4882390,
     "viewsCheckedAt": "2026-10-26"
