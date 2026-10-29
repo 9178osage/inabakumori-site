@@ -1,4 +1,4 @@
-import { readdir, mkdir, writeFile, stat, rm, unlink, lstat } from "node:fs/promises";
+import { readdir, mkdir, writeFile, stat, rm, unlink, lstat, realpath } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -6,7 +6,11 @@ import { fileURLToPath } from "node:url";
 import { assertRepoPath } from "./safe-fs.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const sourceDir = path.join(root, "NKNK");
+// Full-size originals are kept outside the repository (removed from Git history to keep clones
+// small). Point NKNK_SOURCE_DIR at them; the default is a sibling folder next to the repo.
+// --config-only needs no originals: it rebuilds js/nknk-gallery.js from the committed WebP files.
+const DEFAULT_NKNK_SOURCE_DIR = path.join(root, "..", "inabakumori-assets-src", "NKNK");
+const sourceDir = path.resolve(process.env.NKNK_SOURCE_DIR || DEFAULT_NKNK_SOURCE_DIR);
 const thumbDir = path.join(root, "images/optimized/nknk");
 const mobileThumbDir = path.join(thumbDir, "mobile");
 const fullDir = path.join(root, "images/optimized/nknk/full");
@@ -95,14 +99,33 @@ async function imageSize(filePath, ext) {
 
 // Refuse symlinked folders/files before deleting or writing anything: a linked
 // images/optimized/nknk would otherwise get its target's contents removed and replaced.
-for (const target of [sourceDir, thumbDir, mobileThumbDir, fullDir, configPath]) assertRepoPath(root, target);
-assertRepoPath(root, sourceDir, { mustExist: true });
+for (const target of [thumbDir, mobileThumbDir, fullDir, configPath]) assertRepoPath(root, target);
 await mkdir(thumbDir, { recursive: true });
 await mkdir(fullDir, { recursive: true });
 await mkdir(mobileThumbDir, { recursive: true });
 for (const target of [thumbDir, mobileThumbDir, fullDir]) assertRepoPath(root, target, { mustExist: true });
 
-const entries = (await readdir(sourceDir))
+const sourceNames = CONFIG_ONLY
+  ? (await readdir(thumbDir)).filter(name => /^\d+\.webp$/u.test(name))
+  : await readSourceNames();
+
+async function readSourceNames() {
+  let info;
+  try {
+    info = await lstat(sourceDir);
+  } catch (error) {
+    if (error.code === "ENOENT") throw new Error(`NKNK originals not found at ${sourceDir}; set NKNK_SOURCE_DIR to the folder of numbered originals`);
+    throw error;
+  }
+  if (!info.isDirectory()) throw new Error(`Refusing non-directory NKNK source: ${sourceDir}`);
+  // The originals folder must not live inside the repository, so they cannot be committed again.
+  const realRoot = await realpath(root);
+  const relative = path.relative(realRoot, await realpath(sourceDir));
+  if (!relative.startsWith("..") && !path.isAbsolute(relative)) throw new Error(`Refusing NKNK source inside the repository: ${sourceDir}`);
+  return readdir(sourceDir);
+}
+
+const entries = sourceNames
   .map(name => {
     const match = name.match(IMAGE_RE);
     return match ? { id: Number(match[1]), name, ext: match[2].toLowerCase() } : null;
@@ -111,13 +134,12 @@ const entries = (await readdir(sourceDir))
   .sort((a, b) => a.id - b.id);
 
 // Numbered symlink inputs could make the image tool read outside the gallery source.
-for (const item of entries) {
+if (!CONFIG_ONLY) for (const item of entries) {
   const input = path.join(sourceDir, item.name);
   if (!(await lstat(input)).isFile()) throw new Error(`Refusing non-file gallery source: ${item.name}`);
-  assertRepoPath(root, input, { mustExist: true });
 }
 
-if (!entries.length) throw new Error(`No numbered images found in ${sourceDir}`);
+if (!entries.length) throw new Error(`No numbered images found in ${CONFIG_ONLY ? thumbDir : sourceDir}`);
 for (let i = 0; i < entries.length; i++) {
   if (entries[i].id !== i + 1) throw new Error(`Expected sequential ids starting at 1; got gap at ${i + 1} (found ${entries[i].id})`);
 }

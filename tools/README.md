@@ -29,10 +29,10 @@
 | `refresh-youtube-views.mjs` | 使用环境中的 API 密钥刷新 `js/songs.js` 播放量 |
 | `import-x-posts.mjs <public-posts-scan.json>` | 校验并合并公开帖子采集文件，重建 `data/x-posts/` 分片和清单；冲突须复核 |
 | `npm run optimize:images` | 使用本机编码工具，将保留的原图生成到 `images/optimized/` |
-| `npm run generate:nknk` | 从保留的图库源文件重建前端画廊数据 |
+| `npm run generate:nknk` | 从仓库外的图库原图重建画廊 WebP 与数据；原图目录由 `NKNK_SOURCE_DIR` 指定，默认为仓库同级的 `../inabakumori-assets-src/NKNK`。`-- --config-only` 只按已提交的 WebP 重写 `js/nknk-gallery.js`，不需要原图 |
 | `record-current-deployment.mjs` | 供定时动态流程补记已核实的 main/push 发布；人工维护按手册由最终提交者独占补表 |
 
-采集原件和执行日志放入 `artifacts/` 对应子目录；经过校验、需要发布的数据保留在 `data/`。整理目录时保留 `images/hero/`、`images/hero-mobile/`、`NKNK/` 等生成器输入。
+采集原件和执行日志放入 `artifacts/` 对应子目录；经过校验、需要发布的数据保留在 `data/`。整理目录时保留 `images/hero/`、`images/hero-mobile/` 等生成器输入；NKNK 原图已移出仓库和 Git 历史，放在 `NKNK_SOURCE_DIR`（默认 `../inabakumori-assets-src/NKNK`），不要再提交进仓库。
 
 ## 内部模块
 

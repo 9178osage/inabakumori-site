@@ -163,7 +163,6 @@ inabakumori-site/
 │   ├── optimized/          # WebP used by production build / Pages
 │   ├── icons/
 │   └── memes/
-├── NKNK/                   # NKNK gallery originals (source, not published)
 ├── fonts/
 │
 ├── docs/                   # Start with docs/README.md (not published)
@@ -538,7 +537,6 @@ inabakumori-site/
 │   ├── optimized/          # WebP used by production build / Pages
 │   ├── icons/
 │   └── memes/
-├── NKNK/                   # NKNK gallery originals (source, not published)
 ├── fonts/
 │
 ├── docs/                   # Start with docs/README.md (not published)
@@ -910,7 +908,6 @@ inabakumori-site/
 │   ├── optimized/          # WebP used by production build / Pages
 │   ├── icons/
 │   └── memes/
-├── NKNK/                   # NKNK gallery originals (source, not published)
 ├── fonts/
 │
 ├── docs/                   # Start with docs/README.md (not published)

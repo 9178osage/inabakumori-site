@@ -142,8 +142,6 @@ test("NKNK generator refuses symlinked output folders instead of emptying their 
   for (const linked of ["images/optimized/nknk", "images/optimized", "images/optimized/nknk/full"]) {
     const box = sandbox(["tools/generate-nknk-gallery.mjs", "tools/safe-fs.mjs"]);
     try {
-      fs.mkdirSync(path.join(box.root, "NKNK"));
-      fs.writeFileSync(path.join(box.root, "NKNK/1.jpg"), "not really a jpeg");
       fs.writeFileSync(path.join(box.outside, "important.txt"), "KEEP");
       fs.mkdirSync(path.dirname(path.join(box.root, linked)), { recursive: true });
       fs.symlinkSync(box.outside, path.join(box.root, linked));
@@ -158,13 +156,28 @@ test("NKNK generator refuses symlinked output folders instead of emptying their 
 test("NKNK generator refuses numbered source-image symlinks", () => {
   const box = sandbox(["tools/generate-nknk-gallery.mjs", "tools/safe-fs.mjs"]);
   try {
-    fs.mkdirSync(path.join(box.root, "NKNK"));
+    const source = path.join(box.outside, "NKNK");
+    fs.mkdirSync(source);
     fs.writeFileSync(path.join(box.outside, "image.png"), "private file");
-    fs.symlinkSync(path.join(box.outside, "image.png"), path.join(box.root, "NKNK/1.png"));
-    const result = run(box.root, "tools/generate-nknk-gallery.mjs", ["--config-only"]);
+    fs.symlinkSync(path.join(box.outside, "image.png"), path.join(source, "1.png"));
+    const result = run(box.root, "tools/generate-nknk-gallery.mjs", [], { NKNK_SOURCE_DIR: source });
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /Refusing non-file gallery source: 1\.png/);
     assert.equal(fs.readFileSync(path.join(box.outside, "image.png"), "utf8"), "private file");
+  } finally { box.cleanup(); }
+});
+
+test("NKNK generator reads originals only from an external folder and explains a missing one", () => {
+  const box = sandbox(["tools/generate-nknk-gallery.mjs", "tools/safe-fs.mjs"]);
+  try {
+    const missing = run(box.root, "tools/generate-nknk-gallery.mjs", [], { NKNK_SOURCE_DIR: path.join(box.outside, "absent") });
+    assert.notEqual(missing.status, 0);
+    assert.match(missing.stderr, /NKNK originals not found .*NKNK_SOURCE_DIR/u);
+    fs.mkdirSync(path.join(box.root, "NKNK"));
+    fs.writeFileSync(path.join(box.root, "NKNK/1.jpg"), "not really a jpeg");
+    const inside = run(box.root, "tools/generate-nknk-gallery.mjs", [], { NKNK_SOURCE_DIR: path.join(box.root, "NKNK") });
+    assert.notEqual(inside.status, 0);
+    assert.match(inside.stderr, /Refusing NKNK source inside the repository/u);
   } finally { box.cleanup(); }
 });
 

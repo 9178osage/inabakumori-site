@@ -30,9 +30,8 @@ test("NKNK gallery config is sequential and points at optimized webp assets", ()
     total += fs.statSync(item.thumb).size + fs.statSync(item.full).size;
     const stem = path.basename(item.thumb, ".webp");
     assert.equal(stem, String(item.id));
-    const originals = [".jpg", ".jpeg", ".png", ".webp", ".gif"].map((ext) => path.join("NKNK", `${item.id}${ext}`));
-    assert.ok(originals.some((file) => fs.existsSync(file)), `missing original for ${item.id}`);
   });
+  assert.match(fs.readFileSync(".gitignore", "utf8"), /^\/NKNK\/$/mu, "full-size originals stay outside Git");
   assert.ok(total < 5 * 1024 * 1024, `gallery assets should stay under 5 MiB, got ${(total / 1024 / 1024).toFixed(2)} MiB`);
   assert.ok(mobileBytes < desktopBytes * 0.7, `mobile thumbs should save at least 30%: ${mobileBytes} vs ${desktopBytes}`);
 });
