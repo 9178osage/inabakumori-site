@@ -2759,3 +2759,30 @@ footer .home-mobile-fold-content > p { max-width: 720px; margin: 16px auto; font
   .home-page footer { padding-block: 28px; }
   .home-page footer > p { margin-block: 10px; }
 }
+
+/* Mobile white accents (light theme): white cards and controls on the gray page for clearer grouping. */
+@media (max-width: 700px), (pointer: coarse) and (max-width: 1000px) {
+  :root:not([data-theme="dark"]) {
+    --ui-surface: rgba(255, 255, 255, 0.94);
+    --ui-surface-solid: #f7f7f5;
+    --link-bg: rgba(255, 255, 255, 0.72);
+    --link-hover-bg: rgba(255, 255, 255, 0.95);
+    --link-border: rgba(37, 37, 37, 0.10);
+    --mobile-card: #f7f7f5;
+    --mobile-card-border: rgba(255, 255, 255, 0.9);
+  }
+  :root[data-theme="dark"] {
+    --mobile-card: #1f1f1f;
+    --mobile-card-border: rgba(240, 240, 240, 0.08);
+  }
+  .home-updates .x-posts-feed { border-top: 0; }
+  .home-updates .x-post,
+  .home-page .home-updates .x-post {
+    margin-top: 10px;
+    padding: 16px;
+    background: var(--mobile-card);
+    border: 1px solid var(--mobile-card-border);
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  }
+}
