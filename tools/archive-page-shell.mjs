@@ -62,7 +62,6 @@ ${[...scripts, "js/archive-pages.js"].map(src => `<script src="${src}" defer></s
 <nav class="updates-navigation archive-navigation" aria-label="网站导航" data-aria-zh="网站导航" data-aria-en="Site navigation" data-aria-ja="サイトナビゲーション">
 <a href="index.html"><span aria-hidden="true">← </span><span data-zh="返回首页" data-en="Home" data-ja="ホームへ">返回首页</span></a>
 <a href="songs.html" data-zh="歌曲观测档案" data-en="Song archive" data-ja="楽曲観測アーカイブ">歌曲观测档案</a>
-<a href="search.html" data-zh="帖子搜索" data-en="Post search" data-ja="投稿検索">帖子搜索</a>
 <a href="updates.html" data-zh="最新动态" data-en="Latest updates" data-ja="最新情報">最新动态</a>
 </nav>
 ${body}

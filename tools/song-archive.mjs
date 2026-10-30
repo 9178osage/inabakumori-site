@@ -143,7 +143,6 @@ export function renderSongPage(song, index, { details, linked, renderPost }) {
     const items = shown.filter(post => post.category === category);
     return items.length ? `<section class="song-posts-group" aria-label="${escape(label[0])}" data-aria-zh="${escape(label[0])}" data-aria-en="${escape(label[1])}" data-aria-ja="${escape(label[2])}">${tri("h3", [`${label[0]}（${items.length}）`, `${label[1]} (${items.length})`, `${label[2]}（${items.length}）`])}<div class="x-posts-feed">${items.map(post => renderPost(post.id)).join("\n")}</div></section>` : "";
   }).join("");
-  const searchLink = `search.html?q=${encodeURIComponent(song.title)}`;
   const more = linked.length > shown.length ? tri("p", [`另有 ${linked.length - shown.length} 条匹配帖子未在此列出。`, `${linked.length - shown.length} more matching posts are not listed here.`, `ほかに一致した投稿が${linked.length - shown.length}件あります。`], ' class="song-posts-more"') : "";
   const posts = linked.length
     ? `${tri("p", ["按视频 ID、已核对的来源帖或曲名从已收录的 X 帖子中匹配，分类依据帖子用词，可能包含同名专辑等其他话题。", "Matched from collected X posts by video ID, checked source posts or title; categories follow the wording and may include other topics such as a same-named album.", "収録済みのX投稿から動画ID・確認済みの出典投稿・曲名で抽出しています。分類は投稿の言葉づかいによるもので、同名アルバムなど別の話題を含む場合があります。"], ' class="song-posts-note"')}${postSections}${more}`
@@ -154,7 +153,7 @@ export function renderSongPage(song, index, { details, linked, renderPost }) {
 ${facts}
 ${creditNote}
 ${sources}
-<section class="song-posts" aria-labelledby="song-posts-title"><div class="feed-heading"><div><p class="section-kicker">X / LINKED POSTS</p>${tri("h2", ["相关帖子", "Linked posts", "関連する投稿"], ' id="song-posts-title"')}</div>${tri("a", ["在帖子搜索中查看 →", "Open in post search →", "投稿検索で見る →"], ` class="song-search-link" href="${escape(searchLink)}"`)}</div>${posts}</section>
+<section class="song-posts" aria-labelledby="song-posts-title"><div class="feed-heading"><div><p class="section-kicker">X / LINKED POSTS</p>${tri("h2", ["相关帖子", "Linked posts", "関連する投稿"], ' id="song-posts-title"')}</div></div>${posts}</section>
 </article>`;
 }
 
