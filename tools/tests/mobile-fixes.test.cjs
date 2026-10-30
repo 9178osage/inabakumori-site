@@ -51,3 +51,14 @@ test("social icons are small (<= 256px, < 40 KB)", () => {
     assert.ok(data.length < 40 * 1024, `${name}.png is ${data.length} bytes`);
   }
 });
+
+test("textareas resize vertically within a bounded height (no endless drag)", () => {
+  const css = read("style.css").replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.match(css, /(^|\n)textarea \{[^}]*resize: vertical;[^}]*max-height: min\(320px, 50vh\);[^}]*overflow-y: auto;/);
+  const rule = css.match(/\n#message-input \{([^}]*)\}/)[1];
+  assert.match(rule, /min-height: 130px;/);
+  assert.match(rule, /max-height: min\(320px, 50vh\);/);
+  assert.match(rule, /overflow-y: auto;/);
+  assert.match(rule, /resize: vertical;/);
+  assert.doesNotMatch(css, /resize: (both|horizontal)/);
+});

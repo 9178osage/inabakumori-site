@@ -98,6 +98,12 @@ input,
 textarea {
   font-family: var(--font-body);
 }
+/* Any textarea grows only downward and only up to a bounded height; longer text scrolls inside. */
+textarea {
+  resize: vertical;
+  max-height: min(320px, 50vh);
+  overflow-y: auto;
+}
 .hero {
   position: relative;
   width: 100%;
@@ -667,6 +673,8 @@ footer {
   height: 130px;
   box-sizing: border-box;
   min-height: 130px;
+  max-height: min(320px, 50vh);
+  overflow-y: auto;
   margin-bottom: 12px;
   padding: 12px 13px;
   resize: vertical;
