@@ -2,10 +2,23 @@
 // only from data/song-archive.json (checked against official pages); linked posts are matched
 // from the collected X archive at build time by video ID or title, so daily imports flow in.
 import assert from "node:assert/strict";
-import { createRequire } from "node:module";
 
-const require = createRequire(import.meta.url);
-const { foldText } = require("../js/post-search-core.js");
+// Text folding for title matching: NFKC (full/half width), lower case, katakana → hiragana,
+// whitespace removed; half-width voiced marks stay with the preceding kana (ｶﾞ → が).
+const FOLD_SPACE = /[\s\u200b-\u200d\u2060\ufeff]/u;
+const FOLD_VOICE = /^[\uff9e\uff9f\u3099\u309a]$/u;
+const foldChar = value => value.normalize("NFKC").toLowerCase().replace(/[\u30a1-\u30f6]/gu, character => String.fromCharCode(character.charCodeAt(0) - 0x60)).normalize("NFC");
+export function foldText(source) {
+  const characters = Array.from(String(source ?? ""));
+  let text = "";
+  for (let index = 0; index < characters.length; index++) {
+    let unit = characters[index];
+    while (index + 1 < characters.length && FOLD_VOICE.test(characters[index + 1])) unit += characters[++index];
+    if (FOLD_SPACE.test(unit)) continue;
+    for (const piece of foldChar(unit)) if (!FOLD_SPACE.test(piece)) text += piece;
+  }
+  return text;
+}
 const escape = value => String(value).replace(/[&<>"']/gu, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 const tri = (tag, [zh, en, ja], attributes = "") => `<${tag}${attributes} data-zh="${escape(zh)}" data-en="${escape(en)}" data-ja="${escape(ja)}">${escape(zh)}</${tag}>`;
 const ROLES = {

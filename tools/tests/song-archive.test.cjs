@@ -76,7 +76,7 @@ test("each generated song share card uses its linked video's cover and escaped s
     assert.equal(page.match(/<meta property="og:title" content="([^"]*)"/u)?.[1], `${alt.slice(0, -" · 稲葉曇".length)} · 歌曲观测档案`);
   }
   assert.match(result.files.get("song-AAAAAAAAAAA.html"), /content="A &lt;song&gt; &amp; &quot;cover&quot; · 稲葉曇"/u);
-  for (const name of ["songs.html", "search.html"]) {
+  for (const name of ["songs.html"]) {
     assert.doesNotMatch(result.files.get(name), /(?:og:image|twitter:image|twitter:card)/u, `${name} keeps its default metadata`);
   }
 });

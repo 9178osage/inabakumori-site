@@ -60,9 +60,9 @@ const generatedPages = (async () => {
   return [...files].filter(([name]) => name.endsWith(".html"));
 })();
 
-test("generated search, song index and song detail metadata follows actual language-button clicks", async () => {
+test("generated song index and song detail metadata follows actual language-button clicks", async () => {
   const pages = await generatedPages;
-  assert.equal(pages.length, 3);
+  assert.equal(pages.length, 2);
   for (const [name, html] of pages) {
     const app = page("js/archive-pages.js", html);
     for (const [index, language] of ["zh", "en", "ja", "zh"].entries()) {

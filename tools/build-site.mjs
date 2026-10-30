@@ -31,7 +31,7 @@ await build({ entryPoints: [source("tools/auth-src.js")], bundle: true, platform
 // dist is generated exclusively by this script. Only explicitly public assets are copied.
 await rm(output("dist"), { recursive: true, force: true });
 await mkdir(out, { recursive: true });
-const scripts = ["script.js", ...["preferences", "config", "network", "i18n", "auth", "auth-loader", "songs", "nknk-gallery", "nknk-gallery-ui", "experience", "comments", "updates", "home-updates", "x-posts-home", "home-mobile", "calendar", "post-search-core", "archive-pages"].map(name => `js/${name}.js`)];
+const scripts = ["script.js", ...["preferences", "config", "network", "i18n", "auth", "auth-loader", "songs", "nknk-gallery", "nknk-gallery-ui", "experience", "comments", "updates", "home-updates", "x-posts-home", "home-mobile", "calendar", "archive-pages"].map(name => `js/${name}.js`)];
 const css = ["style.css", "updates.css", "calendar.css", "archive.css", "fonts/fonts.css"];
 const hashes = new Map();
 for (const file of [...scripts, ...css]) {
@@ -187,7 +187,7 @@ const calendarSheet = `<section class="calendar-stack" aria-labelledby="calendar
 let calendarHtml = fillOnce(await readFile(source("calendar.html"), "utf8"), "CALENDAR:SHEET", calendarSheet);
 calendarHtml = calendarHtml.replace(/(src|href)="([^"?]+)(?:\?[^"\s]*)?"/g, (match, attribute, file) => hashes.has(file) ? `${attribute}="${file}?v=${hashes.get(file)}"` : match);
 await writeFile(output("dist/calendar.html"), calendarHtml);
-// Song archive, post search and its year-chunked index are regenerated from the same
+// Song archive pages are regenerated from the same
 // sources on every build, so daily X imports and translation batches flow in automatically.
 const archiveExtras = renderArchivePages({ songs, xPosts, xTranslations, xPostsRenderer, songDetailsSource: JSON.parse(await readFile(source("data/song-archive.json"), "utf8")), updatesHtml: updatesSourceHtml });
 const extraPageNames = [];
@@ -197,7 +197,6 @@ for (const [name, content] of archiveExtras.files) {
   await writeFile(output(`dist/${name}`), body);
   if (name.endsWith(".html")) extraPageNames.push(name);
 }
-console.log(`Post search index: ${archiveExtras.index.manifest.years.length} year chunks, ${(archiveExtras.index.totalBytes / 1024).toFixed(0)} KiB raw / ${(archiveExtras.index.totalGzipBytes / 1024).toFixed(0)} KiB gzip.`);
 // The source sitemap lists the hand-maintained pages; every generated archive page is appended
 // with the date its newest post was collected, so search engines can find the paginated history.
 const sitemapSource = await readFile(source("sitemap.xml"), "utf8");
