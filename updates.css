@@ -44,3 +44,6 @@
 /* Mobile white accents (light theme): post and fact cards on white, lighter hover surfaces. */
 @media(max-width:700px){:root:not([data-theme="dark"]){--white:#fafaf8;--card:#f7f7f4;--card-line:#ffffff}:root[data-theme="dark"]{--card:#1d2226;--card-line:#2c3439}.x-posts-feed{border-top:0}.x-post{margin-top:10px;padding:16px;background:var(--card);border:1px solid var(--card-line);box-shadow:0 1px 2px rgba(0,0,0,.06)}.page-controls button,.updates-filters button:not([aria-pressed="true"]),.x-account{background:var(--card)}}
 @media(max-width:700px) and (prefers-color-scheme:dark){:root:not([data-theme="light"]){--white:#2c3439;--card:#1d2226;--card-line:#2c3439}}
+/* Desktop white accents (lighter than mobile). */
+@media(min-width:701px){:root:not([data-theme="dark"]){--white:#f6f6f3;--card:#f3f3f0;--card-line:#fbfbf9}:root[data-theme="dark"]{--card:#1d2226;--card-line:#2c3439}.x-posts-feed{border-top:0}.x-post{margin-top:12px;padding:20px 24px;background:var(--card);border:1px solid var(--card-line);box-shadow:0 1px 2px rgba(0,0,0,.05)}.page-controls button,.updates-filters button:not([aria-pressed="true"]),.x-account{background:var(--card)}}
+@media(min-width:701px) and (prefers-color-scheme:dark){:root:not([data-theme="light"]){--white:#2c3439;--card:#1d2226;--card-line:#2c3439}}

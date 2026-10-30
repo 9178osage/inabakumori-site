@@ -48,3 +48,4 @@ span.song-fact-note{display:inline}
 .song-index-page .song-unverified,.song-index-page .song-checked{font-size:12px;margin:4px 0}
 }
 @media(max-width:700px){.song-facts{background:var(--card);padding:4px 14px;border:1px solid var(--card-line);border-top:2px solid var(--ink)}}
+@media(min-width:701px){.song-facts{background:var(--card);padding:6px 22px 14px;border:1px solid var(--card-line);border-top:2px solid var(--ink)}}
