@@ -58,12 +58,13 @@
   color: var(--ui-action-text);
   background: var(--ui-action-bg);
   border-radius: 10px;
-  transform: translateY(-160%);
-  transition: transform 0.18s ease;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
 }
 .skip-link:focus,
 .skip-link:focus-visible {
-  transform: translateY(0);
+  clip: auto;
+  clip-path: none;
 }
 .sr-only {
   position: absolute;

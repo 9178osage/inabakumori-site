@@ -172,3 +172,24 @@ test("asset versions and localised copy stay aligned", () => {
   const manifest = JSON.parse(read("site.webmanifest"));
   for (const icon of manifest.icons) assert.match(icon.src, /\?v=3$/);
 });
+
+test("skip links remain keyboard-accessible without showing above the page during overscroll", () => {
+  const html = read("index.html");
+  const links = [...html.matchAll(/<a\b([^>]*\bclass="skip-link"[^>]*)>/g)].map(match => match[1]);
+  assert.equal(links.length, 2);
+  assert.ok(links.some(link => /href="#main-content"/.test(link)));
+  assert.ok(links.some(link => /href="#messages"/.test(link)));
+  for (const link of links) {
+    assert.doesNotMatch(link, /\b(?:hidden|inert|aria-hidden|tabindex)\b/, "the links must remain in the keyboard order");
+  }
+
+  const css = read("style.css");
+  const hidden = css.match(/\.skip-link\s*\{([^}]*)\}/)?.[1];
+  const focused = css.match(/\.skip-link:focus\s*,\s*\.skip-link:focus-visible\s*\{([^}]*)\}/)?.[1];
+  assert.ok(hidden && focused, "both default and focus styles must exist");
+  assert.match(hidden, /clip:\s*rect\(\s*0(?:px)?\s*,\s*0(?:px)?\s*,\s*0(?:px)?\s*,\s*0(?:px)?\s*\)/);
+  assert.match(hidden, /clip-path:\s*inset\(50%\)/);
+  assert.match(focused, /clip:\s*auto\b/);
+  assert.match(focused, /clip-path:\s*none\b/);
+  assert.doesNotMatch(hidden, /transform:\s*translate/, "moving content above the viewport can expose it during overscroll");
+});
