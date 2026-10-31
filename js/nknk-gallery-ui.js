@@ -80,7 +80,7 @@
     let pageVisible = !document.hidden;
     let reduced = prefersReducedMotion();
     const compactQuery = window.matchMedia?.(COMPACT_QUERY);
-    let compact = compactQuery?.matches === true;
+    let compact = false;
     let compactExpanded = false;
     let compactToggle = null;
     const preloadCache = new Map();
@@ -648,7 +648,8 @@
       if (mounted) return;
       mounted = true;
       reduced = prefersReducedMotion();
-      compact = compactQuery?.matches === true;
+      // Phones use the same single-row marquee as desktop (owner request 10-30); the static grid stays off.
+      compact = false;
       root.classList.toggle("is-reduced", reduced);
       root.classList.toggle("is-compact", compact);
       root.replaceChildren();

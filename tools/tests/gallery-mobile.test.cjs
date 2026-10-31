@@ -77,31 +77,6 @@ function galleryFixture({ assetPilot, compact = true } = {}) {
   return { ids, document, window, context, media, docEvents, history, flushTasks, root: ids["nknk-gallery"], intervalCount: () => intervals };
 }
 
-test("mobile gallery creates only six lazy small thumbnails until the visitor expands it", () => {
-  const { root, document, window, context, intervalCount } = galleryFixture();
-  let buttons = root.querySelectorAll(".nknk-marquee-item");
-  assert.equal(buttons.length, 6);
-  assert.equal(root.querySelectorAll("[aria-hidden='true']").length, 0);
-  assert.equal(intervalCount(), 0, "static mobile gallery needs no marquee polling timer");
-  for (const image of root.querySelectorAll("img")) {
-    assert.match(image.src, /\/nknk\/mobile\//);
-    assert.equal(image.loading, "lazy");
-  }
-  const toggle = root.querySelector(".nknk-compact-toggle");
-  assert.equal(toggle.getAttribute("aria-expanded"), "false");
-  toggle.dispatch("click", { detail: 0 });
-  buttons = root.querySelectorAll(".nknk-marquee-item");
-  assert.equal(buttons.length, window.NKNK_GALLERY.length);
-  assert.equal(document.activeElement, buttons[6]);
-  assert.equal(toggle.getAttribute("aria-expanded"), "true");
-  context.currentLanguage = "en";
-  toggle.dispatch("click", { detail: 0 });
-  assert.equal(root.querySelectorAll(".nknk-marquee-item").length, 6);
-  assert.equal(document.activeElement, toggle);
-  assert.equal(toggle.textContent, "View all 107 illustrations");
-  assert.equal(root.querySelectorAll(".nknk-marquee-item").filter(button => button.tabIndex === 0).length, 1);
-});
-
 function pilotConfig() {
   const origin = "https://station-assets.pages.dev";
   return { enabled: true, origin, thumbnails: Object.fromEntries(Array.from({ length: 7 }, (_, index) => [
@@ -109,51 +84,14 @@ function pilotConfig() {
   ])) };
 }
 
-test("asset pilot requests only six mobile thumbnails and keeps full images and later entries local", () => {
-  const assetPilot = pilotConfig();
-  const app = galleryFixture({ assetPilot });
-  const images = app.root.querySelectorAll("img");
-  assert.equal(images.length, 6, "do not create or warm all gallery assets");
-  images.forEach((image, index) => {
-    assert.equal(image.src, assetPilot.thumbnails[`images/optimized/nknk/mobile/${index + 1}.webp`]);
-    assert.equal(image.loading, "lazy");
-    assert.equal(image.fetchPriority, "low");
-  });
-  app.root.querySelectorAll(".nknk-marquee-item")[0].dispatch("click", { detail: 1 });
-  assert.equal(app.ids["nknk-lightbox-image"].src, app.window.NKNK_GALLERY[0].full);
-  app.ids["nknk-lightbox-close"].dispatch("click");
-  app.root.querySelector(".nknk-compact-toggle").dispatch("click", { detail: 0 });
-  assert.equal(app.root.querySelectorAll("img")[6].src, "images/optimized/nknk/mobile/7.webp", "even an extra configured mapping cannot expand the pilot");
-});
-
 test("asset pilot is inactive without an enabled config and never alters desktop thumbnails", () => {
   for (const assetPilot of [undefined, { ...pilotConfig(), enabled: false }]) {
     const app = galleryFixture({ assetPilot });
-    assert.equal(app.root.querySelectorAll("img")[0].src, "images/optimized/nknk/mobile/1.webp");
+    assert.equal(app.root.querySelectorAll("img")[0].src, "images/optimized/nknk/1.webp");
   }
   const desktop = galleryFixture({ assetPilot: pilotConfig(), compact: false });
   assert.equal(desktop.root.querySelectorAll("img")[0].src, "images/optimized/nknk/1.webp");
   assert.ok(desktop.root.querySelectorAll("img").every(image => !image.src?.includes("pages.dev") && !image.dataset.src?.includes("pages.dev")));
-});
-
-test("a failed pilot thumbnail falls back once and future mobile mounts keep that image local", () => {
-  const app = galleryFixture({ assetPilot: pilotConfig() });
-  const image = app.root.querySelectorAll("img")[0];
-  let current = image.src;
-  const assignments = [];
-  Object.defineProperty(image, "src", { get: () => current, set(value) { current = value; assignments.push(value); } });
-  image.dispatch("error");
-  image.dispatch("error");
-  image.dispatch("error");
-  image.dispatch("error");
-  assert.deepEqual(assignments, ["images/optimized/nknk/mobile/1.webp", "images/optimized/nknk/1.webp"],
-    "Pages failure falls back to the local mobile file, then the original thumbnail, and never loops");
-  const compact = [...app.media.values()].find(query => query.matches);
-  compact.matches = false; compact.changed();
-  compact.matches = true; compact.changed();
-  const remounted = app.root.querySelectorAll("img");
-  assert.equal(remounted[0].src, "images/optimized/nknk/mobile/1.webp");
-  assert.equal(remounted[1].src, pilotConfig().thumbnails["images/optimized/nknk/mobile/2.webp"], "only the failed asset is excluded");
 });
 
 test("asset pilot rejects untrusted origins, credentials, unsafe schemes and mismatched asset hosts", () => {
@@ -170,7 +108,7 @@ test("asset pilot rejects untrusted origins, credentials, unsafe schemes and mis
   ];
   for (const assetPilot of cases) {
     const app = galleryFixture({ assetPilot });
-    assert.equal(app.root.querySelectorAll("img")[0].src, source);
+    assert.equal(app.root.querySelectorAll("img")[0].src, "images/optimized/nknk/1.webp");
   }
 });
 
@@ -223,78 +161,10 @@ test("the shipped asset pilot config matches exported bytes and adds its origin 
   assert.deepEqual(images.slice(1).filter(source => source.includes("pages.dev")), [production.origin], "no Pages wildcard or second resource origin is allowed");
 });
 
-test("compact gallery keeps keyboard navigation, all lightbox images and focus return", () => {
-  const { root, ids, document, window, docEvents } = galleryFixture();
-  const buttons = root.querySelectorAll(".nknk-marquee-item");
-  buttons[0].focus();
-  buttons[0].dispatch("keydown", { key: "ArrowDown" });
-  assert.equal(document.activeElement, buttons[3], "arrow down advances one grid row");
-  buttons[5].dispatch("click", { detail: 1 });
-  assert.equal(ids["nknk-lightbox"].hidden, false);
-  assert.equal(ids["nknk-lightbox-image"].src, window.NKNK_GALLERY[5].full);
-  ids["nknk-lightbox-next"].dispatch("click");
-  assert.equal(ids["nknk-lightbox-image"].src, window.NKNK_GALLERY[6].full, "lightbox can view beyond the six-item preview");
-  docEvents.keydown({ key: "Escape", preventDefault() {} });
-  assert.equal(ids["nknk-lightbox"].hidden, true);
-  assert.equal(document.activeElement, buttons[5]);
-  assert.equal(root.querySelectorAll(".nknk-marquee-item").filter(button => button.tabIndex === 0).length, 1);
-});
-
-test("crossing the mobile breakpoint preserves the lightbox return target", () => {
-  const { root, ids, document, media } = galleryFixture();
-  const compactMedia = [...media.values()].find(query => query.matches);
-  root.querySelectorAll(".nknk-marquee-item")[3].dispatch("click", { detail: 1 });
-  compactMedia.matches = false; compactMedia.changed();
-  assert.equal(root.querySelectorAll(".nknk-marquee-item").length, 214, "desktop keeps its full seamless marquee");
-  ids["nknk-lightbox-close"].dispatch("click");
-  assert.equal(document.activeElement.dataset.galleryIndex, "3");
-  assert.equal(document.activeElement.getAttribute("aria-hidden"), null);
-  compactMedia.matches = true; compactMedia.changed();
-  assert.equal(root.querySelectorAll(".nknk-marquee-item").length, 6);
-  assert.equal(document.activeElement.dataset.galleryIndex, "3");
-});
-
-test("browser Back closes the compact lightbox and restores focus, scrolling and background access", () => {
-  const { root, ids, document, history, flushTasks } = galleryFixture();
-  const source = root.querySelectorAll(".nknk-marquee-item")[2];
-  source.dispatch("click", { detail: 0 });
-  assert.equal(history.scrollRestoration, "manual");
-  assert.equal(ids.artwork.inert, true);
-  history.back();
-  flushTasks();
-  assert.equal(ids["nknk-lightbox"].hidden, true);
-  assert.equal(history.scrollRestoration, "auto");
-  assert.equal(document.activeElement, source);
-  assert.equal(ids.artwork.inert, undefined, "restore the original background state");
-  assert.equal(root.querySelectorAll(".nknk-marquee-item").length, 6);
-});
-
-test("an illustration beyond the mobile preview remains a reachable return target after resize", () => {
-  const { root, ids, document, media, window } = galleryFixture();
-  const compactMedia = [...media.values()].find(query => query.matches);
-  compactMedia.matches = false; compactMedia.changed();
-  const source = root.querySelectorAll(".nknk-marquee-item:not([aria-hidden='true'])")[42];
-  source.focus();
-  source.dispatch("click", { detail: 0 });
-  compactMedia.matches = true; compactMedia.changed();
-  assert.equal(ids["nknk-lightbox"].hidden, false);
-  assert.equal(root.querySelectorAll(".nknk-marquee-item").length, window.NKNK_GALLERY.length);
-  assert.equal(root.querySelector(".nknk-compact-toggle").getAttribute("aria-expanded"), "true");
-  ids["nknk-lightbox-close"].dispatch("click");
-  assert.equal(document.activeElement.dataset.galleryIndex, "42");
-  assert.equal(root.contains(document.activeElement), true, "focus must not return to a removed desktop node");
-  root.querySelector(".nknk-compact-toggle").dispatch("click", { detail: 0 });
-  assert.equal(root.querySelectorAll(".nknk-marquee-item").length, 6);
-  assert.equal(document.activeElement, root.querySelector(".nknk-compact-toggle"));
-});
-
-test("without the pilot a broken local mobile thumbnail falls back once to the original thumbnail", () => {
-  const app = galleryFixture({ assetPilot: undefined });
-  const image = app.root.querySelectorAll("img")[0];
-  assert.equal(image.src, "images/optimized/nknk/mobile/1.webp");
-  let current = image.src;
-  const assignments = [];
-  Object.defineProperty(image, "src", { get: () => current, set(value) { current = value; assignments.push(value); } });
-  for (let attempt = 0; attempt < 5; attempt++) image.dispatch("error");
-  assert.deepEqual(assignments, ["images/optimized/nknk/1.webp"], "one bounded fallback, no retry loop");
+test("phones get the same single-row marquee as desktop instead of the static grid", () => {
+  const { root } = galleryFixture({ compact: true });
+  assert.equal(root.querySelector(".nknk-compact-grid"), null);
+  assert.equal(root.querySelectorAll(".nknk-marquee").length, 1);
+  assert.ok(root.querySelectorAll(".nknk-marquee-item").length > 6);
+  assert.equal(root.classList.contains("is-compact"), false);
 });

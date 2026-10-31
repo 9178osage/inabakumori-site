@@ -70,3 +70,10 @@ test("vertical scroll containers chain scrolling to the page at their edges", ()
   assert.match(rule, /overflow-y: auto;/);
   assert.match(rule, /overscroll-behavior-y: auto;/);
 });
+
+test("phone homepage gallery uses the single-row marquee like desktop", () => {
+  const js = read("js/nknk-gallery-ui.js");
+  assert.match(js, /const ROW_COUNT = 1;/);
+  assert.match(js, /\n      compact = false;\n/);
+  assert.doesNotMatch(js, /compact = compactQuery\?\.matches/);
+});
