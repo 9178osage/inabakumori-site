@@ -62,3 +62,11 @@ test("textareas resize vertically within a bounded height (no endless drag)", ()
   assert.match(rule, /resize: vertical;/);
   assert.doesNotMatch(css, /resize: (both|horizontal)/);
 });
+
+test("vertical scroll containers chain scrolling to the page at their edges", () => {
+  const css = read("style.css").replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.doesNotMatch(css, /overscroll-behavior(-y)?: *(contain|none)/);
+  const rule = css.match(/\n\.song-list \{([^}]*)\}/)[1];
+  assert.match(rule, /overflow-y: auto;/);
+  assert.match(rule, /overscroll-behavior-y: auto;/);
+});

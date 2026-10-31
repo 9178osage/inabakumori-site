@@ -340,7 +340,8 @@ h2 {
   padding-right: 14px;
   scrollbar-width: thin;
   height: min(780px, 85vh);
-  overscroll-behavior-y: contain;
+  /* Let wheel/touch scrolling chain to the page at the list's top and bottom edges. */
+  overscroll-behavior-y: auto;
   scrollbar-gutter: stable;
 }
 .song-list::-webkit-scrollbar {
