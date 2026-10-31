@@ -60,6 +60,23 @@ const generatedPages = (async () => {
   return [...files].filter(([name]) => name.endsWith(".html"));
 })();
 
+test("song index groups dated songs by their Japan public year and retains unknown dates", async () => {
+  const { renderArchivePages } = await import("../render-archive-pages.mjs");
+  const songs = [
+    { title: "Known", youtube: "https://youtu.be/AAAAAAAAAAA", album: "SINGLES", singers: [] },
+    { title: "Unknown", youtube: "https://youtu.be/BBBBBBBBBBB", album: "SINGLES", singers: [] }
+  ];
+  const details = { releasedAt: "2020-12-31T16:00:00Z", releaseConfidence: "inferred", vocal: null, credits: [], unverified: [],
+    checkedAt: "2020-12-31", sources: [{ label: "Official", url: "https://www.youtube.com/watch?v=AAAAAAAAAAA" }] };
+  const { files } = renderArchivePages({ songs, xPosts: { version: 1, items: [] }, xTranslations: new Map(),
+    xPostsRenderer: { posts: () => [], renderPost: () => "" }, songDetailsSource: { version: 1, songs: { AAAAAAAAAAA: details } }, updatesHtml: read("updates.html") });
+  const html = files.get("songs.html");
+  assert.match(html, /<summary>2021 <span class="song-year-count">1<\/span><\/summary><ul><li><a href="song-AAAAAAAAAAA\.html"/u);
+  assert.match(html, /年份待确认/u);
+  assert.match(html, /song-BBBBBBBBBBB\.html/u);
+  assert.match(html, /日期推定/u, "inferred dates stay visibly qualified even without JavaScript");
+});
+
 test("generated song index and song detail metadata follows actual language-button clicks", async () => {
   const pages = await generatedPages;
   assert.equal(pages.length, 2);

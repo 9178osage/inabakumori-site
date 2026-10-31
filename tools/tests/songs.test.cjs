@@ -99,7 +99,7 @@ test("all songs retain their exact order, titles, URLs, albums, and singers", ()
     .update(JSON.stringify(songs.map(song => [song.title, song.youtube, song.album, song.singers])))
     .digest("hex");
   // Covers every song, including the vocal/version corrections from the complete source review.
-  assert.equal(digest, "f3ea95d99a9dde66c2c44ee9fcf66e1e885bb458c167e8cfde3af9478df92716");
+  assert.equal(digest, "7d0eba96bb90bd17fee689d2b7dbaac82bd4d983a22e3fb9afabf35c8aa9369a");
   for (const song of songs) {
     const url = new URL(song.youtube);
     assert.deepEqual([...url.searchParams.keys()].filter(key => key !== "v"), [], `${song.title}: no tracking parameters`);
@@ -113,6 +113,15 @@ test("all songs retain their exact order, titles, URLs, albums, and singers", ()
     assert.deepEqual(row.querySelectorAll(".song-inline-tag").map(tag => tag.dataset.rawTag), [song.album, ...song.singers]);
     assert.equal(row.querySelector("img").src, `https://i.ytimg.com/vi/${new URL(song.youtube).pathname.slice(1)}/mqdefault.jpg`);
   });
+});
+
+test("unconfirmed vocals are not offered as established singer tags", () => {
+  const { run } = setup();
+  const songs = JSON.parse(run("JSON.stringify(SONGS)"));
+  for (const id of ["io5HEdBNqWk", "v03uVgQZOOM", "KK9nXYdmkiM", "QpKaP3oGBXE", "dmG60q44PJQ"]) {
+    assert.deepEqual(songs.find(song => song.youtube.endsWith(id)).singers, [], id);
+  }
+  assert.deepEqual(songs.find(song => song.youtube.endsWith("LqlD2Btv0KI")).singers, ["宮下遊"]);
 });
 
 test("verified Anticyclone and Non-Use vocals agree with homepage Miku filtering", () => {

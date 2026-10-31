@@ -396,9 +396,7 @@ const SONGS = [
     "title": "あいたい星人 (大気圏外 Remix)",
     "youtube": "https://youtu.be/io5HEdBNqWk",
     "album": "SINGLES",
-    "singers": [
-      "初音未来"
-    ],
+    "singers": [],
     "viewCount": 49226,
     "viewsCheckedAt": "2026-10-26"
   },
@@ -406,10 +404,7 @@ const SONGS = [
     "title": "僕のサイノウ (稲葉曇 Cover)",
     "youtube": "https://youtu.be/v03uVgQZOOM",
     "album": "SINGLES",
-    "singers": [
-      "歌爱雪",
-      "初音未来"
-    ],
+    "singers": [],
     "viewCount": 55771,
     "viewsCheckedAt": "2026-10-26"
   },
@@ -417,9 +412,7 @@ const SONGS = [
     "title": "かにだいすき",
     "youtube": "https://youtu.be/KK9nXYdmkiM",
     "album": "SINGLES",
-    "singers": [
-      "歌爱雪"
-    ],
+    "singers": [],
     "viewCount": 31166,
     "viewsCheckedAt": "2026-10-26"
   },
@@ -427,9 +420,7 @@ const SONGS = [
     "title": "もち",
     "youtube": "https://youtu.be/QpKaP3oGBXE",
     "album": "SINGLES",
-    "singers": [
-      "歌爱雪"
-    ],
+    "singers": [],
     "viewCount": 35983,
     "viewsCheckedAt": "2026-10-26"
   },
@@ -466,9 +457,7 @@ const SONGS = [
     "title": "篝火 (稲葉曇 Remix)",
     "youtube": "https://youtu.be/dmG60q44PJQ",
     "album": "SINGLES",
-    "singers": [
-      "歌爱雪"
-    ],
+    "singers": [],
     "viewCount": 48256,
     "viewsCheckedAt": "2026-10-26"
   },
@@ -476,7 +465,9 @@ const SONGS = [
     "title": "ラストリヴ",
     "youtube": "https://youtu.be/LqlD2Btv0KI",
     "album": "SINGLES",
-    "singers": [],
+    "singers": [
+      "宮下遊"
+    ],
     "viewCount": 533707,
     "viewsCheckedAt": "2026-10-26"
   },

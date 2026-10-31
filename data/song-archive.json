@@ -3,6 +3,7 @@
   "note": "Only fields checked against an official source are listed. Anything missing is shown as unverified on the site; never fill a credit from memory.",
   "songs": {
     "DeKLpgzh-qQ": {
+      "fieldSources": {"releasedAt": ["YouTube", "X @inabakumori 2019-02-27"], "vocal": ["YouTube"], "music": ["YouTube"], "illustration": ["YouTube"]},
       "aliases": ["Lost Umbrella"],
       "releasedAt": "2018-02-27T13:00:36Z",
       "releaseNote": { "zh": "YouTube 公开时间；ニコニコ动画（sm32801250）同日投稿，见作者 2019-02-27 的一周年帖。", "en": "YouTube publication time; also posted to niconico (sm32801250) the same day, per the creator’s first-anniversary post on 2019-02-27.", "ja": "YouTube の公開日時。作者の 2019-02-27 の1周年投稿によると、ニコニコ動画（sm32801250）にも同日投稿。" },
@@ -20,6 +21,7 @@
       "checkedAt": "2026-10-25"
     },
     "UnIhRpIT7nc": {
+      "fieldSources": {"releasedAt": ["YouTube", "X @inabakumori 2020-07-16"], "vocal": ["YouTube"], "music": ["YouTube"], "illustration": ["YouTube"], "animation": ["YouTube"], "movie": ["YouTube"]},
       "aliases": ["Lagtrain"],
       "releasedAt": "2020-07-16T11:00:13Z",
       "releaseNote": { "zh": "YouTube 首映公开时间；作者同日帖子确认 niconico 与 YouTube 同时投稿。", "en": "YouTube premiere time; the creator’s post that day confirms niconico and YouTube uploads.", "ja": "YouTube のプレミア公開日時。同日の作者投稿でニコニコ動画と YouTube への投稿を確認。" },
@@ -39,6 +41,7 @@
       "checkedAt": "2026-10-25"
     },
     "G5hScSFkib4": {
+      "fieldSources": {"releasedAt": ["niconico sm38927801", "X @inabakumori 2021-06-23"], "vocal": ["YouTube"], "music": ["YouTube"], "illustration": ["YouTube"], "animation": ["YouTube"], "movie": ["YouTube"]},
       "releasedAt": "2021-06-23T20:00:00+09:00",
       "releaseNote": {
         "zh": "niconico 投稿时间；作者同日预告 YouTube 于 20:00 首映。",
@@ -84,6 +87,7 @@
       "checkedAt": "2026-10-27"
     },
     "NRQRC_0ZQ00": {
+      "fieldSources": {"releasedAt": ["niconico sm41645109", "X @inabakumori 2023-01-13"], "vocal": ["YouTube"], "music": ["YouTube"], "illustration": ["YouTube"], "animation": ["YouTube"], "movie": ["YouTube"]},
       "releasedAt": "2023-01-13T20:00:00+09:00",
       "releaseNote": {
         "zh": "niconico 投稿时间；YouTube 同日首映，作者发布帖同时列出两个平台。",
@@ -129,6 +133,7 @@
       "checkedAt": "2026-10-27"
     },
     "b56xjtP6Qac": {
+      "fieldSources": {"releasedAt": ["niconico sm42576236"], "vocal": ["YouTube"], "music": ["YouTube"], "illustration": ["YouTube"]},
       "releasedAt": "2023-08-05T00:00:00+09:00",
       "releaseNote": {
         "zh": "niconico 首发时间；YouTube 后于 2023-08-08 20:00 JST 首映，见作者首映预告。",
@@ -168,6 +173,7 @@
       "checkedAt": "2026-10-27"
     },
     "1nZwWpHF0mQ": {
+      "fieldSources": {"releasedAt": ["X @inabakumori 2025-08-01"], "vocal": ["YouTube"]},
       "releasedAt": "2025-08-01",
       "releaseNote": {
         "zh": "日本发布日期以作者同日发布帖核对；只确认到日期，不填写精确公开时刻。",
@@ -203,6 +209,7 @@
       "checkedAt": "2026-10-27"
     },
     "STBoCK69vVQ": {
+      "fieldSources": {"releasedAt": ["X @inabakumori（首映预告）"], "vocal": ["YouTube"]},
       "releasedAt": "2026-01-26T19:00+09:00",
       "releaseNote": {
         "zh": "YouTube 首映时间以作者预告核对；影像栏的原署名为影像剪辑与 Logo 设计。",
@@ -244,6 +251,7 @@
       "checkedAt": "2026-10-27"
     },
     "2r4W_LoVFxA": {
+      "fieldSources": {"releasedAt": ["X @inabakumori（首映预告）"], "vocal": ["YouTube"]},
       "releasedAt": "2026-03-08T19:00+09:00",
       "releaseNote": {
         "zh": "YouTube 首映时间以作者预告核对；动画与影像署名尚未确认，保留空白。",
@@ -279,6 +287,7 @@
       "checkedAt": "2026-10-27"
     },
     "2_93SNGYgYs": {
+      "fieldSources": {"releasedAt": ["YouTube"], "vocal": ["YouTube"], "music": ["YouTube"], "illustration": ["YouTube"]},
       "releasedAt": "2019-11-04T11:00:00Z",
       "releaseNote": { "zh": "YouTube 公开时间。", "en": "YouTube publication time.", "ja": "YouTube の公開日時。" },
       "albumRelease": "2019-11-17",
@@ -294,6 +303,7 @@
       "checkedAt": "2026-10-28"
     },
     "M8ZGGCqJduU": {
+      "fieldSources": {"releasedAt": ["YouTube"], "vocal": ["YouTube"]},
       "releasedAt": "2016-08-22T11:37:08Z",
       "releaseNote": { "zh": "YouTube 公开时间。", "en": "YouTube publication time.", "ja": "YouTube の公開日時。" },
       "albumRelease": "2019-11-17",
@@ -309,6 +319,7 @@
       "checkedAt": "2026-10-28"
     },
     "r8Lrrx6TMMY": {
+      "fieldSources": {"releasedAt": ["YouTube"]},
       "releasedAt": "2016-03-12T12:52:11Z",
       "releaseNote": { "zh": "YouTube 公开时间。", "en": "YouTube publication time.", "ja": "YouTube の公開日時。" },
       "albumRelease": "2019-11-17",
@@ -324,6 +335,7 @@
       "checkedAt": "2026-10-28"
     },
     "ffGcA4Kj-rk": {
+      "fieldSources": {"releasedAt": ["YouTube"], "vocal": ["YouTube"], "music": ["YouTube"], "illustration": ["YouTube"]},
       "releasedAt": "2016-05-02T15:58:36Z",
       "releaseNote": { "zh": "YouTube 公开时间。", "en": "YouTube publication time.", "ja": "YouTube の公開日時。" },
       "albumRelease": "2019-11-17",
@@ -339,6 +351,7 @@
       "checkedAt": "2026-10-28"
     },
     "vyfNM-tIfiw": {
+      "fieldSources": {"releasedAt": ["YouTube"]},
       "releasedAt": "2016-05-28T11:24:41Z",
       "releaseNote": { "zh": "YouTube 公开时间。", "en": "YouTube publication time.", "ja": "YouTube の公開日時。" },
       "albumRelease": "2019-11-17",
@@ -354,6 +367,7 @@
       "checkedAt": "2026-10-28"
     },
     "3NWuC2UF0u0": {
+      "fieldSources": {"releasedAt": ["YouTube"]},
       "releasedAt": "2016-11-26T15:32:51Z",
       "releaseNote": { "zh": "YouTube 公开时间。", "en": "YouTube publication time.", "ja": "YouTube の公開日時。" },
       "albumRelease": "2019-11-17",
@@ -369,6 +383,7 @@
       "checkedAt": "2026-10-28"
     },
     "Jhw7Hum-eLw": {
+      "fieldSources": {"releasedAt": ["YouTube"]},
       "releasedAt": "2018-12-21T11:00:02Z",
       "releaseNote": { "zh": "YouTube 公开时间。", "en": "YouTube publication time.", "ja": "YouTube の公開日時。" },
       "albumRelease": "2019-11-17",
@@ -384,6 +399,7 @@
       "checkedAt": "2026-10-28"
     },
     "MZvTr20tkro": {
+      "fieldSources": {"releasedAt": ["YouTube"]},
       "releasedAt": "2017-04-25T11:46:02Z",
       "releaseNote": { "zh": "YouTube 公开时间。", "en": "YouTube publication time.", "ja": "YouTube の公開日時。" },
       "albumRelease": "2019-11-17",
@@ -399,6 +415,7 @@
       "checkedAt": "2026-10-28"
     },
     "-5T-L0b43no": {
+      "fieldSources": {"releasedAt": ["YouTube"]},
       "releasedAt": "2019-05-11T13:00:00Z",
       "releaseNote": { "zh": "YouTube 公开时间。概要栏署名为「Illustration & Movie : ぬくぬくにぎりめし & 稲葉曇」；是 2017 年专辑「モノカラーガールスーパーノヴァ」所收《ノンユース》的重制版。", "en": "YouTube publication time.The description credits “Illustration & Movie : ぬくぬくにぎりめし & 稲葉曇”; a retake of “ノンユース” from the 2017 album “モノカラーガールスーパーノヴァ”.", "ja": "YouTube の公開日時。概要欄の表記は「Illustration & Movie : ぬくぬくにぎりめし & 稲葉曇」。2017年のアルバム「モノカラーガールスーパーノヴァ」収録『ノンユース』のリテイク版。" },
       "albumRelease": "2019-11-17",
@@ -417,6 +434,7 @@
       "checkedAt": "2026-10-28"
     },
     "sXc204xHj8g": {
+      "fieldSources": {"releasedAt": ["YouTube"], "vocal": ["YouTube"], "music": ["YouTube"], "illustration": ["YouTube"]},
       "releasedAt": "2016-02-22T10:02:57Z",
       "releaseNote": { "zh": "YouTube 公开时间。", "en": "YouTube publication time.", "ja": "YouTube の公開日時。" },
       "albumRelease": "2019-11-17",
@@ -432,6 +450,7 @@
       "checkedAt": "2026-10-28"
     },
     "wdUCRDvFv3Q": {
+      "fieldSources": {"releasedAt": ["YouTube"]},
       "releasedAt": "2019-12-04T14:00:08Z",
       "releaseNote": { "zh": "YouTube 公开时间。", "en": "YouTube publication time.", "ja": "YouTube の公開日時。" },
       "albumRelease": "2022-03-23",
@@ -447,6 +466,7 @@
       "checkedAt": "2026-10-28"
     },
     "g6sYNwl1EWg": {
+      "fieldSources": {"releasedAt": ["YouTube"], "vocal": ["YouTube"], "music": ["YouTube"], "illustration": ["YouTube"]},
       "releasedAt": "2021-11-20T11:00:12Z",
       "releaseNote": { "zh": "YouTube 首映（Premiere）开始时间。", "en": "YouTube Premiere start time.", "ja": "YouTube プレミア公開の開始日時。" },
       "albumRelease": "2022-03-23",
@@ -462,6 +482,7 @@
       "checkedAt": "2026-10-28"
     },
     "mFih47l1pVI": {
+      "fieldSources": {"releasedAt": ["YouTube"], "vocal": ["YouTube"], "music": ["YouTube"], "illustration": ["YouTube"]},
       "releasedAt": "2021-05-13T03:00:12Z",
       "releaseNote": { "zh": "YouTube 公开时间。", "en": "YouTube publication time.", "ja": "YouTube の公開日時。" },
       "albumRelease": "2022-03-23",
@@ -477,6 +498,7 @@
       "checkedAt": "2026-10-28"
     },
     "kYwB-kZyNU4": {
+      "fieldSources": {"releasedAt": ["YouTube"], "vocal": ["YouTube"], "music": ["YouTube"], "illustration": ["YouTube"]},
       "releasedAt": "2022-01-29T11:00:15Z",
       "releaseNote": { "zh": "YouTube 首映（Premiere）开始时间。", "en": "YouTube Premiere start time.", "ja": "YouTube プレミア公開の開始日時。" },
       "albumRelease": "2022-03-23",
@@ -492,6 +514,7 @@
       "checkedAt": "2026-10-28"
     },
     "3NLsyjOH92k": {
+      "fieldSources": {"releasedAt": ["YouTube"], "vocal": ["YouTube"], "music": ["YouTube"], "illustration": ["YouTube"], "animation": ["YouTube"], "movie": ["YouTube"]},
       "releasedAt": "2022-03-26T11:00:14Z",
       "releaseNote": { "zh": "YouTube 首映（Premiere）开始时间。", "en": "YouTube Premiere start time.", "ja": "YouTube プレミア公開の開始日時。" },
       "albumRelease": "2022-03-23",
@@ -509,6 +532,7 @@
       "checkedAt": "2026-10-28"
     },
     "8Rq6dVpEUS4": {
+      "fieldSources": {"releasedAt": ["YouTube"], "vocal": ["YouTube"], "music": ["YouTube"], "illustration": ["YouTube"]},
       "releasedAt": "2022-06-03T11:00:14Z",
       "releaseNote": { "zh": "YouTube 首映（Premiere）开始时间。", "en": "YouTube Premiere start time.", "ja": "YouTube プレミア公開の開始日時。" },
       "vocal": "星界",
@@ -523,6 +547,7 @@
       "checkedAt": "2026-10-28"
     },
     "xn4qndSd3vs": {
+      "fieldSources": {"releasedAt": ["YouTube"], "vocal": ["YouTube"], "music": ["YouTube"], "illustration": ["YouTube"]},
       "releasedAt": "2022-08-25T11:00:16Z",
       "releaseNote": { "zh": "YouTube 首映（Premiere）开始时间。", "en": "YouTube Premiere start time.", "ja": "YouTube プレミア公開の開始日時。" },
       "vocal": "裏命",
@@ -537,6 +562,7 @@
       "checkedAt": "2026-10-28"
     },
     "o14pj9CsNVY": {
+      "fieldSources": {"releasedAt": ["YouTube"], "vocal": ["YouTube"], "music": ["YouTube"], "illustration": ["YouTube"]},
       "releasedAt": "2023-06-23T11:00:08Z",
       "releaseNote": { "zh": "YouTube 首映（Premiere）开始时间。", "en": "YouTube Premiere start time.", "ja": "YouTube プレミア公開の開始日時。" },
       "vocal": "音街ウナ (VOCALOID6 AI 音街ウナ Sugar, Spicy)",
@@ -551,6 +577,7 @@
       "checkedAt": "2026-10-28"
     },
     "Imcr7rsBxsc": {
+      "fieldSources": {"releasedAt": ["YouTube"]},
       "releasedAt": "2023-10-06T09:30:11Z",
       "releaseNote": { "zh": "YouTube 首映（Premiere）开始时间。", "en": "YouTube Premiere start time.", "ja": "YouTube プレミア公開の開始日時。" },
       "vocal": "初音ミク",
@@ -565,6 +592,7 @@
       "checkedAt": "2026-10-28"
     },
     "uZdnPgDaOpk": {
+      "fieldSources": {"releasedAt": ["YouTube"], "vocal": ["YouTube"], "music": ["YouTube"], "illustration": ["YouTube"]},
       "releasedAt": "2023-10-20T10:00:09Z",
       "releaseNote": { "zh": "YouTube 首映（Premiere）开始时间。", "en": "YouTube Premiere start time.", "ja": "YouTube プレミア公開の開始日時。" },
       "vocal": "nagiβ & カゼヒキβ",
@@ -579,6 +607,7 @@
       "checkedAt": "2026-10-28"
     },
     "EEk4JGzqoFg": {
+      "fieldSources": {"releasedAt": ["YouTube"], "vocal": ["YouTube"], "music": ["YouTube"], "illustration": ["YouTube"], "animation": ["YouTube"], "movie": ["YouTube"]},
       "releasedAt": "2024-04-19T11:00:19Z",
       "releaseNote": { "zh": "YouTube 首映（Premiere）开始时间。", "en": "YouTube Premiere start time.", "ja": "YouTube プレミア公開の開始日時。" },
       "vocal": "歌愛ユキ（Backing Vocal: 初音ミク）",
@@ -595,6 +624,7 @@
       "checkedAt": "2026-10-28"
     },
     "9x7t1s4xMw4": {
+      "fieldSources": {"releasedAt": ["YouTube"], "vocal": ["YouTube"], "music": ["YouTube"], "illustration": ["YouTube"]},
       "releasedAt": "2024-12-03T15:00:07Z",
       "releaseNote": { "zh": "YouTube 首映（Premiere）开始时间。", "en": "YouTube Premiere start time.", "ja": "YouTube プレミア公開の開始日時。" },
       "vocal": "歌愛ユキ",
@@ -609,6 +639,7 @@
       "checkedAt": "2026-10-28"
     },
     "IJN0piNZhBE": {
+      "fieldSources": {"releasedAt": ["YouTube"]},
       "releasedAt": "2025-07-26T13:00:07Z",
       "releaseNote": { "zh": "YouTube 首映（Premiere）开始时间。", "en": "YouTube Premiere start time.", "ja": "YouTube プレミア公開の開始日時。" },
       "vocal": "歌愛ユキ",
@@ -623,6 +654,7 @@
       "checkedAt": "2026-10-28"
     },
     "L38M7qK1Yv4": {
+      "fieldSources": {"releasedAt": ["YouTube"], "vocal": ["YouTube"], "music": ["YouTube"], "illustration": ["YouTube"]},
       "releasedAt": "2024-11-13T10:00:08Z",
       "releaseNote": { "zh": "YouTube 首映（Premiere）开始时间。原曲作曲为いよわ，本版由稲葉曇 Remix（概要栏「Remixed by 稲葉曇」）。", "en": "YouTube Premiere start time.Original music by いよわ; this version is remixed by 稲葉曇 (“Remixed by 稲葉曇” in the description).", "ja": "YouTube プレミア公開の開始日時。原曲の作曲はいよわ、本バージョンは稲葉曇によるリミックス（概要欄「Remixed by 稲葉曇」）。" },
       "vocal": "初音ミク",
@@ -637,6 +669,7 @@
       "checkedAt": "2026-10-28"
     },
     "LqlD2Btv0KI": {
+      "fieldSources": {"releasedAt": ["YouTube（宮下遊 miy_yuu / Official Channel）"]},
       "releasedAt": "2022-03-16T10:00:12Z",
       "releaseNote": { "zh": "YouTube 首映（Premiere）开始时间。宮下遊官方频道发布；概要栏署名「作詞・作曲・編曲：稲葉曇」「映像：薬屋」。", "en": "YouTube Premiere start time.Published on 宮下遊’s official channel; the description credits “作詞・作曲・編曲：稲葉曇” and “映像：薬屋”.", "ja": "YouTube プレミア公開の開始日時。宮下遊の公式チャンネルで公開。概要欄の表記は「作詞・作曲・編曲：稲葉曇」「映像：薬屋」。" },
       "vocal": "宮下遊",
@@ -651,6 +684,7 @@
       "checkedAt": "2026-10-28"
     },
     "lYtZ5oMs3_8": {
+      "fieldSources": {"releasedAt": ["YouTube 官方发行音轨", "niconico 作者 1st 专辑预告"], "vocal": ["UtaTen 正版曲目演唱资料"]},
       "releasedAt": "2019-11-17",
       "releaseNote": {
         "zh": "《アンチサイクロン》专辑发行日，依作者官方预告与音轨 Released on 核对；YouTube 自动音轨为 2020 年补传。",
@@ -697,6 +731,7 @@
       "vocal": "歌愛ユキ"
     },
     "e5d-DvD55OI": {
+      "fieldSources": {"releasedAt": ["YouTube 官方发行音轨", "niconico 作者 1st 专辑预告"]},
       "releasedAt": "2019-11-17",
       "releaseNote": {
         "zh": "《アンチサイクロン》专辑发行日，依作者官方预告与音轨 Released on 核对；YouTube 自动音轨为 2020 年补传。",
@@ -734,6 +769,7 @@
       "albumRelease": "2019-11-17"
     },
     "n8O_gZ0Ebbs": {
+      "fieldSources": {"releasedAt": ["niconico 合辑主办方预告", "X @inabakumori"], "vocal": ["youth. 官方演唱资料"]},
       "releasedAt": "2016-11-05",
       "releaseNote": {
         "zh": "合辑《youth.》发行日，依主办方 niconico 预告核对；作者帖子确认本曲为第 2 曲。2019-11-17 再收录于《アンチサイクロン》。",
@@ -784,6 +820,7 @@
       "vocal": "歌愛ユキ"
     },
     "xyrUvwVpDRI": {
+      "fieldSources": {"releasedAt": ["发行商 The Orchard Japan 专辑资料"], "vocal": ["作者本人逐曲访谈", "JOYSOUND 官方曲目资料"]},
       "releasedAt": "2022-03-23",
       "releaseNote": {
         "zh": "《ウェザーステーション》专辑发行日，依发行商资料核对；不采用自动音轨提前一天的上传时间。演唱依据作者本人逐曲访谈及 JOYSOUND 官方歌手字段。",
@@ -838,6 +875,7 @@
       "vocal": "歌愛ユキ"
     },
     "n9xlE973OMs": {
+      "fieldSources": {"releasedAt": ["niconico 合辑主办方预告", "X @inabakumori"], "vocal": ["JOYSOUND 官方曲目资料"]},
       "releasedAt": "2017-08-11",
       "releaseNote": {
         "zh": "合辑《アルカロイドに溺れる》发行日，依主办方 niconico 预告核对；作者帖子确认本曲为第 1 曲。2022-03-23 再收录于《ウェザーステーション》。演唱据 JOYSOUND 官方歌手字段。",
@@ -896,6 +934,7 @@
       "vocal": "歌愛ユキ"
     },
     "1_8pQVYJtwQ": {
+      "fieldSources": {"releasedAt": ["合辑官方发行资料", "niconico 合辑主办方预告", "X @inabakumori"], "vocal": ["JOYSOUND 官方曲目资料"]},
       "releasedAt": "2018-11-18",
       "releaseNote": {
         "zh": "合辑《アントゥルース・ディストーション》发行日，依主办官网与 niconico 预告核对；曲目表和作者帖子确认本曲为第 3 曲。2022-03-23 再收录于《ウェザーステーション》。",
@@ -958,6 +997,7 @@
       "vocal": "歌愛ユキ"
     },
     "vnJE7k9Wiag": {
+      "fieldSources": {"releasedAt": ["キメラ 官方企划与制作分工"], "vocal": ["UtaTen 正版曲目演唱资料"], "music": ["キメラ 官方企划与制作分工"], "lyrics": ["キメラ 官方企划与制作分工"], "arrangement": ["キメラ 官方企划与制作分工"]},
       "releasedAt": "2021-10-15",
       "releaseNote": {
         "zh": "《キメラ》CD 发行日以官方企划站核对；TuneCore 数字发行资料及 YouTube 音轨另记 2021-10-16，区分实体发行和数字配信。",
@@ -1023,6 +1063,7 @@
       "vocal": "歌愛ユキ & 鏡音レン"
     },
     "FRFgNWBAa8k": {
+      "fieldSources": {"releasedAt": ["作者官方 BOOTH（专辑）"], "vocal": ["Real Sound（作者本人专访）"]},
       "checkedAt": "2026-10-29",
       "videoKind": "reupload",
       "videoNote": {
@@ -1074,6 +1115,7 @@
       ]
     },
     "io5HEdBNqWk": {
+      "fieldSources": {"releasedAt": ["发行商 NBCUniversal（特典 CD）"], "music": ["OTOIRO（原曲词曲）"], "lyrics": ["OTOIRO（原曲词曲）"], "remix": ["发行商 NBCUniversal（特典 CD）"]},
       "checkedAt": "2026-10-29",
       "videoKind": "reupload",
       "videoNote": {
@@ -1124,6 +1166,7 @@
       ]
     },
     "v03uVgQZOOM": {
+      "fieldSources": {"releasedAt": ["X @inabakumori（Cover 发布帖）"], "music": ["wowaka 官方 piapro（原曲）"]},
       "checkedAt": "2026-10-29",
       "videoKind": "reupload",
       "videoNote": {
@@ -1165,6 +1208,7 @@
       ]
     },
     "17xSzYLQVKQ": {
+      "fieldSources": {"releasedAt": ["X @inabakumori（作者视频帖）"], "vocal": ["X @inabakumori（作者视频帖）"]},
       "checkedAt": "2026-10-29",
       "videoKind": "reupload",
       "videoNote": {
@@ -1204,6 +1248,7 @@
       ]
     },
     "42P4ritVHjE": {
+      "fieldSources": {"releasedAt": ["发行商 Subcul-rise（ベノマ）", "X @inabakumori（发行日）"], "vocal": ["X @inabakumori（演唱确认）"], "music": ["发行商 Subcul-rise（ベノマ）"], "remix": ["发行商 Subcul-rise（ベノマ）"], "illustration": ["发行商 Subcul-rise（ベノマ）"]},
       "checkedAt": "2026-10-29",
       "videoKind": "reupload",
       "videoNote": {
@@ -1258,6 +1303,7 @@
       ]
     },
     "dmG60q44PJQ": {
+      "fieldSources": {"releasedAt": ["X @dokotana（专辑配信日）", "X @inabakumori（Remix 参加）"], "music": ["ちいたな官方 niconico（原曲）"], "remix": ["X @inabakumori（Remix 参加）"]},
       "checkedAt": "2026-10-29",
       "videoKind": "reupload",
       "videoNote": {
@@ -1308,6 +1354,8 @@
       ]
     },
     "KK9nXYdmkiM": {
+      "releaseConfidence": "inferred",
+      "fieldSources": {"releasedAt": ["X @NKNK_NGRMS（2019-04-12 曲名说明）"], "music": ["NKNK 官方 YouTube 说明"], "lyrics": ["NKNK 官方 YouTube 说明"], "illustration": ["NKNK 官方 YouTube 说明"]},
       "checkedAt": "2026-10-29",
       "credits": [
         {
@@ -1339,9 +1387,9 @@
       ],
       "videoKind": "official",
       "releaseNote": {
-        "zh": "首次公开日按 NKNK 2019-04-12 的帖子（“さっきのツイートの かにだいすきは曲名です”）确认为 2019-04-12；原视频帖未收录于本站 X 存档，只确认到日期。现有 YouTube 为 2023 年补传，未用其上传日期。",
-        "en": "First published 2019-04-12, per NKNK’s post that day saying “かにだいすき in my previous post is the song title”. The original video post is not in this site’s X archive, so only the date is confirmed. The YouTube video is a later 2023 upload and its date is not used.",
-        "ja": "NKNKの2019-04-12の投稿（「さっきのツイートの かにだいすきは曲名です」）により初公開日を2019-04-12と確認。元の動画投稿は本サイトのXアーカイブに未収録のため、日付のみ確認しています。YouTubeは2023年の追加公開で、その投稿日は使っていません。"
+        "zh": "推定公开日期为 2019-04-12：NKNK 当日的帖子说“さっきのツイートの かにだいすきは曲名です”，但原视频帖未收录于本站，不能仅凭说明确认最早公开日。现有 YouTube 为 2023 年补传，未用其上传日期。",
+        "en": "Estimated publication date 2019-04-12, based on NKNK’s post that day saying “かにだいすき in my previous post is the song title”. The original video post is not in this archive, so its earliest release date is not confirmed. The YouTube video is a later 2023 upload and its date is not used.",
+        "ja": "公開日は2019-04-12と推定。NKNKの同日の投稿は「さっきのツイートの かにだいすきは曲名です」と説明していますが、元の動画投稿は本サイトのXアーカイブに未収録で、初公開日は確認できません。YouTubeは2023年の追加公開で、その投稿日は使っていません。"
       },
       "creditNote": {
         "zh": "官方说明明确作词、插画为 NKNK，音乐为稲葉曇；未明确演唱者。VocaDB 记载演唱为歌愛ユキ（非官方资料，未确认）。",
@@ -1351,6 +1399,8 @@
       "releasedAt": "2019-04-12"
     },
     "QpKaP3oGBXE": {
+      "releaseConfidence": "inferred",
+      "fieldSources": {"releasedAt": ["作者 2020 年视频帖"], "music": ["NKNK 官方 YouTube 说明"], "lyrics": ["NKNK 官方 YouTube 说明"], "illustration": ["NKNK 官方 YouTube 说明"]},
       "checkedAt": "2026-10-29",
       "credits": [
         {
@@ -1382,9 +1432,9 @@
       ],
       "videoKind": "official",
       "releaseNote": {
-        "zh": "首次公开日按作者 2020-03-19 的视频帖（“ぬくぬくにぎりめしが歌詞をくれたので、また曲を作りました”）确认为 2020-03-19。该帖正文未写曲名，与《もち》的对应参考了 VocaDB 记载（非官方）及 NKNK 的“2020 年の動画”说明。YouTube 为 2023 年补传，未用其上传日期。",
-        "en": "First published 2020-03-19, per the creator’s video post that day (“NKNK gave me lyrics, so I made another song”). The post text does not name the song; matching it to Mochi relies on VocaDB (unofficial) and NKNK’s note that this is a 2020 video. The YouTube video is a later 2023 upload and its date is not used.",
-        "ja": "作者の2020-03-19の動画投稿（「ぬくぬくにぎりめしが歌詞をくれたので、また曲を作りました」）により初公開日を2020-03-19と確認。投稿本文に曲名はなく、『もち』との対応はVocaDBの記載（非公式）とNKNKの「2020年の動画」という説明によります。YouTubeは2023年の追加公開で、その投稿日は使っていません。"
+        "zh": "推定公开日期为 2020-03-19，依据作者当天的视频帖（“ぬくぬくにぎりめしが歌詞をくれたので、また曲を作りました”）。该帖正文未写曲名，与《もち》的对应参考了 VocaDB 记载（非官方）及 NKNK 的“2020 年の動画”说明。YouTube 为 2023 年补传，未用其上传日期。",
+        "en": "Estimated publication date 2020-03-19, based on the creator’s video post that day (“NKNK gave me lyrics, so I made another song”). The post text does not name the song; matching it to Mochi relies on VocaDB (unofficial) and NKNK’s note that this is a 2020 video. The YouTube video is a later 2023 upload and its date is not used.",
+        "ja": "公開日は2020-03-19と推定。作者の同日の動画投稿（「ぬくぬくにぎりめしが歌詞をくれたので、また曲を作りました」）に基づきます。投稿本文に曲名はなく、『もち』との対応はVocaDBの記載（非公式）とNKNKの「2020年の動画」という説明によります。YouTubeは2023年の追加公開で、その投稿日は使っていません。"
       },
       "creditNote": {
         "zh": "官方说明明确作词、插画为 NKNK，音乐为稲葉曇；未明确演唱者。VocaDB 记载演唱为歌愛ユキ（非官方资料，未确认）。",
@@ -1394,6 +1444,7 @@
       "releasedAt": "2020-03-19"
     },
     "Vb-z6AR-2F0": {
+      "fieldSources": {"releasedAt": ["ナユタン星人 官方合作 MV", "作者 MV 发布帖"], "music": ["原曲官方 niconico"], "arrangement": ["ナユタン星人 官方合作 MV"], "illustration": ["ナユタン星人 官方合作 MV"], "movie": ["ナユタン星人 官方合作 MV"]},
       "checkedAt": "2026-10-29",
       "credits": [
         {
@@ -1448,6 +1499,7 @@
       }
     },
     "KLxigReVbk8": {
+      "fieldSources": {"releasedAt": ["作者官方 SoundCloud"]},
       "checkedAt": "2026-10-29",
       "credits": [
         {
@@ -1481,6 +1533,7 @@
       }
     },
     "PJo89L-_l3s": {
+      "fieldSources": {"releasedAt": ["合辑主办官方 niconico 预告", "合辑主办官方 YouTube 预告"], "vocal": ["作者 2019 官方 MV（明确说明原版演唱）"]},
       "checkedAt": "2026-10-29",
       "credits": [
         {
@@ -1526,6 +1579,7 @@
       }
     },
     "DXngar-Nl6g": {
+      "fieldSources": {"releasedAt": ["作者 Cover 发布帖（既有收录，本轮正文访问受限）"], "vocal": ["作者 Cover 发布帖（既有收录，本轮正文访问受限）"], "music": ["煮ル果実官方原曲"], "lyrics": ["煮ル果実官方原曲"], "arrangement": ["作者 Cover 发布帖（既有收录，本轮正文访问受限）"], "illustration": ["作者 Cover 发布帖（既有收录，本轮正文访问受限）"]},
       "checkedAt": "2026-10-29",
       "credits": [
         {

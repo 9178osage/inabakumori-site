@@ -64,7 +64,7 @@ const renderTranslation = post => {
   const entry = translationOf.get(post);
   return entry ? `<p class="x-post-translation" data-zh="${escape(entry.zh)}" data-en="${escape(entry.en)}" data-ja="">${escape(entry.zh)}</p>` : "";
 };
-function renderPost(post) {
+function renderPost(post, { showCollected = false } = {}) {
   const creator = creators[post.creator];
   const links = [...new Map(post.links.map(link => [https(link.url), link])).entries()].map(([url, link]) => {
     const label = link.label.replace(/\s*\n\s*/gu, "").trim() || url;
@@ -74,7 +74,8 @@ function renderPost(post) {
   const media = post.media.length ? text("span", [`附 ${post.media.length} 张图片 · 请到原帖查看`, `${post.media.length} image${post.media.length === 1 ? "" : "s"} · View in the original post`, `画像${post.media.length}枚 · 元の投稿で見る`]) : "";
   const video = post.hasVideo ? text("span", ["视频 · 请到原帖播放", "Video · Play in the original post", "動画 · 元の投稿で再生"]) : "";
   const body = post.text ? `<p class="x-post-text"${KANA.test(post.text) ? ' lang="ja"' : ""} dir="auto">${escape(post.text)}</p>` : text("p", ["这条帖子以媒体为主，请查看原帖。", "This post contains media. View the original post.", "メディアを中心とした投稿です。元の投稿をご覧ください。"], ' class="x-post-text x-post-media-only"');
-  return `<article class="x-post" data-x-post-id="${post.id}" data-creator="${post.creator}"><header class="x-post-header"><h3>${escape(creator.name)} <span>@${creator.handle}</span></h3>${time(post.publishedAt)}</header>${body}${renderTranslation(post)}${links ? `<div class="x-post-links">${links}</div>` : ""}${media || video ? `<p class="x-post-media-note">${media}${media && video ? " · " : ""}${video}</p>` : ""}<footer class="x-post-footer">${text("a", ["查看原帖 ↗", "View original ↗", "元の投稿を見る ↗"], ` class="x-post-source" href="${escape(post.url)}" target="_blank" rel="noopener noreferrer"`)}${references}</footer></article>`;
+  const collected = showCollected ? `<p class="x-post-media-note">${text("span", ["本站收录时间", "Collected by this site", "このサイトの収録日時"])} · ${time(post.collectedAt)}</p>` : "";
+  return `<article class="x-post" data-x-post-id="${post.id}" data-creator="${post.creator}"><header class="x-post-header"><h3>${escape(creator.name)} <span>@${creator.handle}</span></h3>${time(post.publishedAt)}</header>${body}${renderTranslation(post)}${links ? `<div class="x-post-links">${links}</div>` : ""}${media || video ? `<p class="x-post-media-note">${media}${media && video ? " · " : ""}${video}</p>` : ""}${collected}<footer class="x-post-footer">${text("a", ["查看原帖 ↗", "View original ↗", "元の投稿を見る ↗"], ` class="x-post-source" href="${escape(post.url)}" target="_blank" rel="noopener noreferrer"`)}${references}</footer></article>`;
 }
 
 function renderCoverage(archive, posts) {
@@ -144,7 +145,7 @@ export function createXPostsRenderer(archive, translations = new Map()) {
     return markup.get(post.id);
   };
   return Object.freeze({
-    renderHome: () => renderHome(posts, groups, status, renderItem),
+    renderHome: () => renderHome(posts, groups, status, post => renderPost(post, { showCollected: true })),
     renderArchive: options => renderArchive(groups, status, renderItem, options),
     // Song archive pages reuse the same escaped article markup for linked posts.
     renderPost: id => {

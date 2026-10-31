@@ -41,8 +41,8 @@
       const all = total(creator);
       count.hidden = false;
       count.textContent = creator === "all"
-        ? text(`每位作者最新帖子 · 显示 ${visible} 条 · 已收录 ${all} 条`, `Latest post from each creator · Showing ${visible} · ${all} collected`, `各クリエイターの最新投稿 · ${visible}件表示 · 収録${all}件`)
-        : text(`显示最近 ${visible} 条 · 已收录 ${all} 条`, `Showing the latest ${visible} · ${all} collected`, `最新${visible}件を表示 · 収録${all}件`);
+        ? text(`每位作者最新收录的帖子 · 显示 ${visible} 条 · 已收录 ${all} 条`, `Latest collected post from each creator · Showing ${visible} · ${all} collected`, `各クリエイターの最新収録投稿 · ${visible}件表示 · 収録${all}件`)
+        : text(`显示最新收录的 ${visible} 条 · 已收录 ${all} 条`, `Showing the latest ${visible} collected · ${all} collected`, `最新の収録投稿${visible}件を表示 · 収録${all}件`);
       if (archiveLink) {
         archiveLink.setAttribute("href", ARCHIVE_PAGES[creator]);
         const label = creator === "all"

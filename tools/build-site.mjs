@@ -189,7 +189,9 @@ calendarHtml = calendarHtml.replace(/(src|href)="([^"?]+)(?:\?[^"\s]*)?"/g, (mat
 await writeFile(output("dist/calendar.html"), calendarHtml);
 // Song archive pages are regenerated from the same
 // sources on every build, so daily X imports and translation batches flow in automatically.
-const archiveExtras = renderArchivePages({ songs, xPosts, xTranslations, xPostsRenderer, songDetailsSource: JSON.parse(await readFile(source("data/song-archive.json"), "utf8")), updatesHtml: updatesSourceHtml });
+const contactAddress = /class="contact-email"\s+href="mailto:([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})\?/u.exec(html)?.[1];
+if (!contactAddress) throw new Error("Missing public feedback contact in homepage");
+const archiveExtras = renderArchivePages({ songs, xPosts, xTranslations, xPostsRenderer, songDetailsSource: JSON.parse(await readFile(source("data/song-archive.json"), "utf8")), updatesHtml: updatesSourceHtml, contactAddress });
 const extraPageNames = [];
 for (const [name, content] of archiveExtras.files) {
   await mkdir(output(path.dirname(`dist/${name}`)), { recursive: true });

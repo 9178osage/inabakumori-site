@@ -34,7 +34,7 @@ test("homepage shows each creator's latest post in the pre-rendered order", () =
   assert.equal(app.filters.hidden, false);
   assert.deepEqual(app.visible().map(post => post.dataset.creator), ["nknk", "inabakumori"]);
   assert.equal(app.count.hidden, false);
-  assert.equal(app.count.textContent, "每位作者最新帖子 · 显示 2 条 · 已收录 1852 条");
+  assert.equal(app.count.textContent, "每位作者最新收录的帖子 · 显示 2 条 · 已收录 1852 条");
   assert.equal(app.buttons[0].attributes["aria-pressed"], "true");
   assert.equal(app.archiveLink.attributes.href, "updates.html");
 });
@@ -45,10 +45,10 @@ test("phone and desktop show the same posts and translate the all-creators count
     assert.equal(app.visible().length, 2);
     app.context.currentLanguage = "en";
     app.events.get("languagechange")();
-    assert.equal(app.count.textContent, "Latest post from each creator · Showing 2 · 1852 collected");
+    assert.equal(app.count.textContent, "Latest collected post from each creator · Showing 2 · 1852 collected");
     app.context.currentLanguage = "ja";
     app.events.get("languagechange")();
-    assert.equal(app.count.textContent, "各クリエイターの最新投稿 · 2件表示 · 収録1852件");
+    assert.equal(app.count.textContent, "各クリエイターの最新収録投稿 · 2件表示 · 収録1852件");
   }
 });
 
@@ -58,7 +58,7 @@ test("choosing a creator shows only their posts and points the archive link at t
   assert.ok(app.visible().length === 1 && app.visible().every(post => post.dataset.creator === "nknk"));
   assert.equal(app.buttons[2].attributes["aria-pressed"], "true");
   assert.equal(app.buttons[0].attributes["aria-pressed"], "false");
-  assert.equal(app.count.textContent, "显示最近 1 条 · 已收录 732 条");
+  assert.equal(app.count.textContent, "显示最新收录的 1 条 · 已收录 732 条");
   assert.equal(app.archiveLink.attributes.href, "updates-nknk.html");
   assert.equal(app.archiveLink.textContent, "在本站浏览 NKNK 的全部帖子 →");
   app.buttons[1].listeners.click();
@@ -71,17 +71,17 @@ test("language changes keep the selected creator and relabel the count and archi
   app.buttons[1].listeners.click();
   app.context.currentLanguage = "ja";
   app.events.get("languagechange")();
-  assert.equal(app.count.textContent, "最新1件を表示 · 収録1120件");
+  assert.equal(app.count.textContent, "最新の収録投稿1件を表示 · 収録1120件");
   assert.equal(app.archiveLink.textContent, "稲葉曇の投稿をすべて見る →");
   app.context.currentLanguage = "en";
   app.events.get("languagechange")();
-  assert.equal(app.count.textContent, "Showing the latest 1 · 1120 collected");
+  assert.equal(app.count.textContent, "Showing the latest 1 collected · 1120 collected");
   assert.ok(app.visible().every(post => post.dataset.creator === "inabakumori"));
 });
 
 test("unknown filter values and malformed totals are ignored safely", () => {
   const app = setup(undefined, { xTotal: "nope" });
-  assert.equal(app.count.textContent, "每位作者最新帖子 · 显示 2 条 · 已收录 0 条");
+  assert.equal(app.count.textContent, "每位作者最新收录的帖子 · 显示 2 条 · 已收录 0 条");
   app.buttons[0].dataset.xHomeCreator = "__proto__";
   app.buttons[0].listeners.click();
   assert.equal(app.visible().length, 2);

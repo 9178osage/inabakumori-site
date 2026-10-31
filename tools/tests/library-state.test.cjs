@@ -92,6 +92,92 @@ test("changing a library sort also recomputes the visible song set", () => {
   assert.equal(context.location.search, "?sort=popular");
 });
 
+test("favorites import merges a valid backup without discarding existing favorites", async () => {
+  const { elements, ready, saved, storage, fire } = loadLibrary();
+  ready.forEach(handler => handler());
+  fire("storage", { key: "favorite-songs", newValue: '["AAAAAAAAAAA"]', storageArea: storage });
+  const input = elements.get("favorites-import-file");
+  input.files = [{ size: 90, text: async () => JSON.stringify({ type: "inabakumori-favorites", version: 1, songs: ["AAAAAAAAAAA", "BBBBBBBBBBB"] }) }];
+  await input.listeners.change[0]();
+  assert.deepEqual(JSON.parse(saved.get("favorite-songs")), ["AAAAAAAAAAA", "BBBBBBBBBBB"]);
+  assert.match(elements.get("library-status").textContent, /新增 1 首/u);
+});
+
+test("favorites export produces a backup accepted by import", async () => {
+  const { elements, ready, context, storage, fire } = loadLibrary();
+  let blob, downloaded, revoked;
+  context.URL = class extends URL {
+    static createObjectURL(value) { blob = value; return "blob:backup"; }
+    static revokeObjectURL(value) { revoked = value; }
+  };
+  context.Blob = Blob;
+  context.setTimeout = callback => callback();
+  context.document.body = { append(node) { downloaded = node; } };
+  const createElement = context.document.createElement;
+  context.document.createElement = tag => {
+    const node = createElement(tag);
+    node.remove = () => {};
+    return node;
+  };
+  ready.forEach(handler => handler());
+  fire("storage", { key: "favorite-songs", newValue: '["AAAAAAAAAAA"]', storageArea: storage });
+  elements.get("favorites-export").click();
+  assert.equal(downloaded.download, "inabakumori-favorites.json");
+  assert.equal(revoked, "blob:backup");
+  assert.deepEqual(JSON.parse(await blob.text()), { type: "inabakumori-favorites", version: 1, songs: ["AAAAAAAAAAA"] });
+  const input = elements.get("favorites-import-file");
+  input.files = [blob];
+  await input.listeners.change[0]();
+  assert.match(elements.get("library-status").textContent, /新增 0 首/u);
+});
+
+test("invalid or oversized favorites backups do not alter saved favorites", async () => {
+  const { elements, ready, saved, storage, fire } = loadLibrary();
+  ready.forEach(handler => handler());
+  fire("storage", { key: "favorite-songs", newValue: '["AAAAAAAAAAA"]', storageArea: storage });
+  const input = elements.get("favorites-import-file");
+  for (const file of [
+    { size: 100_001, text: async () => { throw new Error("must not read oversized files"); } },
+    { size: 10, text: async () => JSON.stringify({ type: "inabakumori-favorites", version: 1, songs: ["invalid"] }) }
+  ]) {
+    input.files = [file];
+    await input.listeners.change[0]();
+    assert.equal(saved.has("favorite-songs"), false);
+    assert.match(elements.get("library-status").textContent, /导入失败/u);
+  }
+});
+
+test("import preserves unknown IDs and warns in the selected language when persistent storage is unavailable", async () => {
+  const { elements, ready, context, fire } = loadLibrary();
+  ready.forEach(handler => handler());
+  Object.defineProperty(context, "localStorage", { get() { throw new Error("blocked"); } });
+  const input = elements.get("favorites-import-file");
+  input.files = [{ size: 100, text: async () => JSON.stringify({ type: "inabakumori-favorites", version: 1, songs: ["AAAAAAAAAAA", "AAAAAAAAAAA"] }) }];
+  await input.listeners.change[0]();
+  assert.match(elements.get("library-status").textContent, /1 首暂不在本站歌曲表/u);
+  assert.match(elements.get("library-status").textContent, /无法持久保存/u);
+  context.currentLanguage = "en";
+  fire("languagechange");
+  assert.match(elements.get("library-status").textContent, /1 imported song is/u);
+  assert.match(elements.get("library-status").textContent, /storage is unavailable/u);
+});
+
+test("export omits malformed local records and reports that omission", async () => {
+  const { elements, ready, context, storage, fire } = loadLibrary();
+  let blob;
+  context.URL = class extends URL { static createObjectURL(value) { blob = value; return "blob:backup"; } static revokeObjectURL() {} };
+  context.Blob = Blob;
+  context.setTimeout = callback => callback();
+  context.document.body = { append() {} };
+  const createElement = context.document.createElement;
+  context.document.createElement = tag => { const node = createElement(tag); node.remove = () => {}; return node; };
+  ready.forEach(handler => handler());
+  fire("storage", { key: "favorite-songs", newValue: '["AAAAAAAAAAA","invalid"]', storageArea: storage });
+  elements.get("favorites-export").click();
+  assert.deepEqual(JSON.parse(await blob.text()).songs, ["AAAAAAAAAAA"]);
+  assert.match(elements.get("library-status").textContent, /忽略了 1 条无效记录/u);
+});
+
 test("share succeeds with clipboard support and falls back when the API is absent", async () => {
   const { elements, ready, context } = loadLibrary("?favorites=1&icons=2");
   ready.forEach(handler => handler());

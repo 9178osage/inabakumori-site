@@ -34,6 +34,7 @@
     const sort = document.getElementById("song-sort");
     const favoriteFilter = document.getElementById("favorites-filter");
     const status = document.getElementById("library-status");
+    const importFile = document.getElementById("favorites-import-file");
     // The share hint is written once but has to survive a language switch: keep the
     // renderer beside the element so languagechange can replay it in the new language.
     let renderLibraryStatus = null;
@@ -156,6 +157,62 @@
       renderLibraryStatus = copied
         ? () => text("链接已复制", "Link copied", "リンクをコピーしました")
         : () => `${text("无法自动复制，请复制此链接：", "Could not copy automatically. Copy this link: ", "自動コピーできませんでした。このリンクをコピーしてください：")}${sharedUrl}`;
+      status.textContent = renderLibraryStatus();
+    });
+    document.getElementById("favorites-export")?.addEventListener("click", () => {
+      clearLibraryStatus();
+      try {
+        const valid = [...favorites].filter(id => /^[A-Za-z0-9_-]{11}$/u.test(id));
+        const skipped = favorites.size - valid.length;
+        const payload = JSON.stringify({ type: "inabakumori-favorites", version: 1, songs: valid }, null, 2);
+        const objectUrl = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
+        const link = document.createElement("a");
+        link.href = objectUrl;
+        link.download = "inabakumori-favorites.json";
+        document.body.append(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+        renderLibraryStatus = () => skipped
+          ? text(`收藏已导出，忽略了 ${skipped} 条无效记录。`, `Favorites exported; ${skipped} invalid records skipped.`, `お気に入りを書き出しました。無効な記録${skipped}件を除外しました。`)
+          : text("收藏已导出。", "Favorites exported.", "お気に入りを書き出しました。");
+      } catch {
+        renderLibraryStatus = () => text("导出失败，请重试。", "Export failed. Please try again.", "書き出せませんでした。もう一度お試しください。");
+      }
+      status.textContent = renderLibraryStatus();
+    });
+    document.getElementById("favorites-import")?.addEventListener("click", () => importFile?.click());
+    importFile?.addEventListener("change", async () => {
+      const file = importFile.files?.[0];
+      importFile.value = "";
+      if (!file) return;
+      clearLibraryStatus();
+      const version = shareVersion;
+      try {
+        if (file.size > 100_000) throw new Error("File too large");
+        const data = JSON.parse(await file.text());
+        if (version !== shareVersion) return;
+        if (data?.type !== "inabakumori-favorites" || data.version !== 1 || !Array.isArray(data.songs) || data.songs.length > 1000 || !data.songs.every(id => typeof id === "string" && /^[A-Za-z0-9_-]{11}$/u.test(id))) throw new Error("Invalid favorites file");
+        const merged = new Set([...favorites, ...data.songs]);
+        if (merged.size > 1000) throw new Error("Too many favorites");
+        const added = merged.size - favorites.size;
+        favorites = merged;
+        storage.setItem("favorite-songs", JSON.stringify([...favorites]));
+        let persisted = false;
+        try { persisted = window.localStorage.getItem("favorite-songs") === JSON.stringify([...favorites]); } catch { /* Storage is unavailable. */ }
+        const known = new Set(rows.map(({ link }) => songId(link)));
+        const unknown = [...new Set(data.songs)].filter(id => !known.has(id)).length;
+        updateTagFilter();
+        renderLibraryStatus = () => {
+          const result = text(`已合并收藏，新增 ${added} 首。`, `Favorites merged; ${added} added.`, `お気に入りを統合し、${added}曲を追加しました。`);
+          const missing = unknown ? text(`其中 ${unknown} 首暂不在本站歌曲表中，已保留。`, ` ${unknown} imported ${unknown === 1 ? "song is" : "songs are"} not in the current catalog and ${unknown === 1 ? "has" : "have"} been kept.`, `現在の楽曲一覧にない${unknown}曲も保持しています。`) : "";
+          const warning = persisted ? "" : text("浏览器无法持久保存，请保留备份。", " Browser storage is unavailable; keep your backup.", "ブラウザに保存できないため、バックアップを保管してください。");
+          return result + missing + warning;
+        };
+      } catch {
+        if (version !== shareVersion) return;
+        renderLibraryStatus = () => text("导入失败：请选择本站导出的收藏文件。", "Import failed: choose a favorites file exported by this site.", "読み込めませんでした。このサイトから書き出したファイルを選んでください。");
+      }
       status.textContent = renderLibraryStatus();
     });
     window.addEventListener("popstate", restoreUrl);

@@ -111,6 +111,11 @@ test("all current songs have a reviewed record without inventing missing release
   assert.equal(details.KK9nXYdmkiM.releasedAt, "2019-04-12", "the 2019 day comes from a dated source, not the 2023 reupload");
   assert.ok(details.KK9nXYdmkiM.sources.some(source => source.url.includes("/status/1116676713637761024")), "the dated source is listed");
   assert.equal(details.QpKaP3oGBXE.releasedAt, "2020-03-19", "the 2020 day comes from the creator's post, not the 2023 reupload");
+  for (const id of ["KK9nXYdmkiM", "QpKaP3oGBXE"]) {
+    assert.equal(details[id].releaseConfidence, "inferred", `${id}: indirect dating remains an estimate`);
+    const song = list.find(item => item.youtube.endsWith(id));
+    assert.match(renderSongPage(song, 0, { details: details[id], linked: [], renderPost: () => "" }), /推定/u);
+  }
   for (const id of ["e5d-DvD55OI", "io5HEdBNqWk", "v03uVgQZOOM", "dmG60q44PJQ", "KK9nXYdmkiM", "QpKaP3oGBXE", "Vb-z6AR-2F0"]) assert.equal(details[id].vocal, undefined, `unofficial vocal records stay out of the verified field: ${id}`);
   assert.equal(details.QpKaP3oGBXE.vocal, undefined, "hearing a familiar voice is not a vocal credit");
   assert.equal(details.FRFgNWBAa8k.videoKind, "reupload");
@@ -132,7 +137,22 @@ test("validation refuses invented or unsourced credits", async () => {
   ]) assert.throws(() => validateSongDetails(mutate(change), list), undefined, name);
   assert.doesNotThrow(() => validateSongDetails(mutate(entry => {
     entry.sources = [{ label: "niconico", url: "https://www.nicovideo.jp/watch/sm37198038" }];
+    delete entry.fieldSources;
   }), list));
+});
+
+test("field sources point to recorded evidence and correction links include the song", async () => {
+  const { renderSongPage, validateSongDetails } = await import("../song-archive.mjs");
+  const list = songs(), details = data().songs;
+  const song = list.find(item => item.youtube.endsWith("FRFgNWBAa8k"));
+  const page = renderSongPage(song, 0, { details: details.FRFgNWBAa8k, linked: [], renderPost: () => "", contactAddress: "contact@example.org" });
+  assert.match(page, /Real Sound（作者本人专访）/u);
+  assert.match(page, /该项来源待逐项对应/u);
+  assert.match(page, /mailto:contact@example\.org\?subject=Song%20archive%20feedback/u);
+  assert.match(page, /Video%20ID%3A%20FRFgNWBAa8k/u);
+  const copy = data();
+  copy.songs.FRFgNWBAa8k.fieldSources.vocal = ["invented source"];
+  assert.throws(() => validateSongDetails(copy, list), /Unknown field source/u);
 });
 
 test("release dates keep source precision and the Japanese day at midnight", async () => {

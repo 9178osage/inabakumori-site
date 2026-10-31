@@ -25,6 +25,18 @@ span.song-fact-note{display:inline}
 .song-index-list li{break-inside:avoid;padding:10px 0;border-bottom:1px solid var(--soft-line);font-size:11px;color:var(--muted)}
 .song-index-list a{font-family:var(--font-title);font-size:16px;color:var(--ink);margin-right:8px}
 .song-index-count{display:block;font-size:10px}
+.song-years{padding-top:26px}
+.song-years h2{font-size:20px;margin:0 0 8px}
+.song-years-note{color:var(--muted);font-size:12px;line-height:1.7;margin:0 0 12px}
+.song-year{border-top:1px solid var(--soft-line)}
+.song-year:last-child{border-bottom:1px solid var(--soft-line)}
+.song-year summary{cursor:pointer;min-height:44px;padding:12px 4px;font-family:var(--font-data);font-weight:600}
+.song-year summary:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.song-year-count{font-size:11px;color:var(--muted);margin-left:8px}
+.song-year-inferred{font-size:11px;color:var(--muted);margin-left:8px}
+.song-year ul{margin:0 0 12px;padding-left:2em;columns:2;column-gap:44px}
+.song-year li{break-inside:avoid;padding:6px 0}
+.song-year a{display:inline-block;padding:4px 0;overflow-wrap:anywhere}
 .x-reading-resume{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin:18px 0 0;padding:10px 14px;border:1px solid var(--line);font-size:12px}
 .x-reading-resume a{display:inline-flex;align-items:center;min-height:44px;font-weight:600}
 .x-reading-resume button{min-height:44px;margin-left:auto;padding:4px 12px;border:0;background:transparent;color:var(--muted);font-size:11px;cursor:pointer;text-decoration:underline}
@@ -34,6 +46,8 @@ span.song-fact-note{display:inline}
 .song-facts{grid-template-columns:1fr}
 .song-fact{grid-template-columns:92px minmax(0,1fr)}
 .song-index-list{columns:1}
+.song-year ul{columns:1}
+.song-year a{min-height:44px;padding:10px 0}
 .song-posts .feed-heading{flex-direction:column;align-items:start}
 .archive-navigation{gap:6px 18px}
 .song-index-page .updates-header{flex-wrap:wrap;padding-block:16px}

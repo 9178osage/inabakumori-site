@@ -42,6 +42,15 @@ test("home collection notes can be expanded while archive coverage stays visible
   assert.doesNotMatch(renderXPostsArchive(archive).status, /<details/u);
 });
 
+test("home posts distinguish collection time from publication time", async () => {
+  const { renderXPostsHome, renderXPostsArchive } = await import("../render-x-posts.mjs");
+  const archive = snapshot();
+  const home = renderXPostsHome(archive);
+  assert.equal((home.match(/本站收录时间/gu) || []).length, 4); // Chinese attribute and visible label for each post.
+  assert.match(home, /本站收录时间<\/span> · <time datetime="2026-10-18T18:36:00.000Z"/u);
+  assert.doesNotMatch(renderXPostsArchive(archive).items, /本站收录时间/u);
+});
+
 test("stale scan summaries cannot inflate the saved count or extend its dates", async () => {
   const { renderXPostsArchive } = await import("../render-x-posts.mjs");
   const archive = snapshot([{ creator: "inabakumori", count: 999, oldestAt: "2014-01-01T00:00:00.000Z", newestAt: "2026-10-18T18:36:00.000Z", note: '<img src=x onerror="alert(1)">' }]);

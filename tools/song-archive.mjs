@@ -68,6 +68,7 @@ export function validateSongDetails(data, songs) {
   for (const [id, entry] of Object.entries(data.songs)) {
     assert.ok(known.has(id), `Song details for unknown video ${id}`);
     assert.ok(entry.releasedAt == null || Number.isFinite(Date.parse(entry.releasedAt)), `Invalid release time for ${id}`);
+    assert.ok(entry.releaseConfidence === undefined || entry.releaseConfidence === "inferred", `Invalid release confidence for ${id}`);
     assert.ok(entry.vocal == null || typeof entry.vocal === "string" && entry.vocal.trim(), `Invalid vocal for ${id}`);
     for (const field of ["releaseNote", "creditNote", "videoNote"]) if (entry[field] !== undefined) {
       assert.ok(entry[field] && ["zh", "en", "ja"].every(language => typeof entry[field][language] === "string" && entry[field][language].trim()), `Invalid ${field} for ${id}`);
@@ -76,6 +77,13 @@ export function validateSongDetails(data, songs) {
     assert.ok(Array.isArray(entry.credits) && entry.credits.every(credit => Object.hasOwn(ROLES, credit.role) && typeof credit.name === "string" && credit.name), `Invalid credits for ${id}`);
     for (const credit of entry.credits) if (credit.url) assert.match(credit.url, /^https:\/\/x\.com\/[A-Za-z0-9_]{1,15}$/u, `Invalid credit link for ${id}`);
     assert.ok(Array.isArray(entry.sources) && entry.sources.length && entry.sources.every(source => typeof source.label === "string" && source.label.trim() && sourceUrl(source.url)), `Every verified song needs an official source: ${id}`);
+    if (entry.fieldSources !== undefined) {
+      assert.ok(entry.fieldSources && typeof entry.fieldSources === "object" && !Array.isArray(entry.fieldSources), `Invalid field sources for ${id}`);
+      for (const [field, labels] of Object.entries(entry.fieldSources)) {
+        assert.ok(["releasedAt", "vocal", ...Object.keys(ROLES)].includes(field), `Invalid source field ${field} for ${id}`);
+        assert.ok(Array.isArray(labels) && labels.length && labels.every(label => entry.sources.some(source => source.label === label)), `Unknown field source for ${id}`);
+      }
+    }
     assert.ok(Array.isArray(entry.unverified) && entry.unverified.every(role => Object.hasOwn(ROLES, role) && !entry.credits.some(credit => credit.role === role)), `Invalid unverified list for ${id}`);
     assert.match(entry.checkedAt, /^\d{4}-\d{2}-\d{2}$/u, `Invalid check date for ${id}`);
   }
@@ -122,22 +130,31 @@ const date = value => new Date(Date.parse(value) + 9 * 3_600_000).toISOString().
 const UNVERIFIED = tri("span", ["未核对", "Unverified", "未確認"], ' class="song-unverified"');
 const row = (label, value) => `<div class="song-fact"><dt>${tri("span", label)}</dt><dd>${value}</dd></div>`;
 
-export function renderSongPage(song, index, { details, linked, renderPost }) {
+export function renderSongPage(song, index, { details, linked, renderPost, contactAddress }) {
   const id = youtubeId(song.youtube);
   const album = ALBUMS[song.album];
   const verified = Boolean(details);
+  const fieldSource = field => {
+    if (!details) return "";
+    // Page-level sources alone do not establish which individual field they support.
+    const labels = details.fieldSources?.[field] ?? [];
+    if (!labels.length) return tri("small", ["该项来源待逐项对应", "Field source not yet mapped", "項目別の出典は未整理"], ' class="song-fact-note"');
+    const links = labels.map(label => details.sources.find(source => source.label === label)).filter(Boolean)
+      .map(source => `<a href="${escape(source.url)}" target="_blank" rel="noopener noreferrer">${escape(source.label)} ↗</a>`).join(" · ");
+    return `<small class="song-fact-note">${tri("span", ["来源：", "Source: ", "出典："])}${links}</small>`;
+  };
   const releaseValue = (details?.releasedAt
-    ? `<time datetime="${escape(details.releasedAt)}" data-local-time>${escape(date(details.releasedAt))} JST</time>`
+    ? `<time datetime="${escape(details.releasedAt)}" data-local-time>${escape(date(details.releasedAt))} JST</time>${details.releaseConfidence === "inferred" ? tri("span", ["（推定）", " (estimated)", "（推定）"], ' class="song-fact-note"') : ""}${fieldSource("releasedAt")}`
     : `<span>—</span> ${UNVERIFIED}`) + (details?.releaseNote ? tri("small", [details.releaseNote.zh, details.releaseNote.en, details.releaseNote.ja], ' class="song-fact-note"') : "");
   const albumValue = album
     ? `<span lang="ja">${escape(album.name)}</span> ${tri("span", album.kind, ' class="song-fact-note"')}${verified && details.albumRelease ? ` <span class="song-fact-note">${escape(details.albumRelease)}</span>` : ""}`
     : tri("span", ["单曲 / 其他", "Single / other", "シングル・その他"]);
-  const vocalValue = details?.vocal ? `<span lang="ja">${escape(details.vocal)}</span>`
+  const vocalValue = details?.vocal ? `<span lang="ja">${escape(details.vocal)}</span>${fieldSource("vocal")}`
     : !verified && song.singers.length ? `${escape(song.singers.join(" / "))} ${tri("span", ["站内歌曲表", "site song list", "サイト楽曲表"], ' class="song-fact-note"')}` : `<span>—</span> ${UNVERIFIED}`;
   const creditRows = Object.entries(ROLES).filter(([role]) => ["illustration", "animation", "movie"].includes(role) || details?.unverified.includes(role) || details?.credits.some(credit => credit.role === role)).map(([role, label]) => {
     const credit = details?.credits.filter(entry => entry.role === role) ?? [];
     const value = credit.length
-      ? credit.map(entry => entry.url ? `<a href="${escape(entry.url)}" target="_blank" rel="noopener noreferrer" lang="ja">${escape(entry.name)} <span aria-hidden="true">↗</span></a>` : `<span lang="ja">${escape(entry.name)}</span>`).join(" / ")
+      ? credit.map(entry => entry.url ? `<a href="${escape(entry.url)}" target="_blank" rel="noopener noreferrer" lang="ja">${escape(entry.name)} <span aria-hidden="true">↗</span></a>` : `<span lang="ja">${escape(entry.name)}</span>`).join(" / ") + fieldSource(role)
       : `<span>—</span> ${UNVERIFIED}`;
     return row(label, value);
   }).join("");
@@ -150,6 +167,9 @@ export function renderSongPage(song, index, { details, linked, renderPost }) {
   const sources = verified
     ? `<p class="song-sources">${tri("span", [`核对于 ${details.checkedAt}，来源：`, `Checked ${details.checkedAt}. Sources: `, `${details.checkedAt} 確認。出典：`])}${details.sources.map(source => `<a href="${escape(source.url)}" target="_blank" rel="noopener noreferrer">${escape(source.label)} <span aria-hidden="true">↗</span></a>`).join(" · ")}</p>`
     : tri("p", ["这首歌尚未逐项核对官方资料：标为“未核对”的栏目暂时留空，演唱来自本站歌曲表。", "This song has not been checked field by field yet: “Unverified” fields stay blank, and the vocal comes from this site’s song list.", "この曲は公式情報をまだ項目ごとに確認していません。「未確認」の欄は空欄で、ボーカルはサイトの楽曲表によるものです。"], ' class="song-sources"');
+  const feedbackSubject = encodeURIComponent(`Song archive feedback: ${song.title}`);
+  const feedbackBody = encodeURIComponent(`Song / 曲名: ${song.title}\nVideo ID: ${id}\n\nField / 待核对项目:\nCorrection / 建议修改:\nSource / 参考来源:\n`);
+  const feedback = contactAddress ? `<p class="song-sources"><a href="mailto:${escape(contactAddress)}?subject=${feedbackSubject}&amp;body=${feedbackBody}">${tri("span", ["提供资料或纠错", "Suggest a correction", "情報提供・訂正を提案"])}</a></p>` : "";
   const groups = [["release", ["发布消息", "Release announcements", "公開のお知らせ"]], ["milestone", ["播放里程碑", "View milestones", "再生数の節目"]], ["note", ["创作笔记与其他提及", "Creative notes and other mentions", "制作メモ・その他の言及"]]];
   const shown = linked.slice(0, SONG_POST_LIMIT);
   const postSections = groups.map(([category, label]) => {
@@ -166,6 +186,7 @@ export function renderSongPage(song, index, { details, linked, renderPost }) {
 ${facts}
 ${creditNote}
 ${sources}
+${feedback}
 <section class="song-posts" aria-labelledby="song-posts-title"><div class="feed-heading"><div><p class="section-kicker">X / LINKED POSTS</p>${tri("h2", ["相关帖子", "Linked posts", "関連する投稿"], ' id="song-posts-title"')}</div></div>${posts}</section>
 </article>`;
 }
@@ -177,7 +198,7 @@ export function renderSongIndex(songs, details, linkedMap) {
     const heading = ALBUMS[album] ? `<span lang="ja">${escape(ALBUMS[album].name)}</span>` : tri("span", ["单曲与其他", "Singles and more", "シングル・その他"]);
     return `<section class="song-index-group"><h2>${heading}</h2><ol class="song-index-list">${entries.map(({ song, index }) => {
       const id = youtubeId(song.youtube);
-      const badge = details[id] ? tri("span", ["已核对", "Checked", "確認済み"], ' class="song-checked"') : "";
+      const badge = details[id] ? tri("span", ["部分资料已核对", "Sources checked", "一部資料を確認"], ' class="song-checked"') : "";
       const count = linkedMap.get(id)?.length ?? 0;
       return `<li value="${index + 1}"><a href="${songPageName(song)}" lang="ja">${escape(song.title)}</a>${badge}${tri("span", [`${count} 条相关帖子`, `${count} linked post${count === 1 ? "" : "s"}`, `関連投稿${count}件`], ' class="song-index-count"')}</li>`;
     }).join("")}</ol></section>`;
