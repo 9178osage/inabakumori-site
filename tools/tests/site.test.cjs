@@ -207,6 +207,8 @@ test("easter egg ribbons respect motion preferences and are cleared when closed"
     assert.equal(ribbons.length, expected);
     assert.equal(ribbons.filter(child => child.className.split(/\s+/).includes("forecast-ribbon-dark")).length, expected / 2);
     assert.ok(layer.children.some(child => child.className.includes("forecast-card")), "existing song cards remain");
+    const symbols = layer.children.filter(child => child.className.split(/\s+/).includes("forecast-symbol"));
+    assert.deepEqual(new Set(symbols.map(child => child.textContent)), new Set(["☁", "☆", "☂"]), "all retained symbols appear, without the smiley");
     run("closeEasterEgg()");
     assert.equal(layer.children.length, 0);
 

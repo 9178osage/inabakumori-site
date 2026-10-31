@@ -1254,7 +1254,8 @@ function createConfetti() {
   layer.replaceChildren();
   if (reducedMotionQuery?.matches || document.hidden) return;
   const amount = window.innerWidth < 700 ? 22 : 42;
-  const symbols = ["☁", "☆", "☂", "☺"];
+  const symbols = ["☁", "☆", "☂"];
+  let symbolIndex = 0;
   for (let i = 0; i < amount; i++) {
     const piece = document.createElement("div");
     const card = i % 3 === 0;
@@ -1268,7 +1269,7 @@ function createConfetti() {
       const album = document.createElement("small");
       album.textContent = song?.album || "";
       piece.append(number, title, album);
-    } else piece.textContent = symbols[i % symbols.length];
+    } else piece.textContent = symbols[symbolIndex++ % symbols.length];
     piece.style.setProperty("--left", `${Math.random() * 100}%`);
     piece.style.setProperty("--drift", `${Math.random() * 180 - 90}px`);
     piece.style.setProperty("--turn", `${Math.random() * 100 - 50}deg`);
