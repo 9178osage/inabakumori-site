@@ -13,7 +13,6 @@
     const empty = section.querySelector("[data-x-home-empty]");
     if (!filters || !count || !posts.length) return;
     let creator = "all";
-    const mobile = window.matchMedia?.("(max-width: 700px), (pointer: coarse) and (max-width: 1000px)");
     const language = () => (typeof currentLanguage === "string" ? currentLanguage : document.documentElement.lang || "zh");
     const text = (zh, en, ja) => {
       const value = language();
@@ -26,7 +25,13 @@
     };
 
     function render() {
-      const selected = new Set(posts.filter(post => creator === "all" || post.dataset.creator === creator).slice(0, mobile?.matches ? 2 : 3));
+      const seen = new Set();
+      const selected = new Set(posts.filter(post => {
+        const author = post.dataset.creator;
+        if ((creator !== "all" && creator !== author) || seen.has(author)) return false;
+        seen.add(author);
+        return true;
+      }));
       posts.forEach(post => {
         post.hidden = !selected.has(post);
       });
@@ -35,7 +40,9 @@
       buttons.forEach(button => button.setAttribute("aria-pressed", String(button.dataset.xHomeCreator === creator)));
       const all = total(creator);
       count.hidden = false;
-      count.textContent = text(`显示最近 ${visible} 条 · 已收录 ${all} 条`, `Showing the latest ${visible} · ${all} collected`, `最新${visible}件を表示 · 収録${all}件`);
+      count.textContent = creator === "all"
+        ? text(`每位作者最新帖子 · 显示 ${visible} 条 · 已收录 ${all} 条`, `Latest post from each creator · Showing ${visible} · ${all} collected`, `各クリエイターの最新投稿 · ${visible}件表示 · 収録${all}件`)
+        : text(`显示最近 ${visible} 条 · 已收录 ${all} 条`, `Showing the latest ${visible} · ${all} collected`, `最新${visible}件を表示 · 収録${all}件`);
       if (archiveLink) {
         archiveLink.setAttribute("href", ARCHIVE_PAGES[creator]);
         const label = creator === "all"
@@ -54,8 +61,6 @@
     }));
     // script.js fires languagechange after rewriting [data-zh] text; re-apply the filter-specific labels.
     window.addEventListener("languagechange", render);
-    if (mobile?.addEventListener) mobile.addEventListener("change", render);
-    else mobile?.addListener?.(render);
     filters.hidden = false;
     render();
   }

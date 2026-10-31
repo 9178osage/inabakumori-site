@@ -128,9 +128,10 @@ const posts = [...xArchive.items].sort((a, b) => b.publishedAt.localeCompare(a.p
 const postIds = content => [...content.matchAll(/data-x-post-id="([0-9]+)"/gu)].map(match => match[1]);
 const homePostIds = postIds(html);
 assert.equal(homePostIds.length, new Set(homePostIds).size, "Homepage X posts must not repeat");
-const homeCandidates = new Set(["inabakumori", "nknk"].flatMap(creator => posts.filter(post => post.creator === creator).slice(0, 3).map(post => post.id)));
-assert.deepEqual(new Set(homePostIds), homeCandidates, "Homepage filters must contain the latest three posts from each creator");
-assert.deepEqual(visibleArticles("x-post").map(([, attributes]) => /data-x-post-id="([0-9]+)"/u.exec(attributes)?.[1]), posts.slice(0, 3).map(post => post.id), "Homepage must show the latest three posts in order without JavaScript");
+const homeCandidates = new Set(["inabakumori", "nknk"].flatMap(creator => posts.filter(post => post.creator === creator).slice(0, 1).map(post => post.id)));
+const expectedHomeIds = posts.filter(post => homeCandidates.has(post.id)).map(post => post.id);
+assert.deepEqual(homePostIds, expectedHomeIds, "Homepage must contain only the latest saved post from each creator in chronological order");
+assert.deepEqual(visibleArticles("x-post").map(([, attributes]) => /data-x-post-id="([0-9]+)"/u.exec(attributes)?.[1]), expectedHomeIds, "Both creators' latest collected posts must be visible without JavaScript");
 assert.match(html, new RegExp(`<meta name="x-posts-version" content="${xVersion}"/>`, "u"), "Homepage X snapshot fingerprint must match the source");
 const expectedPages = new Set();
 for (const creator of ["all", "inabakumori", "nknk"]) {

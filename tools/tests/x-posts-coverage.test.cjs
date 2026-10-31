@@ -93,13 +93,38 @@ test("one build snapshot keeps ordering, author filters and pagination independe
   assert.equal(author.total, 3);
   assert.match(author.pagination, /href="updates-inabakumori.html" rel="prev"/u);
   assert.deepEqual(ids(renderer.renderArchive({ pageSize: 2, page: 2 }).items), ["103", "102"]);
-  assert.deepEqual(ids(renderer.renderHome()), ["105", "104", "103", "102", "101"]);
+  assert.deepEqual(ids(renderer.renderHome()), ["105", "103"]);
   first.items = "caller changed its result";
   assert.deepEqual(ids(renderer.renderArchive({ pageSize: 2 }).items), ["105", "104"]);
   assert.throws(() => renderer.renderArchive({ creator: "toString" }), /author filter/u);
   assert.throws(() => renderer.renderArchive({ page: 0 }), /Invalid X post page/u);
   assert.throws(() => renderer.renderArchive({ page: 4, pageSize: 2 }), /does not exist/u);
   assert.throws(() => renderer.renderArchive({ pageSize: 101 }), /page size/u);
+});
+
+test("home shows only the latest collected post per creator, even when one creator posts repeatedly", async () => {
+  const { createXPostsRenderer } = await import("../render-x-posts.mjs");
+  const sharedTime = "2026-03-02T00:00:00.000Z";
+  const archive = { version: 1, coverage: [], items: [
+    post("101", "inabakumori", sharedTime),
+    post("104", "inabakumori", sharedTime),
+    post("103", "nknk", sharedTime),
+    post("102", "nknk", "2026-03-01T00:00:00.000Z"),
+    post("105", "inabakumori", sharedTime)
+  ] };
+  const translations = new Map([["105", { zh: "最新中译", en: "Latest translation" }], ["103", { zh: "另一位中译", en: "Other translation" }]]);
+  const render = items => createXPostsRenderer({ ...archive, items }, translations).renderHome();
+  const ids = html => [...html.matchAll(/<article class="x-post"[^>]*data-x-post-id="(\d+)"/gu)].map(match => match[1]);
+  const html = render(archive.items);
+  assert.deepEqual(ids(html), ["105", "103"], "ties use post IDs to choose each creator's latest and order the results");
+  assert.match(html, /data-x-post-id="105"[^>]*data-creator="inabakumori"/u);
+  assert.match(html, /data-x-post-id="103"[^>]*data-creator="nknk"/u);
+  assert.match(html, /data-zh="最新中译" data-en="Latest translation"/u);
+  assert.match(html, /data-zh="另一位中译" data-en="Other translation"/u);
+  assert.doesNotMatch(html, /<article class="x-post" hidden/u);
+  assert.match(html, /这里展示每位创作者最近的一条已收录帖子/u);
+  assert.deepEqual(ids(render(archive.items.filter(item => item.creator === "inabakumori"))), ["105"], "missing creators must not be replaced by an older post");
+  assert.deepEqual(ids(render([])), []);
 });
 
 test("cached markup cannot be changed by caller mutations or another build", async () => {
