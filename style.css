@@ -216,23 +216,30 @@ textarea {
   color: var(--hero-text);
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.55), 0 0 2px rgba(0, 0, 0, 0.8);
 }
-.hero-content nav {
-  margin-top: 40px;
-}
+html:lang(zh-CN) .hero-content h1,
 html:lang(zh-CN) .hero-content nav {
-  font-family: "Noto Serif SC", "Songti SC", serif;
-  font-weight: 600;
+  font-family: "Songti SC", "STSong", "SimSun", "Noto Serif SC", serif;
 }
-html:lang(zh-CN) .hero-content nav a {
-  font-size: clamp(16px, 1.4vw, 18px);
-  line-height: 1.65;
-  letter-spacing: 0.06em;
-  padding-bottom: 4px;
+.hero-content nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px 30px;
+  margin-top: 30px;
 }
 .hero-content nav a {
   pointer-events: auto;
-  display: inline-block;
-  margin: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 0;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: 0.06em;
   color: var(--hero-text);
   text-decoration: none;
   border-bottom: 1px solid currentColor;
@@ -243,60 +250,6 @@ html:lang(zh-CN) .hero-content nav a {
   .hero-content nav a:hover {
     opacity: 0.65;
     transform: translateY(-2px);
-  }
-}
-.glitch {
-  position: relative;
-}
-.glitch::before {
-  content: attr(data-text);
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  color: inherit;
-  pointer-events: none;
-  opacity: 0.4;
-  animation: glitch-one 12s infinite;
-}
-.glitch::after {
-  content: attr(data-text);
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  color: inherit;
-  pointer-events: none;
-  opacity: 0.3;
-  animation: glitch-two 10s infinite;
-}
-@keyframes glitch-one {
-  0%,
-  90%,
-  100% {
-    transform: translate(0);
-  }
-  92% {
-    transform: translate(5px, -2px);
-  }
-  94% {
-    transform: translate(-4px, 2px);
-  }
-  96% {
-    transform: translate(2px, 1px);
-  }
-}
-@keyframes glitch-two {
-  0%,
-  85%,
-  100% {
-    transform: translate(0);
-  }
-  87% {
-    transform: translate(-5px, 2px);
-  }
-  89% {
-    transform: translate(4px, -1px);
   }
 }
 main {
@@ -1675,24 +1628,14 @@ button, select, a { touch-action: manipulation; }
 .station-mark > span:first-child { grid-row: span 2; font-size: 26px; }
 .station-mark-small { font-size: 9px; letter-spacing: .14em; opacity: .8; }
 .hero-eyebrow { font: 500 12px var(--font-data); letter-spacing: .28em; color: #eee; margin-bottom: 24px; }
-.hero-description { color: #eee; font-size: 16px; letter-spacing: .12em; margin: 22px 0 30px; }
-.hero-cta {
-  pointer-events: auto; display: inline-flex; align-items: center; justify-content: space-between;
-  gap: 42px; min-height: 50px; padding: 12px 24px; color: #252525; background: #eeeeee;
-  border: 1px solid #fff8; border-radius: 4px; text-decoration: none; font-size: 14px;
-  transition: background .2s, transform .2s;
-}
-@media (hover: hover) {
-  .hero-cta:hover { background: white; transform: translateY(-2px); }
-}
-.hero-content nav { margin-top: 28px; }
-.hero-content nav a { margin: 10px 15px; font-size: 13px; border-bottom-color: #ffffff50; }
+.hero-description { color: #eee; font-size: 16px; line-height: 1.65; letter-spacing: .12em; margin: 22px 0 0; }
+.hero-content nav a { border-bottom-color: #ffffff50; }
 .hero-bottom {
   position: absolute; z-index: 10; bottom: 28px; left: 32px; right: 32px;
   display: flex; align-items: center; justify-content: flex-end; pointer-events: none;
 }
 .hero-bottom a { pointer-events: auto; color: white; font-size: 24px; text-decoration: none; padding: 0 15px; }
-.hero.out-of-view .hero-rain span, .hero.out-of-view .glitch::before, .hero.out-of-view .glitch::after { animation-play-state: paused; }
+.hero.out-of-view .hero-rain span { animation-play-state: paused; }
 .section-nav {
   position: sticky; top: 0; z-index: 50; display: flex; gap: 32px;
   align-items: center; min-height: 72px; padding: 10px max(32px, calc((100% - 1120px) / 2));
@@ -1772,7 +1715,7 @@ body.modal-open { overflow: hidden; }
   .hero-eyebrow { font-size: 10px; margin-bottom: 20px; }
   .hero-description { font-size: 13px; letter-spacing: .06em; }
   .hero-content nav { gap: 2px; margin-top: 20px; }
-  .hero-content nav a { margin: 0; padding: 8px 10px; font-size: 12px; }
+  .hero-content nav a { margin: 0; padding: 8px 10px; font-size: 14px; }
   .hero-bottom { left: max(22px, env(safe-area-inset-left)); right: max(22px, env(safe-area-inset-right)); bottom: max(20px, env(safe-area-inset-bottom)); }
   .hero-bottom a { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
   .section-nav { top: calc(66px + env(safe-area-inset-top)); gap: 0; justify-content: space-around; padding: 4px max(12px, env(safe-area-inset-right)) 4px max(12px, env(safe-area-inset-left)); min-height: 52px; }
@@ -2068,7 +2011,7 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
 
 /* Touch feedback: hover styles are pointer-only, so taps get a brief pressed state instead. */
 @media (hover: none) {
-  :is(button, .hero-cta, .artist-links a, .artwork-link, .song-list a, .contact-email, .hero-content nav a):active { opacity: 0.72; }
+  :is(button, .artist-links a, .artwork-link, .song-list a, .contact-email, .hero-content nav a):active { opacity: 0.72; }
 }
 
 /* Safari/iOS <=15.3 drops `overflow-wrap: anywhere` (15.4+). A duplicate declaration inside the same
@@ -2715,7 +2658,6 @@ footer .home-mobile-fold-content > p { max-width: 720px; margin: 16px auto; font
     --font-song: "Songti SC", "Yu Mincho", "Hiragino Mincho ProN", ui-serif, serif;
     --font-data: "Station Mono", ui-monospace, "SFMono-Regular", monospace;
   }
-  html.home-page:lang(zh-CN) .hero-content nav { font-family: var(--font-heading); }
   .home-page .hero { min-height: 78svh; padding-block: calc(140px + env(safe-area-inset-top)) calc(56px + env(safe-area-inset-bottom)); }
   .home-page .hero-content nav { gap: 0; }
   .home-page .hero-content nav a { min-height: 44px; }
