@@ -181,6 +181,51 @@ test("hero scenery remains an unadvertised click target", () => {
   assert.match(hero, /id="hero-bg"/);
   assert.doesNotMatch(hero, /role="button"|tabindex="0"|aria-label=/);
 });
+test("easter egg ribbons respect motion preferences and are cleared when closed", () => {
+  for (const [width, expected] of [[1200, 40], [390, 24]]) {
+    const motion = { matches: false, addEventListener() {} };
+    const { context, elements, run } = setup({ window: {
+      innerWidth: width,
+      matchMedia: query => query.includes("reduced-motion") ? motion : { matches: false, addEventListener() {} }
+    } });
+    const layer = elements["confetti-layer"] = {
+      children: [],
+      replaceChildren() { this.children = []; },
+      appendChild(child) { this.children.push(child); }
+    };
+    context.document.createElement = () => ({
+      className: "", style: { setProperty() {} }, children: [],
+      append(...children) { this.children.push(...children); }
+    });
+    context.document.hidden = false;
+    context.document.body = { children: [], classList: { add() {}, remove() {} } };
+    elements["easter-egg-overlay"] = { classList: { add() {}, remove() {} }, setAttribute() {} };
+    elements["easter-egg-image"] = {};
+    elements["easter-egg-close"] = { focus() {} };
+    run("showEasterEgg()");
+    let ribbons = layer.children.filter(child => child.className.split(/\s+/).includes("forecast-ribbon"));
+    assert.equal(ribbons.length, expected);
+    assert.equal(ribbons.filter(child => child.className.split(/\s+/).includes("forecast-ribbon-dark")).length, expected / 2);
+    assert.ok(layer.children.some(child => child.className.includes("forecast-card")), "existing song cards remain");
+    run("closeEasterEgg()");
+    assert.equal(layer.children.length, 0);
+
+    run("showEasterEgg()");
+    context.document.hidden = true;
+    run("createConfetti()");
+    assert.equal(layer.children.length, 0, "hidden documents have no moving particles");
+    context.document.hidden = false;
+    motion.matches = true;
+    run("createConfetti()");
+    assert.equal(layer.children.length, 0, "reduced motion has no moving particles");
+    motion.matches = false;
+    run("createConfetti()");
+    ribbons = layer.children.filter(child => child.className.split(/\s+/).includes("forecast-ribbon"));
+    assert.equal(ribbons.length, expected, "particles return when motion is enabled");
+    run("closeEasterEgg()");
+    assert.equal(layer.children.length, 0);
+  }
+});
 test("configuration supports local development and the Vercel API from both public frontend hosts", () => {
   for (const [hostname, protocol, expected] of [
     ["localhost", "http:", "http://localhost:3001"],

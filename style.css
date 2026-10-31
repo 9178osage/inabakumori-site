@@ -1780,6 +1780,13 @@ body.easter-egg-open { overflow: hidden; }
 .forecast-card small { display: block; font: 9px/1.6 var(--font-data); overflow-wrap: anywhere; }
 .forecast-card strong { display: block; margin: 8px 0; font: 14px/1.5 var(--font-song); overflow-wrap: anywhere; }
 .forecast-symbol { width: 42px; height: 42px; border-radius: 50%; text-align: center; font: 26px/40px sans-serif; }
+.forecast-ribbon {
+  width: 7px; height: var(--ribbon-length); border: 0; border-radius: 40% 5% 40% 5%;
+  background: linear-gradient(90deg, #aaa, #fff 55%, #ddd); box-shadow: 0 0 2px #1119;
+}
+.forecast-ribbon-dark {
+  background: linear-gradient(90deg, #111, #444 55%, #111); box-shadow: 0 0 2px #fff9;
+}
 :root { --fall-viewport: 100vh; }
 @supports (height: 100dvh) {
   :root { --fall-viewport: 100dvh; }
