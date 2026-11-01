@@ -2,13 +2,19 @@
 
 本轮（2026-10-01）在既有 HTML / CSS / JavaScript 与 Express / SuperTokens / SQLite 架构上做了一轮综合加固与体验打磨；歌曲资料、账号体系与数据库格式继续兼容。没有修改线上数据库，也没有向生产环境发送测试留言或密码重置邮件。
 
+## 2026-10-31 Cloudflare 资源试点退役
+
+删除 `js/config.js` 里的 `APP_CONFIG.assetPilot`、首页 CSP `img-src` 对 `inabakumori-assets.pages.dev` 的放行、`tools/build-asset-pilot.mjs` 打包器和它的测试；站内早已没有页面读取这些资源（手机画廊 2026-10-30 起不再用缩略图网格）。首页 `img-src` 现在只剩本站、`data:` 和 YouTube 的两个缩略图域名，`tools/tests/security.test.cjs` 把这份名单固定下来，以后新增图片来源必须同时改这条测试。登录、认证、cookie 和 CSP 的其他指令没有变化。
+
+原说明移到 [history/2026-10-28-cloudflare-assets-pilot.md](history/2026-10-28-cloudflare-assets-pilot.md)，保留试点当时的记录。Cloudflare 账号里的 Pages 项目 `inabakumori-assets` 不在仓库内，需要的话请登录后台自行删除。
+
 ## 2026-10-31 画廊旧网格代码清理
 
 删除手机画廊已停用的静态缩略图网格、「查看全部」按钮、读取独立 Pages 缩略图的回退链（`pilotThumbnail`、`setCompactThumbnail`）及对应的样式；手机与电脑继续共用单行滚动画廊。`COMPACT_PREVIEW_COUNT` 曾导出到 `window.NKNKGalleryUI`，但没有任何代码或测试使用它，一并删除。
 
 清理前后的生产构建在无头 Chrome 里逐像素对比：画廊区块四种场景（电脑 1440 宽、手机 390 宽、手机减少动态效果、触屏横屏平板），以及整个插画章节两种场景（电脑、手机），差异均为 0 个像素；画廊 DOM、键盘导航、大图打开与关闭的结果完全一致。唯一的行为差异：窗口宽度跨过 700px 断点时，不再无谓地重建画廊（此前会重建，重建前后的滚动距离与运行状态相同）。
 
-`APP_CONFIG.assetPilot` 配置、首页 CSP 对该 origin 的放行和 `tools/build-asset-pilot.mjs` 未改动，现状见 [资源试点说明](CLOUDFLARE.md)。
+当时 `APP_CONFIG.assetPilot` 配置、首页 CSP 对该 origin 的放行和 `tools/build-asset-pilot.mjs` 没有一并处理，它们在同日的上一节退役。
 
 ## 2026-10-29 复核修复
 
@@ -20,7 +26,7 @@ NKNK 生成器按完整路径段识别仓库外目录，拒绝仓库内以 `..` 
 
 撤回整站 Cloudflare DNS 切换，删除未激活的临时站点配置；朋友提供的域名继续使用 DNSPod 和 GitHub Pages。独立 Pages 项目只为手机画廊前 6 张缩略图提供内容指纹 URL 和一年浏览器缓存，加载失败自动回到本站原文件。首屏图、字体、桌面画廊和大图不切换。CSP 仅在首页 `img-src` 增加实际资源域名，登录与 API 沿用原入口。
 
-公开白名单打包、字节清单、失败回退、配置一致性及响应式切换均有回归覆盖。本机小样本尚不能证明网络提速，保留小范围试点；具体部署、回退开关和验证范围见 [资源试点说明](CLOUDFLARE.md)。
+公开白名单打包、字节清单、失败回退、配置一致性及响应式切换均有回归覆盖。本机小样本尚不能证明网络提速，保留小范围试点；具体部署、回退开关和验证范围见 [资源试点说明](history/2026-10-28-cloudflare-assets-pilot.md)（该试点已于 2026-10-31 退役）。
 
 ## 2026-10-28 登录按需加载
 
@@ -28,7 +34,7 @@ NKNK 生成器按完整路径段识别仓库外目录，拒绝仓库内以 `..` 
 
 SDK 默认将完全空的 Cookie 状态视为可能存在会话，从而尝试刷新并得到 401。Cookie 读取适配器仅在没有 front/access/refresh 凭据和原有更新标记时，返回一个虚拟的已退出标记；不写入真实 Cookie，也不代替服务端鉴权。原 Secure／host-only 命名空间维持不变，真实过期会话和仅剩刷新令牌的会话继续由 SDK 恢复。重置参数在加载完整认证包前从地址栏清除，并只在页面内存中传递。
 
-实际安装的 SDK 合成网络测试覆盖匿名读取与游客发布零刷新、真实登录和会员请求头、过期刷新、刷新令牌恢复及退出；加载器测试覆盖并发加载、失败重试、跨标签页和重置入口。测试不等同真实浏览器点击或真实账号登录。Cloudflare 的当前接入范围单独记在 [资源试点说明](CLOUDFLARE.md)。
+实际安装的 SDK 合成网络测试覆盖匿名读取与游客发布零刷新、真实登录和会员请求头、过期刷新、刷新令牌恢复及退出；加载器测试覆盖并发加载、失败重试、跨标签页和重置入口。测试不等同真实浏览器点击或真实账号登录。Cloudflare 试点的记录见 [资源试点说明](history/2026-10-28-cloudflare-assets-pilot.md)（已于 2026-10-31 退役）。
 
 ## 2026-10-28 公开留言列表缓存
 

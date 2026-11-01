@@ -5,7 +5,7 @@ const vm = require("node:vm");
 
 // Small event-capable DOM fixture: run the actual gallery initializer and its event handlers.
 // Image src assignment is observable, so hidden duplicate thumbnails cannot pass these checks.
-function galleryFixture({ assetPilot, compact = true } = {}) {
+function galleryFixture({ compact = true } = {}) {
   let document;
   class Element {
     constructor(tag = "div") {
@@ -61,7 +61,7 @@ function galleryFixture({ assetPilot, compact = true } = {}) {
   const docEvents = {}, windowEvents = {}, scheduled = [];
   document = { body, activeElement: body, hidden: false, getElementById: id => ids[id], createElement: tag => new Element(tag), createDocumentFragment: () => new Element("fragment"), addEventListener: (type, fn) => { docEvents[type] = fn; } };
   const media = new Map();
-  const window = { APP_CONFIG: { assetPilot }, scrollY: 0, scrollTo() {}, addEventListener: (type, fn) => { windowEvents[type] = fn; }, matchMedia: query => {
+  const window = { APP_CONFIG: {}, scrollY: 0, scrollTo() {}, addEventListener: (type, fn) => { windowEvents[type] = fn; }, matchMedia: query => {
     if (!media.has(query)) media.set(query, { matches: compact && query.includes("max-width"), addEventListener(type, fn) { this.changed = fn; } });
     return media.get(query);
   } };
@@ -77,91 +77,13 @@ function galleryFixture({ assetPilot, compact = true } = {}) {
   return { ids, document, window, context, media, docEvents, history, flushTasks, root: ids["nknk-gallery"], intervalCount: () => intervals };
 }
 
-function pilotConfig() {
-  const origin = "https://station-assets.pages.dev";
-  return { enabled: true, origin, thumbnails: Object.fromEntries(Array.from({ length: 7 }, (_, index) => [
-    `images/optimized/nknk/mobile/${index + 1}.webp`, `${origin}/assets/${index + 1}-0123456789ab.webp`
-  ])) };
-}
-
-test("the gallery ignores the asset pilot config and keeps its local thumbnails on phones and desktop", () => {
-  for (const assetPilot of [undefined, { ...pilotConfig(), enabled: false }]) {
-    const app = galleryFixture({ assetPilot });
-    assert.equal(app.root.querySelectorAll("img")[0].src, "images/optimized/nknk/1.webp");
+test("gallery thumbnails come only from the site's own optimized folder on phones and desktop", () => {
+  for (const compact of [true, false]) {
+    const { root } = galleryFixture({ compact });
+    const sources = root.querySelectorAll("img").map(image => image.src || image.dataset.src);
+    assert.ok(sources.length > 6);
+    assert.ok(sources.every(source => /^images\/optimized\/nknk\/(?:mobile\/)?\d+\.webp$/u.test(source)), `compact=${compact}: no remote or unexpected thumbnail`);
   }
-  const desktop = galleryFixture({ assetPilot: pilotConfig(), compact: false });
-  assert.equal(desktop.root.querySelectorAll("img")[0].src, "images/optimized/nknk/1.webp");
-  assert.ok(desktop.root.querySelectorAll("img").every(image => !image.src?.includes("pages.dev") && !image.dataset.src?.includes("pages.dev")));
-  const phone = galleryFixture({ assetPilot: pilotConfig(), compact: true });
-  assert.equal(phone.root.querySelectorAll("img")[0].src, "images/optimized/nknk/1.webp");
-  assert.ok(phone.root.querySelectorAll("img").every(image => !image.src?.includes("pages.dev") && !image.dataset.src?.includes("pages.dev")), "an enabled pilot never reaches the phone marquee");
-});
-
-test("the gallery never loads from untrusted pilot origins, credentials, unsafe schemes or mismatched asset hosts", () => {
-  const source = "images/optimized/nknk/mobile/1.webp";
-  const cases = [
-    { ...pilotConfig(), origin: "http://station-assets.pages.dev" },
-    { ...pilotConfig(), origin: "https://station-assets.pages.dev.evil.example" },
-    { ...pilotConfig(), origin: "https://user:secret@station-assets.pages.dev" },
-    { ...pilotConfig(), origin: "https://station-assets.pages.dev:8443" },
-    { ...pilotConfig(), origin: "https://station-assets.pages.dev/extra" },
-    ...["https://another.pages.dev/assets/1.webp", "https://user:secret@station-assets.pages.dev/assets/1.webp", "javascript:alert(1)", "//station-assets.pages.dev/assets/1.webp", "https://station-assets.pages.dev/elsewhere/1.webp"].map(target => ({
-      ...pilotConfig(), thumbnails: { [source]: target }
-    }))
-  ];
-  for (const assetPilot of cases) {
-    const app = galleryFixture({ assetPilot });
-    assert.equal(app.root.querySelectorAll("img")[0].src, "images/optimized/nknk/1.webp");
-  }
-});
-
-test("the shipped asset pilot config matches exported bytes and adds its origin only to image CSP", async () => {
-  const os = require("node:os");
-  const path = require("node:path");
-  const { createHash } = require("node:crypto");
-  const { buildAssetPilot, PILOT_SOURCES } = await import("../build-asset-pilot.mjs");
-  const repo = path.resolve(__dirname, "../..");
-  const configSource = fs.readFileSync(path.join(repo, "js/config.js"), "utf8");
-  const readConfig = hostname => {
-    const context = { window: { location: { hostname, protocol: hostname === "osagechan.top" ? "https:" : "http:" } } };
-    vm.runInNewContext(configSource, context);
-    return context.window.APP_CONFIG.assetPilot;
-  };
-  const production = readConfig("osagechan.top");
-  assert.ok(production, "production declares the bounded public asset pilot");
-  assert.equal(typeof production.enabled, "boolean");
-  assert.match(production.origin, /^https:\/\/[a-z0-9-]+\.pages\.dev$/u);
-  const sources = Array.from({ length: 6 }, (_, index) => `images/optimized/nknk/mobile/${index + 1}.webp`);
-  assert.deepEqual(Object.keys(production.thumbnails).sort(), [...sources].sort());
-  for (const hostname of ["localhost", "127.0.0.1"]) {
-    assert.equal(readConfig(hostname)?.enabled ?? false, false, "local previews keep their local thumbnails");
-  }
-
-  const temp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "station-gallery-pilot-config-")));
-  try {
-    for (const source of [...PILOT_SOURCES, "fonts/ibm-plex-mono-OFL.txt"]) {
-      const destination = path.join(temp, source);
-      fs.mkdirSync(path.dirname(destination), { recursive: true });
-      fs.copyFileSync(path.join(repo, source), destination);
-    }
-    const exported = await buildAssetPilot(temp);
-    for (const source of sources) {
-      const info = exported.manifest.assets[source];
-      const original = fs.readFileSync(path.join(repo, source));
-      assert.equal(production.thumbnails[source], `${production.origin}/${info.path}`);
-      assert.equal(info.sha256, createHash("sha256").update(original).digest("hex"));
-      assert.equal(info.bytes, original.length);
-      assert.deepEqual(fs.readFileSync(path.join(exported.directory, info.path)), original);
-    }
-  } finally { fs.rmSync(temp, { recursive: true, force: true }); }
-
-  const html = fs.readFileSync(path.join(repo, "index.html"), "utf8");
-  const policy = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)"/u)?.[1];
-  assert.ok(policy);
-  const directives = policy.split(";").map(part => part.trim().split(/\s+/u));
-  assert.deepEqual(directives.filter(parts => parts.slice(1).includes(production.origin)).map(parts => parts[0]), ["img-src"]);
-  const images = directives.find(parts => parts[0] === "img-src");
-  assert.deepEqual(images.slice(1).filter(source => source.includes("pages.dev")), [production.origin], "no Pages wildcard or second resource origin is allowed");
 });
 
 test("phones get the same single-row marquee as desktop instead of the static grid", () => {

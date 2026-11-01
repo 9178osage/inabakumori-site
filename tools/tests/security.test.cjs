@@ -76,6 +76,9 @@ test("frontend talks only to the hardcoded HTTPS API and never renders server da
   assert.match(csp, /base-uri 'self'/);
   assert.match(csp, /connect-src 'self' https:\/\/inabakumori-backend\.vercel\.app/);
   assert.doesNotMatch(csp, /unsafe-inline|unsafe-eval|\*/);
+  // Images come only from this site, inline data: URIs and YouTube's thumbnail hosts. The retired
+  // Cloudflare Pages asset origin must not return without an explicit change to this list.
+  assert.deepEqual(/img-src([^;]*)/u.exec(csp)[1].trim().split(/\s+/u), ["'self'", "data:", "https://i.ytimg.com", "https://img.youtube.com"]);
   // Trusted Types: any accidental HTML/script sink (innerHTML etc.) throws instead of injecting.
   assert.match(csp, /require-trusted-types-for 'script'/);
   assert.match(csp, /trusted-types 'none'/);
