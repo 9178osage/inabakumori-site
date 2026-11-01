@@ -454,7 +454,7 @@ const SONGS = [
     "viewsCheckedAt": "2026-10-26"
   },
   {
-    "title": "篝火 (稲葉曇 Remix)",
+    "title": "篝火 (feat. 稲葉曇)",
     "youtube": "https://youtu.be/dmG60q44PJQ",
     "album": "SINGLES",
     "singers": [],

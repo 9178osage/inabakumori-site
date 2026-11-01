@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "Only fields checked against an official source are listed. Anything missing is shown as unverified on the site; never fill a credit from memory.",
+  "note": "Only fields checked against an official source are listed. Anything missing is shown as unverified on the site; never fill a credit from memory. The one exception is unofficialVocal: a vocal that official sources do not list may appear only as a labelled unofficial record with its reference pages, and never in the verified vocal field.",
   "songs": {
     "DeKLpgzh-qQ": {
       "fieldSources": {"releasedAt": ["YouTube", "X @inabakumori 2019-02-27"], "vocal": ["YouTube"], "music": ["YouTube"], "illustration": ["YouTube"]},
@@ -762,9 +762,22 @@
       "checkedAt": "2026-10-29",
       "videoKind": "topic",
       "creditNote": {
-        "zh": "此链接为发行商自动生成的专辑音轨；专辑封面不作为独立 MV 的插画或影像署名。演唱：VocaDB 记载为歌愛ユキ（非官方资料，未在官方来源确认，因此演唱栏仍为未核对）。",
-        "en": "This is a distributor-generated album audio track; album cover credits are not treated as credits for a separate MV. Vocal: VocaDB lists Kaai Yuki (unofficial; not confirmed by an official source, so the vocal field stays unverified).",
-        "ja": "配信会社による自動生成アルバム音源です。アルバムのジャケットを独立したMVのクレジットとして扱っていません。歌唱：VocaDBの記載では歌愛ユキ（非公式資料。公式出典では未確認のため、ボーカル欄は未確認のままです）。"
+        "zh": "此链接为发行商自动生成的专辑音轨；专辑封面不作为独立 MV 的插画或影像署名。官方来源未列出演唱，演唱栏仅显示 VocaDB 与初音ミク Wiki 的非官方记载。",
+        "en": "This is a distributor-generated album audio track; album cover credits are not treated as credits for a separate MV. Official sources do not list the vocal, so the vocal row only shows the unofficial records of VocaDB and the Hatsune Miku Wiki.",
+        "ja": "配信会社による自動生成アルバム音源です。アルバムのジャケットを独立したMVのクレジットとして扱っていません。公式の出典にはボーカルの記載がなく、ボーカル欄にはVocaDBと初音ミクWikiの非公式の記載のみを表示しています。"
+      },
+      "unofficialVocal": {
+        "name": "歌愛ユキ",
+        "sources": [
+          {
+            "label": "VocaDB",
+            "url": "https://vocadb.net/S/258423"
+          },
+          {
+            "label": "初音ミク Wiki",
+            "url": "https://w.atwiki.jp/hmiku/pages/62974.html"
+          }
+        ]
       },
       "albumRelease": "2019-11-17"
     },
@@ -1150,9 +1163,18 @@
         "ja": "発売元の『TRANSFORM』公式ページで、2024-11-27 発売の初回限定盤アニメイト特典 CD に本 Remix を収録と確認。非公式転載の2025年の投稿日を発売日にはせず、本 Remix の歌唱クレジットは未確認です。"
       },
       "creditNote": {
-        "zh": "原曲词曲 DECO*27 由 OTOIRO 官方介绍核对；原曲 MV 团队不作为本 Remix 转载视频的制作署名。演唱：非官方转载视频的标题与说明写作初音ミク（转载署名，非官方，未确认；VocaDB 无此条目）。",
-        "en": "Original lyrics and composition by DECO*27 are checked against OTOIRO’s official original-song page; the original MV team is not credited for this remix reupload. Vocal: the unofficial reupload’s title and description say Hatsune Miku (reupload credit, unofficial and unconfirmed; no VocaDB entry).",
-        "ja": "原曲の作詞・作曲 DECO*27 は OTOIRO の公式紹介で確認。原曲 MV の制作陣を本 Remix の転載動画のクレジットにはしていません。歌唱：非公式転載の題名と説明では初音ミク（転載のクレジットで非公式・未確認。VocaDBに該当項目なし）。"
+        "zh": "原曲词曲 DECO*27 由 OTOIRO 官方介绍核对；原曲 MV 团队不作为本 Remix 转载视频的制作署名。演唱栏为非官方记载：转载视频的标题与说明写作初音ミク，VocaDB 亦记载为初音ミク，官方来源未确认。",
+        "en": "Original lyrics and composition by DECO*27 are checked against OTOIRO’s official original-song page; the original MV team is not credited for this remix reupload. The vocal row is an unofficial record: the unofficial reupload’s title and description say Hatsune Miku and VocaDB lists the same, but official sources do not confirm it.",
+        "ja": "原曲の作詞・作曲 DECO*27 は OTOIRO の公式紹介で確認。原曲 MV の制作陣を本 Remix の転載動画のクレジットにはしていません。ボーカル欄は非公式の記載です。非公式転載の題名と説明は初音ミクで、VocaDB の記載も初音ミクですが、公式の出典では確認できていません。"
+      },
+      "unofficialVocal": {
+        "name": "初音ミク",
+        "sources": [
+          {
+            "label": "VocaDB",
+            "url": "https://vocadb.net/S/668155"
+          }
+        ]
       },
       "sources": [
         {
@@ -1303,16 +1325,16 @@
       ]
     },
     "dmG60q44PJQ": {
-      "fieldSources": {"releasedAt": ["X @dokotana（专辑配信日）", "X @inabakumori（Remix 参加）"], "music": ["ちいたな官方 niconico（原曲）"], "remix": ["X @inabakumori（Remix 参加）"]},
-      "checkedAt": "2026-10-29",
+      "fieldSources": {"releasedAt": ["YouTube 官方发行音轨（TuneCore Japan）", "Apple Music（《二面性 / 濁》）"], "music": ["ちいたな官方 niconico（原曲）"], "remix": ["X @inabakumori（Remix 参加）"]},
+      "checkedAt": "2026-10-31",
       "videoKind": "reupload",
       "videoNote": {
         "zh": "现有 YouTube 链接来自非官方转载；资料按下列作者、发行商或专访来源核对，不以转载的标题、上传日期和署名为依据。",
         "en": "The existing YouTube link is an unofficial reupload. Facts are checked against the creator, label or interview sources below, rather than the reupload’s title, upload date or credits.",
         "ja": "既存の YouTube リンクは非公式転載です。転載の題名・投稿日・クレジットではなく、以下の作者・発売元・インタビューの出典で確認しています。"
       },
-      "releasedAt": "2021-07-03",
-      "albumRelease": "2021-07-03",
+      "releasedAt": "2021-07-02",
+      "albumRelease": "2021-07-02",
       "credits": [
         {
           "role": "music",
@@ -1329,18 +1351,39 @@
         "movie"
       ],
       "releaseNote": {
-        "zh": "原作者 ちいたな预告《二面性 清/濁》于 2021-07-03 开始下载与流媒体配信；稲葉曇本人确认以《篝火》Remix 参加。演唱者未由本次官方资料确认。",
-        "en": "Original creator Chiitana announces the 2021-07-03 download and streaming release of Nimensou Sei/Daku; Inabakumori confirms his contribution as a Kagaribi remix. Vocals were not confirmed from the official sources checked here.",
-        "ja": "原作者ちいたなの予告で『二面性 清/濁』が2021-07-03にダウンロード・サブスク配信開始と確認。稲葉曇本人も『篝火』Remix での参加を確認。今回確認した公式資料では歌唱者は未確認です。"
+        "zh": "官方发行记录：ちいたな《二面性 / 濁》收录《篝火 (feat. 稲葉曇)》，Apple Music 日本与 YouTube 官方发行音轨（TuneCore Japan 提供）均记为 2021-07-02 发行。原作者 2021-06-30 的预告写作 7 月 3 日配信，本站以实际发行记录为准。稲葉曇本人确认以《篝火》Remix 参加。",
+        "en": "Official release records: “篝火 (feat. 稲葉曇)” is on Chiitana’s album “二面性 / 濁”, and both Apple Music Japan and the official YouTube release track (provided by TuneCore Japan) give 2021-07-02. The creator’s 30 June 2021 announcement said 3 July; this site follows the actual release records. Inabakumori confirms he took part with a Kagaribi remix.",
+        "ja": "公式の発売記録：ちいたな『二面性 / 濁』に『篝火 (feat. 稲葉曇)』を収録。Apple Music 日本と YouTube の公式配信音源（TuneCore Japan 提供）はいずれも 2021-07-02 発売と記載。原作者の 2021-06-30 の告知では 7月3日配信とされていましたが、本サイトは実際の発売記録に従います。稲葉曇本人も『篝火』Remix での参加を確認しています。"
       },
       "creditNote": {
-        "zh": "原曲作曲ちいたな按其本人 niconico 投稿核对；原曲的 IA 演唱和原 MV 团队不扩展为本 Remix 的署名。稲葉曇宣传帖的“絵ぬくにぎ”也不自动认定为转载视频的制作署名。演唱：非官方转载标题写作歌愛ユキ，VocaDB 亦记载为歌愛ユキ（均非官方，未确认）。",
-        "en": "Original composition by Chiitana is checked against his own niconico upload. Its IA vocal and original MV team are not carried over to this remix; “art by Nukunigi” on Inabakumori’s promotional post is not automatically treated as a reupload-video credit. Vocal: the unofficial reupload’s title says Kaai Yuki, and VocaDB lists the same (both unofficial, unconfirmed).",
-        "ja": "原曲の作曲ちいたなは本人のニコニコ投稿で確認。原曲の IA 歌唱や MV 制作陣を本 Remix へ流用せず、稲葉曇の宣伝投稿の「絵ぬくにぎ」も転載動画の制作クレジットとは自動的に解釈していません。歌唱：非公式転載の題名では歌愛ユキ、VocaDBの記載も歌愛ユキ（いずれも非公式・未確認）。"
+        "zh": "原曲作曲ちいたな按其本人 niconico 投稿核对；原曲的 IA 演唱和原 MV 团队不扩展为本 Remix 的署名。稲葉曇宣传帖的“絵ぬくにぎ”也不自动认定为转载视频的制作署名。演唱栏为非官方记载：转载标题写作歌愛ユキ，VocaDB 与网易云音乐的发行信息一致，官方来源未确认。",
+        "en": "Original composition by Chiitana is checked against his own niconico upload. Its IA vocal and original MV team are not carried over to this remix; “art by Nukunigi” on Inabakumori’s promotional post is not automatically treated as a reupload-video credit. The vocal row is an unofficial record: the reupload’s title says Kaai Yuki, and VocaDB and NetEase Cloud Music’s release information agree, but official sources do not confirm it.",
+        "ja": "原曲の作曲ちいたなは本人のニコニコ投稿で確認。原曲の IA 歌唱や MV 制作陣を本 Remix へ流用せず、稲葉曇の宣伝投稿の「絵ぬくにぎ」も転載動画の制作クレジットとは自動的に解釈していません。ボーカル欄は非公式の記載です。転載の題名は歌愛ユキで、VocaDB と NetEase Cloud Music（网易云音乐）の配信情報も一致していますが、公式の出典では確認できていません。"
+      },
+      "unofficialVocal": {
+        "name": "歌愛ユキ",
+        "sources": [
+          {
+            "label": "VocaDB",
+            "url": "https://vocadb.net/S/341483"
+          },
+          {
+            "label": "网易云音乐（发行信息）",
+            "url": "https://music.163.com/song?id=1858071864"
+          }
+        ]
       },
       "sources": [
         {
-          "label": "X @dokotana（专辑配信日）",
+          "label": "YouTube 官方发行音轨（TuneCore Japan）",
+          "url": "https://www.youtube.com/watch?v=2A46CwhV4aE"
+        },
+        {
+          "label": "Apple Music（《二面性 / 濁》）",
+          "url": "https://music.apple.com/jp/album/1574839476?i=1574839670"
+        },
+        {
+          "label": "X @dokotana（配信预告）",
           "url": "https://x.com/dokotana/status/1410199686971936772"
         },
         {
@@ -1392,9 +1435,18 @@
         "ja": "公開日は2019-04-12と推定。NKNKの同日の投稿は「さっきのツイートの かにだいすきは曲名です」と説明していますが、元の動画投稿は本サイトのXアーカイブに未収録で、初公開日は確認できません。YouTubeは2023年の追加公開で、その投稿日は使っていません。"
       },
       "creditNote": {
-        "zh": "官方说明明确作词、插画为 NKNK，音乐为稲葉曇；未明确演唱者。VocaDB 记载演唱为歌愛ユキ（非官方资料，未确认）。",
-        "en": "The official description credits NKNK for lyrics and illustration and Inabakumori for music; it does not name the vocal. VocaDB lists Kaai Yuki as the vocal (unofficial, unconfirmed).",
-        "ja": "公式説明では作詞・イラストがぬくぬくにぎりめし、音楽が稲葉曇。歌唱者の記載はありません。VocaDBの記載では歌愛ユキ（非公式資料・未確認）。"
+        "zh": "官方说明明确作词、插画为 NKNK，音乐为稲葉曇；未明确演唱者，演唱栏仅显示 VocaDB 的非官方记载。",
+        "en": "The official description credits NKNK for lyrics and illustration and Inabakumori for music; it does not name the vocal, so the vocal row only shows VocaDB’s unofficial record.",
+        "ja": "公式説明では作詞・イラストがぬくぬくにぎりめし、音楽が稲葉曇。歌唱者の記載はないため、ボーカル欄にはVocaDBの非公式の記載のみを表示しています。"
+      },
+      "unofficialVocal": {
+        "name": "歌愛ユキ",
+        "sources": [
+          {
+            "label": "VocaDB",
+            "url": "https://vocadb.net/S/696569"
+          }
+        ]
       },
       "releasedAt": "2019-04-12"
     },
@@ -1437,9 +1489,22 @@
         "ja": "公開日は2020-03-19と推定。作者の同日の動画投稿（「ぬくぬくにぎりめしが歌詞をくれたので、また曲を作りました」）に基づきます。投稿本文に曲名はなく、『もち』との対応はVocaDBの記載（非公式）とNKNKの「2020年の動画」という説明によります。YouTubeは2023年の追加公開で、その投稿日は使っていません。"
       },
       "creditNote": {
-        "zh": "官方说明明确作词、插画为 NKNK，音乐为稲葉曇；未明确演唱者。VocaDB 记载演唱为歌愛ユキ（非官方资料，未确认）。",
-        "en": "The official description credits NKNK for lyrics and illustration and Inabakumori for music; it does not name the vocal. VocaDB lists Kaai Yuki as the vocal (unofficial, unconfirmed).",
-        "ja": "公式説明では作詞・イラストがぬくぬくにぎりめし、音楽が稲葉曇。歌唱者の記載はありません。VocaDBの記載では歌愛ユキ（非公式資料・未確認）。"
+        "zh": "官方说明明确作词、插画为 NKNK，音乐为稲葉曇；未明确演唱者，演唱栏仅显示 VocaDB 与初音ミク Wiki 的非官方记载。",
+        "en": "The official description credits NKNK for lyrics and illustration and Inabakumori for music; it does not name the vocal, so the vocal row only shows the unofficial records of VocaDB and the Hatsune Miku Wiki.",
+        "ja": "公式説明では作詞・イラストがぬくぬくにぎりめし、音楽が稲葉曇。歌唱者の記載はないため、ボーカル欄にはVocaDBと初音ミクWikiの非公式の記載のみを表示しています。"
+      },
+      "unofficialVocal": {
+        "name": "歌愛ユキ",
+        "sources": [
+          {
+            "label": "VocaDB",
+            "url": "https://vocadb.net/S/371151"
+          },
+          {
+            "label": "初音ミク Wiki",
+            "url": "https://w.atwiki.jp/hmiku/pages/44844.html"
+          }
+        ]
       },
       "releasedAt": "2020-03-19"
     },

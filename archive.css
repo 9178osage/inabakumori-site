@@ -10,7 +10,7 @@
 .song-fact dd{margin:0;font-size:14px;overflow-wrap:anywhere}
 .song-fact-note{display:block;color:var(--muted);font-size:11px;line-height:1.7;margin-top:4px}
 span.song-fact-note{display:inline}
-.song-unverified,.song-checked{display:inline-block;padding:0 7px;border:1px dashed var(--line);color:var(--muted);font-size:10px;margin-left:6px;vertical-align:middle}
+.song-unverified,.song-unofficial,.song-checked{display:inline-block;padding:0 7px;border:1px dashed var(--line);color:var(--muted);font-size:10px;margin-left:6px;vertical-align:middle}
 .song-checked{border-style:solid}
 .song-sources{color:var(--muted);font-size:11px;line-height:1.9;margin:14px 0 0}
 .song-sources a{margin-right:6px}

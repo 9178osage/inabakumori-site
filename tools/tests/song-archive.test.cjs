@@ -118,6 +118,9 @@ test("all current songs have a reviewed record without inventing missing release
   }
   for (const id of ["e5d-DvD55OI", "io5HEdBNqWk", "v03uVgQZOOM", "dmG60q44PJQ", "KK9nXYdmkiM", "QpKaP3oGBXE", "Vb-z6AR-2F0"]) assert.equal(details[id].vocal, undefined, `unofficial vocal records stay out of the verified field: ${id}`);
   assert.equal(details.QpKaP3oGBXE.vocal, undefined, "hearing a familiar voice is not a vocal credit");
+  const unofficial = { "e5d-DvD55OI": "歌愛ユキ", KK9nXYdmkiM: "歌愛ユキ", QpKaP3oGBXE: "歌愛ユキ", dmG60q44PJQ: "歌愛ユキ", io5HEdBNqWk: "初音ミク" };
+  assert.deepEqual(Object.keys(details).filter(id => details[id].unofficialVocal).sort(), Object.keys(unofficial).sort(), "only songs with a database-backed record carry one; the Cover and the medley stay blank");
+  for (const [id, name] of Object.entries(unofficial)) assert.equal(details[id].unofficialVocal.name, name, id);
   assert.equal(details.FRFgNWBAa8k.videoKind, "reupload");
 });
 
@@ -231,6 +234,7 @@ test("new first-party source hosts reject lookalikes, credentials and invalid fi
     entry => { entry.sources = [{ label: "lookalike", url: "https://booth.pm.evil.example/items/1" }]; },
     entry => { entry.sources = [{ label: "userinfo", url: "https://user:password@booth.pm/items/1" }]; },
     entry => { entry.sources = [{ label: "port", url: "https://soundcloud.com:444/inabakumori/track" }]; },
+    entry => { entry.sources = [{ label: "lookalike", url: "https://music.apple.com.evil.example/jp/album/1574839476" }]; },
     entry => { entry.vocal = {}; },
     entry => { entry.creditNote = { zh: "note" }; },
     entry => { entry.videoKind = "fan-wiki"; }
@@ -239,4 +243,75 @@ test("new first-party source hosts reject lookalikes, credentials and invalid fi
     change(copy.songs["UnIhRpIT7nc"]);
     assert.throws(() => validateSongDetails(copy, songs()));
   }
+});
+
+test("unofficial vocal records are labelled, link their reference pages and never count as verified", async () => {
+  const { renderSongPage, validateSongDetails } = await import("../song-archive.mjs");
+  const { renderArchivePages } = await import("../render-archive-pages.mjs");
+  const list = songs(), details = validateSongDetails(data(), list);
+  const vocalRow = id => {
+    const song = list.find(item => item.youtube.endsWith(id));
+    const page = renderSongPage(song, 0, { details: details[id], linked: [], renderPost: () => "" });
+    return page.match(/<dt><span data-zh="演唱"[\s\S]*?<\/dd>/u)[0];
+  };
+  const kagaribi = vocalRow("dmG60q44PJQ");
+  assert.match(kagaribi, /<span lang="ja">歌愛ユキ<\/span> <span class="song-unofficial" data-zh="非官方记载" data-en="Unofficial record" data-ja="非公式の記載">非官方记载<\/span>/u);
+  assert.match(kagaribi, /href="https:\/\/vocadb\.net\/S\/341483" target="_blank" rel="noopener noreferrer"/u);
+  assert.match(kagaribi, /href="https:\/\/music\.163\.com\/song\?id=1858071864" target="_blank" rel="noopener noreferrer"/u);
+  assert.match(kagaribi, /官方来源未确认/u);
+  assert.doesNotMatch(kagaribi, /song-unverified|该项来源待逐项对应|>来源：</u, "an unofficial record is neither a blank nor a verified field with official sources");
+  assert.match(vocalRow("e5d-DvD55OI"), /vocadb\.net\/S\/258423[\s\S]*w\.atwiki\.jp\/hmiku\/pages\/62974\.html/u);
+  assert.match(vocalRow("io5HEdBNqWk"), /<span lang="ja">初音ミク<\/span>[\s\S]*vocadb\.net\/S\/668155/u);
+  for (const id of ["v03uVgQZOOM", "Vb-z6AR-2F0"]) {
+    assert.match(vocalRow(id), /song-unverified/u, `${id} has no usable reference and stays blank`);
+    assert.doesNotMatch(vocalRow(id), /song-unofficial/u, id);
+  }
+  const index = renderArchivePages({ songs: list, xPosts: { version: 1, coverage: [], items: [] }, xTranslations: new Map(),
+    xPostsRenderer: { posts: () => [], renderPost: () => "" }, songDetailsSource: data(),
+    updatesHtml: fs.readFileSync(path.join(repo, "updates.html"), "utf8") }).files.get("songs.html");
+  assert.match(index, /“非官方记载”/u);
+  assert.match(index, /labelled “unofficial record”/u);
+  assert.match(index, /「非公式の記載」/u);
+});
+
+test("unofficial vocal records accept only exact reference pages and never replace an official vocal", async () => {
+  const { validateSongDetails } = await import("../song-archive.mjs");
+  const list = songs();
+  const mutate = change => { const copy = data(); change(copy.songs.QpKaP3oGBXE, copy); return copy; };
+  const reference = url => entry => { entry.unofficialVocal.sources = [{ label: "reference", url }]; };
+  for (const [name, change] of [
+    ["an official vocal alongside the record", entry => { entry.vocal = "歌愛ユキ"; }],
+    ["a blank name", entry => { entry.unofficialVocal.name = " "; }],
+    ["a bare string", entry => { entry.unofficialVocal = "歌愛ユキ"; }],
+    ["no reference pages", entry => { entry.unofficialVocal.sources = []; }],
+    ["a host outside the reference list", reference("https://example.com/S/371151")],
+    ["a lookalike host", reference("https://vocadb.net.evil.example/S/371151")],
+    ["user info", reference("https://vocadb.net@evil.example/S/371151")],
+    ["a custom port", reference("https://vocadb.net:444/S/371151")],
+    ["plain http", reference("http://vocadb.net/S/371151")],
+    ["a non-song page", reference("https://vocadb.net/Ar/46824")],
+    ["a query string", reference("https://vocadb.net/S/371151?redirect=1")],
+    ["a fragment", reference("https://w.atwiki.jp/hmiku/pages/44844.html#top")],
+    ["another wiki on the same host", reference("https://w.atwiki.jp/other/pages/44844.html")],
+    ["the wiki top page without a page id", reference("https://w.atwiki.jp/hmiku/")],
+    ["a reference page listed as an official source", entry => { entry.sources.push({ label: "VocaDB", url: "https://vocadb.net/S/371151" }); }]
+  ]) assert.throws(() => validateSongDetails(mutate(change), list), undefined, name);
+  assert.doesNotThrow(() => validateSongDetails(mutate(entry => { entry.sources.push({ label: "Apple Music", url: "https://music.apple.com/jp/album/1574839476" }); }), list), "Apple Music is an official store listing");
+  assert.doesNotThrow(() => validateSongDetails(mutate(entry => { entry.unofficialVocal.sources = [{ label: "NetEase", url: "https://music.163.com/song?id=1858071864" }]; }), list));
+});
+
+test("Kagaribi follows the official release title and the store-recorded date while explaining the earlier announcement", async () => {
+  const { validateSongDetails } = await import("../song-archive.mjs");
+  const list = songs(), details = validateSongDetails(data(), list);
+  assert.equal(list.find(item => item.youtube.endsWith("dmG60q44PJQ")).title, "篝火 (feat. 稲葉曇)");
+  const entry = details.dmG60q44PJQ;
+  assert.equal(entry.releasedAt, "2021-07-02");
+  assert.equal(entry.albumRelease, "2021-07-02");
+  assert.deepEqual(entry.fieldSources.releasedAt, ["YouTube 官方发行音轨（TuneCore Japan）", "Apple Music（《二面性 / 濁》）"]);
+  const urls = entry.sources.map(source => source.url);
+  assert.ok(urls.includes("https://www.youtube.com/watch?v=2A46CwhV4aE"));
+  assert.ok(urls.includes("https://music.apple.com/jp/album/1574839476?i=1574839670"));
+  assert.ok(urls.includes("https://x.com/inabakumori/status/1410199640243245058"), "the creator's remix post still links its X posts to the song");
+  for (const language of ["zh", "en", "ja"]) assert.match(entry.releaseNote[language], /07-02/u, language);
+  assert.match(entry.releaseNote.zh, /7 月 3 日/u, "the earlier announced date stays explained");
 });

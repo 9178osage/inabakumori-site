@@ -1,5 +1,6 @@
 // Song observation archive: one generated page per song in js/songs.js. Verified facts come
-// only from data/song-archive.json (checked against official pages); linked posts are matched
+// only from data/song-archive.json (checked against official pages); the one exception is a
+// vocal shown as a labelled unofficial record with its reference pages. Linked posts are matched
 // from the collected X archive at build time by video ID or title, so daily imports flow in.
 import assert from "node:assert/strict";
 
@@ -49,18 +50,29 @@ export function youtubeId(url) {
 }
 export const songPageName = song => `song-${youtubeId(song.youtube)}.html`;
 
-// Exact hosts only: sources include the artists' release projects, shops,
-// licensed song metadata and first-person interviews as well as their posts.
+// Exact hosts only: sources include the artists' release projects, shops, official store
+// listings, licensed song metadata and first-person interviews as well as their posts.
 const SOURCE_HOSTS = new Set(["www.youtube.com", "www.nicovideo.jp", "x.com", "soundcloud.com",
   "booth.pm", "inabakumori.booth.pm", "dokotana.booth.pm", "nbcuni-music.com", "subcul-rise.jp",
   "realsound.jp", "chimera12.com", "youth-compilation.wixsite.com", "trudist.tumblr.com",
-  "joysound.com", "www.joysound.com", "prtimes.jp", "www.tunecore.co.jp", "otoiro.co.jp", "piapro.jp", "utaten.com"]);
+  "joysound.com", "www.joysound.com", "prtimes.jp", "www.tunecore.co.jp", "otoiro.co.jp", "piapro.jp", "utaten.com",
+  "music.apple.com"]);
 function sourceUrl(value) {
   try {
     const url = new URL(value);
     return url.protocol === "https:" && !url.username && !url.password && !url.port && SOURCE_HOSTS.has(url.hostname);
   } catch { return false; }
 }
+
+// Fan databases and third-party store listings are not official sources. They may only back a
+// vocal record that the page labels as unofficial, so each host is limited to the URL shape of
+// its song pages (the wiki's numeric page ids cannot tell a song page from other pages).
+const UNOFFICIAL_SOURCE_URLS = [
+  /^https:\/\/vocadb\.net\/S\/\d+$/u,
+  /^https:\/\/w\.atwiki\.jp\/hmiku\/pages\/\d+\.html$/u,
+  /^https:\/\/music\.163\.com\/song\?id=\d+$/u
+];
+const unofficialSourceUrl = value => typeof value === "string" && UNOFFICIAL_SOURCE_URLS.some(pattern => pattern.test(value));
 
 export function validateSongDetails(data, songs) {
   assert.equal(data?.version, 1, "Unsupported song archive data");
@@ -70,6 +82,12 @@ export function validateSongDetails(data, songs) {
     assert.ok(entry.releasedAt == null || Number.isFinite(Date.parse(entry.releasedAt)), `Invalid release time for ${id}`);
     assert.ok(entry.releaseConfidence === undefined || entry.releaseConfidence === "inferred", `Invalid release confidence for ${id}`);
     assert.ok(entry.vocal == null || typeof entry.vocal === "string" && entry.vocal.trim(), `Invalid vocal for ${id}`);
+    if (entry.unofficialVocal !== undefined) {
+      const record = entry.unofficialVocal;
+      assert.ok(entry.vocal == null, `An official vocal replaces the unofficial record for ${id}`);
+      assert.ok(record && typeof record.name === "string" && record.name.trim(), `Invalid unofficial vocal for ${id}`);
+      assert.ok(Array.isArray(record.sources) && record.sources.length && record.sources.every(source => typeof source.label === "string" && source.label.trim() && unofficialSourceUrl(source.url)), `Invalid unofficial vocal sources for ${id}`);
+    }
     for (const field of ["releaseNote", "creditNote", "videoNote"]) if (entry[field] !== undefined) {
       assert.ok(entry[field] && ["zh", "en", "ja"].every(language => typeof entry[field][language] === "string" && entry[field][language].trim()), `Invalid ${field} for ${id}`);
     }
@@ -128,6 +146,7 @@ export function linkPosts(songs, posts, details = {}) {
 
 const date = value => new Date(Date.parse(value) + 9 * 3_600_000).toISOString().slice(0, 10);
 const UNVERIFIED = tri("span", ["未核对", "Unverified", "未確認"], ' class="song-unverified"');
+const UNOFFICIAL = tri("span", ["非官方记载", "Unofficial record", "非公式の記載"], ' class="song-unofficial"');
 const row = (label, value) => `<div class="song-fact"><dt>${tri("span", label)}</dt><dd>${value}</dd></div>`;
 
 export function renderSongPage(song, index, { details, linked, renderPost, contactAddress }) {
@@ -149,7 +168,10 @@ export function renderSongPage(song, index, { details, linked, renderPost, conta
   const albumValue = album
     ? `<span lang="ja">${escape(album.name)}</span> ${tri("span", album.kind, ' class="song-fact-note"')}${verified && details.albumRelease ? ` <span class="song-fact-note">${escape(details.albumRelease)}</span>` : ""}`
     : tri("span", ["单曲 / 其他", "Single / other", "シングル・その他"]);
+  const unofficialVocal = details?.unofficialVocal;
+  const unofficialLinks = unofficialVocal?.sources.map(source => `<a href="${escape(source.url)}" target="_blank" rel="noopener noreferrer">${escape(source.label)} <span aria-hidden="true">↗</span></a>`).join(" · ");
   const vocalValue = details?.vocal ? `<span lang="ja">${escape(details.vocal)}</span>${fieldSource("vocal")}`
+    : unofficialVocal ? `<span lang="ja">${escape(unofficialVocal.name)}</span> ${UNOFFICIAL}<small class="song-fact-note">${tri("span", ["官方来源未确认。参考：", "Not confirmed by official sources. Reference: ", "公式の出典では未確認。参考："])}${unofficialLinks}</small>`
     : !verified && song.singers.length ? `${escape(song.singers.join(" / "))} ${tri("span", ["站内歌曲表", "site song list", "サイト楽曲表"], ' class="song-fact-note"')}` : `<span>—</span> ${UNVERIFIED}`;
   const creditRows = Object.entries(ROLES).filter(([role]) => ["illustration", "animation", "movie"].includes(role) || details?.unverified.includes(role) || details?.credits.some(credit => credit.role === role)).map(([role, label]) => {
     const credit = details?.credits.filter(entry => entry.role === role) ?? [];
