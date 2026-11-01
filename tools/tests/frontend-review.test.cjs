@@ -85,3 +85,31 @@ test("Unicode line and paragraph separators cannot bypass the frontend's 15-brea
   }
   assert.equal(app.run('countCommentLineBreaks("首\\u2028\\u2029\\n\\r\\n尾")'), 2, "mixed blank-line runs still collapse");
 });
+
+test("the home page ignores language events without a localStorage area, even if reading the area throws", () => {
+  const app = page();
+  assert.equal(app.run("currentLanguage"), "zh");
+  for (const storageArea of [null, {}]) app.storage("language", "ja", storageArea);
+  app.context.dispatchEvent({ type: "storage", key: "language", newValue: "ja" });
+  const hostile = { type: "storage", key: "language", newValue: "ja" };
+  Object.defineProperty(hostile, "storageArea", { get() { throw new Error("blocked"); } });
+  assert.doesNotThrow(() => app.context.dispatchEvent(hostile));
+  assert.equal(app.run("currentLanguage"), "zh");
+  app.storage("language", "ja");
+  assert.equal(app.run("currentLanguage"), "ja");
+});
+
+test("every storage listener in the site scripts checks storageArea against localStorage first", () => {
+  const files = ["script.js", ...fs.readdirSync("js").filter(name => name.endsWith(".js") && name !== "auth.js").map(name => `js/${name}`)];
+  let checked = 0;
+  for (const file of files) {
+    const source = fs.readFileSync(file, "utf8");
+    for (const match of source.matchAll(/addEventListener\??\.?\("storage",[^\n]*\n([^\n]*)/gu)) {
+      // The sign-in loader's auth-sync listener only reacts to its own key and touches no preference.
+      if (file === "js/auth-loader.js") { assert.match(match[1], /event\.key !== "auth-sync"/u); continue; }
+      assert.match(match[1], /try \{ if \(event\.storageArea !== window\.localStorage\) return; \} catch \{ return; \}/u, `${file} must ignore other storage areas`);
+      checked++;
+    }
+  }
+  assert.ok(checked >= 6, `expected the preference listeners to be checked, found ${checked}`);
+});

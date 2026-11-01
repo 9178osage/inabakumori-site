@@ -1194,7 +1194,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // own copy while the auth dialog and "my comments" panel — which read storage on every render —
 // switched immediately, leaving one page in two languages.
 window.addEventListener?.("storage", (event) => {
-  try { if (event.storageArea && event.storageArea !== window.localStorage) return; } catch { return; }
+  try { if (event.storageArea !== window.localStorage) return; } catch { return; }
   if (event.key === "language" || event.key === null) {
     const nextLanguage = pageLanguages.includes(event.newValue) ? event.newValue : "zh";
     if (nextLanguage !== currentLanguage) {
