@@ -737,12 +737,12 @@ function getCleanSongTitle(link) {
   const raw = link.dataset.songTitle || link.textContent || "";
   return raw.replace(/^\s*\d+\s*[　\s]+/, "").trim();
 }
-const MOBILE_FEATURED_SONG_IDS = new Set(["DeKLpgzh-qQ", "UnIhRpIT7nc", "G5hScSFkib4", "NRQRC_0ZQ00", "b56xjtP6Qac", "2r4W_LoVFxA"]);
 const mobileSongsQuery = window.matchMedia?.("(max-width: 700px), (pointer: coarse) and (max-width: 1000px)");
 let mobileSongsExpanded = false;
+// The songs phones show first are chosen in js/songs.js (mobileFeatured). The list is built from that
+// data with data-mobile-featured, which the stylesheet reads too, so the filter and the CSS cannot disagree.
 function isFeaturedSong(link) {
-  const thumbnail = getSongThumbnailUrl(link.href);
-  return thumbnail ? MOBILE_FEATURED_SONG_IDS.has(thumbnail.split("/")[4]) : false;
+  return link.dataset.mobileFeatured === "true";
 }
 function renderSongs() {
   const list = document.getElementById("song-list");
@@ -758,7 +758,7 @@ function renderSongs() {
     link.rel = "noopener noreferrer";
     link.dataset.album = song.album;
     link.dataset.songTitle = song.title;
-    if (isFeaturedSong(link)) link.dataset.mobileFeatured = "true";
+    if (song.mobileFeatured === true) link.dataset.mobileFeatured = "true";
     link._songData = song;
     link.textContent = String(index + 1).padStart(2, "0") + "　" + song.title;
     (fragment || list).appendChild(link);

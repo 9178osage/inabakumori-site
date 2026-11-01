@@ -155,6 +155,31 @@ test("the build gate requires each retired song address to redirect to its repla
   }
 });
 
+test("the build gate requires the pre-rendered featured marks to match mobileFeatured in js/songs.js", () => {
+  const songs = flag => `const SONGS = [{ "title": "ユレール", "youtube": "https://youtu.be/2r4W_LoVFxA"${flag === undefined ? "" : `, "mobileFeatured": ${flag}`} }];\n`;
+  const mismatch = /Pre-rendered data-mobile-featured marks must match mobileFeatured in js\/songs\.js/u;
+  const cases = [
+    ["no song is featured and none is marked", undefined, false, null],
+    ["a flagged song carries its mark", "true", true, null],
+    ["a flagged song whose mark is missing from the page", "true", false, mismatch],
+    ["a mark on a song that js/songs.js does not flag", undefined, true, mismatch],
+    ["a mark on a song whose flag is not a plain true", '"true"', true, mismatch]
+  ];
+  for (const [name, flag, marked, failure] of cases) {
+    const box = fixture();
+    try {
+      publicBuild(box);
+      const home = path.join(box.root, "dist/index.html");
+      fs.writeFileSync(home, fs.readFileSync(home, "utf8").replace('<a data-song-title="ユレール">', `<a data-song-title="ユレール"${marked ? ' data-mobile-featured="true"' : ""}>`));
+      box.write("dist/js/songs.js", songs(flag));
+      const result = spawnSync(process.execPath, [path.join(box.root, "tools/check-build.mjs")], { cwd: box.root, encoding: "utf8", timeout: 10000 });
+      assert.ifError(result.error);
+      if (failure) { assert.notEqual(result.status, 0, name); assert.match(result.stderr, failure, name); }
+      else assert.equal(result.status, 0, `${name}: ${result.stderr}`);
+    } finally { box.close(); }
+  }
+});
+
 test("the real build gate accepts trusted watch links and rejects an untrusted video host", () => {
   for (const youtube of ["https://www.youtube.com/watch?v=2r4W_LoVFxA", "https://m.youtube.com/watch?v=2r4W_LoVFxA", "https://evil.example/?v=2r4W_LoVFxA"]) {
     const box = fixture();

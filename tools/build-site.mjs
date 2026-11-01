@@ -12,7 +12,6 @@ import { readXTranslations } from "./x-translations.mjs";
 import { createXPostsRenderer, xPostsPageUrl, xPostsPageTitle } from "./render-x-posts.mjs";
 import { newestSongRelease } from "./calendar-song.mjs";
 import { renderArchivePages } from "./render-archive-pages.mjs";
-import { youtubeId } from "./song-archive.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const out = path.join(root, "dist");
@@ -113,9 +112,9 @@ const cleanSongUrl = value => {
   for (const key of ["si", "feature", "pp"]) url.searchParams.delete(key);
   return url.href;
 };
-// Real links are present before JS starts and remain available without JavaScript.
-const featuredSongs = new Set(["DeKLpgzh-qQ", "UnIhRpIT7nc", "G5hScSFkib4", "NRQRC_0ZQ00", "b56xjtP6Qac", "2r4W_LoVFxA"]);
-const archive = songs.map((song, index) => `<a href="${escape(cleanSongUrl(song.youtube))}" target="_blank" rel="noopener noreferrer" data-album="${escape(song.album)}" data-song-title="${escape(song.title)}"${featuredSongs.has(youtubeId(song.youtube)) ? ' data-mobile-featured="true"' : ""}>${String(index + 1).padStart(2, "0")}　${escape(song.title)}</a>`).join("\n");
+// Real links are present before JS starts and remain available without JavaScript. The songs phones
+// show first are the ones js/songs.js flags with mobileFeatured, the same data script.js reads.
+const archive = songs.map((song, index) => `<a href="${escape(cleanSongUrl(song.youtube))}" target="_blank" rel="noopener noreferrer" data-album="${escape(song.album)}" data-song-title="${escape(song.title)}"${song.mobileFeatured === true ? ' data-mobile-featured="true"' : ""}>${String(index + 1).padStart(2, "0")}　${escape(song.title)}</a>`).join("\n");
 html = html.replace('<div class="song-scroll song-list" id="song-list"></div>', `<div class="song-scroll song-list" id="song-list">${archive}</div>`);
 if (!keepLocalApiCsp) {
   // Parse every source expression: any loopback spelling ([::1], LOCALHOST, 127.1, *.localhost, ...) is removed.

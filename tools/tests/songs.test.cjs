@@ -47,7 +47,7 @@ class Element {
   querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
 }
 
-function setup(extraSong) {
+function setup(extraSong, windowExtras = {}) {
   const elements = Object.fromEntries([
     "song-list", "tag-filter-input", "tag-filter-clear", "tag-suggestions",
     "tag-empty-state", "tag-result-count", ".song-library"
@@ -78,7 +78,8 @@ function setup(extraSong) {
     window: {
       APP_CONFIG: { apiDomain: "http://localhost:3001" },
       addEventListener() {},
-      open: (...args) => opened.push(args)
+      open: (...args) => opened.push(args),
+      ...windowExtras
     }
   };
   vm.createContext(context);
@@ -233,4 +234,51 @@ test("typing in the tag filter is debounced; the clear button filters immediatel
   elements["tag-filter-clear"].dispatch("click");
   assert.equal(timers.size, 0, "a direct update cancels the pending debounced run");
   assert.ok(list.children.every(song => !song.hidden));
+});
+
+// The songs a phone shows before the library is expanded. They are chosen once, on the songs themselves
+// (mobileFeatured in js/songs.js); the page build and script.js both read that flag, so a changed video
+// link or a second copy of a list cannot drift. If the editorial choice changes, update these titles.
+const FEATURED_ON_PHONES = ["ロストアンブレラ", "レイニーブーツ", "ラグトレイン", "フロートプレイ", "リレイアウター", "ユレール"];
+const phoneWindow = { matchMedia: query => ({ matches: query.includes("max-width: 700px"), addEventListener() {} }) };
+
+test("the songs phones show first are flagged on the songs themselves, and the flag is a plain true", () => {
+  const { run } = setup();
+  const songs = JSON.parse(run("JSON.stringify(SONGS)"));
+  for (const song of songs) assert.ok(song.mobileFeatured === undefined || song.mobileFeatured === true, `${song.title}: mobileFeatured must be true or absent`);
+  assert.deepEqual(songs.filter(song => song.mobileFeatured).map(song => song.title), FEATURED_ON_PHONES, "the flagged songs are the six the phone home page features");
+});
+
+test("script.js marks the flagged songs and a phone shows exactly those until the library is expanded", () => {
+  const { run, list, elements } = setup(undefined, phoneWindow);
+  const songs = JSON.parse(run("JSON.stringify(SONGS)"));
+  assert.deepEqual(list.children.map(row => row.dataset.mobileFeatured === "true"), songs.map(song => song.mobileFeatured === true), "the rendered list carries the same marks as the data");
+  assert.deepEqual(list.children.filter(row => !row.hidden).map(row => row.dataset.songTitle), FEATURED_ON_PHONES);
+  assert.equal(elements["tag-result-count"].textContent, "显示 6 / 52 首");
+  const desktop = setup().list;
+  assert.equal(desktop.children.filter(row => !row.hidden).length, 52, "larger screens still list every song");
+  assert.deepEqual(desktop.children.filter(row => row.dataset.mobileFeatured === "true").map(row => row.dataset.songTitle), FEATURED_ON_PHONES, "the marks are the same on every screen size");
+});
+
+test("a flagged song stays featured whatever its video link, so a changed link needs no featured-list edit", () => {
+  const moved = { title: "Song with a new link", youtube: "https://youtu.be/AAAAAAAAAAA", album: "SINGLES", singers: [], mobileFeatured: true };
+  const flagged = setup(moved, phoneWindow);
+  assert.deepEqual(flagged.list.children.filter(row => !row.hidden).map(row => row.dataset.songTitle), [...FEATURED_ON_PHONES, moved.title]);
+  const { mobileFeatured, ...unflagged } = moved;
+  assert.equal(mobileFeatured, true);
+  const plain = setup(unflagged, phoneWindow);
+  assert.deepEqual(plain.list.children.filter(row => !row.hidden).map(row => row.dataset.songTitle), FEATURED_ON_PHONES, "without the flag a new song is not featured");
+});
+
+test("code files never name a song's video ID, so no second featured list can go stale", () => {
+  const { run } = setup();
+  const ids = JSON.parse(run("JSON.stringify(SONGS.map(song => song.youtube))")).map(link => {
+    const url = new URL(link);
+    return url.hostname === "youtu.be" ? url.pathname.slice(1) : url.searchParams.get("v");
+  });
+  assert.equal(ids.length, 52);
+  for (const file of ["script.js", "tools/build-site.mjs"]) {
+    const source = fs.readFileSync(file, "utf8");
+    for (const id of ids) assert.ok(!source.includes(id), `${file} must not hard-code ${id}; featured songs are flagged in js/songs.js`);
+  }
 });

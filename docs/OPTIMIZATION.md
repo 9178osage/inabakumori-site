@@ -2,6 +2,14 @@
 
 本轮（2026-10-01）在既有 HTML / CSS / JavaScript 与 Express / SuperTokens / SQLite 架构上做了一轮综合加固与体验打磨；歌曲资料、账号体系与数据库格式继续兼容。没有修改线上数据库，也没有向生产环境发送测试留言或密码重置邮件。
 
+## 2026-10-31 手机首页精选歌曲改读歌曲数据
+
+手机首页最先显示的 6 首歌，原来由两份各写着同样 6 个视频 ID 的名单决定：`tools/build-site.mjs` 的 `featuredSongs`（预渲染页面）和 `script.js` 的 `MOBILE_FEATURED_SONG_IDS`（浏览器里重新渲染列表和筛选）。没有任何东西核对两份是否一致：预渲染那份没有任何测试或构建检查看守，换视频链接时漏改，页面源码里这首歌就悄悄失去精选标记；`script.js` 那份只被「手机预览显示 6 首」这类计数间接覆盖，漏改会让那条测试失败，但失败信息不会指出是名单过期。现在名单只剩一个来源：`js/songs.js` 里这 6 首歌自己的条目带 `"mobileFeatured": true`。构建按它给预渲染链接加 `data-mobile-featured`，`script.js` 渲染列表时也按它加同一个属性，`isFeaturedSong` 只读这个属性（样式表本来就读它），所以筛选和样式不会再各说各话。标记跟着条目走，换链接不用另改；`refresh-youtube-views.mjs` 解析并整体写回 `SONGS`，标记会原样保留（整个文件解析后重新写出与现状逐字节相同）。
+
+页面显示没有变化：与上一版（`66a7d3e`）的生产构建逐文件对比，只有 `js/songs.js`（多 6 个标记）、`script.js`（读取方式）和 `index.html` 里这两个脚本的 `?v=` 指纹行不同，预渲染的歌曲列表逐字节相同。在无头 Chrome 里分别打开两版（手机 390 宽、触屏平板 820 宽、电脑 1440 宽，以及禁用 JavaScript 的手机），歌曲列表每一行的状态、实际可见的行、结果计数和「展开」流程的 DOM 完全相同，手机默认仍是同样的 6 首，整个歌曲区块的截图逐像素一致（0 个像素不同，含展开后的全部 52 首）。
+
+新增看守：`tools/tests/songs.test.cjs` 按曲名固定这 6 首，并核对标记只能是 `true`、脚本渲染的列表与手机实际显示的歌曲和数据一致、给新歌加标记就会被精选而与它的链接无关，以及 `script.js` 与 `tools/build-site.mjs` 不得写出任何歌曲的视频 ID；`check-build` 核对预渲染页面的标记与 `js/songs.js` 一致，`tools/tests/tooling-full-review.test.cjs` 覆盖它的几种失败情形；`tools/tests/site.test.cjs` 里手工拼的手机歌曲列表也改为带上与渲染器相同的属性。
+
 ## 2026-10-31 旧歌曲页地址改为静态跳转页
 
 歌曲页按视频 ID 命名，换一首歌的视频链接会让旧地址变成 404（《篝火》改链接后就是这样）。新增 `data/song-redirects.json`（`{ version, redirects: { 旧ID: 新ID } }`）和 `validateSongRedirects`：旧 ID 不能仍是现有歌曲，新 ID 必须是现有歌曲，所以不会出现跳转链、环，也盖不掉真实页面。构建为每条记录生成一页 `song-<旧ID>.html`：沿用归档页外壳和归档页 CSP（原样复制，没有新增或放宽任何指令），`<meta http-equiv="refresh" content="0; url=…">` 立即跳转，canonical 与 og:url 指向新页面，标题、描述和分享封面与新页面一致，另有一个指向新页面的可见链接给不执行跳转的阅读器。跳转页不写进 `sitemap.xml`。

@@ -93,6 +93,10 @@ vm.runInContext(songsSource, songContext);
 assert.doesNotMatch(html, /[?&](?:si|feature|pp)=/u, "Published links must not carry share-tracking parameters");
 assert.doesNotMatch(songsSource, /[?&]si=/u, "Song data must not carry share-tracking parameters");
 assert.equal([...html.matchAll(/data-song-title=/g)].length, vm.runInContext("SONGS.length", songContext), "Songs must be pre-rendered");
+// Phones show first the songs that js/songs.js flags with mobileFeatured: the pre-rendered list must
+// carry exactly those marks, in song order, so it agrees with what script.js renders afterwards.
+const renderedFeatured = [...html.matchAll(/<a\b[^>]*\bdata-song-title=[^>]*>/gu)].map(([tag]) => /\sdata-mobile-featured="true"[\s>]/u.test(tag));
+assert.deepEqual(renderedFeatured, Array.from(vm.runInContext("SONGS", songContext), song => song.mobileFeatured === true), "Pre-rendered data-mobile-featured marks must match mobileFeatured in js/songs.js");
 const metadata = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
 assert.equal(JSON.parse(metadata[1])["@type"], "WebSite");
 const manifest = JSON.parse(await readFile(path.join(root, "site.webmanifest"), "utf8"));

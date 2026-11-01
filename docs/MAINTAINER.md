@@ -111,12 +111,13 @@ API 失败时，刷新日志只显示 HTTP 状态及固定白名单中的 Google
 
 ### 更换歌曲的视频链接
 
-歌曲页按视频 ID 命名（`song-<视频 ID>.html`），访客的收藏也按视频 ID 保存在浏览器里，所以换一首歌的 YouTube 链接会同时改变页面地址和收藏的对应关系。换链接时一起做四件事：
+歌曲页按视频 ID 命名（`song-<视频 ID>.html`），访客的收藏也按视频 ID 保存在浏览器里，所以换一首歌的 YouTube 链接会同时改变页面地址和收藏的对应关系。换链接时一起做三件事：
 
 1. 把 `data/song-archive.json` 里这首歌的记录改到新 ID 下。
 2. 在 `data/song-redirects.json` 登记「旧 ID → 新 ID」。构建会为旧地址生成静态跳转页（GitHub Pages 不能发 HTTP 跳转，页面用 `<meta http-equiv="refresh">`，规范地址指向新页面，也不收入站点地图）。构建要求旧 ID 已不是现有歌曲、新 ID 是现有歌曲，`check-build` 核对每个跳转页都在。
 3. 在 `js/experience.js` 的 `MOVED_SONG_IDS` 里加同一对 ID，让已收藏的星标跟着换过去；`tools/tests/library-state.test.cjs` 会核对这份映射与 `data/song-redirects.json` 的配对完全一致（多一对、少一对都会失败）。
-4. 这首歌若在手机首页的精选里，把旧 ID 换成新 ID：`tools/build-site.mjs` 的 `featuredSongs` 和 `script.js` 的 `MOBILE_FEATURED_SONG_IDS` 写着同一组 ID，目前没有测试看守，漏改会让它悄悄失去精选标记。
+
+手机首页的精选歌曲不需要为换链接另改：精选标记 `"mobileFeatured": true` 写在 `js/songs.js` 里这首歌自己的条目上，页面构建（`tools/build-site.mjs`）和浏览器脚本（`script.js`）都读这一个标记，换链接时它跟着条目走，周刷新播放量也会原样保留。`tools/tests/songs.test.cjs` 按曲名固定当前的 6 首，并核对脚本渲染的列表与手机上实际显示的歌曲；`check-build` 核对预渲染页面的标记与 `js/songs.js` 一致；测试还禁止 `script.js` 和 `tools/build-site.mjs` 写出任何歌曲的视频 ID，防止又冒出第二份名单。想改精选名单本身（增减或更换歌曲）时，改 `js/songs.js` 里的标记并更新 `tools/tests/songs.test.cjs` 里的曲名列表；若精选的数量变了，还要同步 `index.html` 里 `.mobile-song-intro` 的「6 首 / six / 6曲」文案（中英日三处）和测试里写死的 6：`tools/tests/songs.test.cjs` 的「显示 6 / 52 首」与 `tools/tests/site.test.cjs` 的手机预览计数。这几处里只有 `index.html` 的文案没有测试看守，漏改会让页面写的首数和实际显示的不符；测试里的 6 漏改则会直接让测试失败。
 
 已登记：《篝火》`dmG60q44PJQ` → `2A46CwhV4aE`（2026-10-31 由非官方转载改为官方音轨）。
 

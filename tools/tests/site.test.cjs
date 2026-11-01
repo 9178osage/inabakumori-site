@@ -282,7 +282,7 @@ function phoneLibrary() {
   const { context, elements, run } = app;
   context.URL = URL;
   vm.runInContext(fs.readFileSync("js/songs.js", "utf8"), context);
-  const songs = Array.from(run("SONGS"), song => ({ href: song.youtube, dataset: { songTitle: song.title }, _songTags: [], hidden: false }));
+  const songs = Array.from(run("SONGS"), song => ({ href: song.youtube, dataset: { songTitle: song.title, ...(song.mobileFeatured === true ? { mobileFeatured: "true" } : {}) }, _songTags: [], hidden: false }));
   const classes = new Map();
   elements.songs = { classList: { toggle: (name, state) => classes.set(name, state) } };
   elements[".song-library"] = { classList: { toggle() {} } };

@@ -17,7 +17,8 @@ const SONGS = [
       "歌爱雪"
     ],
     "viewCount": 100346469,
-    "viewsCheckedAt": "2026-10-26"
+    "viewsCheckedAt": "2026-10-26",
+    "mobileFeatured": true
   },
   {
     "title": "パスカルビーツ",
@@ -167,7 +168,8 @@ const SONGS = [
       "歌爱雪"
     ],
     "viewCount": 9936257,
-    "viewsCheckedAt": "2026-10-26"
+    "viewsCheckedAt": "2026-10-26",
+    "mobileFeatured": true
   },
   {
     "title": "ラグトレイン",
@@ -177,7 +179,8 @@ const SONGS = [
       "歌爱雪"
     ],
     "viewCount": 107040103,
-    "viewsCheckedAt": "2026-10-26"
+    "viewsCheckedAt": "2026-10-26",
+    "mobileFeatured": true
   },
   {
     "title": "ハルノ寂寞",
@@ -278,7 +281,8 @@ const SONGS = [
       "歌爱雪"
     ],
     "viewCount": 7382992,
-    "viewsCheckedAt": "2026-10-26"
+    "viewsCheckedAt": "2026-10-26",
+    "mobileFeatured": true
   },
   {
     "title": "期待通り",
@@ -298,7 +302,8 @@ const SONGS = [
       "歌爱雪"
     ],
     "viewCount": 12163074,
-    "viewsCheckedAt": "2026-10-26"
+    "viewsCheckedAt": "2026-10-26",
+    "mobileFeatured": true
   },
   {
     "title": "電気予報",
@@ -370,7 +375,8 @@ const SONGS = [
       "弦卷真纪"
     ],
     "viewCount": 1274996,
-    "viewsCheckedAt": "2026-10-26"
+    "viewsCheckedAt": "2026-10-26",
+    "mobileFeatured": true
   },
   {
     "title": "スポットレイト",
