@@ -77,7 +77,8 @@ jobs:
     needs: refresh
     runs-on: ubuntu-24.04
     timeout-minutes: 5
-    # This job runs no repository or dependency code with its write token.
+    # This job runs no repository or dependency code with its write token; it checks the
+    # snapshot's shape with git and jq only.
     permissions:
       contents: write
     outputs:
@@ -106,6 +107,30 @@ jobs:
             echo "No view-count changes to commit."
             exit 0
           fi
+          # The snapshot came from a job that ran dependency code. Without running any code from it,
+          # accept only new view counts/dates and this commit's deployment record row.
+          fail() { echo "::error::$1"; exit 1; }
+          CHANGELOG_STAT=$(git diff --numstat -- docs/CHANGELOG.md | cut -f1,2)
+          if [ -n "$CHANGELOG_STAT" ]; then
+            [ "$CHANGELOG_STAT" = "$(printf '1\t0')" ] || fail "Checked CHANGELOG may only add one deployment record row."
+            CHANGELOG_DIFF=$(git diff -U0 -- docs/CHANGELOG.md)
+            printf "%s\n" "$CHANGELOG_DIFF" | grep -Eq "^\+\| [0-9]{2}-[0-9]{2} \| \`${GITHUB_SHA:0:7}\` \| 补记前次发布，供定时动态同步前核对 \| [0-9]+ / [0-9]+ \|$" \
+              || fail "Checked CHANGELOG row is not this commit's deployment record."
+          fi
+          SONGS_JSON=$(sed -e '1s/^const SONGS = //' -e '$s/;$//' js/songs.js)
+          OLD_SONGS_JSON=$(git show HEAD:js/songs.js | sed -e '1s/^const SONGS = //' -e '$s/;$//')
+          printf 'const SONGS = %s;\n' "$(printf '%s' "$SONGS_JSON" | jq --indent 2 .)" | cmp -s - js/songs.js \
+            || fail "Checked js/songs.js is not the canonical SONGS array."
+          jq -en --argjson old "$OLD_SONGS_JSON" --argjson new "$SONGS_JSON" '
+            def counts: del(.viewCount, .viewsCheckedAt);
+            ($old | type) == "array" and ($new | type) == "array" and ($old | length) == ($new | length)
+            and ([range($new | length) as $i | $old[$i] as $o | $new[$i] as $n
+              | $o == $n or (($o | type) == "object" and ($n | type) == "object" and ($o | counts) == ($n | counts)
+                and ($n.viewCount | type == "number" and . >= 0 and . == floor)
+                and ($n.viewsCheckedAt | type == "string" and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}$"))
+                and ($o.viewsCheckedAt == null or $n.viewsCheckedAt >= $o.viewsCheckedAt)
+                and $n.viewsCheckedAt <= (now + 86400 | strftime("%Y-%m-%d")))] | all)' >/dev/null \
+            || fail "Checked js/songs.js changes more than view counts and check dates."
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add js/songs.js docs/CHANGELOG.md

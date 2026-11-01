@@ -61,6 +61,15 @@ function git(cwd, ...args) {
   return result.stdout.trim();
 }
 
+const BASE_SONGS = [
+  { title: "テスト", youtube: "https://youtu.be/aaaaaaaaaaa", album: "Test", singers: ["歌爱雪"], viewCount: 1, viewsCheckedAt: "2026-01-01" },
+  { title: "Second", youtube: "https://youtu.be/bbbbbbbbbbb", album: "Test", singers: [], viewCount: 7, viewsCheckedAt: "2026-01-01", mobileFeatured: true },
+  { title: "Not yet counted", youtube: "https://youtu.be/ccccccccccc", album: "Test", singers: [] }
+];
+const formatSongs = songs => `const SONGS = ${JSON.stringify(songs, null, 2)};\n`;
+const today = () => new Date().toISOString().slice(0, 10);
+const recordRow = sha => `| 11-01 | \`${sha.slice(0, 7)}\` | 补记前次发布，供定时动态同步前核对 | 1 / 2 |`;
+
 function sandbox(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "youtube-workflow-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -71,7 +80,7 @@ function sandbox(t) {
   git(repo, "init", "-b", "main");
   git(repo, "remote", "add", "origin", remote);
   for (const dir of ["js", "docs", "checked-snapshot/js", "checked-snapshot/docs"]) fs.mkdirSync(path.join(repo, dir), { recursive: true });
-  fs.writeFileSync(path.join(repo, "js/songs.js"), "const SONGS = [];\n");
+  fs.writeFileSync(path.join(repo, "js/songs.js"), formatSongs(BASE_SONGS));
   fs.writeFileSync(path.join(repo, "docs/CHANGELOG.md"), "previous record\n");
   git(repo, "add", "js/songs.js", "docs/CHANGELOG.md");
   git(repo, "commit", "-m", "baseline");
@@ -79,14 +88,16 @@ function sandbox(t) {
   const base = git(repo, "rev-parse", "HEAD");
   const output = path.join(root, "outputs");
   fs.writeFileSync(output, "");
-  const writeSnapshot = (changed = true) => {
-    fs.writeFileSync(path.join(repo, "checked-snapshot/js/songs.js"), changed ? "const SONGS = [{viewCount: 42}];\n" : "const SONGS = [];\n");
-    fs.writeFileSync(path.join(repo, "checked-snapshot/docs/CHANGELOG.md"), changed ? "checked deployment record\n" : "previous record\n");
+  const writeSnapshot = (changed = true, { songs, changelog } = {}) => {
+    const refreshed = BASE_SONGS.map((song, index) => index === 0 ? { ...song, viewCount: 42, viewsCheckedAt: today() } : song);
+    fs.writeFileSync(path.join(repo, "checked-snapshot/js/songs.js"), songs ?? formatSongs(changed ? refreshed : BASE_SONGS));
+    fs.writeFileSync(path.join(repo, "checked-snapshot/docs/CHANGELOG.md"), changelog ?? (changed ? `${recordRow(base)}\nprevious record\n` : "previous record\n"));
     fs.writeFileSync(path.join(repo, "checked-snapshot/unexpected.txt"), "must not be committed\n");
   };
   return {
     root, repo, remote, base, output, writeSnapshot,
-    run: () => command(repo, "bash", ["-e", "-c", commitScript], { GITHUB_SHA: base, GITHUB_OUTPUT: output })
+    // GitHub Actions runs `run:` scripts with `bash -e -o pipefail`.
+    run: () => command(repo, "bash", ["-e", "-o", "pipefail", "-c", commitScript], { GITHUB_SHA: base, GITHUB_OUTPUT: output })
   };
 }
 
@@ -122,7 +133,7 @@ test("actual commit step rejects a checkout newer than the validated source", t 
   assert.notEqual(result.status, 0);
   assert.match(result.stdout, /main changed during validation/u);
   assert.equal(git(box.repo, "rev-parse", "HEAD"), newer);
-  assert.equal(fs.readFileSync(path.join(box.repo, "js/songs.js"), "utf8"), "const SONGS = [];\n");
+  assert.equal(fs.readFileSync(path.join(box.repo, "js/songs.js"), "utf8"), formatSongs(BASE_SONGS));
   assert.equal(git(box.root, "--git-dir", box.remote, "rev-parse", "refs/heads/main"), box.base);
   assert.equal(fs.readFileSync(box.output, "utf8"), "");
 });
@@ -143,4 +154,43 @@ test("actual commit step fails instead of rebasing when main advances after chec
   assert.equal(git(box.root, "--git-dir", box.remote, "rev-parse", "refs/heads/main"), remoteHead);
   assert.equal(git(box.repo, "rev-parse", "HEAD^"), box.base, "the old snapshot must never be rebased onto unvalidated code");
   assert.equal(fs.readFileSync(box.output, "utf8"), "");
+});
+
+test("actual commit step keeps uncounted songs and accepts a refresh without a record row", t => {
+  const box = sandbox(t);
+  const songs = BASE_SONGS.map((song, index) => index === 0 ? { ...song, viewCount: 43, viewsCheckedAt: today() } : song);
+  box.writeSnapshot(true, { songs: formatSongs(songs), changelog: "previous record\n" });
+  const result = box.run();
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(git(box.repo, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD").split("\n"), ["js/songs.js"]);
+});
+
+test("actual commit step refuses a snapshot that changes more than view counts or this commit's record row", async t => {
+  const tamper = (mutate) => formatSongs(BASE_SONGS.map((song, index) => index === 0 ? mutate({ ...song, viewsCheckedAt: today() }) : song));
+  const cases = {
+    "song link": { songs: tamper(song => ({ ...song, youtube: "https://evil.example/" })), error: /changes more than view counts/u },
+    "song title": { songs: tamper(song => ({ ...song, title: "<img src=x onerror=alert(1)>" })), error: /changes more than view counts/u },
+    "negative count": { songs: tamper(song => ({ ...song, viewCount: -1 })), error: /changes more than view counts/u },
+    "fractional count": { songs: tamper(song => ({ ...song, viewCount: 1.5 })), error: /changes more than view counts/u },
+    "future check date": { songs: tamper(song => ({ ...song, viewsCheckedAt: "2099-01-01" })), error: /changes more than view counts/u },
+    "older check date": { songs: tamper(song => ({ ...song, viewsCheckedAt: "2025-12-31" })), error: /changes more than view counts/u },
+    "dropped song": { songs: formatSongs(BASE_SONGS.slice(1)), error: /changes more than view counts/u },
+    "appended script": { songs: `${tamper(song => song)}alert(1);\n`, error: /not the canonical SONGS array/u },
+    "non-canonical file": { songs: `const SONGS = ${JSON.stringify(BASE_SONGS)};\n`, error: /not the canonical SONGS array/u },
+    "extra changelog line": { changelog: "| 11-01 | `deadbee` | 补记前次发布，供定时动态同步前核对 | 1 / 2 |\nextra\nprevious record\n", error: /only add one deployment record row/u },
+    "changed changelog line": { changelog: "edited record\n", error: /only add one deployment record row/u },
+    "other commit's row": { changelog: "| 11-01 | `deadbee` | 补记前次发布，供定时动态同步前核对 | 1 / 2 |\nprevious record\n", error: /not this commit's deployment record/u }
+  };
+  for (const [name, { error, ...snapshot }] of Object.entries(cases)) {
+    await t.test(name, t => {
+      const box = sandbox(t);
+      box.writeSnapshot(true, snapshot);
+      const result = box.run();
+      assert.notEqual(result.status, 0);
+      assert.match(result.stdout, error);
+      assert.equal(git(box.repo, "rev-parse", "HEAD"), box.base);
+      assert.equal(git(box.root, "--git-dir", box.remote, "rev-parse", "refs/heads/main"), box.base);
+      assert.equal(fs.readFileSync(box.output, "utf8"), "");
+    });
+  }
 });

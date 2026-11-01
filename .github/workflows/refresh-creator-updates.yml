@@ -90,6 +90,48 @@ jobs:
           fi
           # Refuse to overwrite work pushed while the read-only refresh job ran.
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          # The snapshot came from a job that ran dependency code. Without running any code from it,
+          # accept only a canonical creator snapshot with official links and this commit's record row.
+          fail() { echo "::error::$1"; exit 1; }
+          CHANGELOG_STAT=$(git diff --numstat -- docs/CHANGELOG.md | cut -f1,2)
+          if [ -n "$CHANGELOG_STAT" ]; then
+            [ "$CHANGELOG_STAT" = "$(printf '1\t0')" ] || fail "Checked CHANGELOG may only add one deployment record row."
+            CHANGELOG_DIFF=$(git diff -U0 -- docs/CHANGELOG.md)
+            printf "%s\n" "$CHANGELOG_DIFF" | grep -Eq "^\+\| [0-9]{2}-[0-9]{2} \| \`${GITHUB_SHA:0:7}\` \| 补记前次发布，供定时动态同步前核对 \| [0-9]+ / [0-9]+ \|$" \
+              || fail "Checked CHANGELOG row is not this commit's deployment record."
+          fi
+          [ "$(wc -c < data/creator-updates.json)" -le 262144 ] || fail "Checked creator snapshot is too large."
+          jq --indent 2 . data/creator-updates.json | cmp -s - data/creator-updates.json \
+            || fail "Checked creator snapshot is not canonical JSON."
+          jq -e --argjson old "$(git show HEAD:data/creator-updates.json)" '
+            def ts: type == "string" and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$");
+            def owner: {youtube: "inabakumori", pixiv: "nknk", campfire: "nknk"};
+            def link($source; $id):
+              if $source == "youtube" then "https://www.youtube.com/watch?v=\($id)"
+              elif $source == "pixiv" then "https://www.pixiv.net/artworks/\($id)"
+              else "https://camp-fire.jp/projects/970332/view/activities/\($id)" end;
+            (keys == ["items", "sources", "version"]) and .version == 1
+            and ([.sources[] | {id, creator, label, url}] == [$old.sources[] | {id, creator, label, url}])
+            and all(.sources[];
+              (keys - ["checkedAt", "creator", "id", "label", "lastAttemptAt", "message", "status", "url"]) == []
+              and (.status == "error" or (.status == "ok" and .checkedAt != null))
+              and (.checkedAt == null or (.checkedAt | ts)) and (.lastAttemptAt == null or (.lastAttemptAt | ts))
+              and (.message == null or .message == "Official source could not be checked. Previous entries are retained."))
+            and (.items | type == "array")
+            and ([.items[].id] | length == (unique | length))
+            and ([.items[].source] | (map(select(. == "youtube")) | length) <= 12
+              and (map(select(. == "pixiv")) | length) <= 12 and (map(select(. == "campfire")) | length) <= 5)
+            and all(.items[]; . as $item
+              | ($item.id | if type == "string" then ltrimstr(($item.source | tostring) + ":") else "" end) as $id
+              | (keys - ["creator", "datePrecision", "id", "publishedAt", "source", "title", "url"]) == []
+              and ($item.source | type == "string") and owner[$item.source] != null and $item.creator == owner[$item.source]
+              and ($item.id | type == "string") and $item.id == "\($item.source):\($id)"
+              and ($id | test(if $item.source == "youtube" then "^[A-Za-z0-9_-]{11}$" else "^[1-9][0-9]{0,14}$" end))
+              and $item.url == link($item.source; $id)
+              and ($item.publishedAt | ts) and ($item.datePrecision == null or $item.datePrecision == "day")
+              and ($item.title | type == "string" and length <= 2000 and test("\\S")
+                and (test("[\\x{0}-\\x{8}\\x{b}-\\x{1f}\\x{7f}-\\x{9f}\\x{202a}-\\x{202e}\\x{2066}-\\x{2069}]") | not)))' \
+            data/creator-updates.json >/dev/null || fail "Checked creator snapshot has an unexpected shape, source or link."
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/creator-updates.json docs/CHANGELOG.md
