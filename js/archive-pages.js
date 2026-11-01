@@ -74,61 +74,95 @@
     else systemTheme?.addListener?.(applyTheme);
     window.addEventListener("pageshow", event => { if (event.persisted) { language = readLanguage(); applyLanguage(); } });
 
-    // songs.html: choose year OR album, then one value within that branch.
+    // songs.html: one "Filter" menu. Choose album or year, then one value in that submenu.
     function initSongFilter() {
       const panel = document.getElementById("song-filters");
-      if (!panel) return;
+      const toggle = document.getElementById("song-filter-toggle");
+      const menu = document.getElementById("song-filter-menu");
+      if (!panel || !toggle || !menu) return;
       const facets = ["album", "year"];
       const items = [...document.querySelectorAll(".song-index-list li[data-album][data-year]")];
+      const dropdown = panel.querySelector(".song-filter-dropdown");
+      const toggleLabel = document.getElementById("song-filter-toggle-label");
+      const all = document.getElementById("song-filter-all");
       const buttons = [...panel.querySelectorAll("button[data-song-filter]")];
       const modes = [...panel.querySelectorAll("button[data-song-mode]")];
-      const groups = Object.fromEntries(facets.map(facet => [facet, document.getElementById(`song-filter-${facet}`)]));
+      const submenus = Object.fromEntries(facets.map(facet => [facet, document.getElementById(`song-filter-${facet}`)]));
       const status = document.getElementById("song-filter-status");
       const reset = document.getElementById("song-filter-reset");
       const empty = document.getElementById("song-filter-empty");
       const known = Object.fromEntries(facets.map(facet => [facet, new Set(items.map(item => item.dataset[facet]))]));
-      let facet = "", value = "all";
+      const filterWord = { zh: "筛选", en: "Filter", ja: "絞り込み" };
+      let facet = "", value = "";
       const seen = new Set();
       for (const pair of String(window.location?.search || "").replace(/^\?/u, "").split("&")) {
         const separator = pair.indexOf("=");
         const key = separator < 0 ? pair : pair.slice(0, separator);
-        // Only the first occurrence of a key counts; malformed or unknown values are ignored.
+        // Only the first occurrence of a key counts. "all", unknown and malformed values select
+        // nothing, so an old combined link falls through to its next real filter.
         if (!facets.includes(key) || seen.has(key)) continue;
         seen.add(key);
         try {
           const decoded = decodeURIComponent((separator < 0 ? "" : pair.slice(separator + 1)).replace(/\+/gu, " "));
-          if (decoded === "all" || known[key].has(decoded)) {
-            // Old combined links keep their first valid branch, never an invisible second filter.
+          if (known[key].has(decoded)) {
             facet = key;
             value = decoded;
             break;
           }
-        } catch { /* Keep this filter at "all". */ }
+        } catch { /* Ignore this key. */ }
+      }
+      const inside = target => Boolean(target && dropdown?.contains(target));
+      function showBranch(branch) {
+        for (const mode of modes) {
+          const own = mode.dataset.songMode;
+          mode.setAttribute("aria-expanded", String(own === branch));
+          if (submenus[own]) submenus[own].hidden = own !== branch;
+        }
+      }
+      function setOpen(open, branch = "") {
+        menu.hidden = !open;
+        toggle.setAttribute("aria-expanded", String(open));
+        showBranch(open ? branch : "");
+      }
+      function close(returnFocus) {
+        if (menu.hidden) return;
+        setOpen(false);
+        if (returnFocus) toggle.focus();
       }
       function render() {
         let shown = 0;
         for (const item of items) {
-          const visible = !facet || value === "all" || item.dataset[facet] === value;
+          const visible = !facet || item.dataset[facet] === value;
           item.hidden = !visible;
           if (visible) shown++;
         }
+        all?.setAttribute("aria-pressed", String(!facet));
         for (const mode of modes) {
-          const selected = mode.dataset.songMode === facet;
-          mode.setAttribute("aria-pressed", String(selected));
-          mode.setAttribute("aria-expanded", String(selected));
-          groups[mode.dataset.songMode].hidden = !selected;
+          if (mode.dataset.songMode === facet) mode.setAttribute("data-active", "");
+          else mode.removeAttribute("data-active");
         }
+        let chosen = null;
         for (const button of buttons) {
-          button.setAttribute("aria-pressed", String(button.dataset.songFilter === facet && button.dataset.value === value));
+          const selected = button.dataset.songFilter === facet && button.dataset.value === value;
+          button.setAttribute("aria-pressed", String(selected));
+          if (selected) chosen = button;
         }
-        const total = items.length, filtered = facet && value !== "all";
+        if (chosen) toggle.setAttribute("data-active", "");
+        else toggle.removeAttribute("data-active");
+        if (toggleLabel) {
+          // data-zh/en/ja let applyLanguage() retranslate dynamic text after a language switch.
+          for (const code of languages) {
+            const choice = chosen?.dataset[`label${code[0].toUpperCase()}${code.slice(1)}`];
+            toggleLabel.dataset[code] = choice ? `${filterWord[code]}${code === "en" ? ": " : "："}${choice}` : filterWord[code];
+          }
+          toggleLabel.textContent = toggleLabel.dataset[language];
+        }
+        const total = items.length;
         if (status) {
-          // data-zh/en/ja let applyLanguage() retranslate the count after a language switch.
-          Object.assign(status.dataset, filtered
+          Object.assign(status.dataset, facet
             ? { zh: `显示 ${shown} / ${total} 首`, en: `Showing ${shown} of ${total} songs`, ja: `${total}曲中${shown}曲を表示` }
             : { zh: `共 ${total} 首`, en: `${total} songs`, ja: `全${total}曲` });
           status.textContent = status.dataset[language];
-          status.hidden = false;
         }
         if (reset) reset.hidden = !facet;
         if (empty) empty.hidden = shown > 0;
@@ -137,26 +171,43 @@
         facet = nextFacet;
         value = nextValue;
         render();
-        const query = facet ? `${facet}=${encodeURIComponent(value)}` : "";
         try {
-          const search = query ? `?${query}` : "";
+          const search = facet ? `?${facet}=${encodeURIComponent(value)}` : "";
           if ((window.location?.search || "") !== search) window.history?.replaceState?.(null, "", window.location.pathname + search + window.location.hash);
         } catch { /* history unavailable: the in-page filter still applies */ }
       }
-      for (const mode of modes) mode.addEventListener("click", () => {
-        const nextFacet = mode.dataset.songMode;
-        if (facets.includes(nextFacet) && nextFacet !== facet) update(nextFacet, "all");
-      });
+      function choose(nextFacet, nextValue) {
+        update(nextFacet, nextValue);
+        close(true);
+      }
+      toggle.addEventListener("click", () => menu.hidden ? setOpen(true, facet) : close(false));
+      for (const mode of modes) {
+        const branch = mode.dataset.songMode;
+        if (!facets.includes(branch)) continue;
+        // Clicking always opens (never collapses) the branch, so a hover-then-click stays open.
+        mode.addEventListener("click", () => showBranch(branch));
+        mode.addEventListener("pointerenter", event => { if (event.pointerType === "mouse") showBranch(branch); });
+      }
+      all?.addEventListener("click", () => choose("", ""));
+      all?.addEventListener("pointerenter", event => { if (event.pointerType === "mouse") showBranch(""); });
       for (const button of buttons) button.addEventListener("click", () => {
         const { songFilter, value: nextValue } = button.dataset;
-        if (songFilter !== facet || (nextValue !== "all" && !known[facet].has(nextValue))) return;
-        update(facet, nextValue);
+        if (facets.includes(songFilter) && known[songFilter].has(nextValue)) choose(songFilter, nextValue);
       });
       reset?.addEventListener("click", () => {
-        update("", "all");
-        modes[0]?.focus();
+        update("", "");
+        close(false);
+        toggle.focus();
       });
+      document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && !menu.hidden) close(inside(document.activeElement) || document.activeElement === document.body);
+      });
+      document.addEventListener("click", event => { if (!inside(event.target)) close(false); });
+      // Tabbing away closes the menu. A null relatedTarget (e.g. Safari not focusing a clicked
+      // button) is ignored so the click can still reach the menu item.
+      dropdown?.addEventListener("focusout", event => { if (event.relatedTarget && !inside(event.relatedTarget)) close(false); });
       update(facet, value);
+      setOpen(false);
       panel.hidden = false;
     }
 

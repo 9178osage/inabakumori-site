@@ -22,19 +22,29 @@ span.song-fact-note{display:inline}
 .song-browser{padding-top:26px}
 .song-browser h2{font-size:20px;margin:0 0 8px}
 .song-browser-note{color:var(--muted);font-size:12px;line-height:1.7;margin:0}
-.song-filter-hint{font-size:12px;color:var(--muted);margin:18px 0 8px}
-.song-filter-menu{display:grid;grid-template-columns:minmax(140px,180px) minmax(0,1fr);align-items:start;gap:16px}
-.song-filter-label{font-family:var(--font-data);font-size:10px;letter-spacing:.12em;color:var(--muted);margin:0}
-.song-filters .updates-filters{margin-top:8px}
-.song-filters .updates-filters button{padding:8px 14px}
-.song-filters .song-filter-modes{flex-direction:column;margin-top:0}
-.song-filter-modes button{display:flex;align-items:center;justify-content:space-between;gap:16px;text-align:left}
-.song-filter-arrow{font-family:var(--font-data);font-size:20px;line-height:1}
-.song-filter-group{min-width:0;padding:8px 0 8px 18px;border-left:1px solid var(--line)}
-.song-filter-count{margin-left:7px;font-family:var(--font-data);font-size:10px;opacity:.75}
-.song-filter-summary{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0 16px;min-height:16px}
-.song-filter-summary .updates-count{margin:0;padding:12px 0}
-.song-filter-reset{min-height:44px;padding:4px 0;border:0;background:transparent;color:var(--ink);font-size:12px;text-decoration:underline;text-underline-offset:4px;cursor:pointer}
+.song-filters{display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px;margin:18px 0 12px}
+.song-filter-dropdown{position:relative}
+.song-filter-toggle{display:inline-flex;align-items:center;gap:12px;min-height:44px;padding:8px 16px;border:1px solid var(--line);color:var(--ink);background:var(--card);font-size:13px;cursor:pointer}
+.song-filter-toggle:hover,.song-filter-toggle[aria-expanded="true"]{border-color:var(--ink)}
+.song-filter-toggle[data-active]{color:var(--paper);background:var(--ink);border-color:var(--ink)}
+.song-filter-caret{font-family:var(--font-data);font-size:10px;transition:transform .15s}
+.song-filter-toggle[aria-expanded="true"] .song-filter-caret{transform:rotate(180deg)}
+.song-filter-menu,.song-filter-submenu{width:228px;padding:5px;background:var(--paper);border:1px solid var(--ink);box-shadow:0 12px 32px rgba(0,0,0,.22)}
+.song-filter-menu{position:absolute;top:calc(100% + 6px);left:0;z-index:5}
+.song-filter-branch{position:relative}
+.song-filter-submenu{position:absolute;top:-6px;left:calc(100% + 6px)}
+.song-filter-menu button{display:flex;align-items:center;gap:10px;width:100%;min-width:0;min-height:38px;padding:6px 10px;border:0;color:var(--ink);background:transparent;font-size:13px;text-align:left;cursor:pointer}
+.song-filter-menu .song-filter-all{margin-bottom:5px;border-bottom:1px solid var(--soft-line)}
+.song-filter-menu button:hover,.song-filter-menu .song-filter-mode[aria-expanded="true"]{color:var(--paper);background:var(--ink)}
+.song-filter-menu button:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
+.song-filter-menu button:hover:focus-visible,.song-filter-menu .song-filter-mode[aria-expanded="true"]:focus-visible{outline-color:var(--paper);outline-offset:-4px}
+.song-filter-check{flex:none;width:1em;font-family:var(--font-data);visibility:hidden}
+.song-filter-menu [aria-pressed="true"]>.song-filter-check,.song-filter-mode[data-active]>.song-filter-check{visibility:visible}
+.song-filter-text{flex:1;min-width:0;overflow-wrap:anywhere}
+.song-filter-arrow{font-family:var(--font-data);font-size:18px;line-height:1;transition:transform .15s}
+.song-filter-count{font-family:var(--font-data);font-size:10px;opacity:.75}
+.song-filters .updates-count{margin:0}
+.song-filter-reset{min-height:44px;margin-left:auto;padding:4px 0;border:0;background:transparent;color:var(--ink);font-size:12px;text-decoration:underline;text-underline-offset:4px;cursor:pointer}
 .song-index-list{margin:0;padding:0 0 0 2.6em;columns:2;column-gap:44px;border-top:1px solid var(--ink);font-family:var(--font-data)}
 .song-index-list li{break-inside:avoid;padding:10px 0;border-bottom:1px solid var(--soft-line);font-size:11px;color:var(--muted)}
 .song-index-list a{font-family:var(--font-title);font-size:16px;color:var(--ink);margin-right:8px}
@@ -61,14 +71,15 @@ span.song-fact-note{display:inline}
 .song-index-page .song-index-list li{font-size:14px}
 .song-index-page .song-index-list a{display:flex;align-items:center;min-height:48px;padding-block:6px;margin-right:0;font-size:18px;line-height:1.55;overflow-wrap:anywhere}
 .song-index-page .song-index-meta{font-size:13px}
-.song-index-page .song-browser-note,.song-index-page .song-filter-hint,.song-index-page .song-filter-summary .updates-count{font-size:13px}
-.song-filter-menu{grid-template-columns:minmax(0,1fr);gap:10px}
-.song-filters .song-filter-modes{flex-direction:row}
-.song-filter-modes button{flex:1}
-.song-filter-arrow{transform:rotate(90deg)}
-.song-filter-group{padding:12px;border:1px solid var(--line)}
-.song-index-page .song-filter-label{font-size:12px}
-.song-index-page .song-filters .updates-filters button,.song-index-page .song-filter-reset{font-size:14px}
+.song-index-page .song-browser-note,.song-index-page .song-filters .updates-count{font-size:13px}
+/* Phones: the menu spans the bar below the trigger and each submenu opens beneath its branch. */
+.song-filters{position:relative}
+.song-filter-dropdown{position:static}
+.song-filter-menu{top:auto;left:0;right:0;width:auto;margin-top:6px}
+.song-filter-submenu{position:static;width:auto;padding:4px 0 6px 26px;border:0;background:transparent;box-shadow:none}
+#song-filter-year{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px}
+.song-filter-mode[aria-expanded="true"] .song-filter-arrow{transform:rotate(90deg)}
+.song-index-page .song-filter-toggle,.song-index-page .song-filter-menu button,.song-index-page .song-filter-reset{min-height:44px;font-size:15px}
 .song-index-page .song-filter-count{font-size:12px}
 .song-index-page .song-unverified,.song-index-page .song-checked{font-size:12px;margin:4px 0}
 }
