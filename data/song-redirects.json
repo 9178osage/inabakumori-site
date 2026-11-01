@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "note": "Song pages are named after the video ID. When a song's video link changes, list the old ID here with the new one so the old address keeps working: the build publishes a static redirect page for each entry (kept out of the sitemap). The old ID must no longer be a song in js/songs.js and the new one must be.",
+  "redirects": {
+    "dmG60q44PJQ": "2A46CwhV4aE"
+  }
+}

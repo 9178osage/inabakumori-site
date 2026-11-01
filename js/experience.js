@@ -12,10 +12,15 @@
   }
   const text = (zh, en, ja) => ({ zh, en, ja })[currentLanguage] || zh;
   const storage = window.siteStorage;
+  // Favourites are saved by video ID, so a song whose video link changed keeps its favourites by
+  // reading the old ID as the new one. data/song-redirects.json lists the same pairs and a test
+  // keeps them in step. A Map avoids Object.hasOwn, which the oldest supported Safari lacks.
+  const MOVED_SONG_IDS = new Map([["dmG60q44PJQ", "2A46CwhV4aE"]]);
+  const currentSongId = id => MOVED_SONG_IDS.get(id) ?? id;
   function readFavorites(value) {
     try {
       const saved = JSON.parse(value || "[]");
-      return new Set(Array.isArray(saved) ? saved.filter(id => typeof id === "string").slice(0, 1000) : []);
+      return new Set(Array.isArray(saved) ? saved.filter(id => typeof id === "string").slice(0, 1000).map(currentSongId) : []);
     } catch { return new Set(); }
   }
   let favorites = readFavorites(storage.getItem("favorite-songs"));
@@ -193,7 +198,8 @@
         const data = JSON.parse(await file.text());
         if (version !== shareVersion) return;
         if (data?.type !== "inabakumori-favorites" || data.version !== 1 || !Array.isArray(data.songs) || data.songs.length > 1000 || !data.songs.every(id => typeof id === "string" && /^[A-Za-z0-9_-]{11}$/u.test(id))) throw new Error("Invalid favorites file");
-        const merged = new Set([...favorites, ...data.songs]);
+        const imported = data.songs.map(currentSongId);
+        const merged = new Set([...favorites, ...imported]);
         if (merged.size > 1000) throw new Error("Too many favorites");
         const added = merged.size - favorites.size;
         favorites = merged;
@@ -201,7 +207,7 @@
         let persisted = false;
         try { persisted = window.localStorage.getItem("favorite-songs") === JSON.stringify([...favorites]); } catch { /* Storage is unavailable. */ }
         const known = new Set(rows.map(({ link }) => songId(link)));
-        const unknown = [...new Set(data.songs)].filter(id => !known.has(id)).length;
+        const unknown = [...new Set(imported)].filter(id => !known.has(id)).length;
         updateTagFilter();
         renderLibraryStatus = () => {
           const result = text(`已合并收藏，新增 ${added} 首。`, `Favorites merged; ${added} added.`, `お気に入りを統合し、${added}曲を追加しました。`);

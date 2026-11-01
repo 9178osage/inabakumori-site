@@ -196,6 +196,9 @@ test("NKNK generator accepts an external source and creates gallery assets with 
     original.writeUInt32BE(640, 16);
     original.writeUInt32BE(480, 20);
     fs.writeFileSync(source, original);
+    // A phone-thumbnail folder left over from before that set was retired is cleaned up, never regenerated.
+    fs.mkdirSync(path.join(box.root, "images/optimized/nknk/mobile"), { recursive: true });
+    fs.writeFileSync(path.join(box.root, "images/optimized/nknk/mobile/1.webp"), "STALE");
     // The stand-in emits only the WebP dimension header the generator reads;
     // no installed encoder or real gallery originals are used by this test.
     fs.writeFileSync(path.join(box.root, "bin/cwebp"), `#!/usr/bin/env node
@@ -216,10 +219,13 @@ fs.writeFileSync(output, data);
     });
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /NKNK gallery: 1 images/u);
-    for (const file of ["images/optimized/nknk/1.webp", "images/optimized/nknk/mobile/1.webp", "images/optimized/nknk/full/1.webp"]) {
+    for (const file of ["images/optimized/nknk/1.webp", "images/optimized/nknk/full/1.webp"]) {
       assert.equal(fs.readFileSync(path.join(box.root, file)).toString("ascii", 0, 4), "RIFF", file);
     }
-    assert.match(fs.readFileSync(path.join(box.root, "js/nknk-gallery.js"), "utf8"), /id: 1,.*w: 300, h: 100/u);
+    assert.equal(fs.existsSync(path.join(box.root, "images/optimized/nknk/mobile")), false, "no phone thumbnails are generated and a stale folder is removed");
+    const config = fs.readFileSync(path.join(box.root, "js/nknk-gallery.js"), "utf8");
+    assert.match(config, /id: 1,.*w: 300, h: 100/u);
+    assert.doesNotMatch(config, /mobile/iu, "the gallery data carries no phone thumbnail field");
     assert.deepEqual(fs.readFileSync(source), original, "the external original is only read");
   } finally { box.cleanup(); }
 });

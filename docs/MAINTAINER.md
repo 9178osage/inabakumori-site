@@ -109,6 +109,17 @@ CI 的联网记录校验只在 `push` 到 `refs/heads/main` 时执行。PR、其
 
 API 失败时，刷新日志只显示 HTTP 状态及固定白名单中的 Google 错误代码和处理建议；不输出响应原文、错误 message、metadata 或密钥。根据代码核对 GitHub Actions 的 `YOUTUBE_API_KEY`、对应 Cloud 项目的 YouTube Data API v3 启用状态、密钥限制或配额。更新 Secret 后重新运行 `Refresh YouTube view counts`，以刷新成功、对应提交发布成功及线上歌曲文件指纹一致作为恢复依据；仅更新 Secret 不算恢复完成。所有视频请求均失败时保留原歌曲文件，工作流失败，不提交或发布空结果。
 
+### 更换歌曲的视频链接
+
+歌曲页按视频 ID 命名（`song-<视频 ID>.html`），访客的收藏也按视频 ID 保存在浏览器里，所以换一首歌的 YouTube 链接会同时改变页面地址和收藏的对应关系。换链接时一起做四件事：
+
+1. 把 `data/song-archive.json` 里这首歌的记录改到新 ID 下。
+2. 在 `data/song-redirects.json` 登记「旧 ID → 新 ID」。构建会为旧地址生成静态跳转页（GitHub Pages 不能发 HTTP 跳转，页面用 `<meta http-equiv="refresh">`，规范地址指向新页面，也不收入站点地图）。构建要求旧 ID 已不是现有歌曲、新 ID 是现有歌曲，`check-build` 核对每个跳转页都在。
+3. 在 `js/experience.js` 的 `MOVED_SONG_IDS` 里加同一对 ID，让已收藏的星标跟着换过去；`tools/tests/library-state.test.cjs` 会核对这份映射与 `data/song-redirects.json` 的配对完全一致（多一对、少一对都会失败）。
+4. 这首歌若在手机首页的精选里，把旧 ID 换成新 ID：`tools/build-site.mjs` 的 `featuredSongs` 和 `script.js` 的 `MOBILE_FEATURED_SONG_IDS` 写着同一组 ID，目前没有测试看守，漏改会让它悄悄失去精选标记。
+
+已登记：《篝火》`dmG60q44PJQ` → `2A46CwhV4aE`（2026-10-31 由非官方转载改为官方音轨）。
+
 ### Node 版本（本地与 CI 精确固定）
 
 后端 `engines.node` 与各工作流固定为精确版本（当前 `24.22.1`），本地与 CI 不会自动跟进新的 24.x 安全补丁。Vercel 的运行时补丁由平台管理，须另查函数初始化日志；`engines` 的精确声明不等于线上正在运行该补丁。检查清单：

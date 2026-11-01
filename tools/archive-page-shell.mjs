@@ -11,9 +11,14 @@ export function cspMetaFrom(updatesHtml) {
   return matches[0];
 }
 
-// title/description: { zh, en, ja }. body is trusted markup produced by the build.
-export function archivePageShell({ csp, name, title, description, body, scripts = [], shareImage }) {
-  assert.match(name, /^[A-Za-z0-9_.-]+\.html$/u, "Invalid generated page name");
+// title/description: { zh, en, ja }. body is trusted markup produced by the build. canonicalName
+// names the page that search engines and share cards should treat as the real one; refreshTo turns
+// the page into an instant redirect (a static host cannot send an HTTP redirect).
+export function archivePageShell({ csp, name, title, description, body, scripts = [], shareImage, canonicalName = name, refreshTo }) {
+  const PAGE_NAME = /^[A-Za-z0-9_.-]+\.html$/u;
+  assert.match(name, PAGE_NAME, "Invalid generated page name");
+  assert.match(canonicalName, PAGE_NAME, "Invalid canonical page name");
+  assert.ok(refreshTo === undefined || PAGE_NAME.test(refreshTo), "Invalid redirect target");
   const lang = Object.entries(title).map(([language, value]) => ` data-title-${language}="${escape(value)}"`).join("")
     + Object.entries(description).map(([language, value]) => ` data-description-${language}="${escape(value)}"`).join("");
   return `<!DOCTYPE html>
@@ -27,9 +32,9 @@ export function archivePageShell({ csp, name, title, description, body, scripts 
 <meta name="theme-color" content="#171b1f" media="(prefers-color-scheme: dark)"/>
 <meta name="color-scheme" content="light dark"/>
 ${csp}
-<link rel="canonical" href="https://osagechan.top/${name}"/>
+${refreshTo ? `<meta http-equiv="refresh" content="0; url=${refreshTo}"/>\n` : ""}<link rel="canonical" href="https://osagechan.top/${canonicalName}"/>
 <meta property="og:type" content="website"/>
-<meta property="og:url" content="https://osagechan.top/${name}"/>
+<meta property="og:url" content="https://osagechan.top/${canonicalName}"/>
 <meta property="og:title" content="${escape(title.zh)}"/>
 <meta property="og:description" content="${escape(description.zh)}"/>
 <meta property="og:site_name" content="气象观测站 · 稲葉曇"/>

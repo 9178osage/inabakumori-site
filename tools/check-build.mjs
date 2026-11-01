@@ -7,7 +7,7 @@ import { loopbackCspSources } from "./net-guards.mjs";
 import { readXPostsArchive } from "./x-posts-data.mjs";
 import { readXTranslations } from "./x-translations.mjs";
 import { newestSongRelease } from "./calendar-song.mjs";
-import { songPageName } from "./song-archive.mjs";
+import { songPageName, validateSongRedirects } from "./song-archive.mjs";
 import { createHash } from "node:crypto";
 
 // Local references in built HTML: src/href values plus every URL inside srcset candidate lists.
@@ -107,7 +107,6 @@ assert.equal(nknk.length, new Set(nknk.map(item => item.id)).size, "NKNK gallery
 for (const item of nknk) {
   assert.equal(item.id, Number(item.id));
   await stat(distFile(item.thumb));
-  await stat(distFile(item.mobileThumb));
   await stat(distFile(item.full));
 }
 assert.ok(html.includes('id="nknk-gallery"'), "NKNK gallery mount missing");
@@ -223,9 +222,13 @@ for (const value of htmlReferences(calendarHtml)) {
 // Song archive: one page per song, same CSP as the archive, no inline scripts,
 // every local reference present; the removed post search must not come back.
 const archiveCsp = updatesHtml.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)"/)?.[1];
-assert.deepEqual(new Set((await readdir(root)).filter(name => SONG_PAGE.test(name) || name === "songs.html")), generatedPages, "Song archive pages must match js/songs.js");
-for (const name of generatedPages) {
-  assert.ok(sitemapLocations.includes(name), `Sitemap must list ${name}`);
+// Retired song addresses (changed video links) stay published as redirect pages.
+const songRedirects = validateSongRedirects(JSON.parse(await readFile(path.resolve(root, "../data/song-redirects.json"), "utf8")), vm.runInContext("SONGS", songContext));
+const redirectPages = new Set(Object.keys(songRedirects).map(id => `song-${id}.html`));
+assert.deepEqual(new Set((await readdir(root)).filter(name => SONG_PAGE.test(name) || name === "songs.html")), new Set([...generatedPages, ...redirectPages]), "Song archive pages must match js/songs.js and data/song-redirects.json");
+for (const name of [...generatedPages, ...redirectPages]) {
+  // The sitemap lists each song once, at the address that stays; a redirect page is never listed.
+  assert.equal(sitemapLocations.includes(name), generatedPages.has(name), generatedPages.has(name) ? `Sitemap must list ${name}` : `Sitemap must not list the redirect page ${name}`);
   const pageHtml = await readFile(path.join(root, name), "utf8");
   assert.equal(pageHtml.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)"/)?.[1], archiveCsp, `${name} must reuse the archive CSP`);
   assert.doesNotMatch(pageHtml, /<script(?![^>]*\bsrc=)[^>]*>/u, `${name} must not use inline scripts`);
@@ -234,6 +237,16 @@ for (const name of generatedPages) {
     if (/^(https?:|mailto:|#)/u.test(value)) continue;
     assert.ok((await stat(distFile(value.split(/[?#]/u)[0]))).isFile(), `Missing reference in ${name}: ${value}`);
   }
+}
+// A retired address jumps at once to the page that replaced it and names that page as canonical;
+// the visible link covers browsers that ignore the refresh.
+for (const [from, to] of Object.entries(songRedirects)) {
+  const name = `song-${from}.html`, target = `song-${to}.html`;
+  const pageHtml = await readFile(path.join(root, name), "utf8");
+  assert.equal([...pageHtml.matchAll(/http-equiv="refresh"/gu)].length, 1, `${name} must have exactly one redirect`);
+  assert.ok(pageHtml.includes(`<meta http-equiv="refresh" content="0; url=${target}"/>`), `${name} must redirect to ${target}`);
+  assert.ok(pageHtml.includes(`<link rel="canonical" href="https://osagechan.top/${target}"/>`), `${name} must name ${target} as canonical`);
+  assert.ok(pageHtml.includes(`<a href="${target}"`), `${name} must link to ${target}`);
 }
 assert.ok(!(await readdir(root)).some(name => name === "search.html" || name === "search-index"), "Post search page and index must not be published");
 assert.ok(bytes < 12 * 1024 * 1024, `Public build (excluding archive pages) exceeds 12 MiB: ${bytes}`);

@@ -2,6 +2,20 @@
 
 本轮（2026-10-01）在既有 HTML / CSS / JavaScript 与 Express / SuperTokens / SQLite 架构上做了一轮综合加固与体验打磨；歌曲资料、账号体系与数据库格式继续兼容。没有修改线上数据库，也没有向生产环境发送测试留言或密码重置邮件。
 
+## 2026-10-31 旧歌曲页地址改为静态跳转页
+
+歌曲页按视频 ID 命名，换一首歌的视频链接会让旧地址变成 404（《篝火》改链接后就是这样）。新增 `data/song-redirects.json`（`{ version, redirects: { 旧ID: 新ID } }`）和 `validateSongRedirects`：旧 ID 不能仍是现有歌曲，新 ID 必须是现有歌曲，所以不会出现跳转链、环，也盖不掉真实页面。构建为每条记录生成一页 `song-<旧ID>.html`：沿用归档页外壳和归档页 CSP（原样复制，没有新增或放宽任何指令），`<meta http-equiv="refresh" content="0; url=…">` 立即跳转，canonical 与 og:url 指向新页面，标题、描述和分享封面与新页面一致，另有一个指向新页面的可见链接给不执行跳转的阅读器。跳转页不写进 `sitemap.xml`。
+
+`tools/check-build.mjs` 要求 `dist/` 里的歌曲页恰好等于现有歌曲页加登记的跳转页，并逐页核对跳转目标、canonical、可见链接、归档页 CSP 与无内联脚本；`tools/integration.mjs` 经预览服务器请求旧地址，确认返回 200 并带跳转。与 `origin/main` 的构建逐文件对比，除这次有意改动的部分外没有别的变化：新增这一页跳转页；`js/experience.js`、`js/nknk-gallery.js` 随改动变化，`index.html` 里只有这两个脚本的 `?v=` 指纹行不同；`sitemap.xml`、`songs.html` 和另外 52 首歌的页面逐字节不变；手机小缩略图目录整体消失（见下一节）。无头 Chrome（桌面、手机模拟、禁用 JavaScript）里旧地址在 60–120 ms 内落到新页面，历史记录只多一条，返回键回到来源页而不是被跳转页卡住，没有控制台或 CSP 报错。
+
+收藏同理：`js/experience.js` 读取收藏时用 `MOVED_SONG_IDS` 把旧 ID 当作新 ID（用 Map，避免最旧受支持的 Safari 没有的 `Object.hasOwn`），导入换链接前导出的备份时同样处理，不会把同一首歌算成两首。`tools/tests/library-state.test.cjs` 核对这份映射与 `data/song-redirects.json` 的配对完全一致：既要每一对都生效，也不允许脚本里多出或残留 JSON 里没有的配对。
+
+## 2026-10-31 手机小缩略图退役
+
+删除 `images/optimized/nknk/mobile/`（107 个 220px WebP，共 659,586 字节）以及生成、检查它们的代码：`tools/generate-nknk-gallery.mjs` 不再有手机缩略图目录、220px 常量和 `--mobile-only` 选项，生成的 `js/nknk-gallery.js` 每项不再带 `mobileThumb` 字段，`tools/check-build.mjs` 不再检查这些文件；生成器还会清掉旧版留下的 `mobile/` 目录。这套图只服务于 2026-10-27 引入的手机缩略图网格，网格停用并在 `93f7710` 删除后，没有页面再引用它们。
+
+后来评估过让手机的单行滚动改用这套图（首屏 15 张 97,168 → 60,340 字节，全部 107 张 1,028,446 → 659,586 字节），但 2x、3x 屏上线稿类插画明显变软，决定不上线，随之删掉这套图。`tools/tests/nknk-gallery.test.cjs` 新增守卫：图库数据不得再带 `mobileThumb`，`mobile/` 目录不得再发布。线上发布体积减少 659,586 字节；git 历史里的旧文件不变。下面 2026-10-27 一节对 220px 缩略图和 `--mobile-only` 的描述是当时的状态，保留不改。
+
 ## 2026-10-31 Cloudflare 资源试点退役
 
 删除 `js/config.js` 里的 `APP_CONFIG.assetPilot`、首页 CSP `img-src` 对 `inabakumori-assets.pages.dev` 的放行、`tools/build-asset-pilot.mjs` 打包器和它的测试；站内早已没有页面读取这些资源（手机画廊 2026-10-30 起不再用缩略图网格）。首页 `img-src` 现在只剩本站、`data:` 和 YouTube 的两个缩略图域名，`tools/tests/security.test.cjs` 把这份名单固定下来，以后新增图片来源必须同时改这条测试。登录、认证、cookie 和 CSP 的其他指令没有变化。

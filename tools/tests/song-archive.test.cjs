@@ -11,6 +11,7 @@ const songs = () => {
   return JSON.parse(JSON.stringify(vm.runInContext("SONGS", context)));
 };
 const data = () => JSON.parse(fs.readFileSync(path.join(repo, "data/song-archive.json"), "utf8"));
+const redirects = () => JSON.parse(fs.readFileSync(path.join(repo, "data/song-redirects.json"), "utf8"));
 const post = (id, publishedAt, text, links = []) => ({ id, publishedAt, text, links });
 
 test("song video IDs accept trusted short/watch links and reject deceptive origins or URL forms", async () => {
@@ -324,4 +325,55 @@ test("Kagaribi links the official audio track and follows the store-recorded dat
   assert.match(page, /data-zh="专辑音轨"/u, "labelled as the album audio track");
   assert.doesNotMatch(page, /非官方转载|unofficial reupload|非公式転載/u, "no reupload wording remains on the page");
   assert.match(page, /href="https:\/\/www\.youtube\.com\/watch\?v=2A46CwhV4aE"/u);
+});
+
+test("Kagaribi's former address redirects at once to the official track's page and stays out of the sitemap list", async () => {
+  const { renderArchivePages } = await import("../render-archive-pages.mjs");
+  const { validateSongRedirects } = await import("../song-archive.mjs");
+  const list = songs();
+  assert.deepEqual(validateSongRedirects(redirects(), list), { dmG60q44PJQ: "2A46CwhV4aE" });
+  const result = renderArchivePages({ songs: list, xPosts: { version: 1, coverage: [], items: [] },
+    xTranslations: new Map(), xPostsRenderer: { posts: () => [], renderPost: () => "" },
+    songDetailsSource: data(), songRedirectsSource: redirects(),
+    updatesHtml: fs.readFileSync(path.join(repo, "updates.html"), "utf8") });
+  assert.deepEqual([...result.redirects.keys()], ["song-dmG60q44PJQ.html"]);
+  assert.ok(!result.files.has("song-dmG60q44PJQ.html"), "the redirect page is not an archive page, so the sitemap never lists it");
+  const stub = result.redirects.get("song-dmG60q44PJQ.html");
+  const real = result.files.get("song-2A46CwhV4aE.html");
+  assert.match(stub, /<meta http-equiv="refresh" content="0; url=song-2A46CwhV4aE\.html"\/>/u, "instant redirect, relative so it works on any host");
+  assert.match(stub, /<link rel="canonical" href="https:\/\/osagechan\.top\/song-2A46CwhV4aE\.html"\/>/u, "search engines are told which page is the real one");
+  assert.match(stub, /<meta property="og:url" content="https:\/\/osagechan\.top\/song-2A46CwhV4aE\.html"\/>/u);
+  assert.match(stub, /<a href="song-2A46CwhV4aE\.html" lang="ja">篝火 \(feat\. 稲葉曇\)<\/a>/u, "a visible link covers browsers that skip the refresh");
+  const meta = (html, pattern) => pattern.exec(html)?.[1];
+  for (const pattern of [/<title>([^<]*)<\/title>/u, /<meta property="og:title" content="([^"]*)"/u, /<meta property="og:description" content="([^"]*)"/u, /<meta property="og:image" content="([^"]*)"/u, /<meta http-equiv="Content-Security-Policy" content="([^"]*)"/u]) {
+    assert.equal(meta(stub, pattern), meta(real, pattern), `${pattern} matches the real page, so previews and the archive CSP are unchanged`);
+  }
+  assert.doesNotMatch(stub, /<script(?![^>]*\bsrc=)[^>]*>/u, "no inline script");
+  assert.doesNotMatch(stub, /\son[a-z]+=/u, "no inline handler");
+  assert.doesNotMatch(real, /http-equiv="refresh"/u, "the real page never redirects");
+  assert.match(real, /<link rel="canonical" href="https:\/\/osagechan\.top\/song-2A46CwhV4aE\.html"\/>/u);
+  assert.ok(!result.files.get("songs.html").includes("dmG60q44PJQ"), "no archive page links the retired address");
+});
+
+test("song redirects refuse entries that could shadow a page, chain, loop or name an unknown song", async () => {
+  const { validateSongRedirects, youtubeId } = await import("../song-archive.mjs");
+  const list = songs();
+  const [first, second] = list.map(song => youtubeId(song.youtube));
+  const retired = "AAAAAAAAAAA", other = "BBBBBBBBBBB";
+  assert.deepEqual(validateSongRedirects({ version: 1, redirects: {} }, list), {});
+  assert.deepEqual(validateSongRedirects({ version: 1, redirects: { [retired]: first, [other]: first } }, list), { [retired]: first, [other]: first }, "two old addresses may share one replacement");
+  for (const [name, value] of [
+    ["an unsupported version", { version: 2, redirects: {} }],
+    ["no redirect map", { version: 1 }],
+    ["a list instead of a map", { version: 1, redirects: [] }],
+    ["a source that is still a song, which would shadow its page", { version: 1, redirects: { [first]: second } }],
+    ["a replacement that is not a song", { version: 1, redirects: { [retired]: other } }],
+    ["a chain of redirects", { version: 1, redirects: { [retired]: other, [other]: first } }],
+    ["a loop", { version: 1, redirects: { [retired]: other, [other]: retired } }],
+    ["a malformed source", { version: 1, redirects: { short: first } }],
+    ["a path-like source", { version: 1, redirects: { "../etc/pass": first } }],
+    ["a malformed replacement", { version: 1, redirects: { [retired]: "x/../y" } }],
+    ["a replacement that is not text", { version: 1, redirects: { [retired]: 5 } }],
+    ["a prototype key", JSON.parse(`{"version":1,"redirects":{"__proto__":"${first}"}}`)]
+  ]) assert.throws(() => validateSongRedirects(value, list), undefined, name);
 });

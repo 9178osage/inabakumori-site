@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import http from "node:http";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -65,6 +65,15 @@ try {
   assert.match(updatesHtml, /class="update-item"/u);
   assert.match(updatesHtml, /data-creator="inabakumori"/u);
   assert.match(updatesHtml, /data-creator="nknk"/u);
+  // A retired song address is still served: its static page redirects to the page that replaced it.
+  const retiredSongs = JSON.parse(await readFile(path.join(root, "data/song-redirects.json"), "utf8")).redirects;
+  assert.ok(Object.keys(retiredSongs).length > 0, "at least one retired song address is recorded");
+  for (const [from, to] of Object.entries(retiredSongs)) {
+    const moved = await request(`${previewUrl}/song-${from}.html`);
+    assert.equal(moved.status, 200, `song-${from}.html must not be a 404`);
+    assert.match(await moved.text(), new RegExp(`<meta http-equiv="refresh" content="0; url=song-${to}\\.html"/>`, "u"));
+    assert.equal((await request(`${previewUrl}/song-${to}.html`)).status, 200, `song-${to}.html must exist`);
+  }
   for (const asset of ["updates.css", "js/updates.js"]) assert.equal((await request(`${previewUrl}/${asset}`)).status, 200);
   assert.equal((await request(`${previewUrl}/data/creator-updates.json`)).status, 404, "Only rendered public content is served");
   for (const file of ["/backend/.env", "/backend/server.mjs", "/AI_HANDOFF.md", "/docs/AI_HANDOFF.md", "/docs/OPTIMIZATION.md", "/.git/config"]) assert.equal((await request(previewUrl + file)).status, 404);

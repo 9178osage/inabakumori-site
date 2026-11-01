@@ -1,6 +1,6 @@
-// Generates songs.html and song-<videoId>.html.
+// Generates songs.html and song-<videoId>.html, plus a redirect page for each retired song address.
 import { archivePageShell, cspMetaFrom } from "./archive-page-shell.mjs";
-import { linkPosts, renderSongIndex, renderSongPage, songPageName, validateSongDetails, youtubeId } from "./song-archive.mjs";
+import { linkPosts, renderSongIndex, renderSongPage, songPageName, validateSongDetails, validateSongRedirects, youtubeId } from "./song-archive.mjs";
 
 const escape = value => String(value).replace(/[&<>"']/gu, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 const tri = (tag, [zh, en, ja], attributes = "") => `<${tag}${attributes} data-zh="${escape(zh)}" data-en="${escape(en)}" data-ja="${escape(ja)}">${escape(zh)}</${tag}>`;
@@ -29,9 +29,23 @@ function renderYears(songs, details) {
   }).join("")}</section>`;
 }
 
-export function renderArchivePages({ songs, xPosts, xTranslations, xPostsRenderer, songDetailsSource, updatesHtml, contactAddress }) {
+// A song page and its redirect pages describe the same song: search results and share cards
+// must show the same title, description and cover whichever address they were reached through.
+const songMeta = song => ({
+  title: { zh: `${song.title} · 歌曲观测档案`, en: `${song.title} · Song archive`, ja: `${song.title} · 楽曲観測アーカイブ` },
+  description: { zh: `${song.title} 的发布资料与相关 X 帖子。`, en: `Release details and related X posts for ${song.title}.`, ja: `${song.title} の公開情報と関連するX投稿。` },
+  shareImage: { url: `https://i.ytimg.com/vi/${youtubeId(song.youtube)}/hqdefault.jpg`, alt: `${song.title} · 稲葉曇` }
+});
+
+// Visible only when a browser ignores the instant redirect (reader modes, text browsers).
+function renderMovedNotice(song) {
+  return `<section class="updates-intro archive-intro" aria-labelledby="song-moved-title"><div class="observation-label"><span class="observation-dot" aria-hidden="true"></span><span>SONG OBSERVATION</span><span class="observation-number" aria-hidden="true">MOVED</span></div>${tri("h1", ["页面已移动", "This page has moved", "ページは移動しました"], ' id="song-moved-title"')}${tri("p", ["正在跳转到新页面。如果没有自动跳转，请点击下面的链接。", "Taking you to the new page. If nothing happens, use the link below.", "新しいページへ移動しています。自動で移動しない場合は、下のリンクをご利用ください。"], ' class="updates-description"')}<p class="song-sources"><a href="${songPageName(song)}" lang="ja">${escape(song.title)}</a></p></section>`;
+}
+
+export function renderArchivePages({ songs, xPosts, xTranslations, xPostsRenderer, songDetailsSource, songRedirectsSource = { version: 1, redirects: {} }, updatesHtml, contactAddress }) {
   const csp = cspMetaFrom(updatesHtml);
   const details = validateSongDetails(songDetailsSource, songs);
+  const redirectSources = validateSongRedirects(songRedirectsSource, songs);
   const files = new Map();
   const linked = linkPosts(songs, xPostsRenderer.posts(), details);
   const checkedCount = Object.keys(details).length;
@@ -42,11 +56,15 @@ export function renderArchivePages({ songs, xPosts, xTranslations, xPostsRendere
   songs.forEach((song, position) => {
     const id = youtubeId(song.youtube);
     const name = songPageName(song);
-    files.set(name, archivePageShell({ csp, name,
-      title: { zh: `${song.title} · 歌曲观测档案`, en: `${song.title} · Song archive`, ja: `${song.title} · 楽曲観測アーカイブ` },
-      description: { zh: `${song.title} 的发布资料与相关 X 帖子。`, en: `Release details and related X posts for ${song.title}.`, ja: `${song.title} の公開情報と関連するX投稿。` },
-      shareImage: { url: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, alt: `${song.title} · 稲葉曇` },
+    files.set(name, archivePageShell({ csp, name, ...songMeta(song),
       body: renderSongPage(song, position, { details: details[id], linked: linked.get(id), renderPost: xPostsRenderer.renderPost, contactAddress }) }));
   });
-  return { files, linked, details };
+  // Kept apart from `files`: these pages stay out of the sitemap, which lists only the real page.
+  const redirects = new Map();
+  for (const [from, to] of Object.entries(redirectSources)) {
+    const song = songs.find(item => youtubeId(item.youtube) === to);
+    const name = `song-${from}.html`;
+    redirects.set(name, archivePageShell({ csp, name, canonicalName: songPageName(song), refreshTo: songPageName(song), ...songMeta(song), body: renderMovedNotice(song) }));
+  }
+  return { files, redirects, linked, details };
 }

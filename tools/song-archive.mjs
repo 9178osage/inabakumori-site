@@ -38,6 +38,7 @@ const ALBUMS = {
 const MILESTONE = /再生|views|殿堂入り|伝説入り|まいりす|みりおん/u;
 const RELEASE = /新曲|投稿しました|ぷれみあ公開|配信開始|公開しました/u;
 export const SONG_POST_LIMIT = 60;
+const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/u;
 
 export function youtubeId(url) {
   const parsed = new URL(url);
@@ -45,7 +46,7 @@ export function youtubeId(url) {
   const id = parsed.hostname === "youtu.be" ? parsed.pathname.slice(1)
     : ["youtube.com", "www.youtube.com", "m.youtube.com"].includes(parsed.hostname) && parsed.pathname === "/watch" && parsed.searchParams.getAll("v").length === 1
       ? parsed.searchParams.get("v") : null;
-  assert.match(id ?? "", /^[A-Za-z0-9_-]{11}$/u, `Invalid YouTube URL ${url}`);
+  assert.match(id ?? "", VIDEO_ID, `Invalid YouTube URL ${url}`);
   return id;
 }
 export const songPageName = song => `song-${youtubeId(song.youtube)}.html`;
@@ -106,6 +107,23 @@ export function validateSongDetails(data, songs) {
     assert.match(entry.checkedAt, /^\d{4}-\d{2}-\d{2}$/u, `Invalid check date for ${id}`);
   }
   return data.songs;
+}
+
+// A song page is named after its video ID, so changing a song's video link renames the page.
+// Each old ID listed here is published as a static redirect page (GitHub Pages cannot send HTTP
+// redirects) so bookmarks and shared links keep working. A source is never a current song and a
+// target always is, so entries cannot chain, loop or shadow a real page.
+export function validateSongRedirects(data, songs) {
+  assert.equal(data?.version, 1, "Unsupported song redirect data");
+  assert.ok(data.redirects && typeof data.redirects === "object" && !Array.isArray(data.redirects), "Invalid song redirects");
+  const known = new Set(songs.map(song => youtubeId(song.youtube)));
+  for (const [from, to] of Object.entries(data.redirects)) {
+    assert.match(from, VIDEO_ID, `Invalid redirect source ${from}`);
+    assert.ok(typeof to === "string" && VIDEO_ID.test(to), `Invalid redirect target for ${from}`);
+    assert.ok(!known.has(from), `Redirect source ${from} is still a song`);
+    assert.ok(known.has(to), `Redirect target ${to} is not a song`);
+  }
+  return data.redirects;
 }
 
 // Titles with a parenthetical (remixes, covers, versions) match by video ID only; short titles

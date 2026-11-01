@@ -90,7 +90,8 @@ ${emptyXPostsMeta}
   // Generated song archive pages share the archive CSP.
   for (const name of ["songs.html", "song-2r4W_LoVFxA.html"]) box.write(`dist/${name}`, `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self';"/>\n<main></main>`);
   box.write("dist/js/songs.js", 'const SONGS = [{ "title": "ユレール", "youtube": "https://youtu.be/2r4W_LoVFxA" }];\n');
-  box.write("dist/js/nknk-gallery.js", 'const NKNK_GALLERY = [{id:1,thumb:"images/picture.webp",mobileThumb:"images/picture.webp",full:"images/picture.webp"}];\n');
+  box.write("data/song-redirects.json", JSON.stringify({ version: 1, redirects: {} }));
+  box.write("dist/js/nknk-gallery.js", 'const NKNK_GALLERY = [{id:1,thumb:"images/picture.webp",full:"images/picture.webp"}];\n');
   box.write("dist/images/picture.webp", "PUBLIC_IMAGE");
 }
 
@@ -117,6 +118,39 @@ test("public build check rejects symlinked assets and directories before publica
         assert.notEqual(result.status, 0, kind); assert.match(result.stderr, /symlink|non-regular/iu, kind);
         assert.doesNotMatch(result.stdout, /Public build verified/u, kind);
       }
+    } finally { box.close(); }
+  }
+});
+
+test("the build gate requires each retired song address to redirect to its replacement and stay out of the sitemap", () => {
+  const OLD = "AAAAAAAAAAA", NEW = "2r4W_LoVFxA", target = `song-${NEW}.html`;
+  const csp = `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self';"/>`;
+  const page = (to = target, canonical = to) => `${csp}\n<meta http-equiv="refresh" content="0; url=${to}"/>\n<link rel="canonical" href="https://osagechan.top/${canonical}"/>\n<main><a href="${to}">ユレール</a></main>`;
+  const cases = [
+    ["a complete redirect page", () => {}, null],
+    ["a recorded redirect whose page is missing", box => fs.rmSync(path.join(box.root, `dist/song-${OLD}.html`)), /must match js\/songs\.js and data\/song-redirects\.json/u],
+    ["a leftover page that no record explains", box => box.write("data/song-redirects.json", JSON.stringify({ version: 1, redirects: {} })), /must match js\/songs\.js and data\/song-redirects\.json/u],
+    ["a redirect page listed in the sitemap", box => {
+      const file = path.join(box.root, "dist/sitemap.xml");
+      fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("</urlset>", `<url><loc>https://osagechan.top/song-${OLD}.html</loc></url></urlset>`));
+    }, /Sitemap lists an unknown page|Sitemap must not list the redirect page/u],
+    ["a redirect to a different page", box => box.write(`dist/song-${OLD}.html`, page("songs.html")), /must redirect to song-2r4W_LoVFxA\.html/u],
+    ["a redirect page that names itself canonical", box => box.write(`dist/song-${OLD}.html`, page(target, `song-${OLD}.html`)), /must name song-2r4W_LoVFxA\.html as canonical/u],
+    ["a redirect page without the redirect", box => box.write(`dist/song-${OLD}.html`, page().replace(/<meta http-equiv="refresh"[^>]*>\n/u, "")), /must redirect to song-2r4W_LoVFxA\.html|exactly one redirect/u],
+    ["a redirect page with an inline script", box => box.write(`dist/song-${OLD}.html`, `${page()}<script>location.href="x"</script>`), /must not use inline scripts/u],
+    ["a redirect whose replacement is not a song", box => box.write("data/song-redirects.json", JSON.stringify({ version: 1, redirects: { [OLD]: "BBBBBBBBBBB" } })), /Redirect target BBBBBBBBBBB is not a song/u]
+  ];
+  for (const [name, change, failure] of cases) {
+    const box = fixture();
+    try {
+      publicBuild(box);
+      box.write("data/song-redirects.json", JSON.stringify({ version: 1, redirects: { [OLD]: NEW } }));
+      box.write(`dist/song-${OLD}.html`, page());
+      change(box);
+      const result = spawnSync(process.execPath, [path.join(box.root, "tools/check-build.mjs")], { cwd: box.root, encoding: "utf8", timeout: 10000 });
+      assert.ifError(result.error);
+      if (failure) { assert.notEqual(result.status, 0, name); assert.match(result.stderr, failure, name); }
+      else assert.equal(result.status, 0, `${name}: ${result.stderr}`);
     } finally { box.close(); }
   }
 });

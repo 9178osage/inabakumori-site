@@ -191,13 +191,14 @@ await writeFile(output("dist/calendar.html"), calendarHtml);
 // sources on every build, so daily X imports and translation batches flow in automatically.
 const contactAddress = /class="contact-email"\s+href="mailto:([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})\?/u.exec(html)?.[1];
 if (!contactAddress) throw new Error("Missing public feedback contact in homepage");
-const archiveExtras = renderArchivePages({ songs, xPosts, xTranslations, xPostsRenderer, songDetailsSource: JSON.parse(await readFile(source("data/song-archive.json"), "utf8")), updatesHtml: updatesSourceHtml, contactAddress });
+const archiveExtras = renderArchivePages({ songs, xPosts, xTranslations, xPostsRenderer, songDetailsSource: JSON.parse(await readFile(source("data/song-archive.json"), "utf8")), songRedirectsSource: JSON.parse(await readFile(source("data/song-redirects.json"), "utf8")), updatesHtml: updatesSourceHtml, contactAddress });
 const extraPageNames = [];
-for (const [name, content] of archiveExtras.files) {
+for (const [name, content] of [...archiveExtras.files, ...archiveExtras.redirects]) {
   await mkdir(output(path.dirname(`dist/${name}`)), { recursive: true });
   const body = name.endsWith(".html") ? content.replace(/(src|href)="([^"?]+)(?:\?[^"\s]*)?"/g, (match, attribute, file) => hashes.has(file) ? `${attribute}="${file}?v=${hashes.get(file)}"` : match) : content;
   await writeFile(output(`dist/${name}`), body);
-  if (name.endsWith(".html")) extraPageNames.push(name);
+  // Redirect pages for retired song addresses are published but never listed in the sitemap.
+  if (name.endsWith(".html") && !archiveExtras.redirects.has(name)) extraPageNames.push(name);
 }
 // The source sitemap lists the hand-maintained pages; every generated archive page is appended
 // with the date its newest post was collected, so search engines can find the paginated history.

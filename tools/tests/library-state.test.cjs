@@ -24,18 +24,18 @@ class Element {
   querySelectorAll() { return this.children; }
 }
 
-function loadLibrary(search = "") {
+function loadLibrary(search = "", { ids = ["first", "second", "third"], saved: initial = {} } = {}) {
   const elements = new Map();
   const byId = id => {
     if (!elements.has(id)) elements.set(id, new Element());
     return elements.get(id);
   };
-  const links = ["first", "second", "third"].map(id => Object.assign(new Element(), {
+  const links = ids.map(id => Object.assign(new Element(), {
     href: `https://example.com/${id}`, dataset: { songTitle: id }
   }));
   const list = byId("song-list");
   list.children = links.slice();
-  const ready = [], listeners = {}, documentListeners = {}, saved = new Map();
+  const ready = [], listeners = {}, documentListeners = {}, saved = new Map(Object.entries(initial));
   const storage = { getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key, value), removeItem: key => saved.delete(key) };
   const fire = (type, event = {}) => { for (const handler of listeners[type] || []) handler(event); };
   const context = {
@@ -101,6 +101,65 @@ test("favorites import merges a valid backup without discarding existing favorit
   await input.listeners.change[0]();
   assert.deepEqual(JSON.parse(saved.get("favorite-songs")), ["AAAAAAAAAAA", "BBBBBBBBBBB"]);
   assert.match(elements.get("library-status").textContent, /新增 1 首/u);
+});
+
+const RETIRED = "dmG60q44PJQ", CURRENT = "2A46CwhV4aE";
+const starButtons = list => list.children.filter(item => item.className === "song-row").map(row => row.children[1]);
+
+test("a favorite saved under a retired video ID follows the song to its new ID", () => {
+  const { list, ready, saved, storage, fire } = loadLibrary("", { ids: [CURRENT, "BBBBBBBBBBB"], saved: { "favorite-songs": JSON.stringify([RETIRED]) } });
+  ready.forEach(handler => handler());
+  const [song, other] = starButtons(list);
+  assert.equal(song.attributes["aria-pressed"], "true", "the star saved before the video link changed is still lit");
+  assert.equal(other.attributes["aria-pressed"], "false");
+  other.click();
+  assert.deepEqual(JSON.parse(saved.get("favorite-songs")), [CURRENT, "BBBBBBBBBBB"], "saving writes current IDs only, so the retired ID cannot linger");
+  song.click();
+  assert.equal(song.attributes["aria-pressed"], "false", "the migrated favorite can be removed");
+  assert.deepEqual(JSON.parse(saved.get("favorite-songs")), ["BBBBBBBBBBB"]);
+  fire("storage", { key: "favorite-songs", newValue: JSON.stringify([RETIRED, CURRENT]), storageArea: storage });
+  assert.equal(song.attributes["aria-pressed"], "true", "another tab's older record is read the same way");
+});
+
+test("a backup exported before the link changed merges without duplicating the song, and exports use the current ID", async () => {
+  const { elements, ready, saved, context, storage, fire } = loadLibrary("", { ids: [CURRENT, "BBBBBBBBBBB"], saved: { "favorite-songs": JSON.stringify([CURRENT]) } });
+  ready.forEach(handler => handler());
+  const input = elements.get("favorites-import-file");
+  input.files = [{ size: 100, text: async () => JSON.stringify({ type: "inabakumori-favorites", version: 1, songs: [RETIRED, "BBBBBBBBBBB"] }) }];
+  await input.listeners.change[0]();
+  assert.deepEqual(JSON.parse(saved.get("favorite-songs")), [CURRENT, "BBBBBBBBBBB"]);
+  assert.match(elements.get("library-status").textContent, /新增 1 首/u, "only the other song is new");
+  assert.doesNotMatch(elements.get("library-status").textContent, /暂不在本站歌曲表/u, "the retired ID is not reported as unknown");
+  let blob;
+  context.URL = class extends URL { static createObjectURL(value) { blob = value; return "blob:backup"; } static revokeObjectURL() {} };
+  context.Blob = Blob;
+  context.setTimeout = callback => callback();
+  context.document.body = { append() {} };
+  const createElement = context.document.createElement;
+  context.document.createElement = tag => { const node = createElement(tag); node.remove = () => {}; return node; };
+  fire("storage", { key: "favorite-songs", newValue: JSON.stringify([RETIRED]), storageArea: storage });
+  elements.get("favorites-export").click();
+  assert.deepEqual(JSON.parse(await blob.text()).songs, [CURRENT]);
+});
+
+test("every retired song address in data/song-redirects.json also keeps its saved favorite", () => {
+  const { redirects } = JSON.parse(fs.readFileSync("data/song-redirects.json", "utf8"));
+  assert.ok(Object.keys(redirects).length > 0, "at least one retired address is recorded");
+  for (const [from, to] of Object.entries(redirects)) {
+    const { list, ready } = loadLibrary("", { ids: [to], saved: { "favorite-songs": JSON.stringify([from]) } });
+    ready.forEach(handler => handler());
+    assert.equal(starButtons(list)[0].attributes["aria-pressed"], "true", `js/experience.js must map ${from} to ${to}`);
+  }
+});
+
+test("the retired-ID map in js/experience.js lists exactly the pairs in data/song-redirects.json", () => {
+  const { redirects } = JSON.parse(fs.readFileSync("data/song-redirects.json", "utf8"));
+  const literal = /const MOVED_SONG_IDS = new Map\(\[([^;]*)\]\);/u.exec(fs.readFileSync("js/experience.js", "utf8"))?.[1];
+  assert.notEqual(literal, undefined, "js/experience.js defines MOVED_SONG_IDS");
+  const pair = /\["([A-Za-z0-9_-]{11})",\s*"([A-Za-z0-9_-]{11})"\]/gu;
+  assert.equal(literal.replace(pair, "").replace(/[\s,]/gu, ""), "", "every entry is a pair of video IDs");
+  assert.deepEqual(Object.fromEntries([...literal.matchAll(pair)].map(match => [match[1], match[2]])), redirects,
+    "an extra or stale pair in the script would send a favorite to the wrong song, and a missing one loses it");
 });
 
 test("favorites export produces a backup accepted by import", async () => {

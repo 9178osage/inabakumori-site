@@ -22,7 +22,7 @@
 
 - **曲名**：Apple Music 日本与 YouTube 官方发行音轨（TuneCore Japan 提供）的曲名都是「篝火 (feat. 稲葉曇)」，收录于 ちいたな《二面性 / 濁》，网易云音乐同名。站内曲名由「篝火 (稲葉曇 Remix)」改为该官方曲名；稲葉曇的 Remix 署名与本人发帖确认不变。
 - **发行日**：[Apple Music](https://music.apple.com/jp/album/1574839476?i=1574839670) 专辑页为 2021 年 7 月 2 日，YouTube 官方音轨（[2A46CwhV4aE](https://www.youtube.com/watch?v=2A46CwhV4aE)）标注 Released on: 2021-07-02 且于 2021-07-02 12:19 JST 上传，网易云音乐同为 2021-07-02。ちいたな 2021-06-30 的[预告帖](https://x.com/dokotana/status/1410199686971936772)写的是 2021/7/3 开始配信。本站改按实际发行记录取 2021-07-02，预告日期写进说明；预告帖与稲葉曇的 Remix 参加帖仍保留在来源列表，用于关联相关帖子。
-- **视频链接（同日晚些时候已更换）**：此前页面链接的是非官方转载 `dmG60q44PJQ`（Thibaut T. 上传，标题「Kagaribi (Remix) - Inabakumori feat. Kaai Yuki」）。经维护者确认，已换成官方发行音轨 `2A46CwhV4aE`（titana - Topic，TuneCore Japan 提供）。歌曲页地址由 `song-dmG60q44PJQ.html` 变为 `song-2A46CwhV4aE.html`，旧地址不再提供，也没有加跳转页。页面按「专辑音轨」标注，转载版说明随之删除；首页缩略图和分享卡片随视频 ID 变为专辑封面，与《渦巻ハナビ》等其他专辑音轨一致。VocaDB（S/341483）本来就把这条官方音轨列为该曲的视频。
+- **视频链接（同日晚些时候已更换）**：此前页面链接的是非官方转载 `dmG60q44PJQ`（Thibaut T. 上传，标题「Kagaribi (Remix) - Inabakumori feat. Kaai Yuki」）。经维护者确认，已换成官方发行音轨 `2A46CwhV4aE`（titana - Topic，TuneCore Japan 提供）。歌曲页地址由 `song-dmG60q44PJQ.html` 变为 `song-2A46CwhV4aE.html`。换链接的那次发布没有加跳转页，旧地址一度返回 404；随后补上跳转：`data/song-redirects.json` 登记「旧 ID → 新 ID」，构建为旧地址生成静态跳转页（GitHub Pages 不能发 HTTP 跳转，所以是 `<meta http-equiv="refresh">` 页面，不进站点地图），浏览器里按旧 ID 保存的收藏也跟着换到新 ID。页面按「专辑音轨」标注，转载版说明随之删除；首页缩略图和分享卡片随视频 ID 变为专辑封面，与《渦巻ハナビ》等其他专辑音轨一致。VocaDB（S/341483）本来就把这条官方音轨列为该曲的视频。
 - **播放量**：转载版为 48,256 次（2026-10-26）；官方音轨读取 YouTube 公开页面为 246,279 次（2026-11-01 UTC，与每周刷新一样用 UTC 日期）。这个数字取自公开页面而不是 Data API，下一次周刷新会用 API 的数值覆盖。
 
 ## 代码与口径变化
