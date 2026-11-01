@@ -32,9 +32,10 @@ const ROLES = {
   movie: ["影像", "Movie", "映像"]
 };
 const ALBUMS = {
-  ANTICYCLONE: { name: "アンチサイクロン", kind: ["1st 专辑", "1st album", "1stアルバム"] },
-  "WEATHER STATION": { name: "ウェザーステーション", kind: ["2nd 专辑", "2nd album", "2ndアルバム"] }
+  ANTICYCLONE: { name: "アンチサイクロン", slug: "anticyclone", kind: ["1st 专辑", "1st album", "1stアルバム"] },
+  "WEATHER STATION": { name: "ウェザーステーション", slug: "weather-station", kind: ["2nd 专辑", "2nd album", "2ndアルバム"] }
 };
+const SINGLES = ["单曲与其他", "Singles and more", "シングル・その他"];
 const MILESTONE = /再生|views|殿堂入り|伝説入り|まいりす|みりおん/u;
 const RELEASE = /新曲|投稿しました|ぷれみあ公開|配信開始|公開しました/u;
 export const SONG_POST_LIMIT = 60;
@@ -234,16 +235,41 @@ ${feedback}
 </article>`;
 }
 
+// Dates are the archive's reported public dates, not necessarily the date of a later
+// album or streaming release. The detail page carries the source and any uncertainty.
+export function releaseYear(entry) {
+  const stamp = entry?.releasedAt ? Date.parse(entry.releasedAt) : NaN;
+  return Number.isFinite(stamp) ? String(new Date(stamp + 9 * 3_600_000).getUTCFullYear()) : "unknown";
+}
+
+// One list in archive order. Each entry shows its year and album, so nothing is lost without
+// JavaScript; js/archive-pages.js reveals the album × year filter and keeps it in ?album=&year=.
 export function renderSongIndex(songs, details, linkedMap) {
-  const groups = [...new Set(songs.map(song => song.album))];
-  return groups.map(album => {
-    const entries = songs.map((song, index) => ({ song, index })).filter(entry => entry.song.album === album);
-    const heading = ALBUMS[album] ? `<span lang="ja">${escape(ALBUMS[album].name)}</span>` : tri("span", ["单曲与其他", "Singles and more", "シングル・その他"]);
-    return `<section class="song-index-group"><h2>${heading}</h2><ol class="song-index-list">${entries.map(({ song, index }) => {
-      const id = youtubeId(song.youtube);
-      const badge = details[id] ? tri("span", ["部分资料已核对", "Sources checked", "一部資料を確認"], ' class="song-checked"') : "";
-      const count = linkedMap.get(id)?.length ?? 0;
-      return `<li value="${index + 1}"><a href="${songPageName(song)}" lang="ja">${escape(song.title)}</a>${badge}${tri("span", [`${count} 条相关帖子`, `${count} linked post${count === 1 ? "" : "s"}`, `関連投稿${count}件`], ' class="song-index-count"')}</li>`;
-    }).join("")}</ol></section>`;
-  }).join("\n");
+  const entries = songs.map((song, index) => {
+    const id = youtubeId(song.youtube);
+    const album = ALBUMS[song.album];
+    return { song, index, id, year: releaseYear(details[id]), album: album?.slug ?? "singles",
+      albumHtml: album ? `<span lang="ja">${escape(album.name)}</span>` : tri("span", SINGLES) };
+  });
+  const tally = key => entries.reduce((counts, entry) => counts.set(entry[key], (counts.get(entry[key]) ?? 0) + 1), new Map());
+  const albums = tally("album"), years = tally("year");
+  const yearOrder = [...years.keys()].filter(year => year !== "unknown").sort((a, b) => Number(b) - Number(a));
+  if (years.has("unknown")) yearOrder.push("unknown");
+  const unknownYear = ["年份待确认", "Year unconfirmed", "年未確認"];
+  const button = (facet, value, label, count) => `<button type="button" data-song-filter="${facet}" data-value="${escape(value)}" aria-pressed="${value === "all"}">${label}<span class="song-filter-count" aria-hidden="true">${count}</span></button>`;
+  const group = (facet, labels, options) => `<div class="song-filter-group" role="group" aria-labelledby="song-filter-${facet}-label">${tri("p", labels, ` id="song-filter-${facet}-label" class="song-filter-label"`)}<div class="updates-filters">${button(facet, "all", tri("span", ["全部", "All", "すべて"]), entries.length)}${options.join("")}</div></div>`;
+  const albumOptions = [...albums.keys()].map(slug => {
+    const first = entries.find(entry => entry.album === slug);
+    return button("album", slug, first.albumHtml, albums.get(slug));
+  });
+  const yearOptions = yearOrder.map(year => button("year", year, year === "unknown" ? tri("span", unknownYear) : escape(year), years.get(year)));
+  const filters = `<div id="song-filters" class="song-filters" hidden>${group("album", ["专辑", "Album", "アルバム"], albumOptions)}${group("year", ["公开年份", "Public year", "公開年"], yearOptions)}</div><div class="song-filter-summary"><p id="song-filter-status" class="updates-count" role="status" aria-live="polite" hidden></p>${tri("button", ["清除筛选", "Clear filters", "絞り込みを解除"], ' type="button" id="song-filter-reset" class="song-filter-reset" hidden')}</div>`;
+  const list = entries.map(({ song, index, id, year, album, albumHtml }) => {
+    const badge = details[id] ? tri("span", ["部分资料已核对", "Sources checked", "一部資料を確認"], ' class="song-checked"') : "";
+    const inferred = details[id]?.releaseConfidence === "inferred" ? tri("span", ["日期推定", "Date inferred", "日付は推定"], ' class="song-year-inferred"') : "";
+    const yearHtml = year === "unknown" ? tri("span", unknownYear, ' class="song-index-year"') : `<span class="song-index-year">${year}</span>`;
+    const count = linkedMap.get(id)?.length ?? 0;
+    return `<li value="${index + 1}" data-album="${album}" data-year="${year}"><a href="${songPageName(song)}" lang="ja">${escape(song.title)}</a>${badge}<span class="song-index-meta"><span>${yearHtml}${inferred ? ` ${inferred}` : ""}</span> ${albumHtml} ${tri("span", [`${count} 条相关帖子`, `${count} linked post${count === 1 ? "" : "s"}`, `関連投稿${count}件`], ' class="song-index-count"')}</span></li>`;
+  }).join("");
+  return `<section class="song-browser" aria-labelledby="song-browser-title">${tri("h2", ["歌曲列表", "Song list", "楽曲一覧"], ' id="song-browser-title"')}${tri("p", ["年份按档案记载的公开日期（日本时间）计算；具体版本、日期精度及待确认的信息请查看歌曲详情。", "Years follow the public date recorded in the archive (Japan time). See each song for its version, date precision and uncertainties.", "公開年はアーカイブに記載された公開日（日本時間）によるものです。版・日付の精度・未確認情報は各曲の詳細をご覧ください。"], ' class="song-browser-note"')}${filters}<ol id="song-list" class="song-index-list">${list}</ol>${tri("p", ["没有符合筛选条件的歌曲。", "No songs match these filters.", "条件に合う曲はありません。"], ' id="song-filter-empty" class="updates-empty" hidden')}</section>`;
 }

@@ -1,4 +1,4 @@
-// Song archive pages: language and theme controls.
+// Song archive pages: language and theme controls, plus the song list filter on songs.html.
 (() => {
   const languages = ["zh", "en", "ja"];
   const storage = window.siteStorage;
@@ -74,7 +74,84 @@
     else systemTheme?.addListener?.(applyTheme);
     window.addEventListener("pageshow", event => { if (event.persisted) { language = readLanguage(); applyLanguage(); } });
 
+    // songs.html: one list filtered by album and public year together; ?album=&year= survives a reload.
+    function initSongFilter() {
+      const panel = document.getElementById("song-filters");
+      if (!panel) return;
+      const facets = ["album", "year"];
+      const items = [...document.querySelectorAll(".song-index-list li[data-album][data-year]")];
+      const buttons = [...panel.querySelectorAll("button[data-song-filter]")];
+      const status = document.getElementById("song-filter-status");
+      const reset = document.getElementById("song-filter-reset");
+      const empty = document.getElementById("song-filter-empty");
+      const known = Object.fromEntries(facets.map(facet => [facet, new Set(items.map(item => item.dataset[facet]))]));
+      const state = { album: "all", year: "all" };
+      const seen = new Set();
+      for (const pair of String(window.location?.search || "").replace(/^\?/u, "").split("&")) {
+        const separator = pair.indexOf("=");
+        const key = separator < 0 ? pair : pair.slice(0, separator);
+        // Only the first occurrence of a key counts; malformed or unknown values are ignored.
+        if (!facets.includes(key) || seen.has(key)) continue;
+        seen.add(key);
+        try {
+          const value = decodeURIComponent((separator < 0 ? "" : pair.slice(separator + 1)).replace(/\+/gu, " "));
+          if (known[key].has(value)) state[key] = value;
+        } catch { /* Keep this filter at "all". */ }
+      }
+      const matches = (item, album, year) => (album === "all" || item.dataset.album === album) && (year === "all" || item.dataset.year === year);
+      function render() {
+        let shown = 0;
+        for (const item of items) {
+          const visible = matches(item, state.album, state.year);
+          item.hidden = !visible;
+          if (visible) shown++;
+        }
+        for (const button of buttons) {
+          const { songFilter: facet, value } = button.dataset;
+          const count = items.filter(item => facet === "album" ? matches(item, value, state.year) : matches(item, state.album, value)).length;
+          const pressed = state[facet] === value;
+          button.setAttribute("aria-pressed", String(pressed));
+          // An option that would empty the list waits until the other filter changes.
+          button.disabled = !pressed && count === 0;
+          const counter = button.querySelector(".song-filter-count");
+          if (counter) counter.textContent = String(count);
+        }
+        const total = items.length, filtered = state.album !== "all" || state.year !== "all";
+        if (status) {
+          // data-zh/en/ja let applyLanguage() retranslate the count after a language switch.
+          Object.assign(status.dataset, filtered
+            ? { zh: `显示 ${shown} / ${total} 首`, en: `Showing ${shown} of ${total} songs`, ja: `${total}曲中${shown}曲を表示` }
+            : { zh: `共 ${total} 首`, en: `${total} songs`, ja: `全${total}曲` });
+          status.textContent = status.dataset[language];
+          status.hidden = false;
+        }
+        if (reset) reset.hidden = !filtered;
+        if (empty) empty.hidden = shown > 0;
+      }
+      function update(change) {
+        Object.assign(state, change);
+        render();
+        const query = facets.filter(key => state[key] !== "all").map(key => `${key}=${encodeURIComponent(state[key])}`).join("&");
+        try {
+          const search = query ? `?${query}` : "";
+          if ((window.location?.search || "") !== search) window.history?.replaceState?.(null, "", window.location.pathname + search + window.location.hash);
+        } catch { /* history unavailable: the in-page filter still applies */ }
+      }
+      for (const button of buttons) button.addEventListener("click", () => {
+        const { songFilter: facet, value } = button.dataset;
+        if (!facets.includes(facet) || (value !== "all" && !known[facet].has(value)) || button.disabled) return;
+        update({ [facet]: value });
+      });
+      reset?.addEventListener("click", () => {
+        update({ album: "all", year: "all" });
+        buttons.find(button => button.dataset.value === "all")?.focus();
+      });
+      render();
+      panel.hidden = false;
+    }
+
     document.querySelector(".page-controls")?.removeAttribute("hidden");
+    initSongFilter();
     applyLanguage();
   });
 })();

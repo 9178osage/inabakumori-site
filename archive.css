@@ -19,24 +19,24 @@ span.song-fact-note{display:inline}
 .song-posts-group h3{font-family:var(--font-title);font-size:18px;margin:30px 0 0}
 .song-posts-group .x-posts-feed{margin-top:12px}
 .song-posts-more{color:var(--muted);font-size:12px}
-.song-index-group{padding-top:26px}
-.song-index-group h2{font-size:20px;padding-bottom:10px;border-bottom:1px solid var(--ink)}
-.song-index-list{margin:0;padding:0 0 0 2.6em;columns:2;column-gap:44px;font-family:var(--font-data)}
+.song-browser{padding-top:26px}
+.song-browser h2{font-size:20px;margin:0 0 8px}
+.song-browser-note{color:var(--muted);font-size:12px;line-height:1.7;margin:0}
+.song-filter-label{font-family:var(--font-data);font-size:10px;letter-spacing:.12em;color:var(--muted);margin:18px 0 0}
+.song-filters .updates-filters{margin-top:8px}
+.song-filters .updates-filters button{padding:8px 14px}
+.song-filters .updates-filters button:disabled{cursor:default;opacity:.45;border-style:dashed;border-color:var(--line)}
+.song-filter-count{margin-left:7px;font-family:var(--font-data);font-size:10px;opacity:.75}
+.song-filter-summary{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0 16px;min-height:16px}
+.song-filter-summary .updates-count{margin:0;padding:12px 0}
+.song-filter-reset{min-height:44px;padding:4px 0;border:0;background:transparent;color:var(--ink);font-size:12px;text-decoration:underline;text-underline-offset:4px;cursor:pointer}
+.song-index-list{margin:0;padding:0 0 0 2.6em;columns:2;column-gap:44px;border-top:1px solid var(--ink);font-family:var(--font-data)}
 .song-index-list li{break-inside:avoid;padding:10px 0;border-bottom:1px solid var(--soft-line);font-size:11px;color:var(--muted)}
 .song-index-list a{font-family:var(--font-title);font-size:16px;color:var(--ink);margin-right:8px}
-.song-index-count{display:block;font-size:10px}
-.song-years{padding-top:26px}
-.song-years h2{font-size:20px;margin:0 0 8px}
-.song-years-note{color:var(--muted);font-size:12px;line-height:1.7;margin:0 0 12px}
-.song-year{border-top:1px solid var(--soft-line)}
-.song-year:last-child{border-bottom:1px solid var(--soft-line)}
-.song-year summary{cursor:pointer;min-height:44px;padding:12px 4px;font-family:var(--font-data);font-weight:600}
-.song-year summary:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-.song-year-count{font-size:11px;color:var(--muted);margin-left:8px}
-.song-year-inferred{font-size:11px;color:var(--muted);margin-left:8px}
-.song-year ul{margin:0 0 12px;padding-left:2em;columns:2;column-gap:44px}
-.song-year li{break-inside:avoid;padding:6px 0}
-.song-year a{display:inline-block;padding:4px 0;overflow-wrap:anywhere}
+.song-index-meta{display:block;font-family:var(--font-body);font-size:10px}
+.song-index-year{font-family:var(--font-data)}
+.song-index-meta>span+span::before{content:"·";content:"·"/"";margin-right:.5em}
+.song-year-inferred{display:inline-block;padding:0 6px;border:1px dashed var(--line);line-height:1.6}
 .x-reading-resume{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin:18px 0 0;padding:10px 14px;border:1px solid var(--line);font-size:12px}
 .x-reading-resume a{display:inline-flex;align-items:center;min-height:44px;font-weight:600}
 .x-reading-resume button{min-height:44px;margin-left:auto;padding:4px 12px;border:0;background:transparent;color:var(--muted);font-size:11px;cursor:pointer;text-decoration:underline}
@@ -46,8 +46,6 @@ span.song-fact-note{display:inline}
 .song-facts{grid-template-columns:1fr}
 .song-fact{grid-template-columns:92px minmax(0,1fr)}
 .song-index-list{columns:1}
-.song-year ul{columns:1}
-.song-year a{min-height:44px;padding:10px 0}
 .song-posts .feed-heading{flex-direction:column;align-items:start}
 .archive-navigation{gap:6px 18px}
 .song-index-page .updates-header{flex-wrap:wrap;padding-block:16px}
@@ -55,10 +53,13 @@ span.song-fact-note{display:inline}
 .song-index-page .archive-navigation{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 12px;font-size:14px}
 .song-index-page .archive-navigation a{display:flex;align-items:center;min-height:48px;padding-block:10px;overflow-wrap:anywhere}
 .song-index-page .updates-description{max-width:none;font-size:15px}
-.song-index-page .song-index-list{padding-left:2em}
 .song-index-page .song-index-list li{font-size:14px}
 .song-index-page .song-index-list a{display:flex;align-items:center;min-height:48px;padding-block:6px;margin-right:0;font-size:18px;line-height:1.55;overflow-wrap:anywhere}
-.song-index-page .song-index-count{font-size:13px}
+.song-index-page .song-index-meta{font-size:13px}
+.song-index-page .song-browser-note,.song-index-page .song-filter-summary .updates-count{font-size:13px}
+.song-index-page .song-filter-label{font-size:12px}
+.song-index-page .song-filters .updates-filters button,.song-index-page .song-filter-reset{font-size:14px}
+.song-index-page .song-filter-count{font-size:12px}
 .song-index-page .song-unverified,.song-index-page .song-checked{font-size:12px;margin:4px 0}
 }
 @media(max-width:700px){.song-facts{background:var(--card);padding:4px 14px;border:1px solid var(--card-line);border-top:2px solid var(--ink)}}
