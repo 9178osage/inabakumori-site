@@ -59,7 +59,7 @@ async function currentRuns(head, event, options) {
 }
 function successfulPair(runs, event) {
   const pair = WORKFLOWS.map(name => runs.filter(run => run.name === name)
-    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at) || b.id - a.id)[0]);
+    .sort((a, b) => b.id - a.id)[0]);
   if (pair.some(run => !run)) throw new Error(`Current HEAD has an incomplete ${event} Verify / Publish pair`);
   for (const run of pair) {
     if (run.status !== "completed" || run.conclusion !== "success") throw new Error(`Current HEAD ${run.name} ${event} run has not completed successfully`);

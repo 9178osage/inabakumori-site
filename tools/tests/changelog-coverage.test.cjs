@@ -215,7 +215,7 @@ test("the real default CLI detects five missing pushes and reports the exact Git
     assert.match(missing.stderr, /Missing deployment table rows for 5 main\/push head/u);
     assert.doesNotMatch(missing.stdout, /verified/iu);
     fs.writeFileSync(path.join(directory, "docs/CHANGELOG.md"), table([
-      ...missed.map((sha, i) => row(sha, 200 + i * 2)), row(baselineHead, 101, "10-16")
+      ...missed.map((sha, i) => row(sha, 200 + i * 2)).reverse(), row(baselineHead, 101, "10-16")
     ]));
     const complete = run();
     assert.ifError(complete.error);

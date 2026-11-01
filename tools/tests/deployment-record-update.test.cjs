@@ -101,8 +101,11 @@ test("all filtered pages are read before choosing workflow runs", async () => {
 
 test("latest target run must succeed even when an older run for the same SHA did succeed", async () => {
   const { prepareCurrentDeploymentRecord } = await load();
-  const runs = [...pair(), { ...pair()[0], id: 103, created_at: "2026-10-17T08:00:00Z", status: "in_progress", conclusion: null }];
-  await assert.rejects(prepareCurrentDeploymentRecord(table(), HEAD, { fetchImpl: fetcher(runs) }), /not completed successfully/u);
+  for (const state of [{ status: "in_progress", conclusion: null }, { status: "completed", conclusion: "failure" }]) {
+    // The later ID has an earlier timestamp, as observed across the fall-back transition.
+    const runs = [...pair(), { ...pair()[0], id: 103, created_at: "2026-10-17T06:00:00Z", ...state }];
+    await assert.rejects(prepareCurrentDeploymentRecord(table(), HEAD, { fetchImpl: fetcher(runs) }), /not completed successfully/u);
+  }
 });
 
 test("API response scope mismatches, invalid fields and incomplete pagination fail closed", async () => {

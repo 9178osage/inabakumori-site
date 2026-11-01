@@ -198,8 +198,10 @@ export function localChangelogCoverage({ directory, since, baselineRunIds, githu
   return { ...coverage, baselineRunIds: validated.baselineRunIds };
 }
 
-// A push's date/order is the earlier created_at of its primary Verify and Publish
+// A push's date is the earlier created_at of its primary Verify and Publish
 // runs. Thus a pair straddling Pacific midnight belongs to the earlier day.
+// Row order uses Verify run IDs: timestamps can move backwards at a clock
+// transition even when later pushes have already been assigned higher IDs.
 export async function verifyChangelogTable(markdown, {
   fetchImpl = globalThis.fetch, repo = DEFAULT_REPO, token = "", deadlineMs = 12_000, concurrency = 4,
   lookup = "direct", maxPages = 10, cache, stats, maxRetries = 2, retryBaseMs = 250, maxRetryWaitMs = 2000,
@@ -299,9 +301,9 @@ export async function verifyChangelogTable(markdown, {
     }
   }));
   if (runs.size !== ids.length || !runs.size) throw new Error("Incomplete or zero GitHub run coverage");
-  let previousTime = Infinity;
+  let previousId = Infinity;
   for (const row of rows) {
-    let primaryTime;
+    let primaryTime, primaryId;
     for (const pair of row.pairs) {
       const pairRuns = pair.ids.map(id => id && runs.get(id));
       pairRuns.forEach((run, i) => {
@@ -312,12 +314,13 @@ export async function verifyChangelogTable(markdown, {
       });
       if (pairRuns[1] && pairRuns[0].head_sha !== pairRuns[1].head_sha) rowError(row.line, "Verify / Publish runs have different commits");
       const time = Math.min(...pairRuns.filter(Boolean).map(run => run.createdMs));
-      if (pair.primary) primaryTime = time;
-      else if (time > primaryTime) rowError(row.line, "historical runs are newer than the primary push");
+      const verifyId = Number(pair.ids[0]);
+      if (pair.primary) { primaryTime = time; primaryId = verifyId; }
+      else if (verifyId > primaryId) rowError(row.line, "historical runs are newer than the primary push");
     }
     if (row.date !== pacificDate(primaryTime)) rowError(row.line, `date must be ${pacificDate(primaryTime)} in America/Los_Angeles`);
-    if (primaryTime > previousTime) rowError(row.line, "pushes must be ordered newest to oldest by created_at");
-    previousTime = primaryTime;
+    if (primaryId > previousId) rowError(row.line, "pushes must be ordered newest to oldest by Verify run ID");
+    previousId = primaryId;
   }
   const result = { rows: rows.length, runs: runs.size };
   if (scope) {

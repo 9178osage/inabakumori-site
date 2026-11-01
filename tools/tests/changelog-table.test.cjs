@@ -25,11 +25,11 @@ const load = () => import("../check-changelog-table.mjs");
 test("deployment table checks every primary and attributed historical run directly", async () => {
   const { verifyChangelogTable } = await load();
   const markdown = table([
-    row("10-16", ["aaaaaaa", "bbbbbbb"], "101 / 102（`aaaaaaa` 的运行失败：103 / 104）"),
-    row("10-15", ["ccccccc", "ddddddd", "eeeeeee"], "105 / 106（`ddddddd` 的推送：107 / 108，`Publish` 首跑失败）")
+    row("10-16", ["aaaaaaa", "bbbbbbb"], "107 / 108（`aaaaaaa` 的运行失败：105 / 106）"),
+    row("10-15", ["ccccccc", "ddddddd", "eeeeeee"], "103 / 104（`ddddddd` 的推送：101 / 102，`Publish` 首跑失败）")
   ]);
-  const runs = [...pair([101, 102], "bbbbbbb"), ...pair([103, 104], "aaaaaaa", "2026-10-16T22:00:00Z"),
-    ...pair([105, 106], "eeeeeee", "2026-10-16T06:59:59Z"), ...pair([107, 108], "ddddddd", "2026-10-16T05:00:00Z")];
+  const runs = [...pair([107, 108], "bbbbbbb"), ...pair([105, 106], "aaaaaaa", "2026-10-16T22:00:00Z"),
+    ...pair([103, 104], "eeeeeee", "2026-10-16T06:59:59Z"), ...pair([101, 102], "ddddddd", "2026-10-16T05:00:00Z")];
   runs[1].created_at = "2026-10-17T07:00:01Z"; // Crosses Pacific midnight: date belongs to earlier run.
   const seen = [];
   assert.deepEqual(await verifyChangelogTable(markdown, { fetchImpl: fetcher(runs, seen), token: "synthetic-token" }), { rows: 2, runs: 8 });
@@ -71,12 +71,24 @@ test("deployment table rejects primary or historical commit mismatches and swapp
   }
 });
 
-test("deployment table rejects Pacific date errors, reversed time order and newer historical runs", async () => {
+test("deployment table rejects Pacific date errors, reversed run order and newer historical runs", async () => {
   const { verifyChangelogTable } = await load();
-  const runs = [...pair([101, 102], "aaaaaaa", "2026-10-17T06:59:59Z"), ...pair([103, 104], "bbbbbbb", "2026-10-16T22:00:00Z")];
-  await assert.rejects(verifyChangelogTable(table([row("10-17", ["aaaaaaa"], "101 / 102")]), { fetchImpl: fetcher(runs) }), /date must be 10-16/u);
-  await assert.rejects(verifyChangelogTable(table([row("10-16", ["bbbbbbb"], "103 / 104"), row("10-16", ["aaaaaaa"], "101 / 102")]), { fetchImpl: fetcher(runs) }), /newest to oldest/u);
-  await assert.rejects(verifyChangelogTable(table([row("10-16", ["aaaaaaa", "bbbbbbb"], "103 / 104（`aaaaaaa` 的推送：101 / 102）")]), { fetchImpl: fetcher(runs) }), /historical runs are newer/u);
+  const runs = [...pair([103, 104], "aaaaaaa", "2026-10-17T06:59:59Z"), ...pair([101, 102], "bbbbbbb", "2026-10-16T22:00:00Z")];
+  await assert.rejects(verifyChangelogTable(table([row("10-17", ["aaaaaaa"], "103 / 104")]), { fetchImpl: fetcher(runs) }), /date must be 10-16/u);
+  await assert.rejects(verifyChangelogTable(table([row("10-16", ["bbbbbbb"], "101 / 102"), row("10-16", ["aaaaaaa"], "103 / 104")]), { fetchImpl: fetcher(runs) }), /newest to oldest/u);
+  await assert.rejects(verifyChangelogTable(table([row("10-16", ["aaaaaaa", "bbbbbbb"], "101 / 102（`aaaaaaa` 的推送：103 / 104）")]), { fetchImpl: fetcher(runs) }), /historical runs are newer/u);
+});
+
+test("deployment order survives the Pacific fall-back timestamp inversion", async () => {
+  const { verifyChangelogTable } = await load();
+  const runs = [...pair([41291485515, 41291485516], "bbbbbbb", "2026-11-01T09:04:21Z"),
+    ...pair([41290945037, 41290945038], "aaaaaaa", "2026-11-01T09:56:44Z")];
+  const newer = row("11-01", ["bbbbbbb"], "41291485515 / 41291485516");
+  const older = row("11-01", ["aaaaaaa"], "41290945037 / 41290945038");
+  assert.deepEqual(await verifyChangelogTable(table([newer, older]), { fetchImpl: fetcher(runs) }), { rows: 2, runs: 4 });
+  await assert.rejects(verifyChangelogTable(table([older, newer]), { fetchImpl: fetcher(runs) }), /newest to oldest/u);
+  const combined = row("11-01", ["aaaaaaa", "bbbbbbb"], "41291485515 / 41291485516（`aaaaaaa` 的推送：41290945037 / 41290945038）");
+  assert.deepEqual(await verifyChangelogTable(table([combined]), { fetchImpl: fetcher(runs) }), { rows: 1, runs: 4 });
 });
 
 test("deployment table never passes empty coverage, malformed rows or unparsed old runs", async () => {
