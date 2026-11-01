@@ -1333,15 +1333,10 @@
         }
       ]
     },
-    "dmG60q44PJQ": {
+    "2A46CwhV4aE": {
       "fieldSources": {"releasedAt": ["YouTube 官方发行音轨（TuneCore Japan）", "Apple Music（《二面性 / 濁》）"], "music": ["ちいたな官方 niconico（原曲）"], "remix": ["X @inabakumori（Remix 参加）"]},
       "checkedAt": "2026-10-31",
-      "videoKind": "reupload",
-      "videoNote": {
-        "zh": "现有 YouTube 链接来自非官方转载；资料按下列作者、发行商或专访来源核对，不以转载的标题、上传日期和署名为依据。",
-        "en": "The existing YouTube link is an unofficial reupload. Facts are checked against the creator, label or interview sources below, rather than the reupload’s title, upload date or credits.",
-        "ja": "既存の YouTube リンクは非公式転載です。転載の題名・投稿日・クレジットではなく、以下の作者・発売元・インタビューの出典で確認しています。"
-      },
+      "videoKind": "topic",
       "releasedAt": "2021-07-02",
       "albumRelease": "2021-07-02",
       "credits": [
@@ -1365,9 +1360,9 @@
         "ja": "公式の発売記録：ちいたな『二面性 / 濁』に『篝火 (feat. 稲葉曇)』を収録。Apple Music 日本と YouTube の公式配信音源（TuneCore Japan 提供）はいずれも 2021-07-02 発売と記載。原作者の 2021-06-30 の告知では 7月3日配信とされていましたが、本サイトは実際の発売記録に従います。稲葉曇本人も『篝火』Remix での参加を確認しています。"
       },
       "creditNote": {
-        "zh": "原曲作曲ちいたな按其本人 niconico 投稿核对；原曲的 IA 演唱和原 MV 团队不扩展为本 Remix 的署名。稲葉曇宣传帖的“絵ぬくにぎ”也不自动认定为转载视频的制作署名。演唱栏为非官方记载：转载标题写作歌愛ユキ，VocaDB 与网易云音乐的发行信息一致，官方来源未确认。",
-        "en": "Original composition by Chiitana is checked against his own niconico upload. Its IA vocal and original MV team are not carried over to this remix; “art by Nukunigi” on Inabakumori’s promotional post is not automatically treated as a reupload-video credit. The vocal row is an unofficial record: the reupload’s title says Kaai Yuki, and VocaDB and NetEase Cloud Music’s release information agree, but official sources do not confirm it.",
-        "ja": "原曲の作曲ちいたなは本人のニコニコ投稿で確認。原曲の IA 歌唱や MV 制作陣を本 Remix へ流用せず、稲葉曇の宣伝投稿の「絵ぬくにぎ」も転載動画の制作クレジットとは自動的に解釈していません。ボーカル欄は非公式の記載です。転載の題名は歌愛ユキで、VocaDB と NetEase Cloud Music（网易云音乐）の配信情報も一致していますが、公式の出典では確認できていません。"
+        "zh": "此链接为发行商自动生成的专辑音轨（TuneCore Japan 提供）；专辑封面不作为独立 MV 的插画或影像署名。原曲作曲ちいたな按其本人 niconico 投稿核对；原曲的 IA 演唱和原 MV 团队不扩展为本 Remix 的署名。稲葉曇宣传帖的“絵ぬくにぎ”只属于该帖的配图，不自动认定为本曲音源的插画署名。演唱栏为非官方记载：该官方音轨与 Apple Music 的署名只有 ちいたな 与 稲葉曇，未列演唱者；VocaDB 与网易云音乐的发行信息写作歌愛ユキ，官方来源未确认。",
+        "en": "This link is the distributor-generated album audio track (provided by TuneCore Japan); album cover credits are not treated as credits for a separate MV. Original composition by Chiitana is checked against his own niconico upload. Its IA vocal and original MV team are not carried over to this remix; “art by Nukunigi” on Inabakumori’s promotional post belongs to that post and is not automatically treated as an illustration credit for this audio track. The vocal row is an unofficial record: the official track and Apple Music credit only Chiitana and Inabakumori and list no vocalist, while VocaDB and NetEase Cloud Music’s release information say Kaai Yuki; official sources do not confirm it.",
+        "ja": "このリンクは配信会社（TuneCore Japan 提供）による自動生成のアルバム音源です。アルバムのジャケットを独立したMVのクレジットとして扱っていません。原曲の作曲ちいたなは本人のニコニコ投稿で確認。原曲の IA 歌唱や MV 制作陣を本 Remix へ流用せず、稲葉曇の宣伝投稿の「絵ぬくにぎ」はその投稿の挿絵であり、本曲の音源のイラストのクレジットとは自動的に解釈していません。ボーカル欄は非公式の記載です。公式音源と Apple Music の表記はちいたなと稲葉曇のみで歌唱者の記載はなく、VocaDB と NetEase Cloud Music（网易云音乐）の配信情報は歌愛ユキですが、公式の出典では確認できていません。"
       },
       "unofficialVocal": {
         "name": "歌愛ユキ",

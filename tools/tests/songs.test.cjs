@@ -99,7 +99,7 @@ test("all songs retain their exact order, titles, URLs, albums, and singers", ()
     .update(JSON.stringify(songs.map(song => [song.title, song.youtube, song.album, song.singers])))
     .digest("hex");
   // Covers every song, including the vocal/version corrections from the complete source review.
-  assert.equal(digest, "ae16df64d636982adf1cc58dba39e4534c31b64495a92df5090a5b9d6d813e72");
+  assert.equal(digest, "0204ce6388d40ce1e9f29eca47cd69b21d0a58f66005aa53bd67362da49fa061");
   for (const song of songs) {
     const url = new URL(song.youtube);
     assert.deepEqual([...url.searchParams.keys()].filter(key => key !== "v"), [], `${song.title}: no tracking parameters`);
@@ -118,7 +118,7 @@ test("all songs retain their exact order, titles, URLs, albums, and singers", ()
 test("unconfirmed vocals are not offered as established singer tags", () => {
   const { run } = setup();
   const songs = JSON.parse(run("JSON.stringify(SONGS)"));
-  for (const id of ["io5HEdBNqWk", "v03uVgQZOOM", "KK9nXYdmkiM", "QpKaP3oGBXE", "dmG60q44PJQ"]) {
+  for (const id of ["io5HEdBNqWk", "v03uVgQZOOM", "KK9nXYdmkiM", "QpKaP3oGBXE", "2A46CwhV4aE"]) {
     assert.deepEqual(songs.find(song => song.youtube.endsWith(id)).singers, [], id);
   }
   assert.deepEqual(songs.find(song => song.youtube.endsWith("LqlD2Btv0KI")).singers, ["宮下遊"]);

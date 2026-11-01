@@ -455,11 +455,11 @@ const SONGS = [
   },
   {
     "title": "篝火 (feat. 稲葉曇)",
-    "youtube": "https://youtu.be/dmG60q44PJQ",
+    "youtube": "https://youtu.be/2A46CwhV4aE",
     "album": "SINGLES",
     "singers": [],
-    "viewCount": 48256,
-    "viewsCheckedAt": "2026-10-26"
+    "viewCount": 246279,
+    "viewsCheckedAt": "2026-11-01"
   },
   {
     "title": "ラストリヴ",

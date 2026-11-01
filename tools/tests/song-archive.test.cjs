@@ -116,9 +116,9 @@ test("all current songs have a reviewed record without inventing missing release
     const song = list.find(item => item.youtube.endsWith(id));
     assert.match(renderSongPage(song, 0, { details: details[id], linked: [], renderPost: () => "" }), /推定/u);
   }
-  for (const id of ["e5d-DvD55OI", "io5HEdBNqWk", "v03uVgQZOOM", "dmG60q44PJQ", "KK9nXYdmkiM", "QpKaP3oGBXE", "Vb-z6AR-2F0"]) assert.equal(details[id].vocal, undefined, `unofficial vocal records stay out of the verified field: ${id}`);
+  for (const id of ["e5d-DvD55OI", "io5HEdBNqWk", "v03uVgQZOOM", "2A46CwhV4aE", "KK9nXYdmkiM", "QpKaP3oGBXE", "Vb-z6AR-2F0"]) assert.equal(details[id].vocal, undefined, `unofficial vocal records stay out of the verified field: ${id}`);
   assert.equal(details.QpKaP3oGBXE.vocal, undefined, "hearing a familiar voice is not a vocal credit");
-  const unofficial = { "e5d-DvD55OI": "歌愛ユキ", KK9nXYdmkiM: "歌愛ユキ", QpKaP3oGBXE: "歌愛ユキ", dmG60q44PJQ: "歌愛ユキ", io5HEdBNqWk: "初音ミク", v03uVgQZOOM: "歌愛ユキ & 初音ミク" };
+  const unofficial = { "e5d-DvD55OI": "歌愛ユキ", KK9nXYdmkiM: "歌愛ユキ", QpKaP3oGBXE: "歌愛ユキ", "2A46CwhV4aE": "歌愛ユキ", io5HEdBNqWk: "初音ミク", v03uVgQZOOM: "歌愛ユキ & 初音ミク" };
   assert.deepEqual(Object.keys(details).filter(id => details[id].unofficialVocal).sort(), Object.keys(unofficial).sort(), "only songs with a database-backed record carry one; the medley stays blank");
   for (const [id, name] of Object.entries(unofficial)) assert.equal(details[id].unofficialVocal.name, name, id);
   assert.equal(details.FRFgNWBAa8k.videoKind, "reupload");
@@ -254,7 +254,7 @@ test("unofficial vocal records are labelled, link their reference pages and neve
     const page = renderSongPage(song, 0, { details: details[id], linked: [], renderPost: () => "" });
     return page.match(/<dt><span data-zh="演唱"[\s\S]*?<\/dd>/u)[0];
   };
-  const kagaribi = vocalRow("dmG60q44PJQ");
+  const kagaribi = vocalRow("2A46CwhV4aE");
   assert.match(kagaribi, /<span lang="ja">歌愛ユキ<\/span> <span class="song-unofficial" data-zh="非官方记载" data-en="Unofficial record" data-ja="非公式の記載">非官方记载<\/span>/u);
   assert.match(kagaribi, /href="https:\/\/vocadb\.net\/S\/341483" target="_blank" rel="noopener noreferrer"/u);
   assert.match(kagaribi, /href="https:\/\/music\.163\.com\/song\?id=1858071864" target="_blank" rel="noopener noreferrer"/u);
@@ -300,18 +300,28 @@ test("unofficial vocal records accept only exact reference pages and never repla
   assert.doesNotThrow(() => validateSongDetails(mutate(entry => { entry.unofficialVocal.sources = [{ label: "NetEase", url: "https://music.163.com/song?id=1858071864" }]; }), list));
 });
 
-test("Kagaribi follows the official release title and the store-recorded date while explaining the earlier announcement", async () => {
-  const { validateSongDetails } = await import("../song-archive.mjs");
+test("Kagaribi links the official audio track and follows the store-recorded date while explaining the earlier announcement", async () => {
+  const { validateSongDetails, renderSongPage } = await import("../song-archive.mjs");
   const list = songs(), details = validateSongDetails(data(), list);
-  assert.equal(list.find(item => item.youtube.endsWith("dmG60q44PJQ")).title, "篝火 (feat. 稲葉曇)");
-  const entry = details.dmG60q44PJQ;
+  const song = list.find(item => item.youtube.endsWith("2A46CwhV4aE"));
+  assert.equal(song.title, "篝火 (feat. 稲葉曇)");
+  assert.equal(song.youtube, "https://youtu.be/2A46CwhV4aE", "the page links the official TuneCore Japan track, not the former reupload");
+  assert.ok(!list.some(item => item.youtube.includes("dmG60q44PJQ")), "the old reupload is no longer linked");
+  assert.equal(details.dmG60q44PJQ, undefined, "the archive entry moved with the link");
+  const entry = details["2A46CwhV4aE"];
+  assert.equal(entry.videoKind, "topic");
+  assert.equal(entry.videoNote, undefined, "the unofficial-reupload explanation no longer applies");
   assert.equal(entry.releasedAt, "2021-07-02");
   assert.equal(entry.albumRelease, "2021-07-02");
   assert.deepEqual(entry.fieldSources.releasedAt, ["YouTube 官方发行音轨（TuneCore Japan）", "Apple Music（《二面性 / 濁》）"]);
   const urls = entry.sources.map(source => source.url);
-  assert.ok(urls.includes("https://www.youtube.com/watch?v=2A46CwhV4aE"));
+  assert.ok(urls.includes("https://www.youtube.com/watch?v=2A46CwhV4aE"), "the linked video is one of the checked official sources");
   assert.ok(urls.includes("https://music.apple.com/jp/album/1574839476?i=1574839670"));
   assert.ok(urls.includes("https://x.com/inabakumori/status/1410199640243245058"), "the creator's remix post still links its X posts to the song");
   for (const language of ["zh", "en", "ja"]) assert.match(entry.releaseNote[language], /07-02/u, language);
   assert.match(entry.releaseNote.zh, /7 月 3 日/u, "the earlier announced date stays explained");
+  const page = renderSongPage(song, 0, { details: entry, linked: [], renderPost: () => "" });
+  assert.match(page, /data-zh="专辑音轨"/u, "labelled as the album audio track");
+  assert.doesNotMatch(page, /非官方转载|unofficial reupload|非公式転載/u, "no reupload wording remains on the page");
+  assert.match(page, /href="https:\/\/www\.youtube\.com\/watch\?v=2A46CwhV4aE"/u);
 });
