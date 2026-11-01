@@ -97,6 +97,12 @@ assert.equal([...html.matchAll(/data-song-title=/g)].length, vm.runInContext("SO
 // carry exactly those marks, in song order, so it agrees with what script.js renders afterwards.
 const renderedFeatured = [...html.matchAll(/<a\b[^>]*\bdata-song-title=[^>]*>/gu)].map(([tag]) => /\sdata-mobile-featured="true"[\s>]/u.test(tag));
 assert.deepEqual(renderedFeatured, Array.from(vm.runInContext("SONGS", songContext), song => song.mobileFeatured === true), "Pre-rendered data-mobile-featured marks must match mobileFeatured in js/songs.js");
+// The phone intro's song count is generated from the same flags (build-site fails without its
+// placeholder); every language must state that count.
+const featuredCount = renderedFeatured.filter(Boolean).length;
+const introTags = html.match(/<p class="mobile-song-intro"[^>]*>[^<]*<\/p>/gu) ?? [];
+assert.ok(introTags.length <= 1, "The home page must have at most one mobile song intro");
+if (introTags.length) assert.deepEqual([...introTags[0].matchAll(/从这 (\d+) 首|この(\d+)曲/gu)].map(match => Number(match[1] ?? match[2])), [featuredCount, featuredCount, featuredCount], "The mobile song intro must state the mobileFeatured count");
 const metadata = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
 assert.equal(JSON.parse(metadata[1])["@type"], "WebSite");
 const manifest = JSON.parse(await readFile(path.join(root, "site.webmanifest"), "utf8"));
