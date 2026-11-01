@@ -118,8 +118,8 @@ test("all current songs have a reviewed record without inventing missing release
   }
   for (const id of ["e5d-DvD55OI", "io5HEdBNqWk", "v03uVgQZOOM", "dmG60q44PJQ", "KK9nXYdmkiM", "QpKaP3oGBXE", "Vb-z6AR-2F0"]) assert.equal(details[id].vocal, undefined, `unofficial vocal records stay out of the verified field: ${id}`);
   assert.equal(details.QpKaP3oGBXE.vocal, undefined, "hearing a familiar voice is not a vocal credit");
-  const unofficial = { "e5d-DvD55OI": "歌愛ユキ", KK9nXYdmkiM: "歌愛ユキ", QpKaP3oGBXE: "歌愛ユキ", dmG60q44PJQ: "歌愛ユキ", io5HEdBNqWk: "初音ミク" };
-  assert.deepEqual(Object.keys(details).filter(id => details[id].unofficialVocal).sort(), Object.keys(unofficial).sort(), "only songs with a database-backed record carry one; the Cover and the medley stay blank");
+  const unofficial = { "e5d-DvD55OI": "歌愛ユキ", KK9nXYdmkiM: "歌愛ユキ", QpKaP3oGBXE: "歌愛ユキ", dmG60q44PJQ: "歌愛ユキ", io5HEdBNqWk: "初音ミク", v03uVgQZOOM: "歌愛ユキ & 初音ミク" };
+  assert.deepEqual(Object.keys(details).filter(id => details[id].unofficialVocal).sort(), Object.keys(unofficial).sort(), "only songs with a database-backed record carry one; the medley stays blank");
   for (const [id, name] of Object.entries(unofficial)) assert.equal(details[id].unofficialVocal.name, name, id);
   assert.equal(details.FRFgNWBAa8k.videoKind, "reupload");
 });
@@ -262,10 +262,10 @@ test("unofficial vocal records are labelled, link their reference pages and neve
   assert.doesNotMatch(kagaribi, /song-unverified|该项来源待逐项对应|>来源：</u, "an unofficial record is neither a blank nor a verified field with official sources");
   assert.match(vocalRow("e5d-DvD55OI"), /vocadb\.net\/S\/258423[\s\S]*w\.atwiki\.jp\/hmiku\/pages\/62974\.html/u);
   assert.match(vocalRow("io5HEdBNqWk"), /<span lang="ja">初音ミク<\/span>[\s\S]*vocadb\.net\/S\/668155/u);
-  for (const id of ["v03uVgQZOOM", "Vb-z6AR-2F0"]) {
-    assert.match(vocalRow(id), /song-unverified/u, `${id} has no usable reference and stays blank`);
-    assert.doesNotMatch(vocalRow(id), /song-unofficial/u, id);
-  }
+  assert.match(vocalRow("v03uVgQZOOM"), /<span lang="ja">歌愛ユキ &amp; 初音ミク<\/span> <span class="song-unofficial"[\s\S]*href="https:\/\/vocadb\.net\/S\/610762" target="_blank" rel="noopener noreferrer"/u);
+  assert.doesNotMatch(vocalRow("v03uVgQZOOM"), /song-unverified/u);
+  assert.match(vocalRow("Vb-z6AR-2F0"), /song-unverified/u, "the medley has no usable reference and stays blank");
+  assert.doesNotMatch(vocalRow("Vb-z6AR-2F0"), /song-unofficial/u);
   const index = renderArchivePages({ songs: list, xPosts: { version: 1, coverage: [], items: [] }, xTranslations: new Map(),
     xPostsRenderer: { posts: () => [], renderPost: () => "" }, songDetailsSource: data(),
     updatesHtml: fs.readFileSync(path.join(repo, "updates.html"), "utf8") }).files.get("songs.html");

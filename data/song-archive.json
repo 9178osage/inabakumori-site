@@ -1214,9 +1214,18 @@
         "ja": "当日の作者の動画投稿は『僕のサイノウ Cover』。公開投稿の日付までを確認しました。投稿に歌唱者の記載がなく、転載の題名や従来のサイト楽曲表は確認済み歌唱クレジットの根拠にはしていません。"
       },
       "creditNote": {
-        "zh": "原曲作曲者 wowaka 由本人 piapro 作品页核对；稲葉曇的原帖明确将此次作品称为 Cover。演唱：VocaDB 记载为歌愛ユキ与初音ミク（非官方资料，未确认）。",
-        "en": "The original composer wowaka is checked against his own piapro work page; Inabakumori’s post explicitly calls this version a cover. Vocal: VocaDB lists Kaai Yuki and Hatsune Miku (unofficial, unconfirmed).",
-        "ja": "原曲の作曲者 wowaka は本人の piapro 作品ページで確認。稲葉曇の原投稿では本作を Cover と明記しています。歌唱：VocaDBの記載では歌愛ユキと初音ミク（非公式資料・未確認）。"
+        "zh": "原曲作曲者 wowaka 由本人 piapro 作品页核对；稲葉曇的原帖明确将此次作品称为 Cover。演唱栏为非官方记载：VocaDB 与转载视频的说明都写歌愛ユキ、初音ミク，但作者原帖正文未写演唱者，官方来源未确认。",
+        "en": "The original composer wowaka is checked against his own piapro work page; Inabakumori’s post explicitly calls this version a cover. The vocal row is an unofficial record: VocaDB and the reupload’s description both say Kaai Yuki and Hatsune Miku, but the creator’s post text does not name the vocalists and official sources do not confirm it.",
+        "ja": "原曲の作曲者 wowaka は本人の piapro 作品ページで確認。稲葉曇の原投稿では本作を Cover と明記しています。ボーカル欄は非公式の記載です。VocaDB と転載動画の説明はいずれも歌愛ユキと初音ミクですが、作者の原投稿の本文には歌唱者の記載がなく、公式の出典では確認できていません。"
+      },
+      "unofficialVocal": {
+        "name": "歌愛ユキ & 初音ミク",
+        "sources": [
+          {
+            "label": "VocaDB",
+            "url": "https://vocadb.net/S/610762"
+          }
+        ]
       },
       "sources": [
         {
