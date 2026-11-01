@@ -12,7 +12,7 @@
 
 用法
   python3 tools/sync-copy.py [<base>]         生成副本 + changes.txt（<base>..HEAD，默认读 .review-base）
-  python3 tools/sync-copy.py --check          只核对，不写任何文件
+  python3 tools/sync-copy.py --check          只核对，不写任何文件；差异起点未覆盖 .review-base 时只提示缺口
   python3 tools/sync-copy.py --mark-reviewed  把 HEAD 记为新的 .review-base
 """
 import os, re, stat, subprocess, sys, tempfile
@@ -268,6 +268,27 @@ def guide(base, names):
 """.encode()
 
 
+def review_gap(base):
+    # 临时指定较新的差异起点是允许的，所以缺口只提示、不判为失败，也不改 .review-base。
+    path = output_file(".review-base")
+    if not os.path.isfile(path):
+        return None
+    with open(path, "rb") as source:
+        saved = source.read().decode("utf-8", "replace").strip()
+    resolved = None
+    if saved and not saved.startswith("-") and not any(character.isspace() for character in saved):
+        r = subprocess.run(["git", "rev-parse", "--verify", "--quiet", "--end-of-options", f"{saved}^{{commit}}"],
+                           cwd=REPO, capture_output=True)
+        resolved = r.stdout.decode().strip() if r.returncode == 0 else None
+    if not resolved:
+        return ".review-base 不是有效提交，无法核对 changes.txt 是否覆盖复核基线以来的改动"
+    start = git("rev-parse", "--verify", "--end-of-options", f"{base}^{{commit}}").decode().strip()
+    if subprocess.run(["git", "merge-base", "--is-ancestor", start, resolved], cwd=REPO, capture_output=True).returncode == 0:
+        return None
+    count = git("rev-list", "--count", f"{resolved}..{start}").decode().strip()
+    return f"changes.txt 从 {base} 开始，未覆盖复核基线 {saved} 以来的全部改动：{saved}..{base}（{count} 个提交）不在差异中"
+
+
 def check():
     output_directory()
     expected = dict(files())
@@ -318,6 +339,9 @@ def check():
     total = len(text_names)
     if "changes.txt" not in names:
         ok = False; print("  ❌ 缺少 changes.txt")
+    gap = review_gap(base) if base else None
+    if gap:
+        print(f"  ⚠️ {gap}")
     head = git("rev-parse", "--short", "HEAD").decode().strip()
     print(f"  {len(seen)}/{len(expected)} 个源文件，{total} 个 txt，HEAD {head}")
     print("  ✅ 副本与源码逐字节一致" if ok else "  ❌ 副本与源码不一致")

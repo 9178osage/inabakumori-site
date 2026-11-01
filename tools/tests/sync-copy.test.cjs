@@ -114,6 +114,34 @@ test("existing review base is retained, including when an explicit alternate bas
   } finally { box.close(); }
 });
 
+test("sync and check name the review-base range a later changes.txt start leaves out, without failing", () => {
+  const box = fixture();
+  try {
+    box.write("docs/note.md", "# Synthetic documentation\nA second committed change.\n"); box.commit();
+    fs.mkdirSync(box.output);
+    const saved = path.join(box.output, ".review-base");
+    fs.writeFileSync(saved, box.base + "\n");
+    const gap = `\u26a0\ufe0f changes.txt 从 HEAD~1 开始，未覆盖复核基线 ${box.base} 以来的全部改动：${box.base}..HEAD~1（1 个提交）不在差异中`;
+    for (const result of [box.run(["HEAD~1"]), box.run(["--check"])]) {
+      passed(result); assert.ok(result.stdout.includes(gap), result.stdout);
+      assert.match(result.stdout, /✅ 副本与源码逐字节一致/u);
+    }
+    assert.equal(fs.readFileSync(saved, "utf8"), box.base + "\n", "the warning never moves the saved base");
+    const middle = box.git("rev-parse", "--short", "HEAD~1");
+    fs.writeFileSync(saved, middle + "\n");
+    for (const start of [middle, box.base]) {
+      const synced = box.run([start]), checked = box.run(["--check"]);
+      for (const result of [synced, checked]) { passed(result); assert.doesNotMatch(result.stdout, /\u26a0/u, `${start} covers the saved base`); }
+    }
+    fs.writeFileSync(saved, "--output=not-a-commit\n");
+    const invalid = box.run(["--check"]); passed(invalid);
+    assert.ok(invalid.stdout.includes("\u26a0\ufe0f .review-base 不是有效提交"), invalid.stdout);
+    assert.equal(fs.existsSync(path.join(box.root, "not-a-commit")), false);
+    fs.unlinkSync(saved);
+    const missing = box.run(["--check"]); passed(missing); assert.doesNotMatch(missing.stdout, /\u26a0/u);
+  } finally { box.close(); }
+});
+
 test("restored code limit repacks an old large volume and removes obsolete data volumes", () => {
   const box = fixture({ "js/one.js": "x".repeat(90000), "js/two.js": "y".repeat(90000) });
   try {
