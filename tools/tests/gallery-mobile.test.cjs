@@ -84,7 +84,7 @@ function pilotConfig() {
   ])) };
 }
 
-test("asset pilot is inactive without an enabled config and never alters desktop thumbnails", () => {
+test("the gallery ignores the asset pilot config and keeps its local thumbnails on phones and desktop", () => {
   for (const assetPilot of [undefined, { ...pilotConfig(), enabled: false }]) {
     const app = galleryFixture({ assetPilot });
     assert.equal(app.root.querySelectorAll("img")[0].src, "images/optimized/nknk/1.webp");
@@ -92,9 +92,12 @@ test("asset pilot is inactive without an enabled config and never alters desktop
   const desktop = galleryFixture({ assetPilot: pilotConfig(), compact: false });
   assert.equal(desktop.root.querySelectorAll("img")[0].src, "images/optimized/nknk/1.webp");
   assert.ok(desktop.root.querySelectorAll("img").every(image => !image.src?.includes("pages.dev") && !image.dataset.src?.includes("pages.dev")));
+  const phone = galleryFixture({ assetPilot: pilotConfig(), compact: true });
+  assert.equal(phone.root.querySelectorAll("img")[0].src, "images/optimized/nknk/1.webp");
+  assert.ok(phone.root.querySelectorAll("img").every(image => !image.src?.includes("pages.dev") && !image.dataset.src?.includes("pages.dev")), "an enabled pilot never reaches the phone marquee");
 });
 
-test("asset pilot rejects untrusted origins, credentials, unsafe schemes and mismatched asset hosts", () => {
+test("the gallery never loads from untrusted pilot origins, credentials, unsafe schemes or mismatched asset hosts", () => {
   const source = "images/optimized/nknk/mobile/1.webp";
   const cases = [
     { ...pilotConfig(), origin: "http://station-assets.pages.dev" },
@@ -164,6 +167,7 @@ test("the shipped asset pilot config matches exported bytes and adds its origin 
 test("phones get the same single-row marquee as desktop instead of the static grid", () => {
   const { root } = galleryFixture({ compact: true });
   assert.equal(root.querySelector(".nknk-compact-grid"), null);
+  assert.equal(root.querySelector(".nknk-compact-toggle"), null, "no 'view all' toggle");
   assert.equal(root.querySelectorAll(".nknk-marquee").length, 1);
   assert.ok(root.querySelectorAll(".nknk-marquee-item").length > 6);
   assert.equal(root.classList.contains("is-compact"), false);

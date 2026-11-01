@@ -74,6 +74,5 @@ test("vertical scroll containers chain scrolling to the page at their edges", ()
 test("phone homepage gallery uses the single-row marquee like desktop", () => {
   const js = read("js/nknk-gallery-ui.js");
   assert.match(js, /const ROW_COUNT = 1;/);
-  assert.match(js, /\n      compact = false;\n/);
-  assert.doesNotMatch(js, /compact = compactQuery\?\.matches/);
+  assert.doesNotMatch(js, /nknk-compact|compactQuery|COMPACT_|compactExpanded|compactToggle|pilotThumbnail|assetPilot/, "the retired phone grid, its 'view all' toggle and the thumbnail pilot are gone");
 });
