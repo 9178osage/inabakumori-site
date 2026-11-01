@@ -35,5 +35,6 @@ inabakumori-site-all-code/
 
 # Local Vercel project link and downloaded deployment environment.
 .vercel/
-# NKNK gallery originals live outside the repo (NKNK_SOURCE_DIR); only generated WebP files are committed.
+# NKNK gallery originals are local-only; only generated WebP files are committed.
 /NKNK/
+/inabakumori-assets-src/

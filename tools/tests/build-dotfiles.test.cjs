@@ -49,6 +49,8 @@ test("build skips hidden source paths and check-build allows only the root .noje
       fs.writeFileSync(path.join(box.root, folder, folder.startsWith("fonts") ? "private.txt" : "private.webp"), "PRIVATE_MARKER");
     }
     fs.writeFileSync(path.join(box.root, "images/.private.png"), "PRIVATE_MARKER");
+    fs.mkdirSync(path.join(box.root, "inabakumori-assets-src/NKNK"), { recursive: true });
+    fs.writeFileSync(path.join(box.root, "inabakumori-assets-src/NKNK/1.jpg"), "PRIVATE_ORIGINAL");
 
     const built = run(box.root, "tools/build-site.mjs", box.outside);
     assert.equal(built.status, 0, built.stderr);
@@ -56,6 +58,7 @@ test("build skips hidden source paths and check-build allows only the root .noje
     assert.deepEqual(hiddenPaths(path.join(box.root, "dist")), [".nojekyll"]);
     assert.equal(fs.existsSync(path.join(box.root, "dist/images/optimized/.private")), false);
     assert.equal(fs.existsSync(path.join(box.root, "dist/fonts/.private")), false);
+    assert.equal(fs.existsSync(path.join(box.root, "dist/inabakumori-assets-src")), false, "local gallery originals must not be published");
 
     const checked = run(box.root, "tools/check-build.mjs", box.outside);
     assert.equal(checked.status, 0, checked.stderr);

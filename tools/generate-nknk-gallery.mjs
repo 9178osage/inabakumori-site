@@ -6,10 +6,10 @@ import { fileURLToPath } from "node:url";
 import { assertRepoPath } from "./safe-fs.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-// Full-size originals are kept outside the repository (removed from Git history to keep clones
-// small). Point NKNK_SOURCE_DIR at them; the default is a sibling folder next to the repo.
+// Full-size originals are local-only and excluded from Git. The default is the
+// explicitly ignored folder inside the checkout; NKNK_SOURCE_DIR may point outside it.
 // --config-only needs no originals: it rebuilds js/nknk-gallery.js from the committed WebP files.
-const DEFAULT_NKNK_SOURCE_DIR = path.join(root, "..", "inabakumori-assets-src", "NKNK");
+const DEFAULT_NKNK_SOURCE_DIR = path.join(root, "inabakumori-assets-src", "NKNK");
 const sourceDir = path.resolve(process.env.NKNK_SOURCE_DIR || DEFAULT_NKNK_SOURCE_DIR);
 const thumbDir = path.join(root, "images/optimized/nknk");
 const fullDir = path.join(root, "images/optimized/nknk/full");
@@ -113,11 +113,13 @@ async function readSourceNames() {
     throw error;
   }
   if (!info.isDirectory()) throw new Error(`Refusing non-directory NKNK source: ${sourceDir}`);
-  // The originals folder must not live inside the repository, so they cannot be committed again.
+  // Inside the checkout, only the designated ignored directory is allowed.
+  // Check each path component so a symlink cannot silently change that location.
   const realRoot = await realpath(root);
   const relative = path.relative(realRoot, await realpath(sourceDir));
   const outside = relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative);
-  if (!outside) throw new Error(`Refusing NKNK source inside the repository: ${sourceDir}`);
+  if (!outside && sourceDir !== DEFAULT_NKNK_SOURCE_DIR) throw new Error(`Refusing NKNK source inside the repository: ${sourceDir}`);
+  if (sourceDir === DEFAULT_NKNK_SOURCE_DIR) assertRepoPath(root, sourceDir, { mustExist: true });
   return readdir(sourceDir);
 }
 

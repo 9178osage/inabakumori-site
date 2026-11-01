@@ -21,7 +21,7 @@ function sandbox(files) {
 }
 function run(root, script, args = [], env = {}) {
   const clean = { ...process.env };
-  delete clean.CI; delete clean.GITHUB_ACTIONS; delete clean.KEEP_LOCAL_API_CSP;
+  delete clean.CI; delete clean.GITHUB_ACTIONS; delete clean.KEEP_LOCAL_API_CSP; delete clean.NKNK_SOURCE_DIR;
   return spawnSync(process.execPath, [path.join(root, script), ...args], { cwd: root, env: { ...clean, ...env }, encoding: "utf8", timeout: 30_000 });
 }
 const buildFiles = ["tools/build-site.mjs", "tools/mobile-song-intro.mjs", "tools/safe-fs.mjs", "tools/net-guards.mjs", "tools/render-creator-updates.mjs", "tools/x-posts-data.mjs", "tools/render-x-posts.mjs", "tools/text-guards.mjs", "tools/x-translations.mjs", "tools/calendar-song.mjs", "tools/auth-src.js", "tools/render-archive-pages.mjs", "tools/song-archive.mjs", "tools/archive-page-shell.mjs"];
@@ -154,20 +154,27 @@ test("NKNK generator refuses symlinked output folders instead of emptying their 
 });
 
 test("NKNK generator refuses numbered source-image symlinks", () => {
-  const box = sandbox(["tools/generate-nknk-gallery.mjs", "tools/safe-fs.mjs"]);
-  try {
-    const source = path.join(box.outside, "NKNK");
-    fs.mkdirSync(source);
-    fs.writeFileSync(path.join(box.outside, "image.png"), "private file");
-    fs.symlinkSync(path.join(box.outside, "image.png"), path.join(source, "1.png"));
-    const result = run(box.root, "tools/generate-nknk-gallery.mjs", [], { NKNK_SOURCE_DIR: source });
-    assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /Refusing non-file gallery source: 1\.png/);
-    assert.equal(fs.readFileSync(path.join(box.outside, "image.png"), "utf8"), "private file");
-  } finally { box.cleanup(); }
+  for (const useDefault of [true, false]) {
+    const box = sandbox(["tools/generate-nknk-gallery.mjs", "tools/safe-fs.mjs"]);
+    try {
+      const source = useDefault ? path.join(box.root, "inabakumori-assets-src/NKNK") : path.join(box.outside, "NKNK");
+      fs.mkdirSync(source, { recursive: true });
+      fs.writeFileSync(path.join(box.outside, "image.png"), "private file");
+      fs.symlinkSync(path.join(box.outside, "image.png"), path.join(source, "1.png"));
+      const result = run(box.root, "tools/generate-nknk-gallery.mjs", [], useDefault ? {} : { NKNK_SOURCE_DIR: source });
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /Refusing non-file gallery source: 1\.png/);
+      assert.equal(fs.readFileSync(path.join(box.outside, "image.png"), "utf8"), "private file");
+    } finally { box.cleanup(); }
+  }
 });
 
-test("NKNK generator reads originals only from an external folder and explains a missing one", () => {
+test("local NKNK originals are ignored by Git", () => {
+  const result = spawnSync("git", ["check-ignore", "--no-index", "--quiet", "--", "inabakumori-assets-src/NKNK/1.jpg"], { cwd: repo, encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr || "gallery originals must be ignored");
+});
+
+test("NKNK generator rejects other internal sources and explains a missing folder", () => {
   const box = sandbox(["tools/generate-nknk-gallery.mjs", "tools/safe-fs.mjs"]);
   try {
     const missing = run(box.root, "tools/generate-nknk-gallery.mjs", [], { NKNK_SOURCE_DIR: path.join(box.outside, "absent") });
@@ -185,49 +192,67 @@ test("NKNK generator reads originals only from an external folder and explains a
   } finally { box.cleanup(); }
 });
 
-test("NKNK generator accepts an external source and creates gallery assets with an isolated encoder", () => {
-  const box = sandbox(["tools/generate-nknk-gallery.mjs", "tools/safe-fs.mjs"]);
-  try {
-    fs.mkdirSync(path.join(box.root, "js"));
-    fs.mkdirSync(path.join(box.root, "bin"));
-    const source = path.join(box.outside, "1.png");
-    const original = Buffer.alloc(24);
-    original.write("PNG", 1);
-    original.writeUInt32BE(640, 16);
-    original.writeUInt32BE(480, 20);
-    fs.writeFileSync(source, original);
-    // A phone-thumbnail folder left over from before that set was retired is cleaned up, never regenerated.
-    fs.mkdirSync(path.join(box.root, "images/optimized/nknk/mobile"), { recursive: true });
-    fs.writeFileSync(path.join(box.root, "images/optimized/nknk/mobile/1.webp"), "STALE");
-    // The stand-in emits only the WebP dimension header the generator reads;
-    // no installed encoder or real gallery originals are used by this test.
-    fs.writeFileSync(path.join(box.root, "bin/cwebp"), `#!/usr/bin/env node
-const fs = require("node:fs");
-const args = process.argv.slice(2);
-const width = Number(args[args.indexOf("-resize") + 1]);
-const output = args[args.indexOf("-o") + 1];
-const data = Buffer.alloc(30);
-data.write("RIFF", 0);
-data.write("WEBPVP8X", 8);
-data.writeUIntLE(width - 1, 24, 3);
-data.writeUIntLE(99, 27, 3);
-fs.writeFileSync(output, data);
-`, { mode: 0o755 });
-    const result = run(box.root, "tools/generate-nknk-gallery.mjs", [], {
-      NKNK_SOURCE_DIR: box.outside,
-      PATH: `${path.join(box.root, "bin")}${path.delimiter}${process.env.PATH}`
-    });
-    assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /NKNK gallery: 1 images/u);
-    for (const file of ["images/optimized/nknk/1.webp", "images/optimized/nknk/full/1.webp"]) {
-      assert.equal(fs.readFileSync(path.join(box.root, file)).toString("ascii", 0, 4), "RIFF", file);
-    }
-    assert.equal(fs.existsSync(path.join(box.root, "images/optimized/nknk/mobile")), false, "no phone thumbnails are generated and a stale folder is removed");
-    const config = fs.readFileSync(path.join(box.root, "js/nknk-gallery.js"), "utf8");
-    assert.match(config, /id: 1,.*w: 300, h: 100/u);
-    assert.doesNotMatch(config, /mobile/iu, "the gallery data carries no phone thumbnail field");
-    assert.deepEqual(fs.readFileSync(source), original, "the external original is only read");
-  } finally { box.cleanup(); }
+test("NKNK generator rejects a symlinked default source directory or parent", () => {
+  for (const linked of ["inabakumori-assets-src", "inabakumori-assets-src/NKNK"]) {
+    const box = sandbox(["tools/generate-nknk-gallery.mjs", "tools/safe-fs.mjs"]);
+    try {
+      fs.mkdirSync(path.dirname(path.join(box.root, linked)), { recursive: true });
+      fs.symlinkSync(box.outside, path.join(box.root, linked));
+      if (linked === "inabakumori-assets-src") fs.mkdirSync(path.join(box.outside, "NKNK"));
+      const result = run(box.root, "tools/generate-nknk-gallery.mjs");
+      assert.notEqual(result.status, 0, linked);
+      assert.match(result.stderr, /Refusing (?:symlinked path|non-directory NKNK source)/, linked);
+    } finally { box.cleanup(); }
+  }
+});
+
+test("NKNK generator accepts the ignored default folder and external sources with an isolated encoder", () => {
+  for (const useDefault of [true, false]) {
+    const box = sandbox(["tools/generate-nknk-gallery.mjs", "tools/safe-fs.mjs"]);
+    try {
+      fs.mkdirSync(path.join(box.root, "js"));
+      fs.mkdirSync(path.join(box.root, "bin"));
+      const sourceDir = useDefault ? path.join(box.root, "inabakumori-assets-src/NKNK") : box.outside;
+      fs.mkdirSync(sourceDir, { recursive: true });
+      const source = path.join(sourceDir, "1.png");
+      const original = Buffer.alloc(24);
+      original.write("PNG", 1);
+      original.writeUInt32BE(640, 16);
+      original.writeUInt32BE(480, 20);
+      fs.writeFileSync(source, original);
+      // A phone-thumbnail folder left over from before that set was retired is cleaned up, never regenerated.
+      fs.mkdirSync(path.join(box.root, "images/optimized/nknk/mobile"), { recursive: true });
+      fs.writeFileSync(path.join(box.root, "images/optimized/nknk/mobile/1.webp"), "STALE");
+      // The stand-in emits only the WebP dimension header the generator reads;
+      // no installed encoder or real gallery originals are used by this test.
+      fs.writeFileSync(path.join(box.root, "bin/cwebp"), `#!/usr/bin/env node
+  const fs = require("node:fs");
+  const args = process.argv.slice(2);
+  const width = Number(args[args.indexOf("-resize") + 1]);
+  const output = args[args.indexOf("-o") + 1];
+  const data = Buffer.alloc(30);
+  data.write("RIFF", 0);
+  data.write("WEBPVP8X", 8);
+  data.writeUIntLE(width - 1, 24, 3);
+  data.writeUIntLE(99, 27, 3);
+  fs.writeFileSync(output, data);
+  `, { mode: 0o755 });
+      const result = run(box.root, "tools/generate-nknk-gallery.mjs", [], {
+        ...(useDefault ? {} : { NKNK_SOURCE_DIR: box.outside }),
+        PATH: `${path.join(box.root, "bin")}${path.delimiter}${process.env.PATH}`
+      });
+      assert.equal(result.status, 0, result.stderr);
+      assert.match(result.stdout, /NKNK gallery: 1 images/u);
+      for (const file of ["images/optimized/nknk/1.webp", "images/optimized/nknk/full/1.webp"]) {
+        assert.equal(fs.readFileSync(path.join(box.root, file)).toString("ascii", 0, 4), "RIFF", file);
+      }
+      assert.equal(fs.existsSync(path.join(box.root, "images/optimized/nknk/mobile")), false, "no phone thumbnails are generated and a stale folder is removed");
+      const config = fs.readFileSync(path.join(box.root, "js/nknk-gallery.js"), "utf8");
+      assert.match(config, /id: 1,.*w: 300, h: 100/u);
+      assert.doesNotMatch(config, /mobile/iu, "the gallery data carries no phone thumbnail field");
+      assert.deepEqual(fs.readFileSync(source), original, "the original is only read");
+    } finally { box.cleanup(); }
+  }
 });
 
 test("view-count updater refuses to replace js/songs.js when it is a symlink", () => {

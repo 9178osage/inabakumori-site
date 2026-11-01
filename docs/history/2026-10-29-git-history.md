@@ -4,7 +4,7 @@
 
 ## 已完成的分支清理
 
-2026-10-28 已重写并强推普通分支，移除 `NKNK/` 原图；原图保存在仓库外，生成后的 WebP 继续受版本控制并正常发布。
+2026-10-28 已重写并强推普通分支，移除 `NKNK/` 原图；当时原图保存在仓库外，生成后的 WebP 继续受版本控制并正常发布。此后本机原图改存于仓库内被 Git 忽略的 `inabakumori-assets-src/NKNK`，仍不提交或发布。
 
 2026-10-29 从 GitHub 新建完整镜像复查，5 个普通远端分支的全部祖先均不含 `NKNK/`：`main`、`gh-pages`、`codex/updates-in-home`、`codex/x-posts-archive`、`refactor/deps-2026-10-21`。当前普通本地对象包约 41.25 MiB。
 
