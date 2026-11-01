@@ -243,7 +243,7 @@ export function releaseYear(entry) {
 }
 
 // One list in archive order. Each entry shows its year and album, so nothing is lost without
-// JavaScript; js/archive-pages.js reveals the album × year filter and keeps it in ?album=&year=.
+// JavaScript; js/archive-pages.js reveals the two-level filter and saves one choice in the URL.
 export function renderSongIndex(songs, details, linkedMap) {
   const entries = songs.map((song, index) => {
     const id = youtubeId(song.youtube);
@@ -257,13 +257,14 @@ export function renderSongIndex(songs, details, linkedMap) {
   if (years.has("unknown")) yearOrder.push("unknown");
   const unknownYear = ["年份待确认", "Year unconfirmed", "年未確認"];
   const button = (facet, value, label, count) => `<button type="button" data-song-filter="${facet}" data-value="${escape(value)}" aria-pressed="${value === "all"}">${label}<span class="song-filter-count" aria-hidden="true">${count}</span></button>`;
-  const group = (facet, labels, options) => `<div class="song-filter-group" role="group" aria-labelledby="song-filter-${facet}-label">${tri("p", labels, ` id="song-filter-${facet}-label" class="song-filter-label"`)}<div class="updates-filters">${button(facet, "all", tri("span", ["全部", "All", "すべて"]), entries.length)}${options.join("")}</div></div>`;
+  const mode = (facet, labels) => `<button type="button" data-song-mode="${facet}" aria-expanded="false" aria-pressed="false" aria-controls="song-filter-${facet}">${tri("span", labels)}<span class="song-filter-arrow" aria-hidden="true">›</span></button>`;
+  const group = (facet, labels, options) => `<div id="song-filter-${facet}" class="song-filter-group" role="group" aria-labelledby="song-filter-${facet}-label" hidden>${tri("p", labels, ` id="song-filter-${facet}-label" class="song-filter-label"`)}<div class="updates-filters">${button(facet, "all", tri("span", ["全部", "All", "すべて"]), entries.length)}${options.join("")}</div></div>`;
   const albumOptions = [...albums.keys()].map(slug => {
     const first = entries.find(entry => entry.album === slug);
     return button("album", slug, first.albumHtml, albums.get(slug));
   });
   const yearOptions = yearOrder.map(year => button("year", year, year === "unknown" ? tri("span", unknownYear) : escape(year), years.get(year)));
-  const filters = `<div id="song-filters" class="song-filters" hidden>${group("album", ["专辑", "Album", "アルバム"], albumOptions)}${group("year", ["公开年份", "Public year", "公開年"], yearOptions)}</div><div class="song-filter-summary"><p id="song-filter-status" class="updates-count" role="status" aria-live="polite" hidden></p>${tri("button", ["清除筛选", "Clear filters", "絞り込みを解除"], ' type="button" id="song-filter-reset" class="song-filter-reset" hidden')}</div>`;
+  const filters = `<div id="song-filters" class="song-filters" hidden>${tri("p", ["先选择筛选方式，再选择年份或专辑。", "Choose how to browse, then select a year or album.", "絞り込み方法を選んでから、公開年またはアルバムを選択してください。"], ' id="song-filter-mode-label" class="song-filter-hint"')}<div class="song-filter-menu"><div class="song-filter-modes updates-filters" role="group" aria-labelledby="song-filter-mode-label">${mode("year", ["按年份", "By year", "公開年から"])}${mode("album", ["按专辑", "By album", "アルバムから"])}</div>${group("year", ["选择公开年份", "Select a public year", "公開年を選択"], yearOptions)}${group("album", ["选择专辑", "Select an album", "アルバムを選択"], albumOptions)}</div></div><div class="song-filter-summary"><p id="song-filter-status" class="updates-count" role="status" aria-live="polite" hidden></p>${tri("button", ["清除筛选", "Clear filters", "絞り込みを解除"], ' type="button" id="song-filter-reset" class="song-filter-reset" hidden')}</div>`;
   const list = entries.map(({ song, index, id, year, album, albumHtml }) => {
     const badge = details[id] ? tri("span", ["部分资料已核对", "Sources checked", "一部資料を確認"], ' class="song-checked"') : "";
     const inferred = details[id]?.releaseConfidence === "inferred" ? tri("span", ["日期推定", "Date inferred", "日付は推定"], ' class="song-year-inferred"') : "";

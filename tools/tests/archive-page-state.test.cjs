@@ -77,7 +77,16 @@ test("song index lists every song once with its Japan public year and album, ret
   assert.match(html, /data-song-filter="year" data-value="unknown" aria-pressed="false"><span[^>]*>年份待确认<\/span>/u);
   assert.match(html, /data-year="2021">[^]*?日期推定/u, "inferred dates stay visibly qualified even without JavaScript");
   assert.match(html, /<div id="song-filters" class="song-filters" hidden>/u, "the filter appears only once the script can run it");
+  for (const facet of ["year", "album"]) {
+    assert.match(html, new RegExp(`data-song-mode="${facet}" aria-expanded="false" aria-pressed="false" aria-controls="song-filter-${facet}"`, "u"));
+    assert.match(html, new RegExp(`<div id="song-filter-${facet}"[^>]* hidden>`, "u"), "both second-level branches start hidden");
+  }
   assert.doesNotMatch(html, /<details|song-index-group/u, "no separate year or album sections remain");
+  const app = songFilterPage(html);
+  app.mode("year").listeners.click();
+  app.button("year", "unknown").listeners.click();
+  assert.equal(app.visible().length, 1);
+  assert.equal(app.visible()[0].dataset.year, "unknown");
 });
 
 // A DOM just large enough for the songs.html filter: list items, filter buttons, status, reset and empty notice.
@@ -87,7 +96,7 @@ function songFilterPage(html, search = "") {
     const attrs = attributes(tag);
     const dataset = Object.fromEntries(Object.entries(attrs).filter(([name]) => name.startsWith("data-"))
       .map(([name, value]) => [name.slice(5).replace(/-([a-z])/gu, (_, letter) => letter.toUpperCase()), value]));
-    return { attributes: attrs, dataset, hidden: "hidden" in attrs, disabled: false, textContent: "", listeners: {},
+    return { attributes: attrs, dataset, hidden: /\shidden(?=[\s>])/u.test(tag), disabled: false, textContent: "", listeners: {},
       getAttribute(name) { return this.attributes[name] ?? null; },
       setAttribute(name, value) { this.attributes[name] = String(value); },
       removeAttribute(name) { delete this.attributes[name]; },
@@ -99,12 +108,15 @@ function songFilterPage(html, search = "") {
     const count = { textContent: inner.match(/class="song-filter-count"[^>]*>(\d+)</u)[1] };
     return element(tag, { querySelector: selector => selector === ".song-filter-count" ? count : null, count });
   });
+  const modes = [...html.matchAll(/<button\b[^>]*data-song-mode[^>]*>/gu)].map(([tag]) => element(tag));
   const byId = id => element(html.match(new RegExp(`<[a-z]+\\b[^>]*\\bid="${id}"[^>]*>`, "u"))[0]);
   const panel = byId("song-filters");
-  panel.querySelectorAll = selector => selector === "button[data-song-filter]" ? buttons : [];
+  panel.querySelectorAll = selector => selector === "button[data-song-filter]" ? buttons : selector === "button[data-song-mode]" ? modes : [];
+  const groups = Object.fromEntries(["year", "album"].map(facet => [facet, byId(`song-filter-${facet}`)]));
   const status = byId("song-filter-status"), reset = byId("song-filter-reset"), empty = byId("song-filter-empty");
   const languageButton = element("<button>");
-  const elements = { "song-filters": panel, "song-filter-status": status, "song-filter-reset": reset, "song-filter-empty": empty, "archive-lang-btn": languageButton };
+  const elements = { "song-filters": panel, "song-filter-status": status, "song-filter-reset": reset, "song-filter-empty": empty,
+    "song-filter-year": groups.year, "song-filter-album": groups.album, "archive-lang-btn": languageButton };
   const root = element(html.match(/<html\b[^>]*>/u)[0]);
   const urls = [];
   const location = { pathname: "/songs.html", search, hash: "#list" };
@@ -125,7 +137,8 @@ function songFilterPage(html, search = "") {
   vm.runInNewContext(read("js/archive-pages.js"), { window, document, Intl, Date });
   const button = (facet, value) => buttons.find(entry => entry.dataset.songFilter === facet && entry.dataset.value === value);
   const visible = () => items.filter(item => !item.hidden);
-  return { items, buttons, button, visible, panel, status, reset, empty, urls, languageButton, focused: () => focused };
+  return { items, buttons, button, modes, mode: facet => modes.find(entry => entry.dataset.songMode === facet), groups,
+    visible, panel, status, reset, empty, urls, languageButton, focused: () => focused };
 }
 
 const fullSongIndex = (async () => {
@@ -138,19 +151,22 @@ const fullSongIndex = (async () => {
     updatesHtml: read("updates.html") }).files.get("songs.html");
 })();
 
-test("songs.html filters one list by album and public year together and keeps the choice in the address", async () => {
+test("songs.html requires choosing a branch before a value and never combines album with year", async () => {
   const app = songFilterPage(await fullSongIndex);
   const total = app.items.length;
-  const expectCounts = (album, year) => {
-    const choice = { album, year };
+  const expectBranch = (facet, value = "all") => {
+    for (const mode of app.modes) {
+      const selected = mode.dataset.songMode === facet;
+      assert.equal(mode.getAttribute("aria-pressed"), String(selected));
+      assert.equal(mode.getAttribute("aria-expanded"), String(selected));
+      assert.equal(app.groups[mode.dataset.songMode].hidden, !selected);
+    }
     for (const entry of app.buttons) {
-      const { songFilter: facet, value } = entry.dataset;
-      const scope = { ...choice, [facet]: value };
-      const count = app.items.filter(item => ["album", "year"].every(key => scope[key] === "all" || item.dataset[key] === scope[key])).length;
-      const pressed = choice[facet] === value;
-      assert.equal(entry.count.textContent, String(count), `${facet}=${value} count`);
-      assert.equal(entry.getAttribute("aria-pressed"), String(pressed), `${facet}=${value} pressed`);
-      assert.equal(entry.disabled, !pressed && count === 0, `${facet}=${value} disabled`);
+      const { songFilter, value: option } = entry.dataset;
+      const count = app.items.filter(item => option === "all" || item.dataset[songFilter] === option).length;
+      assert.equal(entry.count.textContent, String(count), `${songFilter}=${option} count is independent of the other branch`);
+      assert.equal(entry.getAttribute("aria-pressed"), String(songFilter === facet && option === value));
+      assert.equal(entry.disabled, false);
     }
   };
   assert.equal(total, 52);
@@ -161,60 +177,104 @@ test("songs.html filters one list by album and public year together and keeps th
   assert.equal(app.empty.hidden, true);
   assert.deepEqual(app.buttons.filter(entry => entry.dataset.songFilter === "album").map(entry => [entry.dataset.value, entry.count.textContent]),
     [["all", "52"], ["anticyclone", "14"], ["weather-station", "11"], ["singles", "27"]]);
-  expectCounts("all", "all");
+  expectBranch("");
   assert.deepEqual(app.urls, [], "the initial render leaves the address alone");
 
+  app.button("album", "anticyclone").listeners.click();
+  assert.equal(app.visible().length, total, "a second-level option cannot activate before its branch is chosen");
+  app.mode("album").listeners.click();
+  expectBranch("album");
+  assert.equal(app.visible().length, total, "choosing the branch only reveals its second-level options");
+  assert.equal(app.urls.at(-1), "/songs.html?album=all#list");
+  assert.equal(app.reset.hidden, false);
   app.button("album", "anticyclone").listeners.click();
   assert.equal(app.visible().length, 14);
   assert.ok(app.visible().every(item => item.dataset.album === "anticyclone"));
   assert.equal(app.status.textContent, `显示 14 / ${total} 首`);
   assert.equal(app.reset.hidden, false);
   assert.equal(app.urls.at(-1), "/songs.html?album=anticyclone#list");
-  expectCounts("anticyclone", "all");
-  const emptyYear = app.buttons.find(entry => entry.dataset.songFilter === "year" && entry.disabled);
-  assert.ok(emptyYear, "a year without アンチサイクロン songs is unavailable");
-  emptyYear.listeners.click();
-  assert.equal(app.visible().length, 14, "a disabled option is ignored");
+  expectBranch("album", "anticyclone");
+  app.mode("album").listeners.click();
+  assert.equal(app.visible().length, 14, "reselecting the open branch retains its chosen option");
+  app.button("year", "2026").listeners.click();
+  assert.equal(app.visible().length, 14, "the hidden year branch cannot affect an album selection");
 
-  const year = app.visible()[0].dataset.year;
+  app.mode("year").listeners.click();
+  expectBranch("year");
+  assert.equal(app.visible().length, total, "switching branches clears the previous album filter");
+  assert.equal(app.urls.at(-1), "/songs.html?year=all#list");
+  const year = "2019";
   app.button("year", year).listeners.click();
-  const both = app.items.filter(item => item.dataset.album === "anticyclone" && item.dataset.year === year);
-  assert.deepEqual(app.visible(), both);
-  assert.equal(app.urls.at(-1), `/songs.html?album=anticyclone&year=${year}#list`);
-  expectCounts("anticyclone", year);
+  const byYear = app.items.filter(item => item.dataset.year === year);
+  assert.equal(byYear.length, 8);
+  assert.deepEqual(app.visible(), byYear);
+  assert.equal(new Set(app.visible().map(item => item.dataset.album)).size, 3, "the chosen year includes all albums");
+  assert.equal(app.urls.at(-1), `/songs.html?year=${year}#list`);
+  expectBranch("year", year);
 
   app.languageButton.listeners.click();
-  assert.equal(app.status.textContent, `Showing ${both.length} of ${total} songs`, "the count follows a language switch");
+  assert.equal(app.status.textContent, `Showing ${byYear.length} of ${total} songs`, "the count follows a language switch");
   app.languageButton.listeners.click();
-  assert.equal(app.status.textContent, `${total}曲中${both.length}曲を表示`);
+  assert.equal(app.status.textContent, `${total}曲中${byYear.length}曲を表示`);
+
+  app.mode("album").listeners.click();
+  assert.equal(app.visible().length, total, "switching back does not restore a stale selection");
+  app.button("album", "weather-station").listeners.click();
+  assert.equal(app.visible().length, 11, "the new album is not restricted to the old year");
+  expectBranch("album", "weather-station");
+  app.button("album", "all").listeners.click();
+  assert.equal(app.visible().length, total);
+  expectBranch("album");
 
   app.reset.listeners.click();
   assert.equal(app.visible().length, total);
   assert.equal(app.urls.at(-1), "/songs.html#list");
   assert.equal(app.reset.hidden, true);
-  assert.equal(app.focused(), app.button("album", "all"), "focus moves off the hidden reset button");
+  expectBranch("");
+  assert.equal(app.focused(), app.mode("year"), "focus returns to the first-level control, not a hidden option");
   assert.equal(app.status.textContent, `全${total}曲`);
 });
 
-test("songs.html reads only the first, valid ?album= and ?year= values and explains an empty combination", async () => {
+test("songs.html restores one branch and canonicalizes legacy combined, duplicate and malformed URLs", async () => {
   const html = await fullSongIndex;
   const linked = songFilterPage(html, "?year=2020&year=2019&album=bogus&album=singles");
   assert.equal(linked.button("year", "2020").getAttribute("aria-pressed"), "true");
-  assert.equal(linked.button("album", "all").getAttribute("aria-pressed"), "true", "an unknown first value is not replaced by a later one");
+  assert.equal(linked.groups.album.hidden, true);
+  assert.equal(linked.groups.year.hidden, false);
   assert.ok(linked.visible().length > 0 && linked.visible().every(item => item.dataset.year === "2020"));
+  assert.equal(linked.urls.at(-1), "/songs.html?year=2020#list");
 
   const malformed = songFilterPage(html, "?album=%E0%A4%A&year=2020");
-  assert.equal(malformed.button("album", "all").getAttribute("aria-pressed"), "true");
+  assert.equal(malformed.groups.album.hidden, true);
   assert.equal(malformed.button("year", "2020").getAttribute("aria-pressed"), "true", "a malformed value leaves the other filter working");
 
-  const items = songFilterPage(html).items;
-  const years = [...new Set(items.map(item => item.dataset.year))];
-  const year = years.find(value => !items.some(item => item.dataset.album === "anticyclone" && item.dataset.year === value));
-  const none = songFilterPage(html, `?album=anticyclone&year=${year}`);
-  assert.equal(none.visible().length, 0);
-  assert.equal(none.empty.hidden, false);
-  assert.equal(none.reset.hidden, false, "the empty notice comes with a way out");
-  assert.equal(none.status.textContent, `显示 0 / ${items.length} 首`);
+  const unknown = songFilterPage(html, "?album=bogus&album=singles&year=2019");
+  assert.equal(unknown.groups.album.hidden, true, "a repeated key cannot replace its first, invalid value");
+  assert.equal(unknown.visible().length, 8);
+
+  const combined = songFilterPage(html, "?album=anticyclone&year=2026");
+  assert.equal(combined.visible().length, 14, "a legacy combined link cannot leave an invisible second filter");
+  assert.equal(combined.groups.year.hidden, true);
+  assert.equal(combined.empty.hidden, true);
+  assert.equal(combined.urls.at(-1), "/songs.html?album=anticyclone#list");
+  const yearFirst = songFilterPage(html, "?year=2026&album=anticyclone");
+  assert.equal(yearFirst.visible().length, 2);
+  assert.equal(yearFirst.groups.album.hidden, true);
+  assert.equal(yearFirst.urls.at(-1), "/songs.html?year=2026#list");
+
+  for (const facet of ["year", "album"]) {
+    const all = songFilterPage(html, `?${facet}=all`);
+    assert.equal(all.groups[facet].hidden, false, "the first-level choice survives a reload before selecting a value");
+    assert.equal(all.visible().length, 52);
+    assert.equal(all.button(facet, "all").getAttribute("aria-pressed"), "true");
+    assert.deepEqual(all.urls, [], "a canonical link does not need rewriting");
+  }
+  const invalid = songFilterPage(html, "?year=%E0%A4%A&album=bogus");
+  assert.equal(invalid.visible().length, 52);
+  assert.equal(invalid.groups.year.hidden, true);
+  assert.equal(invalid.groups.album.hidden, true);
+  assert.equal(invalid.reset.hidden, true);
+  assert.equal(invalid.urls.at(-1), "/songs.html#list");
 });
 
 test("generated song index and song detail metadata follows actual language-button clicks", async () => {

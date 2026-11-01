@@ -74,18 +74,20 @@
     else systemTheme?.addListener?.(applyTheme);
     window.addEventListener("pageshow", event => { if (event.persisted) { language = readLanguage(); applyLanguage(); } });
 
-    // songs.html: one list filtered by album and public year together; ?album=&year= survives a reload.
+    // songs.html: choose year OR album, then one value within that branch.
     function initSongFilter() {
       const panel = document.getElementById("song-filters");
       if (!panel) return;
       const facets = ["album", "year"];
       const items = [...document.querySelectorAll(".song-index-list li[data-album][data-year]")];
       const buttons = [...panel.querySelectorAll("button[data-song-filter]")];
+      const modes = [...panel.querySelectorAll("button[data-song-mode]")];
+      const groups = Object.fromEntries(facets.map(facet => [facet, document.getElementById(`song-filter-${facet}`)]));
       const status = document.getElementById("song-filter-status");
       const reset = document.getElementById("song-filter-reset");
       const empty = document.getElementById("song-filter-empty");
       const known = Object.fromEntries(facets.map(facet => [facet, new Set(items.map(item => item.dataset[facet]))]));
-      const state = { album: "all", year: "all" };
+      let facet = "", value = "all";
       const seen = new Set();
       for (const pair of String(window.location?.search || "").replace(/^\?/u, "").split("&")) {
         const separator = pair.indexOf("=");
@@ -94,29 +96,32 @@
         if (!facets.includes(key) || seen.has(key)) continue;
         seen.add(key);
         try {
-          const value = decodeURIComponent((separator < 0 ? "" : pair.slice(separator + 1)).replace(/\+/gu, " "));
-          if (known[key].has(value)) state[key] = value;
+          const decoded = decodeURIComponent((separator < 0 ? "" : pair.slice(separator + 1)).replace(/\+/gu, " "));
+          if (decoded === "all" || known[key].has(decoded)) {
+            // Old combined links keep their first valid branch, never an invisible second filter.
+            facet = key;
+            value = decoded;
+            break;
+          }
         } catch { /* Keep this filter at "all". */ }
       }
-      const matches = (item, album, year) => (album === "all" || item.dataset.album === album) && (year === "all" || item.dataset.year === year);
       function render() {
         let shown = 0;
         for (const item of items) {
-          const visible = matches(item, state.album, state.year);
+          const visible = !facet || value === "all" || item.dataset[facet] === value;
           item.hidden = !visible;
           if (visible) shown++;
         }
-        for (const button of buttons) {
-          const { songFilter: facet, value } = button.dataset;
-          const count = items.filter(item => facet === "album" ? matches(item, value, state.year) : matches(item, state.album, value)).length;
-          const pressed = state[facet] === value;
-          button.setAttribute("aria-pressed", String(pressed));
-          // An option that would empty the list waits until the other filter changes.
-          button.disabled = !pressed && count === 0;
-          const counter = button.querySelector(".song-filter-count");
-          if (counter) counter.textContent = String(count);
+        for (const mode of modes) {
+          const selected = mode.dataset.songMode === facet;
+          mode.setAttribute("aria-pressed", String(selected));
+          mode.setAttribute("aria-expanded", String(selected));
+          groups[mode.dataset.songMode].hidden = !selected;
         }
-        const total = items.length, filtered = state.album !== "all" || state.year !== "all";
+        for (const button of buttons) {
+          button.setAttribute("aria-pressed", String(button.dataset.songFilter === facet && button.dataset.value === value));
+        }
+        const total = items.length, filtered = facet && value !== "all";
         if (status) {
           // data-zh/en/ja let applyLanguage() retranslate the count after a language switch.
           Object.assign(status.dataset, filtered
@@ -125,28 +130,33 @@
           status.textContent = status.dataset[language];
           status.hidden = false;
         }
-        if (reset) reset.hidden = !filtered;
+        if (reset) reset.hidden = !facet;
         if (empty) empty.hidden = shown > 0;
       }
-      function update(change) {
-        Object.assign(state, change);
+      function update(nextFacet, nextValue) {
+        facet = nextFacet;
+        value = nextValue;
         render();
-        const query = facets.filter(key => state[key] !== "all").map(key => `${key}=${encodeURIComponent(state[key])}`).join("&");
+        const query = facet ? `${facet}=${encodeURIComponent(value)}` : "";
         try {
           const search = query ? `?${query}` : "";
           if ((window.location?.search || "") !== search) window.history?.replaceState?.(null, "", window.location.pathname + search + window.location.hash);
         } catch { /* history unavailable: the in-page filter still applies */ }
       }
+      for (const mode of modes) mode.addEventListener("click", () => {
+        const nextFacet = mode.dataset.songMode;
+        if (facets.includes(nextFacet) && nextFacet !== facet) update(nextFacet, "all");
+      });
       for (const button of buttons) button.addEventListener("click", () => {
-        const { songFilter: facet, value } = button.dataset;
-        if (!facets.includes(facet) || (value !== "all" && !known[facet].has(value)) || button.disabled) return;
-        update({ [facet]: value });
+        const { songFilter, value: nextValue } = button.dataset;
+        if (songFilter !== facet || (nextValue !== "all" && !known[facet].has(nextValue))) return;
+        update(facet, nextValue);
       });
       reset?.addEventListener("click", () => {
-        update({ album: "all", year: "all" });
-        buttons.find(button => button.dataset.value === "all")?.focus();
+        update("", "all");
+        modes[0]?.focus();
       });
-      render();
+      update(facet, value);
       panel.hidden = false;
     }
 
