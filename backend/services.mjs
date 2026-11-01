@@ -182,6 +182,17 @@ export function createAdminCheck(adminUserIds) {
   return async userId => typeof userId === "string" && userId.length > 0 && adminUserIds.has(userId);
 }
 
+// Names that read as the site owner or the creator. Only administrators may use them, so the
+// "[站长]" badge on the wall cannot be imitated in a nickname. Role words match anywhere in a
+// CJK name; Latin role words match as whole words, so "badminton" stays allowed.
+const RESERVED_NICKNAME_PARTS = ["站长", "站長", "管理员", "管理員", "管理人", "版主", "官方", "公式", "稲葉曇", "稻叶昙", "稻葉曇", "稲叶昙", "いなばくもり", "イナバクモリ"];
+const RESERVED_NICKNAME_WORDS = /(?:^|[^a-z0-9])(?:admin|administrator|moderator|mod|webmaster|official|owner|staff|inabakumori|inaba\s*kumori)(?=$|[^a-z0-9])/u;
+export function isReservedNickname(nickname) {
+  const folded = normalizeCommentForComparison(nickname);
+  const compact = folded.replace(/[\s\p{P}\p{S}]/gu, "");
+  return RESERVED_NICKNAME_PARTS.some(part => compact.includes(part)) || RESERVED_NICKNAME_WORDS.test(folded);
+}
+
 // Short deploy identifier for /healthz; only a public git commit prefix, never env details.
 export function buildVersion(env) {
   for (const value of [env.VERCEL_GIT_COMMIT_SHA, env.RAILWAY_GIT_COMMIT_SHA]) {

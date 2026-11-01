@@ -71,7 +71,7 @@
     // Set while we hand focus back after a pointer-initiated close, so that focusin does not re-arm
     // the "reading" pause the visitor never asked for.
     let suppressFocusPause = false;
-    let touchStartX = 0;
+    let touchStartX = null;
     let touchStartY = 0;
     let mounted = false;
     let sectionVisible = false;
@@ -155,6 +155,15 @@
       window.scrollTo({ top: y, behavior: "instant" });
       if (savedRestoration !== null) { try { history.scrollRestoration = savedRestoration; } catch { /* ignore */ } savedRestoration = null; }
     });
+    // A reload (or bfcache-less return) while the lightbox was open leaves its marker on this entry;
+    // drop it so a later close does not step back past the page the visitor is actually on.
+    try {
+      if (history.state?.nknkLightbox) {
+        const rest = { ...history.state };
+        delete rest.nknkLightbox;
+        history.replaceState(Object.keys(rest).length ? rest : null, "", location.href);
+      }
+    } catch { /* history unavailable */ }
     window.addEventListener("popstate", () => {
       if (ignoreNextPop) { ignoreNextPop = false; keepScroll(openScrollY); return; }
       if (!lightboxOpen) return;
@@ -706,13 +715,16 @@
       }
     });
 
+    // A second finger turns the gesture into a pinch; a zoomed page pans instead of paging.
     image.addEventListener("touchstart", (event) => {
-      if (!lightboxOpen || event.changedTouches.length !== 1) return;
+      if (!lightboxOpen) return;
+      if (event.touches.length !== 1) { touchStartX = null; return; }
       touchStartX = event.changedTouches[0].clientX;
       touchStartY = event.changedTouches[0].clientY;
     }, { passive: true });
     image.addEventListener("touchend", (event) => {
-      if (!lightboxOpen || event.changedTouches.length !== 1) return;
+      if (!lightboxOpen || touchStartX === null || event.touches.length !== 0 || event.changedTouches.length !== 1) return;
+      if ((window.visualViewport?.scale || 1) > 1.01) { touchStartX = null; return; }
       const dx = event.changedTouches[0].clientX - touchStartX;
       const dy = event.changedTouches[0].clientY - touchStartY;
       if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy)) return;

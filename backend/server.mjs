@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { normalizeRequestPath, validateCommentInput, websiteLocation, parseAdditionalOrigins, clientIpResolver, parseAdminUserIds, createAdminCheck, buildVersion, insertFreshCommentAsync, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery, requireJsonRequestBody, revokeSessionsAfterPasswordReset, createFinalErrorHandler } from "./services.mjs";
+import { normalizeRequestPath, validateCommentInput, websiteLocation, parseAdditionalOrigins, clientIpResolver, parseAdminUserIds, createAdminCheck, buildVersion, insertFreshCommentAsync, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery, isReservedNickname, requireJsonRequestBody, revokeSessionsAfterPasswordReset, createFinalErrorHandler } from "./services.mjs";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -227,10 +227,17 @@ app.use(requireJsonRequestBody);
 app.use(express.json({ limit: "20kb", strict: true, inflate: false }));
 const authSensitiveLimiter = createRequestRateLimit({ ...sharedStore("authSensitiveLimiter"), keyGenerator: clientIpKey, windowMs: 15 * 60 * 1e3, limit: 20, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 // emailExistsGET is removed from the SuperTokens APIs, so only POST auth routes need throttling.
+// Session refresh and sign-out need a valid session token and guess nothing, so they stay under the
+// global limiter only: on a shared IP (CGNAT, school) a neighbour could otherwise use up this budget
+// and break everyone else's token refresh.
+const SESSION_MAINTENANCE_AUTH_PATHS = new Set(["/auth/session/refresh", "/auth/signout"]);
 app.use((req, res, next) => {
   if (req.method !== "POST") return next();
   const pathname = normalizeRequestPath(req.originalUrl || req.url);
   if (pathname !== "/auth" && !pathname.startsWith("/auth/")) return next();
+  // Exempt only a literal path: "/auth/signin/../session/refresh" style spellings stay limited.
+  const literal = String(req.originalUrl || req.url).split(/[?#]/u)[0].toLocaleLowerCase("und");
+  if (literal === pathname && SESSION_MAINTENANCE_AUTH_PATHS.has(pathname)) return next();
   return authSensitiveLimiter(req, res, next);
 });
 app.use(middleware());
@@ -254,6 +261,7 @@ const selectRecentCommentsStatement = db.prepare(`
         id,
         nickname,
         content,
+        user_id,
         is_guest,
         created_at,
         expires_at
@@ -271,7 +279,10 @@ const deleteExpiredGuestsStatement = db.prepare(`
 `);
 const MAX_PUBLIC_COMMENTS = 100;
 const selectCommentListVersionStatement = db.prepare(SELECT_COMMENT_LIST_VERSION);
-const publicComments = createPublicCommentsCache({ load: now => selectRecentCommentsStatement.all(now, MAX_PUBLIC_COMMENTS),
+// The account ID only decides the public admin badge; it never leaves the server.
+const isAdminUserId = userId => typeof userId === "string" && userId !== "" && ADMIN_USER_IDS.has(userId);
+const publicComments = createPublicCommentsCache({ load: async now => (await selectRecentCommentsStatement.all(now, MAX_PUBLIC_COMMENTS))
+  .map(({ user_id: userId, ...row }) => ({ ...row, is_admin: !row.is_guest && isAdminUserId(userId) })),
   version: async () => (await selectCommentListVersionStatement.get())?.version });
 // Same-instance memory is cleared at once; the shared CDN copy is deleted by tag
 // (Hobby plans include tag purges). A failed purge is bounded by s-maxage.
@@ -332,6 +343,10 @@ app.post("/api/comments", commentLimiter, requireJsonContentType, verifySession(
   const isLoggedIn = req.session !== void 0;
   const userId = isLoggedIn ? req.session.getUserId() : null;
   const isGuest = !isLoggedIn;
+  const isAdmin = isLoggedIn && isAdminUserId(userId);
+  if (!isAdmin && isReservedNickname(nickname)) {
+    return res.status(400).json({ error: "这个昵称为站长保留，请换一个昵称", code: "RESERVED_NICKNAME" });
+  }
   const createdAt = Date.now();
   const expiresAt = isGuest ? createdAt + GUEST_COMMENT_RETENTION_MS : null;
   const inserted = await insertFreshCommentAsync(db, {
@@ -345,7 +360,7 @@ app.post("/api/comments", commentLimiter, requireJsonContentType, verifySession(
     return res.status(409).json({ error: "每个账号最多保留 100 条留言，请先删除旧留言", code: "MEMBER_COMMENT_CAP" });
   }
   invalidatePublicComments();
-  return res.status(201).json({ success: true, comment: { id: inserted.id, nickname, content, isGuest, createdAt: new Date(createdAt).toISOString(), expiresAt: expiresAt === null ? null : new Date(expiresAt).toISOString() } });
+  return res.status(201).json({ success: true, comment: { id: inserted.id, nickname, content, isGuest, isAdmin, createdAt: new Date(createdAt).toISOString(), expiresAt: expiresAt === null ? null : new Date(expiresAt).toISOString() } });
 });
 registerCommentManagement(app, db, verifySession, invalidatePublicComments);
 registerAdminCommentManagement(app, db, verifySession, createAdminCheck(ADMIN_USER_IDS), invalidatePublicComments);

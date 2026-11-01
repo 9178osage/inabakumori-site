@@ -48,7 +48,7 @@ export function createPublicCommentsCache({ load, version, now = Date.now }) {
       const completedAt = now();
       const comments = rows.filter(row => row.expires_at === null || Number(row.expires_at) > completedAt)
         .map(row => Object.freeze({ id: Number(row.id), nickname: row.nickname, content: row.content,
-          isGuest: Boolean(row.is_guest), createdAt: new Date(row.created_at).toISOString(),
+          isGuest: Boolean(row.is_guest), isAdmin: row.is_admin === true, createdAt: new Date(row.created_at).toISOString(),
           expiresAt: row.expires_at === null ? null : new Date(row.expires_at).toISOString() }));
       // Count slow queries toward the TTL; refill when a guest expires, too.
       const until = Math.min(loadStartedAt + 30_000, ...rows.filter(row => row.expires_at !== null).map(row => Number(row.expires_at)));

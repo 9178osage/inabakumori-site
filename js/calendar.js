@@ -72,6 +72,11 @@
       if (event.key === "language" || event.key === null) { language = readLanguage(); applyLanguage(); }
       else if (event.key === "theme") applyTheme();
     });
+    // Follow OS theme changes while nothing is saved; refresh both preferences after a bfcache restore.
+    const systemTheme = window.matchMedia?.("(prefers-color-scheme: dark)");
+    if (systemTheme?.addEventListener) systemTheme.addEventListener("change", applyTheme);
+    else systemTheme?.addListener?.(applyTheme);
+    window.addEventListener("pageshow", event => { if (event.persisted) { language = readLanguage(); applyLanguage(); } });
     // Turn the page at the next Japan midnight, and again whenever the tab comes back.
     let timer = null;
     function schedule() {

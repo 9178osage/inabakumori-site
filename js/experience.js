@@ -83,6 +83,9 @@
       });
       ordered.forEach(({ row }) => list.append(row));
     }
+    // Hash-only history steps (in-page anchors) keep the query, so they must not overwrite what the
+    // visitor is typing before the 150 ms debounce has written it to the URL.
+    let appliedSearch = null;
     function syncUrl() {
       const url = new URL(window.location.href);
       // Rebuild the query instead of editing it: leftovers such as ?icons=2 would otherwise ride along
@@ -93,8 +96,11 @@
         if (value) url.searchParams.set(key, value); else url.searchParams.delete(key);
       }
       try { window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash); } catch { /* Sandboxed preview. */ }
+      appliedSearch = window.location.search;
     }
     function restoreUrl() {
+      if (appliedSearch !== null && window.location.search === appliedSearch) return;
+      appliedSearch = window.location.search;
       const params = new URLSearchParams(window.location.search);
       input.value = (params.get("q") || "").slice(0, 200);
       sort.value = ["popular", "title"].includes(params.get("sort")) ? params.get("sort") : "original";
@@ -260,7 +266,8 @@
       storage.setItem("wall-static", String(wallStatic));
       updateWallMode();
     });
-    reducedMotionQuery?.addEventListener("change", updateWallMode);
+    if (reducedMotionQuery?.addEventListener) reducedMotionQuery.addEventListener("change", updateWallMode);
+    else reducedMotionQuery?.addListener?.(updateWallMode);
     window.addEventListener("languagechange", updateWallMode);
     updateWallMode();
 

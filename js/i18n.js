@@ -46,6 +46,7 @@
   "留言发布失败。": "メッセージを投稿できませんでした。",
   "留言内容不能包含链接、邮箱、电话号码或广告联系方式": "リンク、メールアドレス、電話番号、宣伝用の連絡先は投稿できません。",
   "相同内容请稍后再留言": "同じ内容の投稿は、しばらくしてからもう一度お試しください。",
+  "这个昵称为站长保留，请换一个昵称": "このニックネームは管理人専用です。別のニックネームを入力してください。",
   "游客每小时最多留言 3 条，请稍后再试": "ゲストは1時間に3件まで投稿できます。しばらくしてからお試しください。",
   "登录用户每小时最多留言 20 条，请稍后再试": "ログインユーザーは1時間に20件まで投稿できます。しばらくしてからお試しください。",
   "暂时无法识别访客来源，请稍后重试。": "アクセス元を確認できません。しばらくしてから再試行してください。",
@@ -102,6 +103,7 @@
   "确定删除这条留言吗？删除后无法恢复。": "このメッセージを削除しますか？この操作は取り消せません。",
   " [游客]": " [ゲスト]",
   " [已登录]": " [ログイン済み]",
+  " [站长]": " [管理人]",
   "一个因为太喜欢稲葉曇所以做出来的网站。这里包含一些歌单、专辑信息和我找到的资料。内容不一定专业，但都是我认真整理的。": "稲葉曇さんが大好きで作ったファンサイトです。楽曲やアルバムの情報、集めた資料を紹介しています。専門的な内容ではありませんが、一つひとつ丁寧にまとめました。",
   "支持歌名和标签模糊搜索。多个关键词用逗号分隔，匹配任意一个即可；加 + 表示必须包含。例如：ラグ, +歌爱。": "曲名やタグの一部で検索できます。複数のキーワードはカンマで区切り、必須条件には + を付けてください。例：ラグ, +歌愛ユキ。",
   "简介": "紹介",
@@ -114,6 +116,9 @@
 };
   window.siteText = (zh, en, language = (window.siteStorage || localStorage).getItem("language") || "zh") => language === "ja" ? (japanese[zh] ?? en ?? zh) : language === "en" ? (en ?? zh) : zh;
   // One guest/member label for the message wall and the "my comments" panel. Empty when unknown.
-  window.siteIdentityLabel = (isGuest, language) => typeof isGuest !== "boolean" ? ""
-    : isGuest ? window.siteText(" [游客]", " [Guest]", language) : window.siteText(" [已登录]", " [Signed in]", language);
+  // The server marks only comments posted by an ADMIN_USER_IDS account as isAdmin; reserved
+  // nicknames stop anyone else from typing the same label into their name.
+  window.siteIdentityLabel = (isGuest, language, isAdmin = false) => typeof isGuest !== "boolean" ? ""
+    : isGuest ? window.siteText(" [游客]", " [Guest]", language)
+      : isAdmin === true ? window.siteText(" [站长]", " [Site owner]", language) : window.siteText(" [已登录]", " [Signed in]", language);
 })();

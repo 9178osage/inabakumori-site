@@ -100,6 +100,15 @@ test("calendar rejects lookalike hosts and malformed video URLs even when the ti
   assert.equal(newestSongRelease([{ ...item, url: songs[0].youtube }], [{ title: "ユレール" }]), null, "a title without an official video is not an allowlist entry");
 });
 
+test("calendar picks the newest release by instant even when timestamps use different offsets", async () => {
+  const { newestSongRelease } = await import("../calendar-song.mjs");
+  const songs = [{ title: "早", youtube: "https://youtu.be/AAAAAAAAAAA" }, { title: "晚", youtube: "https://youtu.be/BBBBBBBBBBB" }];
+  const item = (id, publishedAt) => ({ creator: "inabakumori", source: "youtube", url: `https://youtu.be/${id}`, publishedAt });
+  // 2026-03-08T12:00+09:00 is 03:00Z, earlier than 05:00Z, although it sorts later as text.
+  const items = [item("AAAAAAAAAAA", "2026-03-08T12:00:00+09:00"), item("BBBBBBBBBBB", "2026-03-08T05:00:00Z")];
+  assert.equal(newestSongRelease(items, songs).song, "晚");
+});
+
 test("calendar recognizes the existing official song in real source data", async () => {
   const { newestSongRelease } = await import("../calendar-song.mjs");
   const context = vm.createContext({});

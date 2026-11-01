@@ -105,6 +105,9 @@ export function validateSongDetails(data, songs) {
     }
     assert.ok(Array.isArray(entry.unverified) && entry.unverified.every(role => Object.hasOwn(ROLES, role) && !entry.credits.some(credit => credit.role === role)), `Invalid unverified list for ${id}`);
     assert.match(entry.checkedAt, /^\d{4}-\d{2}-\d{2}$/u, `Invalid check date for ${id}`);
+    // Aliases match X posts as plain substrings, so a one-character or non-string alias would
+    // tag unrelated posts (or crash foldText) during the scheduled refresh.
+    assert.ok(entry.aliases === undefined || Array.isArray(entry.aliases) && entry.aliases.every(alias => typeof alias === "string" && Array.from(foldText(alias)).length >= 2), `Invalid aliases for ${id}`);
   }
   return data.songs;
 }

@@ -12,6 +12,7 @@
 - 已有防护：SuperTokens 会话（header 传输）；会员只能删除自己的留言，管理接口另查权限；数据库查询参数化；服务端校验留言；前端只用 `textContent` 渲染；生产错误不返回堆栈；密码重置令牌放在 URL fragment 并立即清除。CORS 不是认证，保护操作始终依赖会话与权限。
 - 本地维护工具也按输入边界加固：链接检查器只访问公开 HTTP(S) 地址、逐跳检查重定向并固定到已验证的 DNS 答案；构建、图库生成、播放量更新拒绝符号链接输入/输出，防止访问或覆盖仓库外的文件。
 - 2026-10-17 代码复核补齐：Unicode 行分隔符纳入留言换行限制；本地预览拒绝符号链接文件和目录，产物检查拒绝符号链接及非普通文件，防止白名单文件名掩盖私有内容。根目录及后端依赖在本次 `npm audit` 中均为 0 已知漏洞，不代表不存在未公开漏洞。
+- 2026-11-01 全面审查后续修复：非推送作业的 checkout 一律 `persist-credentials: false`，所有作业都设 `timeout-minutes`（`tools/tests/audit-fixes.test.cjs` 守护）；移除 8 张 PNG 中的文本元数据（编辑器 XMP 与 Windows 截图工具记录的窗口标题），像素数据未改动，测试禁止再次提交带文本块的 PNG；`protect-main` 补上 `non_fast_forward`，开启 Dependabot 安全更新。
 
 ## 后端变量（只写名称，值不要进仓库或聊天）
 
@@ -61,7 +62,8 @@
 | `www` | 未配置（可选：CNAME → `9178osage.github.io`） |
 | Pages 发布源 | **GitHub Actions**（不再同时从 `main` 分支发布） |
 | Enforce HTTPS | 已开启（`http://` → 301 `https://`） |
-| `main` 保护 | ruleset `protect-main`（active）：禁止删除、禁止 force push；仍允许直接推送 |
+| `main` 保护 | ruleset `protect-main`（active）：`deletion` + `non_fast_forward`，即禁止删除、禁止 force push；仍允许直接推送（每周刷新任务需要） |
+| Dependabot | 每周版本检查；安全更新（automated security fixes）已开启 |
 | HSTS（osagechan.top） | **待定**：GitHub Pages 不能为自定义域名发 HSTS。如需，前置 Cloudflare（Full (strict)，确认原站证书续期，盘点子域后再决定 `includeSubDomains`/preload） |
 
 ## 边界与残余风险
@@ -70,6 +72,10 @@
 - Vercel 优先读取平台专用 `X-Vercel-Forwarded-For`。仅在头缺失或空白时按平台 `X-Forwarded-For`、`X-Real-IP` 回退；非法高优先头不拆列表或降级，运行时代理的 socket 地址也不冒充访客。没有可信 IP 时，真正经过 SuperTokens 验证的会话按 user ID 限流；匿名 GET/HEAD 跳过 IP 计数但照常执行路由权限检查，OPTIONS 交由原 CORS 白名单处理。匿名写入和 `/auth` 操作返回 `503 CLIENT_IDENTITY_UNAVAILABLE`、`Retry-After: 5`，因此缺失来源期间无法匿名登录、刷新或发言；已有会话的留言操作仍可用。备份另用专桶并保留令牌校验和每小时 5 次限额。没有用随机 ID、UA 或可重领 Cookie 生成新额度；匿名请求缺乏可信身份时无法安全实现个人配额。`CLIENT_IP_HEADER=none` 在 Vercel 也会触发此降级，其他入口保留原可信代理配置。[Vercel 请求头说明](https://vercel.com/docs/headers/request-headers#x-vercel-forwarded-for)
 - 过期留言和旧限流窗口由请求触发后台清理，以 `waitUntil` 保持 Vercel 调用存活，不阻塞该请求。每个实例只允许一项维护并发，成功后一小时再触发，失败短暂退避；只读维护时不启动新清理。
 - SuperTokens 默认允许已撤销的 access token 有效至到期。
+- 认证限流（每 IP 15 分钟 20 次 POST）不计入字面路径 `/auth/session/refresh` 与 `/auth/signout`：二者必须携带有效会话令牌，无可猜测内容；共享 IP（校园网、CGNAT）上的他人耗尽登录额度时，不应连带中断所有人的令牌刷新。这两个路径仍受全站总量限流；`..`、重复斜杠、尾部斜杠等变体照常计入认证限流。
+- 留言墙上只有 `ADMIN_USER_IDS` 账号发出的会员留言带「[站长]」标记。后端只公开布尔值 `isAdmin`，从不公开 user ID；非管理员不能使用「站长 / 管理员 / 官方 / 稲葉曇 / admin / owner / inabakumori」等保留昵称（NFKC 折叠、去空白与符号后比对，拉丁词按整词匹配），返回 `400 RESERVED_NICKNAME`。昵称黑名单无法穷举所有近似写法，以徽标为准。
+- **已接受风险：注册可探测邮箱是否已注册**。`emailExistsGET` 已关闭，但注册接口对已存在邮箱仍返回不同结果，这是 SuperTokens 邮箱密码流程的固有行为；认证限流把探测压到每 IP 15 分钟 20 次。站点不收集其他个人信息，暂不改造注册流程。
+- **已接受风险：注册不验证邮箱**。任何人可用他人邮箱注册，但只获得普通会员留言权限，不涉及管理员授权（授权按 user ID），也不会向该邮箱发送注册邮件；密码重置邮件只发往账号自身邮箱。若将来按邮箱授予任何权限或开始发送通知邮件，必须先启用邮箱验证。
 - GitHub、Vercel、Railway、SuperTokens 与 DNS 服务商账号都应开启两步验证；能推 `main`、改后端变量或改 DNS 的人等同网站管理员。
 - 管理员账号应使用长随机密码，并建议与公开联系方式分开。
 - Vercel 切换时实际运行 Node `24.21.0`，平台尚在部署 24.22.1 安全补丁。API 拒绝所有压缩请求体，避免访客触发原生 Brotli 解码；平台 WAF 另有已知入站攻击防护。这些措施不替代运行时补丁，尤其不保护函数获取的上游响应。后续以函数初始化日志核实实际版本，详见 [Vercel 迁移记录](VERCEL.md)。

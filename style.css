@@ -651,6 +651,10 @@ main > section#messages {
   border-right: 2px solid var(--color-black);
   border-bottom: 2px solid var(--color-black);
 }
+.floating-message.admin-message {
+  outline: 2px solid #c9a227;
+  outline-offset: 1px;
+}
 .auth-modal {
   display: none;
   position: fixed;
@@ -963,6 +967,7 @@ body.dark .song-thumbnail {
 .easter-egg-box img {
   display: block;
   max-width: 100%;
+  max-height: 24vh;
   max-height: 24dvh;
   margin: 20px auto;
   width: auto;
@@ -1971,7 +1976,8 @@ body.easter-egg-open { overflow: hidden; }
   background: #111;
   user-select: none;
   -webkit-user-drag: none;
-  touch-action: pan-y;
+  /* pinch-zoom lets visitors enlarge an illustration; one-finger horizontal swipes still page. */
+  touch-action: pan-y pinch-zoom;
 }
 .nknk-lightbox-caption {
   flex-shrink: 0;

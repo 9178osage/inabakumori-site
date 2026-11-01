@@ -68,6 +68,11 @@
       if (event.key === "language" || event.key === null) { language = readLanguage(); applyLanguage(); }
       else if (event.key === "theme") applyTheme();
     });
+    // Follow OS theme changes while nothing is saved; refresh both preferences after a bfcache restore.
+    const systemTheme = window.matchMedia?.("(prefers-color-scheme: dark)");
+    if (systemTheme?.addEventListener) systemTheme.addEventListener("change", applyTheme);
+    else systemTheme?.addListener?.(applyTheme);
+    window.addEventListener("pageshow", event => { if (event.persisted) { language = readLanguage(); applyLanguage(); } });
 
     document.querySelector(".page-controls")?.removeAttribute("hidden");
     applyLanguage();

@@ -70,8 +70,8 @@ test("SQL excludes expired guests while retaining members and active guests", ()
   const sql = backend.match(/const selectRecentCommentsStatement = db.prepare\(`([\s\S]*?)`\)/)[1];
   const db = new DatabaseSync(":memory:");
   try {
-    db.exec(`CREATE TABLE comments (id INTEGER, nickname TEXT, content TEXT, is_guest INTEGER, created_at INTEGER, expires_at INTEGER);
-            INSERT INTO comments VALUES (1,'a','expired',1,1,100), (2,'b','active',1,2,101), (3,'c','member',0,3,NULL);`);
+    db.exec(`CREATE TABLE comments (id INTEGER, nickname TEXT, content TEXT, user_id TEXT, is_guest INTEGER, created_at INTEGER, expires_at INTEGER);
+            INSERT INTO comments VALUES (1,'a','expired',NULL,1,1,100), (2,'b','active',NULL,1,2,101), (3,'c','member','u3',0,3,NULL);`);
     assert.deepEqual(db.prepare(sql).all(100, 100).map((row) => row.id), [3, 2]);
   } finally {
     db.close();

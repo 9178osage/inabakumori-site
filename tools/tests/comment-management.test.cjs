@@ -69,6 +69,14 @@ test('auth POST throttling covers tenant paths and URL normalization; disabled e
   ];
   for (let i = 0; i < 20; i++) assert.equal(await request('POST', paths[i % paths.length]), 204);
   for (const pathname of paths) assert.equal(await request('POST', pathname), 429, pathname);
+  // A neighbour on a shared IP who used up the sign-in budget must not break everyone's token refresh.
+  for (const pathname of ['/auth/session/refresh', '/auth/signout', '/auth/session/refresh?x=1']) {
+    for (let i = 0; i < 3; i++) assert.equal(await request('POST', pathname), 204, pathname);
+  }
+  // Only the literal spelling is exempt; traversal or doubled separators stay limited.
+  for (const pathname of ['/auth/signin/../session/refresh', '//auth/session/refresh', '/auth/session/refresh/', '/outside/../auth/signout']) {
+    assert.equal(await request('POST', pathname), 429, pathname);
+  }
   assert.equal(await request('GET', '/auth/signin'), 204);
   assert.equal(await request('POST', '/api/comments'), 204);
   assert.equal(await request('POST', '/author'), 204);

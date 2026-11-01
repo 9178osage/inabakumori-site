@@ -127,12 +127,19 @@ try {
     assert.equal(multilineName.status, 400);
     assert.equal((await multilineName.json()).code, "INVALID_COMMENT");
   }
+  const reserved = await post({ nickname: "站长", content: "冒充站长的测试留言" });
+  assert.equal(reserved.status, 400);
+  assert.equal((await reserved.json()).code, "RESERVED_NICKNAME");
   const created = await post({ nickname: "测试", content: "稲葉曇的音乐很好听 ☔" });
   assert.equal(created.status, 201, await created.clone().text());
   const { comment } = await created.json();
   const afterPost = await request(`${api}/api/comments`, { headers: { Origin: previewUrl } });
   assert.equal(afterPost.headers.get("vercel-cache-tag"), "public-comments");
-  assert.deepEqual((await afterPost.json()).comments.map(item => item.id), [comment.id], "posting invalidates the cached empty list immediately");
+  const publicList = (await afterPost.json()).comments;
+  assert.deepEqual(publicList.map(item => item.id), [comment.id], "posting invalidates the cached empty list immediately");
+  assert.equal(publicList[0].isAdmin, false);
+  assert.equal(comment.isAdmin, false);
+  assert.ok(publicList.every(item => !("userId" in item) && !("user_id" in item)), "account IDs never reach the public list");
   assert.equal(comment.isGuest, true);
   const createdAt = Date.parse(comment.createdAt);
   const expiresAt = Date.parse(comment.expiresAt);

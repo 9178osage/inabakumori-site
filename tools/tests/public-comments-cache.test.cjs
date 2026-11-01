@@ -21,7 +21,8 @@ test("public cache shares concurrent reads, projects only public fields and expi
   first.resolve([row(1)]);
   const results = await Promise.all(reads);
   assert.ok(results.every(result => result === results[0]));
-  assert.deepEqual(Object.keys(results[0][0]), ["id", "nickname", "content", "isGuest", "createdAt", "expiresAt"]);
+  assert.deepEqual(Object.keys(results[0][0]), ["id", "nickname", "content", "isGuest", "isAdmin", "createdAt", "expiresAt"]);
+  assert.equal(results[0][0].isAdmin, false, "only an explicit server-side true marks the admin badge");
   assert.equal(results[0][0].createdAt, "1970-01-01T00:00:00.001Z");
   assert.ok(Object.isFrozen(results[0]) && Object.isFrozen(results[0][0]));
   now = 30_999;

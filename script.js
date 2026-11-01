@@ -12,6 +12,7 @@ function commentErrorMessage(data, response) {
     MEMBER_RATE_LIMITED: ["登录用户每小时最多留言 20 条，请稍后再试", "Signed-in members can post up to 20 messages per hour. Please try again later."],
     CLIENT_IDENTITY_UNAVAILABLE: ["暂时无法识别访客来源，请稍后重试。", "Your request source could not be identified. Please try again later."],
     TOO_MANY_LINE_BREAKS: ["留言换行太多，最多 15 个换行。", "Your message has too many line breaks (up to 15)."],
+    RESERVED_NICKNAME: ["这个昵称为站长保留，请换一个昵称", "This nickname is reserved for the site owner. Please choose another one."],
     MEMBER_COMMENT_CAP: ["每个账号最多保留 100 条留言，请先删除旧留言", "Each account can keep up to 100 messages. Please delete some older ones first."]
   };
   const message = messages[data?.code];
@@ -138,6 +139,8 @@ function applyTheme() {
 // toolbars shrink the visible area, so vh/dvh-based dialogs can end up taller than what a visitor
 // can actually see (and tap). --app-vh mirrors the visual viewport for those rules.
 function syncVisualViewportHeight() {
+  // While pinch-zoomed the visual viewport is a magnified slice, not the visible screen height.
+  if ((window.visualViewport?.scale || 1) > 1.01) return;
   const height = Math.round(window.visualViewport?.height || window.innerHeight || 0);
   if (height > 0) document.documentElement.style.setProperty("--app-vh", `${height}px`);
 }
@@ -260,7 +263,9 @@ async function discoverHeroImages() {
     if (!found) break;
   }
 }
-mobileHeroQuery?.addEventListener("change", discoverHeroImages);
+// Safari before 14 only has the deprecated addListener on MediaQueryList.
+if (mobileHeroQuery?.addEventListener) mobileHeroQuery.addEventListener("change", discoverHeroImages);
+else mobileHeroQuery?.addListener?.(discoverHeroImages);
 let easterEggOpen = false;
 async function changeHeroSlide() {
   if (easterEggOpen) return;
@@ -566,13 +571,14 @@ function createFloatingMessage(message, startInside = false, deferLayout = false
   if (!wall || Number.isFinite(expiresAt) && expiresAt <= Date.now()) return;
   const element = document.createElement("div");
   element.dataset.commentId = String(message.id);
-  element.className = message.isGuest === true ? "floating-message guest-message" : "floating-message user-message";
+  element.className = message.isGuest === true ? "floating-message guest-message"
+    : message.isAdmin === true ? "floating-message user-message admin-message" : "floating-message user-message";
   if (Number.isFinite(expiresAt)) element.dataset.expiresAt = String(expiresAt);
   let track;
   let animation;
   element.refreshLanguage = (deferLayout = false) => {
     // Same identity label as the "my comments" panel (js/i18n.js siteIdentityLabel), in every site language.
-    const identity = window.siteIdentityLabel?.(message.isGuest, currentLanguage) ?? "";
+    const identity = window.siteIdentityLabel?.(message.isGuest, currentLanguage, message.isAdmin === true) ?? "";
     element.textContent = (message.nickname || message.name || "Anonymous") + identity + "： " + (message.content || message.text || "");
     if (element.isConnected && !deferLayout) element.refreshLayout();
   };
@@ -633,9 +639,9 @@ function updateMotionState() {
   document.documentElement.classList?.toggle("page-hidden", Boolean(document.hidden));
   document.querySelectorAll(".floating-message").forEach(element => element.updateMotion?.());
 }
-reducedMotionQuery?.addEventListener("change", () => {
-  document.querySelectorAll(".floating-message").forEach(element => element.refreshLayout());
-});
+const refreshWallForMotion = () => document.querySelectorAll(".floating-message").forEach(element => element.refreshLayout());
+if (reducedMotionQuery?.addEventListener) reducedMotionQuery.addEventListener("change", refreshWallForMotion);
+else reducedMotionQuery?.addListener?.(refreshWallForMotion);
 // Expiry is measured in months; polling every second only burned battery.
 setInterval(() => { if (!document.hidden) removeExpiredMessages(); }, 30000);
 document.addEventListener("visibilitychange", () => {
@@ -676,8 +682,9 @@ function buildSingerTagCounts() {
 function isSingleSongSinger(tag) {
   return (singerTagCounts.get(normalizeTag(tag)) || 0) === 1;
 }
-const TAG_ALIASES = { "other": "其他", "反气旋": "anticyclone", "anticyclone": "anticyclone", "气象站": "weather station", "weather station": "weather station", "单曲": "singles", "single": "singles", "singles": "singles", "yuki": "歌爱雪", "kaai yuki": "歌爱雪", "歌爱雪 / kaai yuki": "歌爱雪", "miku": "初音未来", "hatsune miku": "初音未来", "初音未来 / hatsune miku": "初音未来", "hime": "鸣花hime", "meika hime": "鸣花hime", "鸣花hime / meika hime": "鸣花hime", "maki": "弦卷真纪", "tsurumaki maki": "弦卷真纪", "弦卷真纪 / tsurumaki maki": "弦卷真纪", "sekai": "星界", "星界 / sekai": "星界", "rime": "里命", "里命 / rime": "里命", "una": "音街鳗", "otomachi una": "音街鳗", "音街鳗 / otomachi una": "音街鳗", "nagi beta": "nagiβ", "nagiβ": "nagiβ", "kazehiki": "カゼヒキβ", "kazehiki beta": "カゼヒキβ", "kazehiki β": "カゼヒキβ", "カゼヒキβ / kazehiki β": "カゼヒキβ", "shuo": "彩澄しゅお", "ayazumi shuo": "彩澄しゅお", "彩澄しゅお / ayazumi shuo": "彩澄しゅお", "ririse": "彩澄りりせ", "ayazumi ririse": "彩澄りりせ", "彩澄りりせ / ayazumi ririse": "彩澄りりせ" };
-const TAG_DISPLAY_NAMES = { "anticyclone": { zh: "反气旋", en: "ANTICYCLONE" }, "weather station": { zh: "气象站", en: "WEATHER STATION" }, "singles": { zh: "单曲", en: "SINGLES" }, "歌爱雪": { zh: "歌爱雪 / Kaai Yuki", en: "Kaai Yuki" }, "初音未来": { zh: "初音未来 / Hatsune Miku", en: "Hatsune Miku" }, "鸣花hime": { zh: "鸣花Hime / MEIKA Hime", en: "MEIKA Hime" }, "弦卷真纪": { zh: "弦卷真纪 / Tsurumaki Maki", en: "Tsurumaki Maki" }, "星界": { zh: "星界 / SEKAI", en: "SEKAI" }, "里命": { zh: "里命 / RIME", en: "RIME" }, "音街鳗": { zh: "音街鳗 / Otomachi Una", en: "Otomachi Una" }, "nagiβ": { zh: "nagiβ", en: "nagiβ" }, "カゼヒキβ": { zh: "カゼヒキβ / Kazehiki β", en: "Kazehiki β" }, "彩澄しゅお": { zh: "彩澄しゅお / Ayazumi Shuo", en: "Ayazumi Shuo" }, "彩澄りりせ": { zh: "彩澄りりせ / Ayazumi Ririse", en: "Ayazumi Ririse" }, "其他": { zh: "其他", en: "Other" } };
+// Null-prototype maps: a search for "constructor" or "__proto__" must not hit Object.prototype.
+const TAG_ALIASES = Object.assign(Object.create(null), { "other": "其他", "反气旋": "anticyclone", "anticyclone": "anticyclone", "气象站": "weather station", "weather station": "weather station", "单曲": "singles", "single": "singles", "singles": "singles", "yuki": "歌爱雪", "kaai yuki": "歌爱雪", "歌爱雪 / kaai yuki": "歌爱雪", "miku": "初音未来", "hatsune miku": "初音未来", "初音未来 / hatsune miku": "初音未来", "hime": "鸣花hime", "meika hime": "鸣花hime", "鸣花hime / meika hime": "鸣花hime", "maki": "弦卷真纪", "tsurumaki maki": "弦卷真纪", "弦卷真纪 / tsurumaki maki": "弦卷真纪", "sekai": "星界", "星界 / sekai": "星界", "rime": "里命", "里命 / rime": "里命", "una": "音街鳗", "otomachi una": "音街鳗", "音街鳗 / otomachi una": "音街鳗", "nagi beta": "nagiβ", "nagiβ": "nagiβ", "kazehiki": "カゼヒキβ", "kazehiki beta": "カゼヒキβ", "kazehiki β": "カゼヒキβ", "カゼヒキβ / kazehiki β": "カゼヒキβ", "shuo": "彩澄しゅお", "ayazumi shuo": "彩澄しゅお", "彩澄しゅお / ayazumi shuo": "彩澄しゅお", "ririse": "彩澄りりせ", "ayazumi ririse": "彩澄りりせ", "彩澄りりせ / ayazumi ririse": "彩澄りりせ" });
+const TAG_DISPLAY_NAMES = Object.assign(Object.create(null), { "anticyclone": { zh: "反气旋", en: "ANTICYCLONE" }, "weather station": { zh: "气象站", en: "WEATHER STATION" }, "singles": { zh: "单曲", en: "SINGLES" }, "歌爱雪": { zh: "歌爱雪 / Kaai Yuki", en: "Kaai Yuki" }, "初音未来": { zh: "初音未来 / Hatsune Miku", en: "Hatsune Miku" }, "鸣花hime": { zh: "鸣花Hime / MEIKA Hime", en: "MEIKA Hime" }, "弦卷真纪": { zh: "弦卷真纪 / Tsurumaki Maki", en: "Tsurumaki Maki" }, "星界": { zh: "星界 / SEKAI", en: "SEKAI" }, "里命": { zh: "里命 / RIME", en: "RIME" }, "音街鳗": { zh: "音街鳗 / Otomachi Una", en: "Otomachi Una" }, "nagiβ": { zh: "nagiβ", en: "nagiβ" }, "カゼヒキβ": { zh: "カゼヒキβ / Kazehiki β", en: "Kazehiki β" }, "彩澄しゅお": { zh: "彩澄しゅお / Ayazumi Shuo", en: "Ayazumi Shuo" }, "彩澄りりせ": { zh: "彩澄りりせ / Ayazumi Ririse", en: "Ayazumi Ririse" }, "其他": { zh: "其他", en: "Other" } });
 
 TAG_DISPLAY_NAMES["镜音连"] = { zh: "镜音连 / Kagamine Len", en: "Kagamine Len", ja: "鏡音レン" };
 TAG_ALIASES["鏡音レン"] = "镜音连";
@@ -1214,6 +1221,32 @@ window.addEventListener?.("storage", (event) => {
       if (document.body) applyTheme();
     }
   }
+});
+// Follow the OS theme while the visitor has no saved choice, and re-read both preferences when
+// the back/forward cache restores this page after they were changed on another page.
+function resyncThemeFromPreferences() {
+  let stored = null;
+  try { stored = (window.siteStorage || localStorage).getItem("theme"); } catch { /* storage blocked */ }
+  const nextTheme = ["light", "dark"].includes(stored) ? stored : window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light";
+  if (nextTheme === currentTheme) return;
+  currentTheme = nextTheme;
+  if (document.body) applyTheme();
+}
+const systemDarkQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
+if (systemDarkQuery?.addEventListener) systemDarkQuery.addEventListener("change", resyncThemeFromPreferences);
+else systemDarkQuery?.addListener?.(resyncThemeFromPreferences);
+window.addEventListener?.("pageshow", event => {
+  if (!event.persisted) return;
+  resyncThemeFromPreferences();
+  let stored = null;
+  try { stored = (window.siteStorage || localStorage).getItem("language"); } catch { /* storage blocked */ }
+  const nextLanguage = pageLanguages.includes(stored) ? stored : "zh";
+  if (nextLanguage === currentLanguage) return;
+  currentLanguage = nextLanguage;
+  const restoreReadingPosition = captureReadingPosition();
+  applyLanguage();
+  if (typeof updateTagLanguage === "function") updateTagLanguage();
+  restoreReadingPosition();
 });
 window.addEventListener?.("online", updateConnectivityStatus);
 window.addEventListener?.("offline", updateConnectivityStatus);

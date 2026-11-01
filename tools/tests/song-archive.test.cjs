@@ -97,6 +97,20 @@ test("verified details exist only for checked songs and carry official sources",
   assert.ok(!lost.credits.some(credit => credit.role === "movie"));
 });
 
+test("song aliases must be strings of at least two folded characters", async () => {
+  const { validateSongDetails } = await import("../song-archive.mjs");
+  const base = data();
+  const id = Object.keys(base.songs)[0];
+  for (const aliases of ["Lagtrain", [1], ["a"], [""], [null]]) {
+    const copy = structuredClone(base);
+    copy.songs[id].aliases = aliases;
+    assert.throws(() => validateSongDetails(copy, songs()), /Invalid aliases/u, JSON.stringify(aliases));
+  }
+  const ok = structuredClone(base);
+  ok.songs[id].aliases = ["Lost Umbrella", "雨傘"];
+  assert.doesNotThrow(() => validateSongDetails(ok, songs()));
+});
+
 test("all current songs have a reviewed record without inventing missing release dates or vocals", async () => {
   const { validateSongDetails, renderSongPage, renderSongIndex } = await import("../song-archive.mjs");
   const list = songs(), details = validateSongDetails(data(), list);

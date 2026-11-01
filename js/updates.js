@@ -202,7 +202,9 @@
   function initReadingPosition(storage, currentLanguage) {
     const feed = document.querySelector(".x-posts-archive .x-posts-feed");
     if (!feed || !storage) return;
-    const page = String(window.location?.pathname || "").split("/").pop() || "updates.html";
+    // GitHub Pages also serves "/updates-page-2" for updates-page-2.html: normalise to the file name.
+    const lastSegment = String(window.location?.pathname || "").split("/").pop() || "updates.html";
+    const page = lastSegment.endsWith(".html") ? lastSegment : `${lastSegment}.html`;
     if (!ARCHIVE_PAGE.test(page)) return;
     const articles = [...feed.querySelectorAll("article.x-post[data-x-post-id]")];
     const markOf = article => ({ at: article.querySelector("time[datetime]")?.getAttribute("datetime") || "", id: article.dataset.xPostId || "" });

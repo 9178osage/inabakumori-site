@@ -18,5 +18,6 @@ export function newestSongRelease(items, songs) {
     .filter(item => item.creator === "inabakumori" && item.source === "youtube")
     .map(item => ({ item, song: releases.get(videoId(item.url)) }))
     .filter(match => match.song && Number.isFinite(Date.parse(match.item.publishedAt)))
-    .sort((a, b) => b.item.publishedAt.localeCompare(a.item.publishedAt))[0] ?? null;
+    // Compare instants, not strings: "+09:00" and "Z" stamps of the same moment sort differently as text.
+    .sort((a, b) => Date.parse(b.item.publishedAt) - Date.parse(a.item.publishedAt))[0] ?? null;
 }
