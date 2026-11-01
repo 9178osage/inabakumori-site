@@ -4,13 +4,13 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 const loader = fs.readFileSync("js/auth-loader.js", "utf8").replace("import(", "loadBundle(");
 
-function page({ cookie = "", url = "https://osagechan.top/", defer = false, fail = false } = {}) {
+function page({ cookie = "", url = "https://osagechan.top/", defer = false, fail = false, localStorage = { getItem: () => "zh" } } = {}) {
   const imported = [], requests = [], alerts = [], events = [], listeners = {};
   const location = new URL(url), attributes = {};
   const button = { innerText: "登录 / 注册", setAttribute(name, value) { attributes[name] = value; } };
   let finish, reject, modalCalls = 0, signedIn = true;
   const context = { URL, URLSearchParams, Promise, Event, alert: message => alerts.push(message),
-    localStorage: { getItem: () => "zh" },
+    localStorage,
     document: { cookie, currentScript: { src: new URL("js/auth-loader.js?v=loader", location).href }, getElementById: () => button },
     window: { location, history: { state: { retained: true }, replaceState(state, _, next) {
       this.state = state; this.next = next;
@@ -122,4 +122,15 @@ test("a failed automatic restoration blocks a member write instead of sending it
   await assert.rejects(write, /synthetic module unavailable/u);
   assert.equal(app.requests.length, 0);
   assert.match(app.button.innerText, /点击重试/u);
+});
+
+test("blocked storage only falls back to Chinese loader messages instead of throwing", async () => {
+  const blocked = { getItem() { throw new Error("SecurityError: storage disabled"); } };
+  const app = page({ cookie: "__Host-station-st-refresh-token=refresh", fail: true, localStorage: blocked });
+  await settle();
+  assert.equal(app.button.innerText, "登录加载失败，点击重试");
+  app.reject = () => {};
+  const english = page({ cookie: "__Host-station-st-refresh-token=refresh", fail: true, localStorage: { getItem: () => "en" } });
+  await settle();
+  assert.equal(english.button.innerText, "Sign-in unavailable. Retry");
 });

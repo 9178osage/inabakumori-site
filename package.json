@@ -39,5 +39,8 @@
     "@electric-sql/pglite": "^0.5.11",
     "eslint": "^10.13.0",
     "globals": "^17.13.0"
+  },
+  "overrides": {
+    "minimatch": "^11.0.3"
   }
 }

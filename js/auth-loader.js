@@ -7,7 +7,11 @@
   let loaded = false;
   let attempts = 0;
   let opening = false;
-  const text = (zh, en, ja) => ({ zh, en, ja }[(window.siteStorage || localStorage).getItem("language")] || zh);
+  // Only picks the language of the loader's own error messages; blocked storage falls back to Chinese.
+  const readLanguage = () => {
+    try { return (window.siteStorage || localStorage).getItem("language"); } catch { return null; }
+  };
+  const text = (zh, en, ja) => ({ zh, en, ja }[readLanguage()] || zh);
   function hasLocalSession() {
     try {
       return document.cookie.split(";").some(part => {

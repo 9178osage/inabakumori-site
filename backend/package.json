@@ -32,7 +32,8 @@
     },
     "express-rate-limit": {
       "ip-address": "10.7.4"
-    }
+    },
+    "follow-redirects": "^1.16.2"
   },
   "engines": {
     "node": "24.22.1"
