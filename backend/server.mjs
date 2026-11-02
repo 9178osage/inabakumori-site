@@ -9,7 +9,7 @@ import { createRequestRateLimit } from "./request-rate-limit.mjs";
 import { createClientIdentity } from "./client-identity.mjs";
 import { createRequestMaintenance } from "./request-maintenance.mjs";
 import { createPublicCommentsCache, applyPublicCommentsCacheHeaders, PUBLIC_COMMENTS_CACHE_TAG } from "./public-comments-cache.mjs";
-import { createPostgresRateLimitStore, cleanupExpiredRateLimits, withRateLimitRequestContext } from "./rate-limit-store.mjs";
+import { createPostgresRateLimitStore, cleanupExpiredRateLimits, pairNextIncrement, withRateLimitRequestContext } from "./rate-limit-store.mjs";
 import { commentWriteMaintenance } from "./maintenance.mjs";
 import { waitUntil, dangerouslyDeleteByTag } from "@vercel/functions";
 import { registerBackupEndpoint, backupTokenFrom, isBackupPath } from "./backup-endpoint.mjs";
@@ -208,7 +208,23 @@ app.use((req, res, next) => identifyClient(req, res, error => {
 }));
 // Bound non-diagnostic traffic before parsing. Only reads may continue when
 // counter storage fails; POST/DELETE/OPTIONS still fail closed with a safe 503.
-const requestLimiter = createRequestRateLimit({ ...sharedStore("requestLimiter"), keyGenerator: clientIpKey, windowMs: 60_000, limit: 180,
+const REQUEST_LIMIT = 180;
+const requestLimiterStore = sharedStore("requestLimiter");
+const commentReadStore = sharedStore("commentReadLimiter");
+// Audit C3: a plain public GET /api/comments is charged by both requestLimiter and
+// commentReadLimiter. Charge both in one database round-trip, but only for requests
+// that are certain to reach commentReadLimiter whenever requestLimiter allows them:
+// the literal path, no body, and an origin the CORS check accepts.
+app.use((req, _res, next) => {
+  if (requestLimiterStore.store && commentReadStore.store && req.skipIpRateLimits !== true &&
+    (req.method === "GET" || req.method === "HEAD") && req.path === "/api/comments" &&
+    req.headers["transfer-encoding"] === undefined && (req.headers["content-length"] === undefined || req.headers["content-length"] === "0") &&
+    (!req.get("origin") || ALLOWED_ORIGINS.has(req.get("origin")))) {
+    pairNextIncrement(requestLimiterStore.store, commentReadStore.store, { leaderLimit: REQUEST_LIMIT });
+  }
+  next();
+});
+const requestLimiter = createRequestRateLimit({ ...requestLimiterStore, keyGenerator: clientIpKey, windowMs: 60_000, limit: REQUEST_LIMIT,
   standardHeaders: "draft-7", legacyHeaders: false,
   handler(req, res, _next, options) {
     // The limiter runs before CORS, but trusted pages must still be able to read 429.
@@ -336,7 +352,7 @@ app.get("/", (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   res.json({ ok: true });
 });
-const commentReadLimiter = createRequestRateLimit({ ...sharedStore("commentReadLimiter"), keyGenerator: clientIpKey, windowMs: 60_000, limit: 120, standardHeaders: "draft-7", legacyHeaders: false,
+const commentReadLimiter = createRequestRateLimit({ ...commentReadStore, keyGenerator: clientIpKey, windowMs: 60_000, limit: 120, standardHeaders: "draft-7", legacyHeaders: false,
   message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } }, { allowReadOnStoreError: true });
 const commentDeleteLimiter = createRequestRateLimit({ ...sharedStore("commentDeleteLimiter"), keyGenerator: clientIpKey, windowMs: 60_000, limit: 30, standardHeaders: "draft-7", legacyHeaders: false,
   message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });

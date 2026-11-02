@@ -22,6 +22,42 @@ const INCREMENT = `WITH request_clock AS MATERIALIZED (SELECT ${NOW_MS} AS now_m
       THEN (SELECT now_ms FROM request_clock) + ? ELSE rate_limit_counters.reset_at END
   RETURNING total_hits, reset_at`;
 
+// Audit C3: the global limiter and the public-read limiter both charge a plain
+// GET /api/comments. One statement charges both rows. The follower row is only
+// charged when the leader's new total is within its limit, exactly as the
+// follower limiter is never reached after the leader rejects.
+const UPSERT_SET = table => `total_hits = CASE WHEN ${table}.reset_at <= (SELECT now_ms FROM request_clock)
+      THEN 1 ELSE ${table}.total_hits + 1 END,
+    reset_at = CASE WHEN ${table}.reset_at <= (SELECT now_ms FROM request_clock)
+      THEN (SELECT now_ms FROM request_clock) + ? ELSE ${table}.reset_at END`;
+const PAIRED_INCREMENT = `WITH request_clock AS MATERIALIZED (SELECT ${NOW_MS} AS now_ms),
+  leader AS (
+    INSERT INTO rate_limit_counters (prefix, key_hash, total_hits, reset_at)
+    SELECT ?, ?, 1, now_ms + ? FROM request_clock WHERE true
+    ON CONFLICT (prefix, key_hash) DO UPDATE SET ${UPSERT_SET("rate_limit_counters")}
+    RETURNING total_hits, reset_at),
+  follower AS (
+    INSERT INTO rate_limit_counters (prefix, key_hash, total_hits, reset_at)
+    SELECT ?, ?, 1, request_clock.now_ms + ? FROM request_clock, leader WHERE leader.total_hits <= ?
+    ON CONFLICT (prefix, key_hash) DO UPDATE SET ${UPSERT_SET("rate_limit_counters")}
+    RETURNING total_hits, reset_at)
+  SELECT leader.total_hits, leader.reset_at, follower.total_hits AS follower_hits, follower.reset_at AS follower_reset
+  FROM leader LEFT JOIN follower ON true`;
+const PAIR = Symbol("paired rate limit increment");
+const FOLLOWER_INFO = Symbol("paired rate limit follower");
+const prefetchedKey = (prefix, keyHash) => `prefetched:${prefix}:${keyHash}`;
+
+// Ask the leader store's next increment in this request to also charge the
+// follower store for the same key. Call only where the request is certain to
+// reach the follower limiter whenever the leader allows it.
+export function pairNextIncrement(leader, follower, { leaderLimit }) {
+  const context = requestContext.getStore();
+  const info = follower?.[FOLLOWER_INFO]?.();
+  if (!context || !info || typeof leader?.prefix !== "string" || !Number.isSafeInteger(leaderLimit) || leaderLimit < 1) return false;
+  context.set(PAIR, { leaderPrefix: leader.prefix, leaderLimit, follower: info });
+  return true;
+}
+
 export function createPostgresRateLimitStore(db, { prefix, windowMs, onBackgroundTask } = {}) {
   if (db?.kind !== "postgres") throw new Error("Shared rate limiting requires a PostgreSQL database");
   if (typeof prefix !== "string" || !/^[a-z][a-z0-9:_-]{0,79}$/u.test(prefix)) throw new Error("Rate limit store requires a unique prefix");
@@ -46,12 +82,37 @@ export function createPostgresRateLimitStore(db, { prefix, windowMs, onBackgroun
     prefix,
     localKeys: false,
     init(options) { interval = validateWindow(options.windowMs); },
+    [FOLLOWER_INFO]() { return { prefix, interval: validateWindow(interval) }; },
     async increment(key) {
       validateWindow(interval);
       const keyHash = hash(key);
+      const context = requestContext.getStore();
+      const prefetched = context?.get(prefetchedKey(prefix, keyHash));
+      if (prefetched) {
+        context.delete(prefetchedKey(prefix, keyHash));
+        context.set(`${prefix}:${keyHash}`, prefetched.resetTime.getTime());
+        return prefetched;
+      }
+      const pair = context?.get(PAIR);
+      if (pair && pair.leaderPrefix === prefix) {
+        context.delete(PAIR);
+        const { follower, leaderLimit } = pair;
+        const row = await db.prepare(PAIRED_INCREMENT).get(prefix, keyHash, interval, interval,
+          follower.prefix, keyHash, follower.interval, leaderLimit, follower.interval);
+        const result = information(row);
+        if (!result || result.totalHits < 1) throw new Error("Shared rate limit increment did not return a counter");
+        context.set(`${prefix}:${keyHash}`, result.resetTime.getTime());
+        if (row.follower_hits !== null && row.follower_hits !== undefined) {
+          const followerResult = information({ total_hits: row.follower_hits, reset_at: row.follower_reset });
+          if (!followerResult || followerResult.totalHits < 1) throw new Error("Shared rate limit increment did not return a counter");
+          context.set(prefetchedKey(follower.prefix, keyHash), followerResult);
+        }
+        // No follower row means it was not charged: its limiter then increments as before.
+        return result;
+      }
       const result = information(await db.prepare(INCREMENT).get(prefix, keyHash, interval, interval));
       if (!result || result.totalHits < 1) throw new Error("Shared rate limit increment did not return a counter");
-      requestContext.getStore()?.set(`${prefix}:${keyHash}`, result.resetTime.getTime());
+      context?.set(`${prefix}:${keyHash}`, result.resetTime.getTime());
       return result;
     },
     async get(key) {
