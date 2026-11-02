@@ -1311,19 +1311,7 @@ function createConfetti() {
     piece.style.setProperty("--delay", `${-Math.random() * 20}s`);
     layer.appendChild(piece);
   }
-  const ribbons = window.innerWidth < 700 ? 24 : 40;
-  for (let i = 0; i < ribbons; i++) {
-    const ribbon = document.createElement("div");
-    const duration = 7 + Math.random() * 7;
-    ribbon.className = `forecast-particle forecast-ribbon${i % 2 ? " forecast-ribbon-dark" : ""}`;
-    ribbon.style.setProperty("--left", `${Math.random() * 100}%`);
-    ribbon.style.setProperty("--drift", `${Math.random() * 220 - 110}px`);
-    ribbon.style.setProperty("--turn", `${Math.random() * 180 - 90}deg`);
-    ribbon.style.setProperty("--duration", `${duration}s`);
-    ribbon.style.setProperty("--delay", `${-Math.random() * duration}s`);
-    ribbon.style.setProperty("--ribbon-length", `${30 + Math.random() * 34}px`);
-    layer.appendChild(ribbon);
-  }
+
 }
 function closeEasterEgg() {
   if (!easterEggOpen || !easterEggCanClose) return;
