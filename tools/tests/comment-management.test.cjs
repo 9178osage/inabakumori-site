@@ -400,6 +400,27 @@ test('admin message management awaits asynchronous database reads and writes', a
   } finally { db.close(); }
 });
 
+test('admin list marks configured owner accounts without exposing user IDs or marking guests', async () => {
+  const { registerAdminCommentManagement, createAdminCheck } = await import('../../backend/services.mjs');
+  const db = new DatabaseSync(':memory:');
+  try {
+    db.exec('CREATE TABLE comments(id INTEGER PRIMARY KEY, nickname TEXT, content TEXT, created_at INTEGER, user_id TEXT, is_guest INTEGER, expires_at INTEGER)');
+    const insert = db.prepare('INSERT INTO comments VALUES(?,?,?,?,?,?,?)');
+    insert.run(1, 'owner', 'owner message', Date.now(), 'owner-id', 0, null);
+    insert.run(2, 'member', 'member message', Date.now(), 'member-id', 0, null);
+    insert.run(3, 'guest', 'guest message', Date.now(), 'owner-id', 1, null);
+    const routes = {};
+    const app = { get(path, ...handlers) { routes[path] = handlers.at(-1); }, delete() {} };
+    registerAdminCommentManagement(app, asynchronousStatements(db), () => () => {}, createAdminCheck(new Set(['owner-id'])));
+    const response = { setHeader() {}, json(body) { this.body = body; } };
+    await routes['/api/admin/comments']({ query: {} }, response);
+    assert.deepEqual(response.body.comments.map(({ id, isGuest, isAdmin }) => [id, isGuest, isAdmin]), [
+      [3, true, false], [2, false, false], [1, false, true]
+    ]);
+    assert.ok(response.body.comments.every(row => !('user_id' in row) && !('userId' in row)));
+  } finally { db.close(); }
+});
+
 function adminUi() {
   const element = () => commentElement(true);
   const elements = Object.fromEntries(['admin-comments', 'admin-comments-list', 'admin-comments-status', 'admin-comments-retry'].map(id => [id, element()]));
@@ -437,18 +458,19 @@ test('comment delete labels use short complete Unicode characters while the full
   }
 });
 
-test('only the admin list identifies guest and signed-in messages and translates on language change', async () => {
+test('only the admin list identifies guests, members and owners and translates on language change', async () => {
   const comments = [
     { id: 1, nickname: 'guest', content: 'hello', isGuest: true },
     { id: 2, nickname: 'member', content: 'hello', isGuest: false },
-    { id: 3, nickname: 'unknown', content: 'hello' }
+    { id: 3, nickname: 'owner', content: 'hello', isGuest: false, isAdmin: true },
+    { id: 4, nickname: 'unknown', content: 'hello' }
   ];
   for (const [createUi, listId] of [[ui, 'my-comments-list'], [adminUi, 'admin-comments-list']]) {
     const { elements, events, context } = createUi();
     context.fetch = async () => ({ ok: true, json: async () => ({ comments }) });
     await events.authchange();
     const originalButtons = elements[listId].children.map(row => row.children[1]);
-    for (const [language, labels] of [['zh', [' [游客]', ' [已登录]']], ['en', [' [Guest]', ' [Signed in]']], ['ja', [' [ゲスト]', ' [ログイン済み]']]]) {
+    for (const [language, labels] of [['zh', [' [游客]', ' [已登录]', ' [站长]']], ['en', [' [Guest]', ' [Signed in]', ' [Site owner]']], ['ja', [' [ゲスト]', ' [ログイン済み]', ' [管理人]']]]) {
       context.localStorage.getItem = () => language;
       events.languagechange();
       for (const [index, comment] of comments.entries()) {

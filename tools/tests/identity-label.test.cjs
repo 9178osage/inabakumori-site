@@ -24,5 +24,5 @@ test("guest/member labels are shared and translated in every site language", () 
   const script = fs.readFileSync("script.js", "utf8");
   assert.doesNotMatch(script, /\[Member\]/u, "the message wall uses the shared label");
   assert.match(script, /siteIdentityLabel\?\.\(message\.isGuest, currentLanguage, message\.isAdmin === true\)/u);
-  assert.match(fs.readFileSync("js/comments.js", "utf8"), /siteIdentityLabel\?\.\(comment\.isGuest\)/u);
+  assert.match(fs.readFileSync("js/comments.js", "utf8"), /siteIdentityLabel\?\.\(comment\.isGuest, undefined, comment\.isAdmin === true\)/u);
 });

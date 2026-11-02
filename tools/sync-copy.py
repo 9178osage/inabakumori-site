@@ -29,7 +29,7 @@ BINARY = re.compile(r"\.(png|jpe?g|webp|gif|ico|avif|bmp|tiff?|svgz|eot|woff2?|t
 PRIVATE = re.compile(r"(?:^|[/_.-])(?:secrets?|credentials?|private[-_]?key|id_rsa|id_ed25519)(?:$|[/_.-])|\.(?:pem|key|p12|pfx|jks|keystore|sql|dump|bak)$", re.I)
 GENERATED = re.compile(r"^(?:(?:1-app-code|2-tools-tests|3-docs|4-x-posts)-\d+|changes)\.txt$")
 X_POSTS_FILE = re.compile(r"^data/x-posts/posts-[^/]+\.json$")
-APP_ROOT = {"index.html", "updates.html", "404.html", "style.css", "updates.css", "script.js", "site.webmanifest", "robots.txt",
+APP_ROOT = {"index.html", "updates.html", "404.html", "calendar.html", "style.css", "updates.css", "archive.css", "calendar.css", "script.js", "site.webmanifest", "robots.txt",
             "sitemap.xml", "package.json", "CNAME", ".nojekyll", "tools/auth-src.js"}
 
 

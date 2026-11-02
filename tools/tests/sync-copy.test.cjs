@@ -77,7 +77,7 @@ function copySections(box) {
       assert.deepEqual(blob.subarray(offset, offset + original.length), original, file);
       offset += original.length;
       assert.deepEqual(blob.subarray(offset, offset + 2), Buffer.from("\n\n"), file); offset += 2;
-      const group = /^data\/x-posts\/posts-[^/]+\.json$/u.test(file) ? "4-x-posts" : file.endsWith(".md") ? "3-docs" : file === "index.html" || file.startsWith("js/") || file.startsWith("backend/") || file.startsWith("data/") ? "1-app-code" : "2-tools-tests";
+      const group = /^data\/x-posts\/posts-[^/]+\.json$/u.test(file) ? "4-x-posts" : file.endsWith(".md") ? "3-docs" : ["index.html", "archive.css", "calendar.html", "calendar.css"].includes(file) || file.startsWith("js/") || file.startsWith("backend/") || file.startsWith("data/") ? "1-app-code" : "2-tools-tests";
       assert.ok(name.startsWith(group), `${file} in ${group}`); found.set(file, name);
     }
   }
@@ -99,6 +99,18 @@ test("tracked generator creates the ignored output, exports itself and preserves
     assert.match(fs.readFileSync(path.join(box.output, GUIDE), "utf8"), /每个 txt 不超过 130,000 字节/u);
     assert.doesNotMatch(fs.readFileSync(path.join(box.output, GUIDE), "utf8"), /150,000|优先控制在 10/u);
     assert.equal(fs.existsSync(path.join(box.output, ".review-base")), false, "default fallback does not invent a saved baseline");
+  } finally { box.close(); }
+});
+
+test("calendar and archive frontend files are exported in the application group", () => {
+  const box = fixture({ "archive.css": "/* archive styles */\n", "calendar.html": "<main>calendar</main>\n", "calendar.css": "/* calendar styles */\n" });
+  try {
+    passed(box.run()); passed(box.run(["--check"]));
+    const sections = copySections(box);
+    for (const file of ["archive.css", "calendar.html", "calendar.css"]) {
+      assert.ok(sections.get(file)?.startsWith("1-app-code-"), `${file} belongs with the application code`);
+    }
+    assert.ok(sections.get("tools/example.py")?.startsWith("2-tools-tests-"));
   } finally { box.close(); }
 });
 

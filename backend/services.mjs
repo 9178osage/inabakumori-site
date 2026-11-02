@@ -396,7 +396,7 @@ export function registerCommentManagement(app, db, verifySession, onDeleted = ()
 }
 
 export function registerAdminCommentManagement(app, db, verifySession, isAdmin, onDeleted = () => {}) {
-  const list = db.prepare(`SELECT id, nickname, content, is_guest, created_at
+  const list = db.prepare(`SELECT id, nickname, content, user_id, is_guest, created_at
     FROM comments
     WHERE (expires_at IS NULL OR expires_at > ?) AND id <= ?
     ORDER BY id DESC LIMIT 51`);
@@ -417,13 +417,14 @@ export function registerAdminCommentManagement(app, db, verifySession, isAdmin, 
     if (!Number.isSafeInteger(before) || before <= 0) return res.status(400).json({ error: "留言分页参数无效", code: "INVALID_CURSOR" });
     const upperBound = req.query?.before === undefined ? Number.MAX_SAFE_INTEGER : before - 1;
     const rows = await list.all(Date.now(), upperBound);
-    const comments = rows.slice(0, 50).map(row => ({
+    const comments = await Promise.all(rows.slice(0, 50).map(async row => ({
       id: Number(row.id),
       nickname: row.nickname,
       content: row.content,
       isGuest: Boolean(row.is_guest),
+      isAdmin: !row.is_guest && typeof row.user_id === "string" && row.user_id !== "" && (await isAdmin(row.user_id)) === true,
       createdAt: new Date(row.created_at).toISOString()
-    }));
+    })));
     res.json({ comments, nextCursor: rows.length > 50 ? comments.at(-1).id : null });
   });
   app.delete("/api/admin/comments/:id", verifySession(), requireAdmin, async (req, res) => {
