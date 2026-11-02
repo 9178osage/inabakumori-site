@@ -1775,6 +1775,21 @@ body.easter-egg-open { overflow: hidden; }
 .forecast-card small { display: block; font: 9px/1.6 var(--font-data); overflow-wrap: anywhere; }
 .forecast-card strong { display: block; margin: 8px 0; font: 14px/1.5 var(--font-song); overflow-wrap: anywhere; }
 .forecast-symbol { width: 42px; height: 42px; border-radius: 50%; text-align: center; font: 26px/40px var(--font-body); }
+/* Separate the fall from the gentle flutter so the streamers bend instead of dropping as straight bars. */
+.forecast-streamer {
+  width: 16px; height: var(--streamer-height); border: 0; background: transparent; box-shadow: none;
+}
+.forecast-streamer::before {
+  content: ""; position: absolute; inset: 0; background: #f1f1ee; opacity: .9;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 80'%3E%3Cpath d='M7 0 C18 10 16 19 10 28 C4 38 5 47 13 56 C19 64 19 72 15 80 L21 80 C24 70 23 62 18 54 C10 45 10 39 16 30 C23 18 22 8 14 0 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 80'%3E%3Cpath d='M7 0 C18 10 16 19 10 28 C4 38 5 47 13 56 C19 64 19 72 15 80 L21 80 C24 70 23 62 18 54 C10 45 10 39 16 30 C23 18 22 8 14 0 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  animation: streamerFlutter var(--sway-duration) ease-in-out var(--sway-delay) infinite alternate;
+}
+.forecast-streamer-dark::before { background: #1d1e20; filter: drop-shadow(0 0 1px #e4e4e4); }
+@keyframes streamerFlutter {
+  from { transform: rotate(-18deg) scaleX(.75); }
+  to { transform: rotate(18deg) scaleX(1); }
+}
 :root { --fall-viewport: 100vh; }
 @supports (height: 100dvh) {
   :root { --fall-viewport: 100dvh; }
@@ -1783,7 +1798,8 @@ body.easter-egg-open { overflow: hidden; }
   from { transform: translate3d(0, 0, 0) rotate(0deg); }
   to { transform: translate3d(var(--drift), calc(var(--fall-viewport) + 320px), 0) rotate(var(--turn)); }
 }
-.easter-egg-overlay.motion-paused .forecast-particle { animation-play-state: paused; }
+.easter-egg-overlay.motion-paused .forecast-particle,
+.easter-egg-overlay.motion-paused .forecast-streamer::before { animation-play-state: paused; }
 @media (prefers-reduced-motion: reduce) {
   .easter-egg-box { animation: none; }
   .forecast-particle { display: none; animation: none; }

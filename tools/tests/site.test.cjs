@@ -182,7 +182,7 @@ test("hero scenery remains an unadvertised click target", () => {
   assert.doesNotMatch(hero, /role="button"|tabindex="0"|aria-label=/);
 });
 test("easter egg particles respect motion preferences and are cleared when closed", () => {
-  for (const [width, expected] of [[1200, 42], [390, 22]]) {
+  for (const [width, expected, streamerCount] of [[1200, 42, 20], [390, 22, 12]]) {
     const motion = { matches: false, addEventListener() {} };
     const { context, elements, run } = setup({ window: {
       innerWidth: width,
@@ -203,8 +203,10 @@ test("easter egg particles respect motion preferences and are cleared when close
     elements["easter-egg-image"] = {};
     elements["easter-egg-close"] = { focus() {} };
     run("showEasterEgg()");
-    assert.equal(layer.children.length, expected);
-    assert.ok(layer.children.every(child => !child.className.includes("forecast-ribbon")), "no ribbons obscure the forecast");
+    assert.equal(layer.children.length, expected + streamerCount);
+    const streamers = layer.children.filter(child => child.className.split(/\s+/).includes("forecast-streamer"));
+    assert.equal(streamers.length, streamerCount);
+    assert.equal(streamers.filter(child => child.className.split(/\s+/).includes("forecast-streamer-dark")).length, streamerCount / 2);
     assert.ok(layer.children.some(child => child.className.includes("forecast-card")), "existing song cards remain");
     const symbols = layer.children.filter(child => child.className.split(/\s+/).includes("forecast-symbol"));
     assert.deepEqual(new Set(symbols.map(child => child.textContent)), new Set(["☁", "☆", "☂"]), "all retained symbols appear, without the smiley");
@@ -221,7 +223,7 @@ test("easter egg particles respect motion preferences and are cleared when close
     assert.equal(layer.children.length, 0, "reduced motion has no moving particles");
     motion.matches = false;
     run("createConfetti()");
-    assert.equal(layer.children.length, expected, "particles return when motion is enabled");
+    assert.equal(layer.children.length, expected + streamerCount, "particles return when motion is enabled");
     run("closeEasterEgg()");
     assert.equal(layer.children.length, 0);
   }

@@ -1311,7 +1311,21 @@ function createConfetti() {
     piece.style.setProperty("--delay", `${-Math.random() * 20}s`);
     layer.appendChild(piece);
   }
-
+  const streamerCount = window.innerWidth < 700 ? 12 : 20;
+  for (let i = 0; i < streamerCount; i++) {
+    const streamer = document.createElement("div");
+    const duration = 12 + Math.random() * 6;
+    streamer.className = `forecast-particle forecast-streamer${i % 2 ? " forecast-streamer-dark" : ""}`;
+    streamer.style.setProperty("--left", `${Math.random() * 100}%`);
+    streamer.style.setProperty("--drift", `${Math.random() * 140 - 70}px`);
+    streamer.style.setProperty("--turn", `${Math.random() * 80 - 40}deg`);
+    streamer.style.setProperty("--duration", `${duration}s`);
+    streamer.style.setProperty("--delay", `${-Math.random() * duration}s`);
+    streamer.style.setProperty("--streamer-height", `${38 + Math.random() * 20}px`);
+    streamer.style.setProperty("--sway-duration", `${2.5 + Math.random() * 2}s`);
+    streamer.style.setProperty("--sway-delay", `${-Math.random() * 4}s`);
+    layer.appendChild(streamer);
+  }
 }
 function closeEasterEgg() {
   if (!easterEggOpen || !easterEggCanClose) return;
