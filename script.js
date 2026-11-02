@@ -1259,6 +1259,10 @@ const MEME_SIZES = [[259, 224], [616, 532], [370, 320], [628, 542], [116, 139], 
 let easterEggCanClose = false;
 let easterEggPreviousFocus = null;
 let easterEggInertState = [];
+// Opening takes five quick title taps; extra taps right after it land on the backdrop while the
+// box animates in, so ignore backdrop clicks briefly (Escape and the close button still work).
+const EASTER_EGG_BACKDROP_GRACE_MS = 700;
+let easterEggIgnoreBackdropUntil = 0;
 function showEasterEgg() {
   const overlay = document.getElementById("easter-egg-overlay");
   const image = document.getElementById("easter-egg-image");
@@ -1274,6 +1278,7 @@ function showEasterEgg() {
   image.alt = currentLanguage === "ja" ? `ランダムなミーム画像 ${randomNumber}` : currentLanguage === "zh" ? `随机表情包 ${randomNumber}` : `Random meme ${randomNumber}`;
   easterEggOpen = true;
   easterEggCanClose = true;
+  easterEggIgnoreBackdropUntil = Date.now() + EASTER_EGG_BACKDROP_GRACE_MS;
   easterEggPreviousFocus = document.activeElement;
   easterEggInertState = [...document.body.children].filter(node => node !== overlay && node.tagName !== "SCRIPT").map(node => [node, node.inert]);
   easterEggInertState.forEach(([node]) => { node.inert = true; });
@@ -1357,7 +1362,10 @@ function onBackdropClick(backdrop, handler) {
 function initEasterEgg() {
   const overlay = document.getElementById("easter-egg-overlay");
   if (!overlay) return;
-  onBackdropClick(overlay, closeEasterEgg);
+  onBackdropClick(overlay, () => {
+    if (Date.now() < easterEggIgnoreBackdropUntil) return;
+    closeEasterEgg();
+  });
   const closeButton = document.getElementById("easter-egg-close");
   closeButton?.addEventListener("click", closeEasterEgg);
   let taps = 0, lastTap = 0;

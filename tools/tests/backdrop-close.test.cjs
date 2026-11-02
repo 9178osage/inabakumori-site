@@ -42,8 +42,18 @@ test("backdrop closes only when pointerdown and click both land on it", () => {
 
 test("auth modal, easter egg and lightbox all use the press-and-click backdrop rule", () => {
   assert.match(script, /onBackdropClick\(authModal, /);
-  assert.match(script, /onBackdropClick\(overlay, closeEasterEgg\)/);
+  assert.match(script, /onBackdropClick\(overlay, \(\) => \{\s*if \(Date\.now\(\) < easterEggIgnoreBackdropUntil\) return;\s*closeEasterEgg\(\);/);
   assert.doesNotMatch(script, /overlay\.addEventListener\("click"/);
   assert.match(gallery, /lightbox\.addEventListener\("pointerdown", \(event\) => \{ pressedOnBackdrop = event\.target === lightbox; \}\)/);
   assert.match(gallery, /if \(!pressed\) return;[\s\S]{0,400}if \(event\.target === lightbox\) closeLightbox\(\);/);
+});
+
+test("easter egg ignores backdrop clicks briefly after opening, like the gallery lightbox (audit A2)", () => {
+  assert.match(script, /const EASTER_EGG_BACKDROP_GRACE_MS = (\d+);/);
+  const ms = Number(script.match(/const EASTER_EGG_BACKDROP_GRACE_MS = (\d+);/)[1]);
+  assert.ok(ms >= 500 && ms <= 1000, "window covers a few extra quick taps without feeling stuck");
+  const show = script.match(/function showEasterEgg\(\) \{[\s\S]*?\n\}\n/)[0];
+  assert.match(show, /easterEggIgnoreBackdropUntil = Date\.now\(\) \+ EASTER_EGG_BACKDROP_GRACE_MS;/);
+  const close = script.match(/function closeEasterEgg\(\) \{[\s\S]*?\n\}\n/)[0];
+  assert.doesNotMatch(close, /easterEggIgnoreBackdropUntil/, "Escape and the close button are not delayed");
 });
