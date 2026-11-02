@@ -1287,7 +1287,7 @@ function createConfetti() {
   if (!layer) return;
   layer.replaceChildren();
   if (reducedMotionQuery?.matches || document.hidden) return;
-  const amount = window.innerWidth < 700 ? 22 : 42;
+  const amount = window.innerWidth < 700 ? 25 : 48;
   const symbols = ["☁", "☆", "☂"];
   let symbolIndex = 0;
   for (let i = 0; i < amount; i++) {

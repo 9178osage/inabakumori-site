@@ -182,7 +182,7 @@ test("hero scenery remains an unadvertised click target", () => {
   assert.doesNotMatch(hero, /role="button"|tabindex="0"|aria-label=/);
 });
 test("easter egg particles respect motion preferences and are cleared when closed", () => {
-  for (const [width, expected, streamerCount] of [[1200, 42, 20], [390, 22, 12]]) {
+  for (const [width, expected, streamerCount] of [[1200, 48, 20], [390, 25, 12]]) {
     const motion = { matches: false, addEventListener() {} };
     const { context, elements, run } = setup({ window: {
       innerWidth: width,
