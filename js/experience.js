@@ -251,14 +251,14 @@
 
     const wall = document.getElementById("floating-wall");
     const wallButton = document.getElementById("wall-mode");
-    function updateWallMode() {
+    function updateWallMode({ relayout = true } = {}) {
       const isStatic = wallStatic || reducedMotionQuery?.matches;
       wall.classList.toggle("wall-static", Boolean(isStatic));
       // The label names the mode the button switches to, so it is an action button, not a toggle (no aria-pressed).
       wallButton.disabled = Boolean(reducedMotionQuery?.matches);
       wallButton.textContent = isStatic ? text("弹幕模式", "Floating messages", "流れる表示") : text("静态阅读", "Read as a list", "一覧で読む");
       if (reducedMotionQuery?.matches) wallButton.textContent = text("静态阅读 · 跟随系统", "Read as a list · reduced motion", "一覧で読む（システム設定に従う）");
-      document.querySelectorAll(".floating-message").forEach(element => element.refreshLayout());
+      if (relayout) document.querySelectorAll(".floating-message").forEach(element => element.refreshLayout());
     }
     wallStatic = storage.getItem("wall-static") === "true";
     wallButton.addEventListener("click", () => {
@@ -268,7 +268,9 @@
     });
     if (reducedMotionQuery?.addEventListener) reducedMotionQuery.addEventListener("change", updateWallMode);
     else reducedMotionQuery?.addListener?.(updateWallMode);
-    window.addEventListener("languagechange", updateWallMode);
+    // applyLanguage rewrites and re-measures every message itself right after this event; a relayout
+    // here would measure the old-language text and double the layout work on each switch.
+    window.addEventListener("languagechange", () => updateWallMode({ relayout: false }));
     updateWallMode();
 
     const name = document.getElementById("message-name");
