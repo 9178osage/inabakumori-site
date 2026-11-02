@@ -94,14 +94,14 @@ function fillOnce(template, marker, content) {
 const newestXPost = [...xPosts.items].sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt) || (BigInt(a.id) < BigInt(b.id) ? 1 : -1))[0];
 // Archive pages compare against this to badge posts added since the reader's last visit.
 const newestXPostMeta = newestXPost ? `<meta name="x-posts-newest" content="${new Date(newestXPost.publishedAt).toISOString()} ${newestXPost.id}"/>\n` : "";
-const fingerprintXPosts = template => template.replace("</head>", `<meta name="x-posts-version" content="${xPostsVersion}"/>\n${newestXPostMeta}</head>`);
+const fingerprintXPosts = template => template.replace("</head>", () => `<meta name="x-posts-version" content="${xPostsVersion}"/>\n${newestXPostMeta}</head>`);
 function fillUpdates(template, prefix, items = updates.items) {
   for (const [marker, content] of [["STATUS", updates.status], ["ITEMS", items]]) {
     const placeholder = `<!-- ${prefix}:${marker} -->`;
     if (template.split(placeholder).length !== 2) throw new Error(`Expected one ${prefix} ${marker} placeholder`);
     template = template.replace(placeholder, () => content);
   }
-  return template.replace("</head>", `<meta name="creator-updates-version" content="${updatesVersion}"/>\n</head>`);
+  return template.replace("</head>", () => `<meta name="creator-updates-version" content="${updatesVersion}"/>\n</head>`);
 }
 let html = await readFile(source("index.html"), "utf8");
 html = fingerprintXPosts(fillOnce(html, "X-POSTS:HOME", xPostsRenderer.renderHome()));
@@ -116,7 +116,9 @@ const cleanSongUrl = value => {
 const archive = songs.map((song, index) => `<a href="${escape(cleanSongUrl(song.youtube))}" target="_blank" rel="noopener noreferrer" data-album="${escape(song.album)}" data-song-title="${escape(song.title)}"${song.mobileFeatured === true ? ' data-mobile-featured="true"' : ""}>${String(index + 1).padStart(2, "0")}　${escape(song.title)}</a>`).join("\n");
 // The intro's song count comes from the same mobileFeatured flags, never a hand-written number.
 html = fillOnce(html, "MOBILE-SONG-INTRO", renderMobileSongIntro(mobileFeaturedCount(songs)));
-html = html.replace('<div class="song-scroll song-list" id="song-list"></div>', `<div class="song-scroll song-list" id="song-list">${archive}</div>`);
+// A function replacement inserts the archive literally; a string one would expand "$&", "$'" or
+// "$`" in a song title into the matched or surrounding HTML.
+html = html.replace('<div class="song-scroll song-list" id="song-list"></div>', () => `<div class="song-scroll song-list" id="song-list">${archive}</div>`);
 if (!keepLocalApiCsp) {
   // Parse every source expression: any loopback spelling ([::1], LOCALHOST, 127.1, *.localhost, ...) is removed.
   html = html.replace(/(<meta http-equiv="Content-Security-Policy" content=")([^"]*)(")/, (match, start, policy, end) =>
@@ -149,8 +151,8 @@ for (const creator of ["all", "inabakumori", "nknk"]) {
     const name = xPostsPageUrl(creator, page);
     let updatesHtml = page === 1 ? updatesTemplate : updatesTemplateLater;
     for (const marker of ["ITEMS", "STATUS", "PAGINATION"]) updatesHtml = fillOnce(updatesHtml, `X-POSTS:${marker}`, rendered[marker.toLowerCase()]);
-    updatesHtml = fingerprintXPosts(updatesHtml).replace('<link rel="canonical" href="https://osagechan.top/updates.html"/>', `<link rel="canonical" href="https://osagechan.top/${name}"/>`)
-      .replace('<meta property="og:url" content="https://osagechan.top/updates.html"/>', `<meta property="og:url" content="https://osagechan.top/${name}"/>`);
+    updatesHtml = fingerprintXPosts(updatesHtml).replace('<link rel="canonical" href="https://osagechan.top/updates.html"/>', () => `<link rel="canonical" href="https://osagechan.top/${name}"/>`)
+      .replace('<meta property="og:url" content="https://osagechan.top/updates.html"/>', () => `<meta property="og:url" content="https://osagechan.top/${name}"/>`);
     if (creator !== "all" || page > 1) {
       const { title, description, ogDescription } = xPostsPageTitle(creator, page);
       const swap = (from, to) => {
