@@ -40,7 +40,7 @@ test("translation line is escaped, hidden for Japanese and absent without an ent
   const itemsOf = renderer => [].concat(renderer.renderArchive({ page: 1 }).items).join("");
   const html = itemsOf(createXPostsRenderer(archive, new Map([[first.id, { zh: "<b>中</b>", en: "a & b" }]])));
   const article = id => html.match(new RegExp(`<article class="x-post"[^>]*data-x-post-id="${id}"[\\s\\S]*?</article>`))[0];
-  assert.match(article(first.id), /<p class="x-post-translation" data-zh="&lt;b&gt;中&lt;\/b&gt;" data-en="a &amp; b" data-ja="">&lt;b&gt;中&lt;\/b&gt;<\/p>/);
+  assert.match(article(first.id), /<p class="x-post-translation" data-en="a &amp; b" data-ja="">&lt;b&gt;中&lt;\/b&gt;<\/p>/);
   assert.doesNotMatch(article(second.id), /x-post-translation/);
   assert.doesNotMatch(itemsOf(createXPostsRenderer(archive)), /x-post-translation/);
 });
@@ -81,4 +81,25 @@ test("translations name songs by their real titles and never swap one song for a
       assert.ok(en.includes(title) || en.includes(ENGLISH_TITLES[title] ?? "\u0000"), `${id}: en should name ${title}`);
     }
   }
+});
+
+test("Chinese gist is rendered once and restored into data-zh before any language switch (audit C1)", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const stash = 'document.querySelectorAll(".x-post-translation[data-en]:not([data-zh])").forEach(element => { element.dataset.zh = element.textContent; });';
+  for (const [file, loop] of [["script.js", 'document.querySelectorAll("[data-zh][data-en]")'], ["js/updates.js", 'document.querySelectorAll("[data-zh][data-en][data-ja]")'], ["js/archive-pages.js", 'document.querySelectorAll("[data-zh][data-en][data-ja]")']]) {
+    const source = fs.readFileSync(path.resolve(__dirname, "../..", file), "utf8");
+    const at = source.indexOf(stash);
+    assert.ok(at >= 0 && at < source.indexOf(loop, at), `${file} must copy the gist into data-zh before switching languages`);
+    const elements = [{ textContent: "中文", dataset: { en: "English", ja: "" } }];
+    const document = { querySelectorAll: selector => selector.startsWith(".x-post-translation") ? elements.filter(e => !("zh" in e.dataset)) : [] };
+    new Function("document", stash)(document);
+    assert.equal(elements[0].dataset.zh, "中文");
+    elements[0].textContent = elements[0].dataset.en;
+    new Function("document", stash)(document);
+    assert.equal(elements[0].dataset.zh, "中文", "a second pass must not overwrite the stored Chinese gist");
+  }
+  const check = fs.readFileSync(path.resolve(__dirname, "../check-build.mjs"), "utf8");
+  assert.match(check, /archiveBytes >= ARCHIVE_BUDGET \* 0\.8/u);
+  assert.match(check, /::warning title=Archive page budget::/u);
 });

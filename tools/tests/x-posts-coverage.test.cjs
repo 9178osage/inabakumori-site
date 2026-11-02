@@ -128,8 +128,8 @@ test("home shows only the latest collected post per creator, even when one creat
   assert.deepEqual(ids(html), ["105", "103"], "ties use post IDs to choose each creator's latest and order the results");
   assert.match(html, /data-x-post-id="105"[^>]*data-creator="inabakumori"/u);
   assert.match(html, /data-x-post-id="103"[^>]*data-creator="nknk"/u);
-  assert.match(html, /data-zh="最新中译" data-en="Latest translation"/u);
-  assert.match(html, /data-zh="另一位中译" data-en="Other translation"/u);
+  assert.match(html, /<p class="x-post-translation" data-en="Latest translation" data-ja="">最新中译<\/p>/u);
+  assert.match(html, /<p class="x-post-translation" data-en="Other translation" data-ja="">另一位中译<\/p>/u);
   assert.doesNotMatch(html, /<article class="x-post" hidden/u);
   assert.match(html, /这里展示每位创作者最近的一条已收录帖子/u);
   assert.deepEqual(ids(render(archive.items.filter(item => item.creator === "inabakumori"))), ["105"], "missing creators must not be replaced by an older post");

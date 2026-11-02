@@ -272,3 +272,9 @@ npm --prefix backend run backup -- /private/backup/manual-snapshot.db
 ```
 
 该本地工具使用 [Node.js SQLite online backup](https://nodejs.org/api/sqlite.html#sqlitebackupsource-db-path-options) 读取包含 WAL 的一致快照，随后 quick_check 校验；备份文件权限 0600，拒绝覆盖源数据库或已有备份。默认保存在本地数据库目录下的 `.backups/`，应自行保留异地副本。在本地恢复演练中，先停止实验后端、保留现有实验数据库及 WAL 文件，再用已验证的快照替换，重启后检查健康接口。该命令在 2026-10-01 以临时数据库验证，当时没有复制或读取真实留言数据库。生产恢复须按 [迁移与回退说明](VERCEL.md#回退与后续备份) 先保留当前 PostgreSQL，并在隔离环境核对快照与迁移后的新增、删除，不能直接以旧文件替换生产数据源。
+
+## 帖子档案页体积（审计 C1，2026-11-02）
+
+每条帖子的中文释义原来同时写在 `data-zh` 属性和正文里；现在只保留正文，`script.js`、`js/updates.js`、`js/archive-pages.js` 在首次切换语言前把正文复制回 `data-zh`。档案页（含歌曲页）由 17.23 MiB 降至 16.46 MiB（预算 20 MiB 的 82%）。`check-build` 在用量达到 80% 时输出警告（CI 中为 `::warning`），不使构建失败。
+
+同一帖子仍会出现在「全部帖子」与所属创作者的分页中，约占档案体积一半。这是现有分享链接和搜索收录依赖的页面结构，不改动 URL 就无法去掉；后续需在缩减（如按创作者页改为客户端筛选）与调整预算之间另行决定。

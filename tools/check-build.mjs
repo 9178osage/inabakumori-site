@@ -214,7 +214,8 @@ const xTranslations = await readXTranslations(path.resolve(root, ".."), xArchive
 // Every pre-rendered page that shows posts (homepage and each archive page) is checked.
 for (const [name, content] of [["index.html", html], ...await Promise.all([...actualPages].sort().map(async page => [page, page === "updates.html" ? updatesHtml : await readFile(path.join(root, page), "utf8")]))]) {
   for (const match of content.matchAll(/<article class="x-post"[^>]*data-x-post-id="([0-9]+)"[^>]*>([\s\S]*?)<\/article>/gu)) {
-    const lines = [...match[2].matchAll(/<p class="x-post-translation" data-zh="([^"]*)" data-en="([^"]*)" data-ja="">/gu)];
+    const lines = [...match[2].matchAll(/<p class="x-post-translation" data-en="([^"]*)" data-ja="">([^<]*)<\/p>/gu)];
+    assert.ok(!/x-post-translation" data-zh=/u.test(match[2]), `Translation must not repeat the Chinese gist in data-zh: ${match[1]} in ${name}`);
     assert.equal(lines.length, xTranslations.has(match[1]) ? 1 : 0, `Translation line mismatch for ${match[1]} in ${name}`);
   }
 }
@@ -266,5 +267,11 @@ for (const [from, to] of Object.entries(songRedirects)) {
 }
 assert.ok(!(await readdir(root)).some(name => name === "search.html" || name === "search-index"), "Post search page and index must not be published");
 assert.ok(bytes < 12 * 1024 * 1024, `Public build (excluding archive pages) exceeds 12 MiB: ${bytes}`);
-assert.ok(archiveBytes < 20 * 1024 * 1024, `Archive pages exceed 20 MiB: ${archiveBytes}`);
+const ARCHIVE_BUDGET = 20 * 1024 * 1024;
+assert.ok(archiveBytes < ARCHIVE_BUDGET, `Archive pages exceed 20 MiB: ${archiveBytes}`);
+// Early warning at 80% so the budget is revisited before a weekly refresh fails the build.
+if (archiveBytes >= ARCHIVE_BUDGET * 0.8) {
+  const message = `Archive pages use ${(archiveBytes / ARCHIVE_BUDGET * 100).toFixed(1)}% of the 20 MiB budget (${(archiveBytes / 1024 / 1024).toFixed(2)} MiB); plan a reduction or a budget review.`;
+  console.warn(process.env.GITHUB_ACTIONS ? `::warning title=Archive page budget::${message}` : `Warning: ${message}`);
+}
 console.log(`Public build verified: references, anchors, JS syntax, metadata, pre-rendering, privacy allowlist; ${(bytes / 1024 / 1024).toFixed(2)} MiB + ${(archiveBytes / 1024 / 1024).toFixed(2)} MiB archive pages.`);

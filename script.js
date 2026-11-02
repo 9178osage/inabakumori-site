@@ -29,6 +29,7 @@ let currentTheme = document.documentElement?.dataset?.theme || (window.siteStora
 let currentSlide = 0;
 const COMMENTS_API = `${window.APP_CONFIG.apiDomain}/api/comments`;
 function applyLanguage() {
+  document.querySelectorAll(".x-post-translation[data-en]:not([data-zh])").forEach(element => { element.dataset.zh = element.textContent; });
   document.querySelectorAll("[data-zh][data-en]").forEach((element) => {
     const text = element.dataset[currentLanguage] ?? pageText(element.dataset.zh, element.dataset.en);
     if (element.textContent !== text) element.textContent = text;

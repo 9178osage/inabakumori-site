@@ -59,10 +59,12 @@ export function xPostsPageUrl(creator = "all", page = 1) {
 }
 
 // Gist per post (zh + en), attached by createXPostsRenderer. Japanese readers see no line.
+// The Chinese gist is the element text only (no duplicate data-zh); page scripts copy it into
+// data-zh before their first language switch. Saves one copy per post across ~400 archive pages.
 const translationOf = new WeakMap();
 const renderTranslation = post => {
   const entry = translationOf.get(post);
-  return entry ? `<p class="x-post-translation" data-zh="${escape(entry.zh)}" data-en="${escape(entry.en)}" data-ja="">${escape(entry.zh)}</p>` : "";
+  return entry ? `<p class="x-post-translation" data-en="${escape(entry.en)}" data-ja="">${escape(entry.zh)}</p>` : "";
 };
 function renderPost(post, { showCollected = false } = {}) {
   const creator = creators[post.creator];
