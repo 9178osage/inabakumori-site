@@ -56,7 +56,6 @@ async function copyPublicFolder(folder, allowed) {
 await copyPublicFolder("images/optimized", /\.webp$/i);
 await copyPublicFolder("images/icons", /\.(png|ico)$/i);
 await copyPublicFolder("images/memes", /\.png$/i);
-await copyPublicFolder("fonts", /\.(woff2|txt)$/i);
 for (const entry of await readdir(source("images"), { withFileTypes: true })) {
   if (entry.isFile() && !entry.name.startsWith(".") && /\.(png|jpe?g|webp)$/i.test(entry.name)) await copyFile(source(`images/${entry.name}`), output(`dist/images/${entry.name}`));
 }
