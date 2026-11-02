@@ -167,3 +167,21 @@ test("post text rejects C1 controls and bidi overrides; the committed archive pa
   const archive = await readXPostsArchive(path.resolve(__dirname, "../.."));
   assert.ok(archive.items.length > 6000);
 });
+
+test("scan ranges merge overlapping and touching windows; completed scans trim interrupted ones (audit A5)", async () => {
+  const { mergeScanRanges, normalizeXPostsScan, mergeXPostsArchives } = await load();
+  const r = (from, to, status = "scanned") => ({ from: `${from}T00:00:00.000Z`, to: `${to}T00:00:00.000Z`, status });
+  assert.deepEqual(mergeScanRanges([r("2026-03-01", "2026-04-01"), r("2026-01-01", "2026-02-01"), r("2026-01-15", "2026-03-01")]), [r("2026-01-01", "2026-04-01")], "overlap + touch collapse to one");
+  assert.deepEqual(mergeScanRanges([r("2026-01-01", "2026-02-01"), r("2026-03-01", "2026-04-01")]), [r("2026-01-01", "2026-02-01"), r("2026-03-01", "2026-04-01")], "a real gap stays");
+  assert.deepEqual(mergeScanRanges([r("2026-01-01", "2026-06-01", "interrupted"), r("2026-02-01", "2026-03-01")]),
+    [r("2026-01-01", "2026-02-01", "interrupted"), r("2026-02-01", "2026-03-01"), r("2026-03-01", "2026-06-01", "interrupted")], "completed wins inside an interrupted window");
+  assert.deepEqual(mergeScanRanges([r("2026-02-01", "2026-03-01", "interrupted"), r("2026-01-01", "2026-04-01")]), [r("2026-01-01", "2026-04-01")]);
+  // The committed manifest's four overlapping/touching windows per creator become one each.
+  const committed = [r("2018-03-30", "2026-10-18"), r("2015-12-16", "2026-10-18"), r("2026-10-18", "2026-10-23"), r("2026-10-23", "2026-10-26")];
+  assert.deepEqual(mergeScanRanges(committed), [r("2015-12-16", "2026-10-26")]);
+  // Through the archive merge: re-importing an overlapping window does not grow the list.
+  const coverage = ranges => [{ creator: "inabakumori", scannedRanges: ranges }];
+  const first = normalizeXPostsScan(scan([post()], coverage([r("2026-01-01", "2026-03-01")])));
+  const merged = mergeXPostsArchives(first, scan([post()], coverage([r("2026-02-01", "2026-05-01")]))).archive;
+  assert.deepEqual(merged.coverage[0].scannedRanges, [r("2026-01-01", "2026-05-01")]);
+});

@@ -184,10 +184,44 @@ export function mergeXPostsArchives(previous, input) {
     const old = metadata.get(value.creator) ?? {};
     const combined = { ...old, ...value };
     if (old.scannedTabs || value.scannedTabs) combined.scannedTabs = [...new Set([...(old.scannedTabs ?? []), ...(value.scannedTabs ?? [])])];
-    if (old.scannedRanges || value.scannedRanges) combined.scannedRanges = [...new Map([...(old.scannedRanges ?? []), ...(value.scannedRanges ?? [])].map(range => [JSON.stringify(range), range])).values()];
+    if (old.scannedRanges || value.scannedRanges) combined.scannedRanges = mergeScanRanges([...(old.scannedRanges ?? []), ...(value.scannedRanges ?? [])]);
     metadata.set(value.creator, combined);
   }
   return { archive: normalizeXPostsScan({ version: 1, coverage: [...metadata.values()], items: [...posts.values()] }), added, updated, unchanged, conflicts };
+}
+
+// Repeated imports report overlapping windows; keep one entry per continuous stretch so the list
+// stays small (it is capped at 1000). Overlapping or touching ranges of the same status merge, and
+// any part of an interrupted range that a completed scan covers is dropped (completed wins).
+// Timestamps are canonical ISO strings, so string order is time order.
+export function mergeScanRanges(ranges) {
+  const union = list => {
+    const sorted = [...list].sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : 0));
+    const merged = [];
+    for (const { from, to } of sorted) {
+      const last = merged.at(-1);
+      if (last && from <= last.to) { if (to > last.to) last.to = to; }
+      else merged.push({ from, to });
+    }
+    return merged;
+  };
+  const scanned = union(ranges.filter(range => range.status === "scanned"));
+  const interrupted = [];
+  for (const range of union(ranges.filter(range => range.status === "interrupted"))) {
+    let pieces = [range];
+    for (const done of scanned) {
+      pieces = pieces.flatMap(piece => {
+        if (done.to <= piece.from || done.from >= piece.to) return [piece];
+        return [
+          ...(piece.from < done.from ? [{ from: piece.from, to: done.from }] : []),
+          ...(done.to < piece.to ? [{ from: done.to, to: piece.to }] : []),
+        ];
+      });
+    }
+    interrupted.push(...pieces);
+  }
+  return [...scanned.map(range => ({ ...range, status: "scanned" })), ...interrupted.map(range => ({ ...range, status: "interrupted" }))]
+    .sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : 0));
 }
 
 async function readRegular(root, file, maximum) {
