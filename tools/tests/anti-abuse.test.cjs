@@ -110,3 +110,38 @@ test('the moderation panel offers per-user deletion only on member comments and 
   assert.match(source, /renderList\(comments, deleting, label, remove, removeAuthor\);/);
   assert.match(source, /commentListView\("my-comments-list", "my-comments-status"\);/);
 });
+
+test('password-reset emails are limited per address and answer OK without revealing the limit (audit B3)', async () => {
+  const definition = backend.match(/const PASSWORD_RESET_TOKEN_PATH =[\s\S]*?\n\}\);\n/);
+  assert.ok(definition, 'per-email reset limiter block');
+  assert.ok(backend.indexOf('const PASSWORD_RESET_TOKEN_PATH') < backend.indexOf('app.use(middleware());'), 'must run before SuperTokens');
+  const { express, createRequestRateLimit } = await limiterTools();
+  const { normalizeRequestPath, passwordResetEmailKey } = await import('../../backend/services.mjs');
+  const app = express();
+  app.use(express.json());
+  vm.runInNewContext(definition[0], { app, createRequestRateLimit, normalizeRequestPath, passwordResetEmailKey, sharedStore: () => ({}) });
+  let sent = 0;
+  app.use((req, res) => { sent++; res.json({ status: 'OK' }); });
+  const server = app.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const post = async (path, email) => {
+    const response = await fetch(`http://127.0.0.1:${server.address().port}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ formFields: [{ id: 'email', value: email }] }) });
+    return { status: response.status, body: await response.json(), headers: [...response.headers.keys()].filter(name => /ratelimit|retry-after/i.test(name)) };
+  };
+  try {
+    for (let i = 0; i < 3; i++) assert.equal((await post('/auth/user/password/reset/token', 'victim@example.com')).status, 200);
+    assert.equal(sent, 3);
+    for (const [path, email] of [['/auth/user/password/reset/token', ' Victim@Example.com '], ['/auth/public/user/password/reset/token', 'victim@example.com']]) {
+      const over = await post(path, email);
+      assert.deepEqual([over.status, over.body, over.headers], [200, { status: 'OK' }, []], 'over the limit looks exactly like success');
+    }
+    assert.equal(sent, 3, 'no further reset emails reach SuperTokens');
+    assert.equal((await post('/auth/user/password/reset/token', 'other@example.com')).status, 200);
+    assert.equal(sent, 4, 'other addresses keep their own budget');
+    assert.equal((await post('/auth/signin', 'victim@example.com')).status, 200);
+    assert.equal(sent, 5, 'other auth routes are untouched');
+  } finally { server.close(); }
+  assert.equal(passwordResetEmailKey({}), null);
+  assert.equal(passwordResetEmailKey({ formFields: [{ id: 'email', value: 7 }] }), null);
+  assert.doesNotMatch(passwordResetEmailKey({ formFields: [{ id: 'email', value: 'a@b.c' }] }), /a@b/, 'only a hash is stored');
+});

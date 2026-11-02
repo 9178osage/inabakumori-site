@@ -217,6 +217,18 @@ export function normalizeCommentForComparison(value) {
 // Requests can arrive with doubled or backslash separators ("//auth/signin", "\\api\\comments"). The
 // WHATWG URL parser reads "//auth" as a *host* and would report "/signin", so the rate limiters and
 // the backup-path check would look at the wrong path. Collapse separators and resolve . / .. first.
+// Rate-limit key for one password-reset email address. Only a hash is stored, so the shared
+// limiter table never holds addresses. Returns null for bodies SuperTokens will reject anyway.
+export function passwordResetEmailKey(body) {
+  const fields = body?.formFields;
+  if (!Array.isArray(fields)) return null;
+  const field = fields.find(entry => entry?.id === "email");
+  if (typeof field?.value !== "string") return null;
+  const email = field.value.trim().toLocaleLowerCase("und");
+  if (!email || email.length > 320) return null;
+  return "reset-email:" + createHash("sha256").update(email).digest("hex");
+}
+
 export function normalizeRequestPath(value) {
   let raw = String(value ?? "");
   if (/^[a-z][a-z0-9+.-]*:\/\//iu.test(raw)) {

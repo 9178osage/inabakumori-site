@@ -122,6 +122,8 @@ test("rate-limit keys use the edge-set client IP on Railway and ignore spoofable
   assert.ok(limiters.length >= 8);
   for (const [, name, rest] of limiters) {
     if (name === "memberCommentLimiter") continue;
+    // Keyed on a hash of the target address; the per-IP auth limiter still applies after it.
+    if (name === "passwordResetEmailLimiter") { assert.match(rest, /keyGenerator: req => passwordResetEmailKey\(req\.body\)/); continue; }
     assert.match(rest, /keyGenerator: clientIpKey/, `${name} must key on the client IP`);
   }
 });
