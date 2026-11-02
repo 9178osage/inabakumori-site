@@ -2363,7 +2363,7 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
 }
 /* X post snapshot on the homepage (pre-rendered by tools/render-x-posts.mjs). */
 .home-updates .x-posts-home {
-  margin: 0 0 34px;
+  margin: 0;
   padding: 0;
 }
 .home-updates .x-posts-title {
@@ -2498,7 +2498,7 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
   color: var(--ui-muted);
 }
 .home-updates .x-posts-archive-link {
-  margin-top: 18px;
+  margin-top: 4px;
 }
 .home-updates .x-posts-empty,
 .home-updates .x-posts-coverage-note {
@@ -2515,6 +2515,7 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
   margin-top: 3px;
 }
 .home-updates .home-works-log {
+  margin-top: 10px;
   border: 1px solid var(--ui-border);
   border-radius: 6px;
   background: var(--link-bg);

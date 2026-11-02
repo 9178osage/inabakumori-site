@@ -99,7 +99,7 @@ test("a browser without Object.hasOwn can still switch the X post filter", () =>
 test("the homepage loads the filter as an external script and keeps its controls hidden without JavaScript", async () => {
   const html = fs.readFileSync("index.html", "utf8");
   assert.match(html, /<script src="js\/x-posts-home\.js" defer><\/script>/u);
-  assert.match(html, /<!-- X-POSTS:HOME -->/u);
+  assert.match(html, /<!-- X-POSTS:HOME:START -->\n<details class="home-works-log">[\s\S]*<\/details>\n<!-- X-POSTS:HOME:END -->/u);
   const source = fs.readFileSync("js/x-posts-home.js", "utf8");
   assert.doesNotMatch(source, /innerHTML|outerHTML|insertAdjacentHTML|document\.write|eval\(|new Function/u);
   const { renderXPostsHome } = await import("../render-x-posts.mjs");
@@ -107,6 +107,15 @@ test("the homepage loads the filter as an external script and keeps its controls
   assert.match(rendered, /class="x-home-filters"[^>]*hidden>/u);
   assert.match(rendered, /data-x-home-count role="status" aria-live="polite" hidden>/u);
   assert.match(rendered, /data-x-archive-link href="updates\.html"/u);
+});
+
+test("the archive link and works log sit between the post count and the feed", async () => {
+  const { renderXPostsHome } = await import("../render-x-posts.mjs");
+  const rendered = renderXPostsHome({ version: 1, coverage: [], items: [] }, '<details class="home-works-log"></details>');
+  const order = ["data-x-home-count", "data-x-archive-link", 'class="home-works-log"', "data-x-home-empty", 'class="x-posts-feed"'].map(marker => rendered.indexOf(marker));
+  assert.ok(order.every((index, i) => index > (order[i - 1] ?? -1)), `unexpected order ${order}`);
+  assert.ok(rendered.indexOf('class="home-works-log"') < rendered.lastIndexOf("</section>"));
+  assert.throws(() => renderXPostsHome({ version: 1, coverage: [], items: [] }, 1), /children must be markup/u);
 });
 
 test("a creator with no collected posts shows the empty note instead of a blank list", () => {

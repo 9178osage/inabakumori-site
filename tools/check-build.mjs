@@ -127,6 +127,11 @@ assert.ok(html.includes('id="updates"'), "Homepage must include the updates sect
 assert.ok(html.indexOf('id="intro"') < html.indexOf('id="updates"'), "Homepage intro must precede updates");
 assert.match(html, /href="#updates"/u, "Homepage navigation must open its own updates section");
 assert.doesNotMatch(html, /<!-- (?:HOME-UPDATES|X-POSTS):/u, "Homepage updates must be pre-rendered");
+{
+  const xHome = html.slice(html.indexOf("data-x-posts-home"), html.indexOf("</section>", html.indexOf('class="x-posts-feed"')));
+  const order = ["data-x-home-count", "data-x-archive-link", 'class="home-works-log"', 'class="x-posts-feed"'].map(marker => xHome.indexOf(marker));
+  assert.ok(order[0] >= 0 && order.every((index, i) => index > (order[i - 1] ?? -1)), "Homepage archive link and works log must sit inside the X section, between the post count and the feed");
+}
 const legacyCount = [...html.matchAll(/class="update-item"/gu)].length;
 assert.equal(legacyCount, [...updatesHtml.matchAll(/class="update-item"/gu)].length, "Homepage and archive must contain the same works snapshot");
 const visibleArticles = className => [...html.matchAll(/<article\b([^>]*)>/gu)].filter(([, attributes]) => attributes.includes(`class="${className}"`) && !/(?:^|\s)hidden(?:\s|=|$)/u.test(attributes));

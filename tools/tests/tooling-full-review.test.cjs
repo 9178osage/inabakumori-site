@@ -67,7 +67,7 @@ function publicBuild(box) {
 <link rel="canonical" href="https://osagechan.top/"/>
 <script src="js/auth-loader.js?v=${fingerprint(authLoader)}" defer></script>
 <script type="application/ld+json">{"@type":"WebSite"}</script>
-<div id="nknk-gallery"></div><div id="nknk-lightbox"></div><section id="updates"></section><a href="#updates">Updates</a>
+<div id="nknk-gallery"></div><div id="nknk-lightbox"></div><section id="updates"><section class="x-posts-home" data-x-posts-home><p data-x-home-count></p><a data-x-archive-link></a><details class="home-works-log"></details><div class="x-posts-feed"></div></section></section><a href="#updates">Updates</a>
 ${emptyXPostsMeta}<div class="station-brand"><a class="station-mark" href="#updates">INABAKUMORI</a><a class="station-calendar" href="calendar.html">calendar</a></div><a data-song-title="ユレール">ユレール</a>`);
   box.write("data/creator-updates.json", JSON.stringify({ items: [{ creator: "inabakumori", source: "youtube", title: "稲葉曇『ユレール』Vo. 弦巻マキ", publishedAt: "2026-03-08T10:00:07.000Z", url: "https://www.youtube.com/watch?v=2r4W_LoVFxA" }, { creator: "inabakumori", source: "youtube", title: "Live stream", publishedAt: "2026-09-01T10:00:00.000Z" }] }));
   box.write("dist/calendar.html", `<meta name="robots" content="noindex, nofollow"/>
@@ -172,6 +172,29 @@ test("the build gate requires the pre-rendered featured marks to match mobileFea
       const home = path.join(box.root, "dist/index.html");
       fs.writeFileSync(home, fs.readFileSync(home, "utf8").replace('<a data-song-title="ユレール">', `<a data-song-title="ユレール"${marked ? ' data-mobile-featured="true"' : ""}>`));
       box.write("dist/js/songs.js", songs(flag));
+      const result = spawnSync(process.execPath, [path.join(box.root, "tools/check-build.mjs")], { cwd: box.root, encoding: "utf8", timeout: 10000 });
+      assert.ifError(result.error);
+      if (failure) { assert.notEqual(result.status, 0, name); assert.match(result.stderr, failure, name); }
+      else assert.equal(result.status, 0, `${name}: ${result.stderr}`);
+    } finally { box.close(); }
+  }
+});
+
+test("the build gate keeps the X archive link and works log between the post count and the feed", () => {
+  const section = '<section class="x-posts-home" data-x-posts-home><p data-x-home-count></p><a data-x-archive-link></a><details class="home-works-log"></details><div class="x-posts-feed"></div></section>';
+  const misplaced = /archive link and works log must sit inside the X section/u;
+  const cases = [
+    ["the expected order", section, null],
+    ["the works log below the feed", section.replace('<details class="home-works-log"></details>', "").replace("</div></section>", '</div><details class="home-works-log"></details></section>'), misplaced],
+    ["the works log outside the X section", `${section.replace('<details class="home-works-log"></details>', "")}<details class="home-works-log"></details>`, misplaced],
+    ["the archive link above the post count", section.replace("<a data-x-archive-link></a>", "").replace("<p data-x-home-count>", "<a data-x-archive-link></a><p data-x-home-count>"), misplaced]
+  ];
+  for (const [name, markup, failure] of cases) {
+    const box = fixture();
+    try {
+      publicBuild(box);
+      const home = path.join(box.root, "dist/index.html");
+      fs.writeFileSync(home, fs.readFileSync(home, "utf8").replace(section, markup));
       const result = spawnSync(process.execPath, [path.join(box.root, "tools/check-build.mjs")], { cwd: box.root, encoding: "utf8", timeout: 10000 });
       assert.ifError(result.error);
       if (failure) { assert.notEqual(result.status, 0, name); assert.match(result.stderr, failure, name); }

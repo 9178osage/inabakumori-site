@@ -105,12 +105,14 @@ function renderAuthorLinks(creator) {
   return `<nav class="x-posts-author-links" aria-label="按创作者浏览帖子" data-aria-zh="按创作者浏览帖子" data-aria-en="Browse posts by creator" data-aria-ja="クリエイター別の投稿">${text("a", ["全部帖子", "All posts", "すべての投稿"], ` href="${xPostsPageUrl("all")}"${creator === "all" ? ' aria-current="true"' : ""}`)}${Object.entries(creators).map(([id, author]) => `<a href="${xPostsPageUrl(id)}"${creator === id ? ' aria-current="true"' : ""}>${escape(author.name)}</a>`).join("")}</nav>`;
 }
 
-function renderHome(posts, groups, status, renderItem) {
+// `children` (the works log) sits between the post count and the feed, inside the same section.
+function renderHome(posts, groups, status, renderItem, children = "") {
+  assert.equal(typeof children, "string", "Homepage X section children must be markup");
   const latest = new Set(Object.keys(creators).flatMap(creator => groups.get(creator).slice(0, 1)).map(post => post.id));
   const selected = posts.filter(post => latest.has(post.id));
   const count = creator => groups.get(creator).length;
   const filters = `<div class="x-home-filters" role="group" aria-label="按创作者筛选帖子" data-aria-zh="按创作者筛选帖子" data-aria-en="Filter posts by creator" data-aria-ja="クリエイター別の投稿" hidden>${text("button", ["全部帖子", "All posts", "すべて"], ' type="button" data-x-home-creator="all" aria-pressed="true"')}<button type="button" data-x-home-creator="inabakumori" aria-pressed="false">稲葉曇</button><button type="button" data-x-home-creator="nknk" aria-pressed="false">NKNK</button></div>`;
-  return `<section class="x-posts-home" data-x-posts-home data-x-total="${posts.length}" data-x-total-inabakumori="${count("inabakumori")}" data-x-total-nknk="${count("nknk")}" aria-labelledby="home-x-posts-title"><h3 id="home-x-posts-title" class="x-posts-title" data-zh="X 帖子原文" data-en="Original X posts" data-ja="Xの投稿・原文">X 帖子原文</h3><div class="x-posts-status">${status.summary}<details class="x-collection-details">${text("summary", ["收录范围与说明", "Collection details", "収録範囲と説明"], "")}<div class="x-collection-details-content">${status.details}</div></details></div>${filters}<p class="x-home-count" data-x-home-count role="status" aria-live="polite" hidden></p>${text("p", ["这位创作者暂无已收录的帖子。", "No posts have been collected for this creator yet.", "このクリエイターの投稿はまだ収録されていません。"], ' class="x-posts-empty" data-x-home-empty hidden')}<div class="x-posts-feed">${selected.map(renderItem).join("\n") || text("p", ["公开帖子正在补录中。", "Public posts are being collected.", "公開投稿を収録しています。"], ' class="x-posts-empty"')}</div>${text("a", ["在本站浏览已收录的全部帖子 →", "Browse all collected posts on this site →", "サイト内で収録済みの投稿をすべて見る →"], ' class="x-posts-archive-link" data-x-archive-link href="updates.html"')}<noscript>${text("p", ["这里展示每位创作者最近的一条已收录帖子。完整帖子正文可通过上方站内档案分页阅读。", "The latest collected post from each creator is shown here. Read all collected posts through the archive link above.", "ここには各クリエイターの最新の収録済み投稿を1件ずつ表示しています。収録済みの全文は上のリンク先で読めます。"], ' class="x-posts-coverage-note"')}</noscript></section>`;
+  return `<section class="x-posts-home" data-x-posts-home data-x-total="${posts.length}" data-x-total-inabakumori="${count("inabakumori")}" data-x-total-nknk="${count("nknk")}" aria-labelledby="home-x-posts-title"><h3 id="home-x-posts-title" class="x-posts-title" data-zh="X 帖子原文" data-en="Original X posts" data-ja="Xの投稿・原文">X 帖子原文</h3><div class="x-posts-status">${status.summary}<details class="x-collection-details">${text("summary", ["收录范围与说明", "Collection details", "収録範囲と説明"], "")}<div class="x-collection-details-content">${status.details}</div></details></div>${filters}<p class="x-home-count" data-x-home-count role="status" aria-live="polite" hidden></p>${text("a", ["在本站浏览已收录的全部帖子 →", "Browse all collected posts on this site →", "サイト内で収録済みの投稿をすべて見る →"], ' class="x-posts-archive-link" data-x-archive-link href="updates.html"')}${children}${text("p", ["这位创作者暂无已收录的帖子。", "No posts have been collected for this creator yet.", "このクリエイターの投稿はまだ収録されていません。"], ' class="x-posts-empty" data-x-home-empty hidden')}<div class="x-posts-feed">${selected.map(renderItem).join("\n") || text("p", ["公开帖子正在补录中。", "Public posts are being collected.", "公開投稿を収録しています。"], ' class="x-posts-empty"')}</div><noscript>${text("p", ["这里展示每位创作者最近的一条已收录帖子。完整帖子正文可通过上方站内档案分页阅读。", "The latest collected post from each creator is shown here. Read all collected posts through the archive link above.", "ここには各クリエイターの最新の収録済み投稿を1件ずつ表示しています。収録済みの全文は上のリンク先で読めます。"], ' class="x-posts-coverage-note"')}</noscript></section>`;
 }
 
 function renderArchive(groups, status, renderItem, { page = 1, creator = "all", pageSize = 30 } = {}) {
@@ -145,7 +147,7 @@ export function createXPostsRenderer(archive, translations = new Map()) {
     return markup.get(post.id);
   };
   return Object.freeze({
-    renderHome: () => renderHome(posts, groups, status, post => renderPost(post, { showCollected: true })),
+    renderHome: children => renderHome(posts, groups, status, post => renderPost(post, { showCollected: true }), children),
     renderArchive: options => renderArchive(groups, status, renderItem, options),
     // Song archive pages reuse the same escaped article markup for linked posts.
     renderPost: id => {
@@ -157,8 +159,8 @@ export function createXPostsRenderer(archive, translations = new Map()) {
   });
 }
 
-export function renderXPostsHome(archive) {
-  return createXPostsRenderer(archive).renderHome();
+export function renderXPostsHome(archive, children) {
+  return createXPostsRenderer(archive).renderHome(children);
 }
 
 export function renderXPostsArchive(archive, options) {
