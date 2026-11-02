@@ -194,3 +194,22 @@ test("actual commit step refuses a snapshot that changes more than view counts o
     });
   }
 });
+
+test("the YouTube API key only reaches a job that installs and runs no dependency code (audit B4)", () => {
+  const plain = workflow.replace(/^\s*#.*$/gmu, "");
+  const jobs = {};
+  for (const block of plain.split(/\n(?=  [a-z][\w-]*:\n)/u).slice(1)) jobs[block.match(/^  ([\w-]+):/u)[1]] = block;
+  assert.deepEqual(Object.keys(jobs).filter(name => /secrets\.YOUTUBE_API_KEY/u.test(jobs[name])), ["fetch"]);
+  const fetch = jobs.fetch;
+  assert.doesNotMatch(fetch, /\bnpm\b|\bnpx\b|cache:|persist-credentials: true/u, "no package install, cache restore or persisted token");
+  assert.match(fetch, /persist-credentials: false/u);
+  assert.deepEqual([...fetch.matchAll(/run: (node [^\n]+)/gu)].map(m => m[1]), ["node tools/refresh-youtube-views.mjs"]);
+  assert.match(fetch, /name: youtube-views-fetched\n\s+path: js\/songs\.js\n/u);
+  assert.match(jobs.refresh, /needs: fetch/u);
+  assert.match(jobs.refresh, /name: youtube-views-fetched\n\s+path: js\n/u);
+  // The fetch script and its local helper import only Node built-ins.
+  for (const file of ["tools/refresh-youtube-views.mjs", "tools/safe-fs.mjs"]) {
+    const imports = [...fs.readFileSync(path.join(__dirname, "../..", file), "utf8").matchAll(/^import [^"]*"([^"]+)"/gmu)].map(m => m[1]);
+    for (const name of imports) assert.ok(name.startsWith("node:") || name === "./safe-fs.mjs", `${file} imports ${name}`);
+  }
+});

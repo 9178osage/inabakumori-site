@@ -17,7 +17,42 @@ concurrency:
   group: refresh-youtube-views
   cancel-in-progress: false
 jobs:
+  # The API key is only ever present in this job, which installs no packages and runs only
+  # tools/refresh-youtube-views.mjs (Node built-ins plus tools/safe-fs.mjs). npm lifecycle
+  # scripts and test dependencies run later, in a job that never receives the key.
+  fetch:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.22.1
+      - name: Require YouTube API key secret
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: |
+          if [ -z "$YOUTUBE_API_KEY" ]; then
+            echo "::error::Missing repository secret YOUTUBE_API_KEY. Add it under Settings → Secrets and variables → Actions. Do not commit the key."
+            exit 1
+          fi
+      - name: Refresh view counts
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: node tools/refresh-youtube-views.mjs
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: youtube-views-fetched
+          path: js/songs.js
+          if-no-files-found: error
+          retention-days: 1
   refresh:
+    needs: fetch
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -40,22 +75,15 @@ jobs:
             backend/package-lock.json
       - run: npm ci
       - run: npm --prefix backend ci
-      - name: Require YouTube API key secret
-        env:
-          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
-        run: |
-          if [ -z "$YOUTUBE_API_KEY" ]; then
-            echo "::error::Missing repository secret YOUTUBE_API_KEY. Add it under Settings → Secrets and variables → Actions. Do not commit the key."
-            exit 1
-          fi
       - name: Record the previous completed main push
         run: node tools/record-current-deployment.mjs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Refresh view counts
-        env:
-          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
-        run: node tools/refresh-youtube-views.mjs
+      - name: Use the fetched view counts (no API key in this job)
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: youtube-views-fetched
+          path: js
       - run: npm test
       - run: npm run check
       - run: npm run test:integration
