@@ -469,7 +469,8 @@ async function loadMessages() {
   messageLoadState = "loading";
   updateMessageLoadStatus();
   try {
-    const response = await (window.siteFetch || fetch)(COMMENTS_API, { credentials: "include", cache: "no-store" });
+    // The public wall needs no cookies; an uncredentialed GET reuses the <link rel="preconnect" crossorigin> socket.
+    const response = await (window.siteFetch || fetch)(COMMENTS_API, { credentials: "omit", cache: "no-store" });
     if (response.status === 429) {
       if (loadId !== messageLoadId) return;
       messageRetryAt = Date.now() + retryAfterSeconds(response.headers?.get?.("Retry-After")) * 1000;
