@@ -231,6 +231,8 @@ const authSensitiveLimiter = createRequestRateLimit({ ...sharedStore("authSensit
 // global limiter only: on a shared IP (CGNAT, school) a neighbour could otherwise use up this budget
 // and break everyone else's token refresh.
 const SESSION_MAINTENANCE_AUTH_PATHS = new Set(["/auth/session/refresh", "/auth/signout"]);
+const SIGNUP_AUTH_PATH = /^\/auth\/(?:[^/]+\/)?signup$/u;
+const signupLimiter = createRequestRateLimit({ ...sharedStore("signupLimiter"), keyGenerator: clientIpKey, windowMs: 60 * 60 * 1e3, limit: 5, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "注册过于频繁，请一小时后再试", code: "SIGNUP_RATE_LIMITED" } });
 app.use((req, res, next) => {
   if (req.method !== "POST") return next();
   const pathname = normalizeRequestPath(req.originalUrl || req.url);
@@ -238,6 +240,8 @@ app.use((req, res, next) => {
   // Exempt only a literal path: "/auth/signin/../session/refresh" style spellings stay limited.
   const literal = String(req.originalUrl || req.url).split(/[?#]/u)[0].toLocaleLowerCase("und");
   if (literal === pathname && SESSION_MAINTENANCE_AUTH_PATHS.has(pathname)) return next();
+  // Sign-up also has its own hourly budget (tenant spellings included), well below the shared auth budget.
+  if (SIGNUP_AUTH_PATH.test(pathname)) return signupLimiter(req, res, error => error ? next(error) : authSensitiveLimiter(req, res, next));
   return authSensitiveLimiter(req, res, next);
 });
 app.use(middleware());
@@ -245,6 +249,9 @@ app.use(commentWriteMaintenance(process.env));
 const commentLimiter = createRequestRateLimit({ ...sharedStore("commentLimiter"), keyGenerator: clientIpKey, windowMs: 60 * 1e3, limit: 10, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "留言发送过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 // A 409 duplicate still counts: otherwise a guest could probe (or squat) recent texts for free.
 const guestCommentLimiter = createRequestRateLimit({ ...sharedStore("guestCommentLimiter"), keyGenerator: clientIpKey, windowMs: 60 * 60 * 1e3, limit: 3, skipFailedRequests: true, requestWasSuccessful: (_req, res) => res.statusCode < 400 || res.statusCode === 409, standardHeaders: "draft-7", legacyHeaders: false, skip: req => req.session !== undefined, message: { error: "游客每小时最多留言 3 条，请稍后再试", code: "GUEST_RATE_LIMITED" } });
+// One hourly budget per IP across guest and member posts, so many accounts on one address cannot
+// multiply the per-account limits. Failed posts (except duplicates) do not count.
+const ipHourlyCommentLimiter = createRequestRateLimit({ ...sharedStore("ipHourlyCommentLimiter"), keyGenerator: clientIpKey, windowMs: 60 * 60 * 1e3, limit: 30, skipFailedRequests: true, requestWasSuccessful: (_req, res) => res.statusCode < 400 || res.statusCode === 409, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "这个网络每小时最多留言 30 条，请稍后再试", code: "IP_RATE_LIMITED" } });
 const memberCommentLimiter = createRequestRateLimit({ ...sharedStore("memberCommentLimiter"),
   windowMs: 60 * 60 * 1e3,
   limit: 20,
@@ -334,7 +341,7 @@ app.get("/api/comments", async (req, res) => {
   applyPublicCommentsCacheHeaders(req, res);
   res.json({ comments });
 });
-app.post("/api/comments", commentLimiter, requireJsonContentType, verifySession({ sessionRequired: false }), guestCommentLimiter, memberCommentLimiter, async (req, res) => {
+app.post("/api/comments", commentLimiter, requireJsonContentType, verifySession({ sessionRequired: false }), ipHourlyCommentLimiter, guestCommentLimiter, memberCommentLimiter, async (req, res) => {
   const validation = validateCommentInput(req.body);
   if (!validation.ok) {
     return res.status(400).json({ error: validation.error, code: validation.code || "INVALID_COMMENT" });

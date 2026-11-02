@@ -10,7 +10,7 @@
   function commentListView(listId, statusId, showIdentity = false) {
     const rows = new Map();
     let order = [];
-    return (comments, deleting, label, remove) => {
+    return (comments, deleting, label, remove, removeAuthor) => {
       const list = document.getElementById(listId);
       if (!list) return;
       const focusedId = order.find(id => rows.get(id)?.button === document.activeElement);
@@ -31,6 +31,14 @@
           button.addEventListener("click", () => remove(comment.id));
           item.append(text, button);
           row = { item, text, button };
+          // Moderation only: members' comments can be removed together with the rest of that account's.
+          if (removeAuthor && comment.isGuest === false && comment.isAdmin !== true) {
+            row.authorButton = document.createElement("button");
+            row.authorButton.type = "button";
+            row.authorButton.className = "tag-clear-button";
+            row.authorButton.addEventListener("click", () => removeAuthor(comment.id));
+            item.append(row.authorButton);
+          }
           rows.set(comment.id, row);
         }
         const identity = showIdentity && typeof comment.isGuest === "boolean"
@@ -40,6 +48,11 @@
         // Keep it focusable while the request is pending; remove() already blocks duplicate activation.
         row.button.setAttribute("aria-disabled", String(deleting.has(comment.id)));
         row.button.setAttribute("aria-label", label("删除这条留言：", "Delete this message: ") + commentExcerpt(comment.content));
+        if (row.authorButton) {
+          row.authorButton.textContent = label("删除该用户全部留言", "Delete all from this user");
+          row.authorButton.setAttribute("aria-disabled", String(deleting.has(comment.id)));
+          row.authorButton.setAttribute("aria-label", label("删除这位用户的全部留言：", "Delete every message from this user: ") + commentExcerpt(comment.content));
+        }
         if (list.children[index] !== row.item) list.insertBefore(row.item, list.children[index] || null);
       });
       if (focusedId === undefined || list.closest?.("[hidden]")) return;
@@ -242,7 +255,7 @@
     const status = document.getElementById("admin-comments-status");
     const retry = document.getElementById("admin-comments-retry");
     if (!element || !list || !status || !retry) return;
-    renderList(comments, deleting, label, remove);
+    renderList(comments, deleting, label, remove, removeAuthor);
     status.textContent = error === "load" ? label("读取留言失败，请重试。", "Could not load messages. Please retry.") : error === "delete" ? label("删除失败，请重试。", "Could not delete. Please retry.") : loading ? label("正在读取留言…", "Loading messages…") : comments.length ? "" : label("暂时没有留言。", "There are no messages.");
     retry.hidden = !error;
     retry.disabled = loading;
@@ -294,6 +307,34 @@
       comments = comments.filter(comment => comment.id !== id);
       window.removeWallMessage?.(id);
       window.dispatchEvent(new CustomEvent("commentdeleted", { detail: { id } }));
+      render();
+    } catch {
+      if (current === authVersion) error = "delete";
+    } finally {
+      deleting.delete(id);
+      render();
+    }
+  }
+  async function removeAuthor(id) {
+    if (!authorized || deleting.has(id)) return;
+    if (!confirm(label("确定删除这位用户的全部留言吗？删除后无法恢复。", "Delete every message from this user? This cannot be undone."))) return;
+    const current = authVersion;
+    deleting.add(id);
+    error = "";
+    render();
+    try {
+      const response = await (window.siteFetch || fetch)(`${api}/${id}/author`, { method: "DELETE", credentials: "include" });
+      if (current !== authVersion) return;
+      if (response.status === 401 || response.status === 403) return hide();
+      if (!response.ok) throw new Error("Could not delete the user's messages");
+      const data = await response.json();
+      const ids = Array.isArray(data.deletedCommentIds) ? data.deletedCommentIds.filter(value => Number.isSafeInteger(value) && value > 0) : [];
+      for (const removed of ids) {
+        deleted.add(removed);
+        window.removeWallMessage?.(removed);
+        window.dispatchEvent(new CustomEvent("commentdeleted", { detail: { id: removed } }));
+      }
+      comments = comments.filter(comment => !deleted.has(comment.id));
       render();
     } catch {
       if (current === authVersion) error = "delete";
