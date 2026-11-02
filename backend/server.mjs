@@ -225,16 +225,6 @@ app.use(requireJsonRequestBody);
 // Browser clients send plain JSON. Do not decode untrusted compressed bodies,
 // including Brotli, while managed runtimes control their own security patches.
 app.use(express.json({ limit: "20kb", strict: true, inflate: false }));
-// Per-address limit on password-reset emails (audit B3): the per-IP auth budget alone lets many IPs
-// flood one inbox. Over the limit the request gets SuperTokens' normal {status:"OK"} and no email is
-// sent, so the response reveals neither the limit nor whether the address has an account. No rate
-// limit headers for the same reason. This is a throttle in front of SuperTokens, not an auth change.
-const PASSWORD_RESET_TOKEN_PATH = /^\/auth\/(?:[^/]+\/)?user\/password\/reset\/token$/u;
-const passwordResetEmailLimiter = createRequestRateLimit({ ...sharedStore("passwordResetEmailLimiter"), keyGenerator: req => passwordResetEmailKey(req.body), skip: req => passwordResetEmailKey(req.body) === null, windowMs: 60 * 60 * 1e3, limit: 3, standardHeaders: false, legacyHeaders: false, handler: (_req, res) => res.status(200).json({ status: "OK" }) });
-app.use((req, res, next) => {
-  if (req.method !== "POST" || !PASSWORD_RESET_TOKEN_PATH.test(normalizeRequestPath(req.originalUrl || req.url))) return next();
-  return passwordResetEmailLimiter(req, res, next);
-});
 const authSensitiveLimiter = createRequestRateLimit({ ...sharedStore("authSensitiveLimiter"), keyGenerator: clientIpKey, windowMs: 15 * 60 * 1e3, limit: 20, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "请求过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 // emailExistsGET is removed from the SuperTokens APIs, so only POST auth routes need throttling.
 // Session refresh and sign-out need a valid session token and guess nothing, so they stay under the
@@ -253,6 +243,17 @@ app.use((req, res, next) => {
   // Sign-up also has its own hourly budget (tenant spellings included), well below the shared auth budget.
   if (SIGNUP_AUTH_PATH.test(pathname)) return signupLimiter(req, res, error => error ? next(error) : authSensitiveLimiter(req, res, next));
   return authSensitiveLimiter(req, res, next);
+});
+// Per-address limit on password-reset emails (audit B3): the per-IP auth budget alone lets many IPs
+// flood one inbox. Over the limit the request gets SuperTokens' normal {status:"OK"} and no email is
+// sent, so the response reveals neither the limit nor whether the address has an account. No rate
+// limit headers of its own for the same reason; it runs after the per-IP auth limiter so both
+// outcomes carry the same auth RateLimit headers. This is a throttle in front of SuperTokens, not an auth change.
+const PASSWORD_RESET_TOKEN_PATH = /^\/auth\/(?:[^/]+\/)?user\/password\/reset\/token$/u;
+const passwordResetEmailLimiter = createRequestRateLimit({ ...sharedStore("passwordResetEmailLimiter"), keyGenerator: req => passwordResetEmailKey(req.body), skip: req => passwordResetEmailKey(req.body) === null, windowMs: 60 * 60 * 1e3, limit: 3, standardHeaders: false, legacyHeaders: false, handler: (_req, res) => res.status(200).json({ status: "OK" }) });
+app.use((req, res, next) => {
+  if (req.method !== "POST" || !PASSWORD_RESET_TOKEN_PATH.test(normalizeRequestPath(req.originalUrl || req.url))) return next();
+  return passwordResetEmailLimiter(req, res, next);
 });
 app.use(middleware());
 app.use(commentWriteMaintenance(process.env));

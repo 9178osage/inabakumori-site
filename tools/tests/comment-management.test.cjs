@@ -35,7 +35,7 @@ test('auth POST throttling covers tenant paths and URL normalization; disabled e
   // The limiter block imports its path normaliser from services.mjs; inject the real one instead of
   // duplicating it, so this harness tests the implementation that ships.
   const { normalizeRequestPath } = await import('../../backend/services.mjs');
-  vm.runInNewContext(setup[0], { app, createRequestRateLimit, URL, normalizeRequestPath, sharedStore: () => ({}), clientIpKey: req => ipKeyGenerator(req.ip) });
+  vm.runInNewContext(setup[0], { app, createRequestRateLimit, URL, normalizeRequestPath, passwordResetEmailKey: () => null, sharedStore: () => ({}), clientIpKey: req => ipKeyGenerator(req.ip) });
   app.use((req, res) => res.status(204).end());
   const request = async (method, pathname) => {
     const socket = new Duplex({ read() {}, write(chunk, encoding, callback) { callback(); } });

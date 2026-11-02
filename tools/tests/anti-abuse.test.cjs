@@ -49,7 +49,7 @@ test('sign-up has its own stricter hourly limit, tenant paths included, without 
   const { express, createRequestRateLimit, clientIpKey } = await limiterTools();
   const { normalizeRequestPath } = await import('../../backend/services.mjs');
   const app = express();
-  vm.runInNewContext(setup[0], { app, createRequestRateLimit, URL, normalizeRequestPath, sharedStore: () => ({}), clientIpKey });
+  vm.runInNewContext(setup[0], { app, createRequestRateLimit, URL, normalizeRequestPath, passwordResetEmailKey: () => null, sharedStore: () => ({}), clientIpKey });
   app.use((req, res) => res.status(204).end());
   const { call, close } = await serve(app);
   try {
@@ -114,7 +114,7 @@ test('the moderation panel offers per-user deletion only on member comments and 
 test('password-reset emails are limited per address and answer OK without revealing the limit (audit B3)', async () => {
   const definition = backend.match(/const PASSWORD_RESET_TOKEN_PATH =[\s\S]*?\n\}\);\n/);
   assert.ok(definition, 'per-email reset limiter block');
-  assert.ok(backend.indexOf('const PASSWORD_RESET_TOKEN_PATH') < backend.indexOf('app.use(middleware());'), 'must run before SuperTokens');
+  assert.ok(backend.indexOf('return authSensitiveLimiter(req, res, next);') < backend.indexOf('const PASSWORD_RESET_TOKEN_PATH') && backend.indexOf('const PASSWORD_RESET_TOKEN_PATH') < backend.indexOf('app.use(middleware());'), 'must run after the per-IP auth limiter (same headers either way) and before SuperTokens');
   const { express, createRequestRateLimit } = await limiterTools();
   const { normalizeRequestPath, passwordResetEmailKey } = await import('../../backend/services.mjs');
   const app = express();
