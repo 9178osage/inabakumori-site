@@ -166,6 +166,77 @@ class BackupTests(unittest.TestCase):
                 REMOTE.backup(str(self.config))
             network.assert_not_called()
 
+    def named(self, when, suffix="0123456789abcdef", body=b"old backup"):
+        path = self.directory / ("inabakumori-comments-" + when.strftime("%Y%m%dT%H%M%SZ") + "-" + suffix + ".db")
+        path.write_bytes(body)
+        return path
+
+    def many(self, count):
+        source = self.root / ("many-%d.db" % count)
+        with sqlite3.connect(str(source)) as db:
+            db.execute("""CREATE TABLE comments (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nickname TEXT NOT NULL, content TEXT NOT NULL, user_id TEXT,
+                is_guest INTEGER NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER)""")
+            for i in range(1, count + 1):
+                db.execute("INSERT INTO comments VALUES (?, 'n', 'synthetic', NULL, 1, 1700000000000, NULL)", (i,))
+        return source.read_bytes()
+
+    def test_tiered_retention_keeps_daily_then_weekly_then_monthly(self):
+        now = datetime.datetime(2026, 11, 2, 12, tzinfo=datetime.timezone.utc)
+        snapshots = []
+        for day in range(0, 500):
+            when = now - datetime.timedelta(days=day)
+            snapshots.append((when.timestamp(), "d%03d" % day))
+        keep = REMOTE.keep_set(snapshots, now, 14, 8, 12)
+        for day in range(14):
+            self.assertIn("d%03d" % day, keep)
+        weekly = [n for n in keep if 14 <= int(n[1:]) < 56]
+        self.assertTrue(5 <= len(weekly) <= 7, weekly)
+        monthly = [n for n in keep if 56 <= int(n[1:])]
+        self.assertTrue(9 <= len(monthly) <= 11, monthly)
+        self.assertFalse(any(int(n[1:]) > 12 * 31 for n in keep))
+
+    def test_old_weekly_and_monthly_snapshots_survive_real_prune(self):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        week_old = self.named(now - datetime.timedelta(days=45), "1111111111111111")
+        month_old = self.named(now - datetime.timedelta(days=200), "2222222222222222")
+        ancient = self.named(now - datetime.timedelta(days=900), "3333333333333333")
+        network, _ = self.network(self.snapshot())
+        with network:
+            result = REMOTE.backup(str(self.config))
+        self.assertEqual(result["pruned"], 1)
+        self.assertTrue(week_old.exists() and month_old.exists())
+        self.assertFalse(ancient.exists())
+
+    def test_sharp_comment_drop_keeps_every_snapshot_and_exits_nonzero(self):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        previous = self.named(now - datetime.timedelta(days=1), "4444444444444444", self.many(40))
+        ancient = self.named(now - datetime.timedelta(days=900), "5555555555555555")
+        network, _ = self.network(self.many(5))
+        stderr = io.StringIO()
+        with network, contextlib.redirect_stderr(stderr), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(REMOTE.main([str(self.config)]), 2)
+        self.assertIn("cleanup skipped", stderr.getvalue())
+        self.assertTrue(previous.exists() and ancient.exists())
+        self.assertEqual(len(self.files()), 3)
+
+    def test_small_or_moderate_changes_still_prune(self):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        self.named(now - datetime.timedelta(days=1), "6666666666666666", self.many(40))
+        ancient = self.named(now - datetime.timedelta(days=900), "7777777777777777")
+        network, _ = self.network(self.many(30))
+        with network:
+            result = REMOTE.backup(str(self.config))
+        self.assertNotIn("cleanup_skipped", result)
+        self.assertFalse(ancient.exists())
+        self.assertFalse(REMOTE.sharp_drop({"comments": 9}, {"comments": 0}, 50))
+
+    def test_tier_configuration_is_validated(self):
+        for change in [{"weekly_weeks": -1}, {"monthly_months": True}, {"max_drop_percent": 0}, {"max_drop_percent": 101}]:
+            self.write_config(**change)
+            with self.assertRaises(REMOTE.BackupError):
+                REMOTE.load_config(str(self.config))
+
     def test_only_success_prunes_expired_tool_files_and_preserves_other_files_and_symlinks(self):
         expired = self.directory / "inabakumori-comments-20000101T000000Z-0123456789abcdef.db"
         expired.write_bytes(b"old backup")

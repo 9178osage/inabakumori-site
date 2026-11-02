@@ -19,7 +19,10 @@ MAX_BYTES = 64 * 1024 * 1024
 TIMEOUT = 30
 TOTAL_TIMEOUT = 120
 MAX_INTEGER = 9_007_199_254_740_991
-BACKUP_NAME = re.compile(r"^inabakumori-comments-\d{8}T\d{6}Z-[0-9a-f]{16}\.db$")
+BACKUP_NAME = re.compile(r"^inabakumori-comments-(\d{8}T\d{6}Z)-[0-9a-f]{16}\.db$")
+# A sharp fall in comment count (mass deletion, bad restore, wrong database)
+# keeps every previous snapshot instead of rotating good copies away.
+DROP_GUARD_MIN_PREVIOUS = 10
 
 
 class BackupError(Exception):
@@ -65,8 +68,14 @@ def load_config(filename):
     retention = config.get("retention_days", 30)
     if type(retention) is not int or not 1 <= retention <= 3650:
         raise BackupError("Invalid backup retention configuration")
+    tiers = {}
+    for key, default, upper in (("weekly_weeks", 12, 520), ("monthly_months", 12, 120), ("max_drop_percent", 50, 100)):
+        value = config.get(key, default)
+        if type(value) is not int or not (1 if key == "max_drop_percent" else 0) <= value <= upper:
+            raise BackupError("Invalid backup retention configuration")
+        tiers[key] = value
     private_path(config.get("directory"), directory=True)
-    return {"url": BACKUP_URL, "token": token, "directory": config["directory"], "retention_days": retention}
+    return {"url": BACKUP_URL, "token": token, "directory": config["directory"], "retention_days": retention, **tiers}
 
 
 def download(config, destination):
@@ -148,18 +157,77 @@ def verify_snapshot(filename):
     return {"comments": total, "members": members, "guests": guests}
 
 
-def prune(directory, retention_days, now):
-    cutoff = now.timestamp() - retention_days * 86400
-    removed, failed = 0, 0
+def snapshot_time(name):
+    match = BACKUP_NAME.fullmatch(name)
+    if not match:
+        return None
+    try:
+        return datetime.datetime.strptime(match.group(1), "%Y%m%dT%H%M%SZ").replace(tzinfo=datetime.timezone.utc)
+    except ValueError:
+        return None
+
+
+def owned_snapshots(directory, exclude=None):
+    found = []
     for name in os.listdir(directory):
-        if not BACKUP_NAME.fullmatch(name):
+        taken = snapshot_time(name)
+        if taken is None or name == exclude:
             continue
         filename = os.path.join(directory, name)
         try:
             info = os.lstat(filename)
-            if not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid() or info.st_mtime >= cutoff:
-                continue
-            os.unlink(filename)
+        except OSError:
+            continue
+        if stat.S_ISREG(info.st_mode) and info.st_uid == os.geteuid():
+            found.append((taken.timestamp(), name))
+    return sorted(found, reverse=True)
+
+
+def previous_counts(directory, exclude):
+    """Counts from the newest readable earlier snapshot, or None."""
+    for _, name in owned_snapshots(directory, exclude):
+        try:
+            return verify_snapshot(os.path.join(directory, name))
+        except Exception:
+            continue
+    return None
+
+
+def sharp_drop(previous, current, max_drop_percent):
+    if previous is None or previous["comments"] < DROP_GUARD_MIN_PREVIOUS:
+        return False
+    return current["comments"] * 100 < previous["comments"] * (100 - max_drop_percent)
+
+
+def keep_set(snapshots, now, retention_days, weekly_weeks, monthly_months):
+    """Tiered retention: every snapshot inside retention_days, then the newest per
+    ISO week for weekly_weeks weeks and the newest per month for monthly_months months."""
+    keep, weeks, months = set(), set(), set()
+    for stamp, name in snapshots:  # newest first
+        age = now.timestamp() - stamp
+        taken = datetime.datetime.fromtimestamp(stamp, datetime.timezone.utc)
+        week, month = taken.isocalendar()[:2], (taken.year, taken.month)
+        if age < retention_days * 86400:
+            keep.add(name)
+        elif age < weekly_weeks * 7 * 86400 and week not in weeks:
+            keep.add(name)
+        elif age < monthly_months * 31 * 86400 and month not in months:
+            keep.add(name)
+        if name in keep:
+            weeks.add(week)
+            months.add(month)
+    return keep
+
+
+def prune(directory, config, now):
+    snapshots = owned_snapshots(directory)
+    keep = keep_set(snapshots, now, config["retention_days"], config["weekly_weeks"], config["monthly_months"])
+    removed, failed = 0, 0
+    for _, name in snapshots:
+        if name in keep:
+            continue
+        try:
+            os.unlink(os.path.join(directory, name))
             removed += 1
         except OSError:
             failed += 1
@@ -181,8 +249,13 @@ def backup(config_filename):
         os.link(temporary, os.path.join(directory, filename), follow_symlinks=False)
     finally:
         os.unlink(temporary)
-    removed, failed = prune(directory, config["retention_days"], now)
-    return {**counts, "bytes": size, "runtime": runtime, "pruned": removed, "cleanup_errors": failed}
+    result = {**counts, "bytes": size, "runtime": runtime}
+    previous = previous_counts(directory, filename)
+    if sharp_drop(previous, counts, config["max_drop_percent"]):
+        # Keep the new snapshot and every older one; the operator must review.
+        return {**result, "previous_comments": previous["comments"], "pruned": 0, "cleanup_errors": 0, "cleanup_skipped": "comment_drop"}
+    removed, failed = prune(directory, config, now)
+    return {**result, "pruned": removed, "cleanup_errors": failed}
 
 
 def main(args):
@@ -196,6 +269,9 @@ def main(args):
         print("Backup failed; check private configuration, connectivity and snapshot integrity", file=sys.stderr)
         return 1
     print("Backup verified: " + ", ".join(f"{key}={value}" for key, value in result.items()))
+    if result.get("cleanup_skipped"):
+        print("Comment count dropped sharply since the previous snapshot; cleanup skipped and all snapshots kept. Review before deleting anything.", file=sys.stderr)
+        return 2
     return 0
 
 
