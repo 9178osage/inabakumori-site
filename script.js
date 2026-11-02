@@ -868,6 +868,7 @@ function renderInlineSongTags(link) {
   details.className = "song-details";
   const title = document.createElement("span");
   title.className = "song-title-text";
+  title.lang = "ja";
   title.textContent = originalText;
   details.appendChild(title);
   const song = link._songData;

@@ -1,8 +1,4 @@
 :root {
-  --font-body: "Zen Kaku Gothic New", "Hiragino Kaku Gothic ProN", "PingFang SC", "Microsoft YaHei", sans-serif;
-  --font-heading: "Shippori Mincho", "Noto Serif SC", "Songti SC", "Yu Mincho", serif;
-  --font-song: "Shippori Mincho", "Noto Serif SC", "Yu Mincho", serif;
-  --font-data: "Station Mono", "Zen Kaku Gothic New", "PingFang SC", monospace;
   --transition-tag: background-color 0.16s ease, color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
   --transition-action: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease, opacity 0.18s ease;
   --transition-input: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
@@ -90,9 +86,6 @@ body {
   background: var(--page-bg);
   color: var(--page-text);
   transition: var(--transition-surface);
-}
-html:lang(zh-CN) {
-  --font-heading: "Noto Serif SC", "Shippori Mincho", "Songti SC", serif;
 }
 button,
 input,
@@ -216,10 +209,6 @@ textarea {
   letter-spacing: 0.09em;
   color: var(--hero-text);
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.55), 0 0 2px rgba(0, 0, 0, 0.8);
-}
-html:lang(zh-CN) .hero-content h1,
-html:lang(zh-CN) .hero-content nav {
-  font-family: "Songti SC", "STSong", "SimSun", "Noto Serif SC", serif;
 }
 .hero-content nav {
   display: flex;
@@ -1785,7 +1774,7 @@ body.easter-egg-open { overflow: hidden; }
 .forecast-card { width: 116px; padding: 10px; border-radius: 4px; }
 .forecast-card small { display: block; font: 9px/1.6 var(--font-data); overflow-wrap: anywhere; }
 .forecast-card strong { display: block; margin: 8px 0; font: 14px/1.5 var(--font-song); overflow-wrap: anywhere; }
-.forecast-symbol { width: 42px; height: 42px; border-radius: 50%; text-align: center; font: 26px/40px sans-serif; }
+.forecast-symbol { width: 42px; height: 42px; border-radius: 50%; text-align: center; font: 26px/40px var(--font-body); }
 .forecast-ribbon {
   width: 7px; height: var(--ribbon-length); border: 0; border-radius: 40% 5% 40% 5%;
   background: linear-gradient(90deg, #aaa, #fff 55%, #ddd); box-shadow: 0 0 2px #1119;
@@ -2401,12 +2390,6 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
 .home-mobile-fold > summary, .mobile-song-intro, .mobile-songs-expand { display: none; }
 footer .home-mobile-fold-content > p { max-width: 720px; margin: 16px auto; font-size: 13px; }
 @media (max-width: 700px), (pointer: coarse) and (max-width: 1000px) {
-  html.home-page, html.home-page:lang(zh-CN) {
-    --font-body: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "PingFang SC", "Microsoft YaHei", sans-serif;
-    --font-heading: "Songti SC", "Yu Mincho", "Hiragino Mincho ProN", ui-serif, serif;
-    --font-song: "Songti SC", "Yu Mincho", "Hiragino Mincho ProN", ui-serif, serif;
-    --font-data: "Station Mono", ui-monospace, "SFMono-Regular", monospace;
-  }
   .home-page .hero { min-height: 78svh; padding-block: calc(140px + env(safe-area-inset-top)) calc(56px + env(safe-area-inset-bottom)); }
   .home-page .hero-content nav { gap: 0; }
   .home-page .hero-content nav a { min-height: 44px; }
