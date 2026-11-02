@@ -1145,8 +1145,8 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("auth-close")?.addEventListener("click", () => window.closeAuthModal?.());
   // UI only: a click on the dimmed backdrop (not the dialog itself) closes like Escape and the close button.
   const authModal = document.getElementById("auth-modal");
-  authModal?.addEventListener("click", event => {
-    if (event.target !== authModal || !authModal.classList.contains("open")) return;
+  onBackdropClick(authModal, () => {
+    if (!authModal.classList.contains("open")) return;
     window.closeAuthModal?.();
     document.getElementById("auth-btn")?.focus();
   });
@@ -1342,10 +1342,22 @@ function closeEasterEgg() {
   easterEggOpen = false;
   easterEggCanClose = false;
 }
+// A backdrop closes only when the press and the click both land on it, so a text selection or
+// drag that starts inside the dialog and ends on the backdrop does not dismiss it.
+function onBackdropClick(backdrop, handler) {
+  if (!backdrop) return;
+  let pressedOnBackdrop = false;
+  backdrop.addEventListener("pointerdown", event => { pressedOnBackdrop = event.target === backdrop; });
+  backdrop.addEventListener("click", event => {
+    const pressed = pressedOnBackdrop;
+    pressedOnBackdrop = false;
+    if (pressed && event.target === backdrop) handler(event);
+  });
+}
 function initEasterEgg() {
   const overlay = document.getElementById("easter-egg-overlay");
   if (!overlay) return;
-  overlay.addEventListener("click", event => { if (event.target === overlay) closeEasterEgg(); });
+  onBackdropClick(overlay, closeEasterEgg);
   const closeButton = document.getElementById("easter-egg-close");
   closeButton?.addEventListener("click", closeEasterEgg);
   let taps = 0, lastTap = 0;

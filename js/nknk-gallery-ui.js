@@ -662,7 +662,14 @@
     closeBtn?.addEventListener("click", () => closeLightbox());
     prevBtn?.addEventListener("click", () => openAt(lightboxIndex - 1));
     nextBtn?.addEventListener("click", () => openAt(lightboxIndex + 1));
+    // Close only when the press and the click both land on the backdrop, so a drag or text selection
+    // that starts on the image or controls and ends on the backdrop does not dismiss the lightbox.
+    let pressedOnBackdrop = false;
+    lightbox.addEventListener("pointerdown", (event) => { pressedOnBackdrop = event.target === lightbox; });
     lightbox.addEventListener("click", (event) => {
+      const pressed = pressedOnBackdrop;
+      pressedOnBackdrop = false;
+      if (!pressed) return;
       // The lightbox opens on pointerup; on touch the browser's follow-up click then lands on the
       // backdrop and would close it straight away, so ignore backdrop clicks right after opening.
       if (performance.now() < ignoreBackdropUntil) return;
