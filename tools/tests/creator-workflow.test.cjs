@@ -112,6 +112,11 @@ test("creator commit step refuses snapshots outside the refresh tool's output", 
     "changed source link": { data: edit(data => { data.sources[0].url = "https://evil.example/"; }), error: shape },
     "free-form source message": { data: edit(data => { data.sources[0].message = "<script>"; }), error: shape },
     "extra top-level key": { data: edit(data => { data.script = "x"; }), error: shape },
+    // Audit B5: jq processes every document in a stream, and -e reads only the last result, so a bad
+    // document followed by a good one used to pass both the canonical and the shape checks.
+    "two JSON documents": { data: format(refreshed()) + format(refreshed()), error: /exactly one JSON document/u },
+    "bad document before a good one": { data: edit(data => { data.items[0].url = "javascript:alert(1)"; }) + format(refreshed()), error: /exactly one JSON document/u },
+    "empty snapshot": { data: "", error: /exactly one JSON document/u },
     "non-canonical JSON": { data: JSON.stringify(refreshed()), error: /not canonical JSON/u },
     "oversized snapshot": { data: format({ ...refreshed(), padding: "x".repeat(262144) }), error: /too large/u },
     "extra changelog line": { changelog: "added\nanother\nprevious record\n", error: /only add one deployment record row/u },

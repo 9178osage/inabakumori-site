@@ -101,6 +101,10 @@ jobs:
               || fail "Checked CHANGELOG row is not this commit's deployment record."
           fi
           [ "$(wc -c < data/creator-updates.json)" -le 262144 ] || fail "Checked creator snapshot is too large."
+          # jq reads every document in a stream and -e reports only the last result, so
+          # require exactly one document before the canonical and shape checks.
+          jq -s -e 'length == 1' data/creator-updates.json >/dev/null 2>&1 \
+            || fail "Checked creator snapshot must be exactly one JSON document."
           jq --indent 2 . data/creator-updates.json | cmp -s - data/creator-updates.json \
             || fail "Checked creator snapshot is not canonical JSON."
           jq -e --argjson old "$(git show HEAD:data/creator-updates.json)" '
