@@ -31,7 +31,7 @@ await build({ entryPoints: [source("tools/auth-src.js")], bundle: true, platform
 // dist is generated exclusively by this script. Only explicitly public assets are copied.
 await rm(output("dist"), { recursive: true, force: true });
 await mkdir(out, { recursive: true });
-const scripts = ["script.js", ...["preferences", "config", "network", "i18n", "auth", "auth-loader", "songs", "nknk-gallery", "nknk-gallery-ui", "experience", "comments", "updates", "home-updates", "x-posts-home", "home-mobile", "calendar", "archive-pages"].map(name => `js/${name}.js`)];
+const scripts = ["script.js", ...["preferences", "config", "network", "i18n", "auth", "auth-loader", "songs", "nknk-gallery", "nknk-gallery-ui", "experience", "comments", "updates", "x-posts-home", "home-mobile", "calendar", "archive-pages"].map(name => `js/${name}.js`)];
 const css = ["style.css", "updates.css", "calendar.css", "archive.css", "fonts/fonts.css"];
 const hashes = new Map();
 for (const file of [...scripts, ...css]) {
@@ -91,16 +91,6 @@ function fillOnce(template, marker, content) {
   if (template.split(placeholder).length !== 2) throw new Error(`Expected one ${marker} placeholder`);
   return template.replace(placeholder, () => content);
 }
-// Replaces a START/END marker pair; the markup between them becomes the generated section's children.
-function fillAround(template, marker, render) {
-  const [start, end] = [`<!-- ${marker}:START -->`, `<!-- ${marker}:END -->`];
-  if (template.split(start).length !== 2 || template.split(end).length !== 2) throw new Error(`Expected one ${marker} START/END pair`);
-  const from = template.indexOf(start);
-  const to = template.indexOf(end);
-  if (to < from) throw new Error(`${marker} END precedes START`);
-  const content = render(template.slice(from + start.length, to).trim());
-  return template.slice(0, from) + content + template.slice(to + end.length);
-}
 const newestXPost = [...xPosts.items].sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt) || (BigInt(a.id) < BigInt(b.id) ? 1 : -1))[0];
 // Archive pages compare against this to badge posts added since the reader's last visit.
 const newestXPostMeta = newestXPost ? `<meta name="x-posts-newest" content="${new Date(newestXPost.publishedAt).toISOString()} ${newestXPost.id}"/>\n` : "";
@@ -114,10 +104,7 @@ function fillUpdates(template, prefix, items = updates.items) {
   return template.replace("</head>", `<meta name="creator-updates-version" content="${updatesVersion}"/>\n</head>`);
 }
 let html = await readFile(source("index.html"), "utf8");
-html = fillUpdates(html, "HOME-UPDATES", updates.homeItems);
-html = fillOnce(html, "HOME-UPDATES:YEARS", updates.years);
-// After fillUpdates: the works log between the markers is already rendered when it moves into the X section.
-html = fingerprintXPosts(fillAround(html, "X-POSTS:HOME", xPostsRenderer.renderHome));
+html = fingerprintXPosts(fillOnce(html, "X-POSTS:HOME", xPostsRenderer.renderHome()));
 // Share-tracking parameters (?si=...) identify who shared a link; published links never carry them.
 const cleanSongUrl = value => {
   const url = new URL(value);

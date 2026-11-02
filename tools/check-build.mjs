@@ -127,15 +127,17 @@ assert.ok(html.includes('id="updates"'), "Homepage must include the updates sect
 assert.ok(html.indexOf('id="intro"') < html.indexOf('id="updates"'), "Homepage intro must precede updates");
 assert.match(html, /href="#updates"/u, "Homepage navigation must open its own updates section");
 assert.doesNotMatch(html, /<!-- (?:HOME-UPDATES|X-POSTS):/u, "Homepage updates must be pre-rendered");
+assert.doesNotMatch(html, /home-works-log|class="(?:update-item|source-status)"|js\/home-updates\.js|name="creator-updates-version"/u, "Homepage must not include the retired works log");
+assert.ok(!(await readdir(path.join(root, "js"))).includes("home-updates.js"), "Retired homepage works script must not be published");
 {
   const xHome = html.slice(html.indexOf("data-x-posts-home"), html.indexOf("</section>", html.indexOf('class="x-posts-feed"')));
-  const order = ["data-x-home-count", "data-x-archive-link", 'class="home-works-log"', 'class="x-posts-feed"'].map(marker => xHome.indexOf(marker));
-  assert.ok(order[0] >= 0 && order.every((index, i) => index > (order[i - 1] ?? -1)), "Homepage archive link and works log must sit inside the X section, between the post count and the feed");
+  const order = ["data-x-home-count", "data-x-archive-link", 'class="x-posts-feed"'].map(marker => xHome.indexOf(marker));
+  assert.ok(order[0] >= 0 && order.every((index, i) => index > (order[i - 1] ?? -1)), "Homepage archive link must sit inside the X section, between the post count and the feed");
 }
-const legacyCount = [...html.matchAll(/class="update-item"/gu)].length;
-assert.equal(legacyCount, [...updatesHtml.matchAll(/class="update-item"/gu)].length, "Homepage and archive must contain the same works snapshot");
+const creatorUpdates = JSON.parse(await readFile(path.resolve(root, "../data/creator-updates.json"), "utf8"));
+const worksCount = creatorUpdates.items.length;
+assert.equal([...updatesHtml.matchAll(/class="update-item"/gu)].length, worksCount, "The archive must contain the full works snapshot");
 const visibleArticles = className => [...html.matchAll(/<article\b([^>]*)>/gu)].filter(([, attributes]) => attributes.includes(`class="${className}"`) && !/(?:^|\s)hidden(?:\s|=|$)/u.test(attributes));
-assert.equal(visibleArticles("update-item").length, Math.min(3, legacyCount), "Homepage works preview must show at most three entries without JavaScript");
 const xArchive = await readXPostsArchive(path.resolve(root, ".."));
 const xVersion = createHash("sha256").update(JSON.stringify(xArchive)).digest("hex");
 const posts = [...xArchive.items].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt) || (BigInt(a.id) > BigInt(b.id) ? -1 : BigInt(a.id) < BigInt(b.id) ? 1 : 0));
@@ -176,7 +178,7 @@ for (const creator of ["all", "inabakumori", "nknk"]) {
     assert.ok(ogDescription && (slice ? ogDescription.startsWith(`${slice}：`) : !ogDescription.includes(" · ")), `Archive og:description must name its slice: ${name}`);
     assert.ok(pageHtml.includes(slice ? `data-archive-creator="${creator}" data-archive-page="${page}"` : '<html lang="zh-CN">'), `Archive slice attributes: ${name}`);
     // Page 1 carries the works snapshot; later pages link back to it instead of repeating it.
-    assert.equal([...pageHtml.matchAll(/class="update-item"/gu)].length, page === 1 ? legacyCount : 0, `Works snapshot must appear only on archive page 1: ${name}`);
+    assert.equal([...pageHtml.matchAll(/class="update-item"/gu)].length, page === 1 ? worksCount : 0, `Works snapshot must appear only on archive page 1: ${name}`);
     if (page > 1) assert.ok(pageHtml.includes('data-works-list-link><a href="updates.html#feed-title"'), `Later archive pages must link to the works list: ${name}`);
     const updatesCsp = pageHtml.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)"/)?.[1];
     assert.ok(updatesCsp && /script-src 'self';/u.test(updatesCsp) && /connect-src 'self';/u.test(updatesCsp), `Archive must use local scripts and a local snapshot: ${name}`);
@@ -227,7 +229,6 @@ const calendarCsp = calendarHtml.match(/<meta http-equiv="Content-Security-Polic
 assert.ok(calendarCsp && /script-src 'self';/u.test(calendarCsp) && !/unsafe-inline|unsafe-eval/u.test(calendarCsp), "Calendar CSP must stay script-src 'self'");
 assert.doesNotMatch(calendarHtml, /<script(?![^>]*\bsrc=)[^>]*>/u, "Calendar must not use inline scripts");
 assert.doesNotMatch(calendarHtml, /<!-- CALENDAR:/u, "Calendar sheet must be pre-rendered");
-const creatorUpdates = JSON.parse(await readFile(path.resolve(root, "../data/creator-updates.json"), "utf8"));
 const newestRelease = newestSongRelease(creatorUpdates.items, vm.runInContext("SONGS", songContext))?.item.publishedAt;
 assert.ok(calendarHtml.includes(`data-release="${newestRelease}"`), "Calendar must count from the newest Inabakumori song in js/songs.js");
 for (const value of htmlReferences(calendarHtml)) {

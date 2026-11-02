@@ -248,16 +248,14 @@ test("new items, changed titles and source failures still rewrite the snapshot i
   assert.equal(snapshotNeedsWrite(failed.data, stillFailed.data, { now: "2026-10-18T07:00:00.000Z" }), false, "a repeated failure only moves the attempt time");
 });
 
-test("creator refresh runs once a day and both pages warn after the shared stale window", async () => {
+test("creator refresh runs once a day and the archive warns after the shared stale window", async () => {
   const root = path.join(__dirname, "..", "..");
   const workflow = await fs.readFile(path.join(root, ".github/workflows/refresh-creator-updates.yml"), "utf8");
   const crons = [...workflow.matchAll(/cron:\s*"([^"]+)"/gu)].map(match => match[1]);
   assert.deepEqual(crons, ["17 11 * * *"]);
-  for (const file of ["js/updates.js", "js/home-updates.js"]) {
-    const source = await fs.readFile(path.join(root, file), "utf8");
-    assert.match(source, /72 \* 60 \* 60 \* 1000/u, file);
-    assert.doesNotMatch(source, /48 \* 60 \* 60 \* 1000/u, file);
-  }
+  const source = await fs.readFile(path.join(root, "js/updates.js"), "utf8");
+  assert.match(source, /72 \* 60 \* 60 \* 1000/u);
+  assert.doesNotMatch(source, /48 \* 60 \* 60 \* 1000/u);
   const render = await fs.readFile(path.join(root, "tools/render-creator-updates.mjs"), "utf8");
   assert.match(render, /超过 72 小时/u);
   assert.doesNotMatch(render, /48/u);

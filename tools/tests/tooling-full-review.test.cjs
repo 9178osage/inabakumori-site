@@ -67,7 +67,7 @@ function publicBuild(box) {
 <link rel="canonical" href="https://osagechan.top/"/>
 <script src="js/auth-loader.js?v=${fingerprint(authLoader)}" defer></script>
 <script type="application/ld+json">{"@type":"WebSite"}</script>
-<div id="nknk-gallery"></div><div id="nknk-lightbox"></div><section id="updates"><section class="x-posts-home" data-x-posts-home><p data-x-home-count></p><a data-x-archive-link></a><details class="home-works-log"></details><div class="x-posts-feed"></div></section></section><a href="#updates">Updates</a>
+<div id="nknk-gallery"></div><div id="nknk-lightbox"></div><section id="updates"><section class="x-posts-home" data-x-posts-home><p data-x-home-count></p><a data-x-archive-link></a><div class="x-posts-feed"></div></section></section><a href="#updates">Updates</a>
 ${emptyXPostsMeta}<div class="station-brand"><a class="station-mark" href="#updates">INABAKUMORI</a><a class="station-calendar" href="calendar.html">calendar</a></div><a data-song-title="ユレール">ユレール</a>`);
   box.write("data/creator-updates.json", JSON.stringify({ items: [{ creator: "inabakumori", source: "youtube", title: "稲葉曇『ユレール』Vo. 弦巻マキ", publishedAt: "2026-03-08T10:00:07.000Z", url: "https://www.youtube.com/watch?v=2r4W_LoVFxA" }, { creator: "inabakumori", source: "youtube", title: "Live stream", publishedAt: "2026-09-01T10:00:00.000Z" }] }));
   box.write("dist/calendar.html", `<meta name="robots" content="noindex, nofollow"/>
@@ -86,6 +86,7 @@ ${emptyXPostsMeta}<div class="station-brand"><a class="station-mark" href="#upda
 <link rel="canonical" href="https://osagechan.top/${name}"/>
 <meta property="og:url" content="https://osagechan.top/${name}"/>
 ${emptyXPostsMeta}
+<article class="update-item"></article><article class="update-item"></article>
 <article class="source-status"></article><article class="source-status"></article><article class="source-status"></article>`);
   // Generated song archive pages share the archive CSP.
   for (const name of ["songs.html", "song-2r4W_LoVFxA.html"]) box.write(`dist/${name}`, `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self';"/>\n<main></main>`);
@@ -180,14 +181,19 @@ test("the build gate requires the pre-rendered featured marks to match mobileFea
   }
 });
 
-test("the build gate keeps the X archive link and works log between the post count and the feed", () => {
-  const section = '<section class="x-posts-home" data-x-posts-home><p data-x-home-count></p><a data-x-archive-link></a><details class="home-works-log"></details><div class="x-posts-feed"></div></section>';
-  const misplaced = /archive link and works log must sit inside the X section/u;
+test("the build gate keeps the X archive link above the feed and rejects the retired works log", () => {
+  const section = '<section class="x-posts-home" data-x-posts-home><p data-x-home-count></p><a data-x-archive-link></a><div class="x-posts-feed"></div></section>';
+  const misplaced = /archive link must sit inside the X section/u;
+  const retired = /Homepage must not include the retired works log/u;
   const cases = [
     ["the expected order", section, null],
-    ["the works log below the feed", section.replace('<details class="home-works-log"></details>', "").replace("</div></section>", '</div><details class="home-works-log"></details></section>'), misplaced],
-    ["the works log outside the X section", `${section.replace('<details class="home-works-log"></details>', "")}<details class="home-works-log"></details>`, misplaced],
-    ["the archive link above the post count", section.replace("<a data-x-archive-link></a>", "").replace("<p data-x-home-count>", "<a data-x-archive-link></a><p data-x-home-count>"), misplaced]
+    ["the archive link below the feed", section.replace("<a data-x-archive-link></a>", "").replace("</div></section>", "</div><a data-x-archive-link></a></section>"), misplaced],
+    ["the archive link outside the X section", `${section.replace("<a data-x-archive-link></a>", "")}<a data-x-archive-link></a>`, misplaced],
+    ["the archive link above the post count", section.replace("<a data-x-archive-link></a>", "").replace("<p data-x-home-count>", "<a data-x-archive-link></a><p data-x-home-count>"), misplaced],
+    ["a restored works log", `${section}<details class="home-works-log"></details>`, retired],
+    ["a restored work entry", `${section}<article class="update-item"></article>`, retired],
+    ["a restored source status", `${section}<article class="source-status"></article>`, retired],
+    ["a stale works snapshot fingerprint", `${section}<meta name="creator-updates-version" content="stale"/>`, retired]
   ];
   for (const [name, markup, failure] of cases) {
     const box = fixture();
@@ -199,6 +205,33 @@ test("the build gate keeps the X archive link and works log between the post cou
       assert.ifError(result.error);
       if (failure) { assert.notEqual(result.status, 0, name); assert.match(result.stderr, failure, name); }
       else assert.equal(result.status, 0, `${name}: ${result.stderr}`);
+    } finally { box.close(); }
+  }
+});
+
+test("the build gate rejects a retired homepage works script even when nothing references it", () => {
+  const box = fixture();
+  try {
+    publicBuild(box);
+    box.write("dist/js/home-updates.js", "/* retired */");
+    const result = spawnSync(process.execPath, [path.join(box.root, "tools/check-build.mjs")], { cwd: box.root, encoding: "utf8", timeout: 10000 });
+    assert.ifError(result.error);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Retired homepage works script must not be published/u);
+  } finally { box.close(); }
+});
+
+test("the build gate still requires the complete works snapshot on every first archive page", () => {
+  for (const file of ["dist/updates.html", "dist/updates-nknk.html"]) {
+    const box = fixture();
+    try {
+      publicBuild(box);
+      const page = path.join(box.root, file);
+      fs.writeFileSync(page, fs.readFileSync(page, "utf8").replace('<article class="update-item"></article>', ""));
+      const result = spawnSync(process.execPath, [path.join(box.root, "tools/check-build.mjs")], { cwd: box.root, encoding: "utf8", timeout: 10000 });
+      assert.ifError(result.error);
+      assert.notEqual(result.status, 0, file);
+      assert.match(result.stderr, /The archive must contain the full works snapshot|Works snapshot must appear only on archive page 1/u, file);
     } finally { box.close(); }
   }
 });

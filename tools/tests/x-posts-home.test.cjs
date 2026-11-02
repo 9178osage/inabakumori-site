@@ -99,7 +99,7 @@ test("a browser without Object.hasOwn can still switch the X post filter", () =>
 test("the homepage loads the filter as an external script and keeps its controls hidden without JavaScript", async () => {
   const html = fs.readFileSync("index.html", "utf8");
   assert.match(html, /<script src="js\/x-posts-home\.js" defer><\/script>/u);
-  assert.match(html, /<!-- X-POSTS:HOME:START -->\n<details class="home-works-log">[\s\S]*<\/details>\n<!-- X-POSTS:HOME:END -->/u);
+  assert.equal(html.split("<!-- X-POSTS:HOME -->").length, 2);
   const source = fs.readFileSync("js/x-posts-home.js", "utf8");
   assert.doesNotMatch(source, /innerHTML|outerHTML|insertAdjacentHTML|document\.write|eval\(|new Function/u);
   const { renderXPostsHome } = await import("../render-x-posts.mjs");
@@ -109,13 +109,23 @@ test("the homepage loads the filter as an external script and keeps its controls
   assert.match(rendered, /data-x-archive-link href="updates\.html"/u);
 });
 
-test("the archive link and works log sit between the post count and the feed", async () => {
+test("the archive link stays between the post count and the feed without the works log", async () => {
   const { renderXPostsHome } = await import("../render-x-posts.mjs");
-  const rendered = renderXPostsHome({ version: 1, coverage: [], items: [] }, '<details class="home-works-log"></details>');
-  const order = ["data-x-home-count", "data-x-archive-link", 'class="home-works-log"', "data-x-home-empty", 'class="x-posts-feed"'].map(marker => rendered.indexOf(marker));
+  const rendered = renderXPostsHome({ version: 1, coverage: [], items: [] });
+  const order = ["data-x-home-count", "data-x-archive-link", "data-x-home-empty", 'class="x-posts-feed"'].map(marker => rendered.indexOf(marker));
   assert.ok(order.every((index, i) => index > (order[i - 1] ?? -1)), `unexpected order ${order}`);
-  assert.ok(rendered.indexOf('class="home-works-log"') < rendered.lastIndexOf("</section>"));
-  assert.throws(() => renderXPostsHome({ version: 1, coverage: [], items: [] }, 1), /children must be markup/u);
+  assert.doesNotMatch(rendered, /home-works-log|class="update-item"/u);
+});
+
+test("homepage navigation keeps the X section without the retired works controls or assets", () => {
+  const html = fs.readFileSync("index.html", "utf8");
+  const beforeContent = html.slice(0, html.indexOf('<main id="main-content"'));
+  assert.doesNotMatch(beforeContent, /href="updates\.html"/u);
+  assert.equal([...beforeContent.matchAll(/href="#updates"/gu)].length, 2);
+  assert.match(html, /id="updates" class="home-updates"/u);
+  assert.doesNotMatch(html, /home-works-log|HOME-UPDATES:|js\/home-updates\.js|data-home-(?:creator|source)|home-updates-(?:year|more)/u);
+  assert.doesNotMatch(fs.readFileSync("style.css", "utf8"), /home-works-log|home-updates-(?:toolbar|feed|sources|status|year|more)|\.home-updates \.(?:update-item|source-status)/u);
+  assert.equal(fs.existsSync("js/home-updates.js"), false);
 });
 
 test("a creator with no collected posts shows the empty note instead of a blank list", () => {

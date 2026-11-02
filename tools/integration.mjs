@@ -56,13 +56,17 @@ try {
   assert.match(homeHtml, /data-song-title=/);
   assert.match(homeHtml, /id="updates"/u);
   assert.match(homeHtml, /href="#updates"/u);
-  assert.match(homeHtml, /class="update-item"/u);
-  assert.doesNotMatch(homeHtml, /<!-- HOME-UPDATES:/u);
-  assert.equal((await request(`${previewUrl}/js/home-updates.js`)).status, 200);
+  assert.match(homeHtml, /data-x-posts-home/u);
+  assert.match(homeHtml, /data-x-archive-link href="updates\.html"/u);
+  assert.doesNotMatch(homeHtml, /home-works-log|class="update-item"|js\/home-updates\.js|<!-- (?:HOME-UPDATES|X-POSTS):/u);
+  assert.equal((await request(`${previewUrl}/js/home-updates.js`)).status, 404, "The retired homepage works script is no longer published");
+  assert.equal((await request(`${previewUrl}/js/x-posts-home.js`)).status, 200);
   const updatesPage = await request(`${previewUrl}/updates.html`);
   assert.equal(updatesPage.status, 200);
   const updatesHtml = await updatesPage.text();
   assert.match(updatesHtml, /class="update-item"/u);
+  const creatorUpdates = JSON.parse(await readFile(path.join(root, "data/creator-updates.json"), "utf8"));
+  assert.equal([...updatesHtml.matchAll(/class="update-item"/gu)].length, creatorUpdates.items.length, "The full works list remains available in the archive");
   assert.match(updatesHtml, /data-creator="inabakumori"/u);
   assert.match(updatesHtml, /data-creator="nknk"/u);
   // A retired song address is still served: its static page redirects to the page that replaced it.

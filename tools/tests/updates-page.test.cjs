@@ -91,16 +91,17 @@ test("automated refresh checks all gates before upload and uses separate write p
 });
 
 
-test("year options include hidden older works and match JST or day-precision display", async () => {
+test("all archive works retain years matching JST or day-precision display", async () => {
   const { renderCreatorUpdates } = await import("../render-creator-updates.mjs");
   const data = snapshot();
   const dates = ["2025-12-31T14:59:59.999Z", "2025-12-31T15:00:00.000Z", "2026-12-31T00:00:00Z", "2026-01-01T00:00:00+09:00", "2023-06-01T00:00:00Z"];
   data.items = dates.map((publishedAt, index) => ({ ...data.items[0], id: `pixiv:${100 + index}`, url: `https://www.pixiv.net/artworks/${100 + index}`, title: `year-${index}`, publishedAt, ...(index > 1 ? { datePrecision: "day" } : {}) }));
   const result = renderCreatorUpdates(data);
   const articles = [...result.items.matchAll(/<article\b[\s\S]*?<\/article>/gu)].map(match => match[0]);
+  assert.equal(articles.length, data.items.length);
+  assert.doesNotMatch(result.items, /<article\b[^>]*\bhidden\b/u);
   ["2025", "2026", "2026", "2025", "2023"].forEach((year, index) => assert.ok(articles.find(article => article.includes(`year-${index}`)).includes(`data-year="${year}"`)));
-  assert.equal(result.years, '<option value="2026">2026</option><option value="2025">2025</option><option value="2023">2023</option>');
-  assert.equal(renderCreatorUpdates({ ...data, items: [] }).years, "");
+  assert.equal(renderCreatorUpdates({ ...data, items: [] }).items, "");
 });
 
 test("work titles with C1 controls or bidi overrides fail the build; lang=ja only with kana", async () => {
