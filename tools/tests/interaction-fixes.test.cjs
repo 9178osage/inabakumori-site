@@ -7,8 +7,8 @@ const gallery = fs.readFileSync("js/nknk-gallery-ui.js", "utf8");
 const script = fs.readFileSync("script.js", "utf8");
 
 test("lightbox adds one history entry so Back closes it, and removes it on other closes", () => {
-  assert.match(gallery, /history\.pushState\(\{ \.\.\.\(history\.state \|\| \{\}\), nknkLightbox: true \}, "", location\.href\)/, "same-URL entry, hash untouched");
-  assert.match(gallery, /addEventListener\("popstate", \(\) => \{[\s\S]{0,400}closeLightbox\(\{ deferFocus: true \}\)/);
+  assert.match(gallery, /history\.pushState\(\{ \.\.\.\(history\.state \|\| \{\}\), nknkLightbox: true, nknkLightboxIndex: \(nextIndex \+ items\.length\) % items\.length \}, "", location\.href\)/, "same-URL entry, hash untouched");
+  assert.match(gallery, /addEventListener\("popstate", \(event\) => \{[\s\S]{0,600}closeLightbox\(\{ deferFocus: true \}\)/);
   assert.match(gallery, /if \(history\.state\?\.nknkLightbox\) \{ ignoreNextPop = true; history\.back\(\); \}/, "Escape/close/backdrop pop our entry");
   assert.match(gallery, /keepScroll = \(y\) => requestAnimationFrame\(/, "reader stays where the lightbox was opened");
 });

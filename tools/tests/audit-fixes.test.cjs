@@ -38,7 +38,7 @@ test("hash-only history steps do not overwrite an unsynced library search", () =
 });
 
 test("a reload while the lightbox was open drops the stale history marker", () => {
-  assert.match(read("js/nknk-gallery-ui.js"), /if \(history\.state\?\.nknkLightbox\) \{\s*const rest = \{ \.\.\.history\.state \};\s*delete rest\.nknkLightbox;\s*history\.replaceState/u);
+  assert.match(read("js/nknk-gallery-ui.js"), /if \(history\.state\?\.nknkLightbox\) \{\s*const rest = \{ \.\.\.history\.state \};\s*(?:delete rest\.nknkLightboxIndex;\s*)?delete rest\.nknkLightbox;\s*history\.replaceState/u);
 });
 
 test("MediaQueryList listeners fall back to addListener and dvh has a vh fallback", () => {

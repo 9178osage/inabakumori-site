@@ -160,21 +160,25 @@
     try {
       if (history.state?.nknkLightbox) {
         const rest = { ...history.state };
+        delete rest.nknkLightboxIndex;
         delete rest.nknkLightbox;
         history.replaceState(Object.keys(rest).length ? rest : null, "", location.href);
       }
     } catch { /* history unavailable */ }
-    window.addEventListener("popstate", () => {
-      if (ignoreNextPop) { ignoreNextPop = false; keepScroll(openScrollY); return; }
-      if (!lightboxOpen) return;
-      historyEntry = false;
-      keepScroll(openScrollY);
-      // The browser may move focus while it finishes the traversal; restore it afterwards.
-      closeLightbox({ deferFocus: true });
-    });
-    const openAt = (nextIndex, source = null, byKeyboard = false) => {
+    // The entry records the image index, so Forward onto it reopens the same illustration instead of
+    // leaving a dead same-URL entry that the next Back would silently consume.
+    const historyIndex = (state) => {
+      const index = state?.nknkLightbox ? state.nknkLightboxIndex : undefined;
+      return Number.isInteger(index) && index >= 0 && index < items.length ? index : null;
+    };
+    const recordHistoryIndex = () => {
+      if (!historyEntry || !history.state?.nknkLightbox || history.state.nknkLightboxIndex === lightboxIndex) return;
+      try { history.replaceState({ ...history.state, nknkLightboxIndex: lightboxIndex }, "", location.href); } catch { /* history unavailable */ }
+    };
+    const openAt = (nextIndex, source = null, byKeyboard = false, { fromHistory = false } = {}) => {
       if (lightboxOpen) {
         showLightbox(nextIndex);
+        recordHistoryIndex();
         return;
       }
       lightboxOpenedByKeyboard = byKeyboard;
@@ -185,7 +189,8 @@
       openScrollY = window.scrollY;
       if (source) ignoreBackdropUntil = performance.now() + 500;
       try {
-        history.pushState({ ...(history.state || {}), nknkLightbox: true }, "", location.href);
+        // Forward lands on our existing entry: reuse it instead of pushing a second one.
+        if (!fromHistory) history.pushState({ ...(history.state || {}), nknkLightbox: true, nknkLightboxIndex: (nextIndex + items.length) % items.length }, "", location.href);
         historyEntry = true;
         if (savedRestoration === null && "scrollRestoration" in history) {
           savedRestoration = history.scrollRestoration;
@@ -203,6 +208,18 @@
       syncPauseState();
       closeBtn?.focus();
     };
+    window.addEventListener("popstate", (event) => {
+      if (ignoreNextPop) { ignoreNextPop = false; keepScroll(openScrollY); return; }
+      if (!lightboxOpen) {
+        const index = historyIndex(event.state);
+        if (index !== null) openAt(index, null, false, { fromHistory: true });
+        return;
+      }
+      historyEntry = false;
+      keepScroll(openScrollY);
+      // The browser may move focus while it finishes the traversal; restore it afterwards.
+      closeLightbox({ deferFocus: true });
+    });
 
     function closeLightbox({ deferFocus = false } = {}) {
       if (!lightboxOpen) return;
