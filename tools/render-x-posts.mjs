@@ -115,13 +115,27 @@ function renderHome(posts, groups, status, renderItem) {
   return `<section class="x-posts-home" data-x-posts-home data-x-total="${posts.length}" data-x-total-inabakumori="${count("inabakumori")}" data-x-total-nknk="${count("nknk")}" aria-labelledby="home-x-posts-title"><h3 id="home-x-posts-title" class="x-posts-title" data-zh="X 帖子原文" data-en="Original X posts" data-ja="Xの投稿・原文">X 帖子原文</h3><div class="x-posts-status">${status.summary}<details class="x-collection-details">${text("summary", ["收录范围与说明", "Collection details", "収録範囲と説明"], "")}<div class="x-collection-details-content">${status.details}</div></details></div>${filters}<p class="x-home-count" data-x-home-count role="status" aria-live="polite" hidden></p>${text("a", ["在本站浏览已收录的全部帖子 →", "Browse all collected posts on this site →", "サイト内で収録済みの投稿をすべて見る →"], ' class="x-posts-archive-link" data-x-archive-link href="updates.html"')}${text("p", ["这位创作者暂无已收录的帖子。", "No posts have been collected for this creator yet.", "このクリエイターの投稿はまだ収録されていません。"], ' class="x-posts-empty" data-x-home-empty hidden')}<div class="x-posts-feed">${selected.map(renderItem).join("\n") || text("p", ["公开帖子正在补录中。", "Public posts are being collected.", "公開投稿を収録しています。"], ' class="x-posts-empty"')}</div><noscript>${text("p", ["这里展示每位创作者最近的一条已收录帖子。完整帖子正文可通过上方站内档案分页阅读。", "The latest collected post from each creator is shown here. Read all collected posts through the archive link above.", "ここには各クリエイターの最新の収録済み投稿を1件ずつ表示しています。収録済みの全文は上のリンク先で読めます。"], ' class="x-posts-coverage-note"')}</noscript></section>`;
 }
 
+// Creator archives list a short headline per post and link to its place in the all-posts
+// archive, which keeps the only full copy; this roughly halves the archive bytes (audit C1).
+const EXCERPT_LENGTH = 60;
+function renderCompactPost(post, href) {
+  const creator = creators[post.creator];
+  const line = post.text.split(/\n/u).map(part => part.trim()).find(Boolean) || "";
+  const chars = [...line];
+  const title = chars.length > EXCERPT_LENGTH ? `${chars.slice(0, EXCERPT_LENGTH).join("")}…` : line;
+  const headline = title ? `<p class="x-post-text x-post-excerpt"${KANA.test(title) ? ' lang="ja"' : ""} dir="auto">${escape(title)}</p>` : text("p", ["媒体帖子", "Media post", "メディア投稿"], ' class="x-post-text x-post-excerpt x-post-media-only"');
+  const link = text("a", ["在全部帖子中阅读全文 →", "Read in all posts →", "すべての投稿で全文を読む →"], ` href="${escape(href)}"`);
+  return `<article class="x-post x-post-compact" data-x-post-id="${post.id}" data-creator="${post.creator}"><header class="x-post-header"><h3>${escape(creator.name)} <span>@${creator.handle}</span></h3>${time(post.publishedAt)}</header>${headline}<div class="x-post-links">${link}</div></article>`;
+}
 function renderArchive(groups, status, renderItem, { page = 1, creator = "all", pageSize = 30 } = {}) {
   xPostsPageUrl(creator, page);
   assert.ok(Number.isSafeInteger(pageSize) && pageSize >= 1 && pageSize <= 100, "Invalid X post page size");
   const posts = groups.get(creator);
   const pageCount = Math.max(1, Math.ceil(posts.length / pageSize));
   assert.ok(page <= pageCount, "X post page does not exist");
-  const items = posts.slice((page - 1) * pageSize, page * pageSize).map(renderItem).join("\n") || text("p", ["这个分类尚未收录帖子。", "No posts have been collected in this category yet.", "この分類の投稿はまだ収録されていません。"], ' class="x-posts-empty"');
+  const allIndex = creator === "all" ? null : new Map(groups.get("all").map((post, index) => [post.id, index]));
+  const itemOf = creator === "all" ? renderItem : post => renderCompactPost(post, `${xPostsPageUrl("all", Math.floor(allIndex.get(post.id) / pageSize) + 1)}#x-post-${post.id}`);
+  const items = posts.slice((page - 1) * pageSize, page * pageSize).map(itemOf).join("\n") || text("p", ["这个分类尚未收录帖子。", "No posts have been collected in this category yet.", "この分類の投稿はまだ収録されていません。"], ' class="x-posts-empty"');
   const prev = page > 1 ? text("a", ["← 上一页", "← Previous", "← 前のページ"], ` href="${xPostsPageUrl(creator, page - 1)}" rel="prev"`) : "";
   const next = page < pageCount ? text("a", ["下一页 →", "Next →", "次のページ →"], ` href="${xPostsPageUrl(creator, page + 1)}" rel="next"`) : "";
   const first = page > 2 ? text("a", ["第一页", "First page", "最初のページ"], ` href="${xPostsPageUrl(creator)}"`) : "";
