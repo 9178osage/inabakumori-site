@@ -218,7 +218,7 @@ class BackupTests(unittest.TestCase):
             self.assertEqual(REMOTE.main([str(self.config)]), 2)
         self.assertIn("cleanup skipped", stderr.getvalue())
         self.assertTrue(previous.exists() and ancient.exists())
-        self.assertEqual(len(self.files()), 3)
+        self.assertEqual(len([n for n in self.files() if n != "drop-guard.json"]), 3)
 
     def test_small_or_moderate_changes_still_prune(self):
         now = datetime.datetime.now(datetime.timezone.utc)
@@ -250,6 +250,51 @@ class BackupTests(unittest.TestCase):
             result = REMOTE.backup(str(self.config))
         self.assertNotIn("cleanup_skipped", result)
         self.assertFalse(ancient.exists())
+
+    def run_day(self, body):
+        network, _ = self.network(body)
+        with network, contextlib.redirect_stderr(io.StringIO()):
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                code = REMOTE.main([str(self.config)])
+        return code, out.getvalue()
+
+    def drop_setup(self):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        nine = self.many(9)
+        self.named(now - datetime.timedelta(days=1), "aaaaaaaaaaaaaaaa", nine)
+        ancient = self.named(now - datetime.timedelta(days=900), "bbbbbbbbbbbbbbbb", nine)
+        return nine, self.many(4), ancient, self.directory / "drop-guard.json"
+
+    def test_partial_drop_keeps_firing_until_half_the_baseline_returns(self):
+        nine, four, ancient, state = self.drop_setup()
+        for day in range(3):
+            before = set(self.files())
+            code, _ = self.run_day(four)
+            self.assertEqual(code, 2, "day %d" % day)
+            self.assertTrue(before <= set(self.files()), "nothing may be deleted while comments are missing")
+        self.assertTrue(ancient.exists())
+        self.assertEqual(json.loads(state.read_text())["comments"], 9)
+        code, out = self.run_day(self.many(5))
+        self.assertEqual(code, 0)
+        self.assertIn("drop guard cleared", out)
+        self.assertFalse(state.exists())
+        self.assertFalse(ancient.exists())
+
+    def test_manually_deleted_guard_resumes_cleanup(self):
+        nine, four, ancient, state = self.drop_setup()
+        self.assertEqual(self.run_day(four)[0], 2)
+        state.unlink()
+        self.assertEqual(self.run_day(four)[0], 0)
+        self.assertFalse(ancient.exists())
+
+    def test_damaged_guard_state_deletes_nothing(self):
+        nine, four, ancient, state = self.drop_setup()
+        state.write_text("{not json")
+        before = set(self.files())
+        self.assertEqual(self.run_day(nine)[0], 2)
+        self.assertTrue(before <= set(self.files()))
+        self.assertTrue(ancient.exists() and state.exists())
 
     def test_small_comment_counts_are_still_guarded(self):
         self.assertTrue(REMOTE.sharp_drop({"comments": 9}, {"comments": 0}, 50))

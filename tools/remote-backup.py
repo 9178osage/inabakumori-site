@@ -23,6 +23,10 @@ BACKUP_NAME = re.compile(r"^inabakumori-comments-(\d{8}T\d{6}Z)-[0-9a-f]{16}\.db
 # A sharp fall in comment count (mass deletion, bad restore, wrong database)
 # keeps every previous snapshot instead of rotating good copies away. Any
 # previous snapshot with at least one comment is compared, so 9 -> 0 counts.
+# After a drop the pre-drop baseline is remembered here (outside the snapshot
+# naming pattern, so tiered cleanup never touches it). Deleting it by hand
+# releases the guard after a deliberate deletion.
+GUARD_STATE = "drop-guard.json"
 
 
 class BackupError(Exception):
@@ -183,20 +187,48 @@ def owned_snapshots(directory, exclude=None):
     return sorted(found, reverse=True)
 
 
-def previous_counts(directory, exclude):
-    """Counts from the newest readable earlier snapshot that has comments, or None.
-
-    Counts are read from the snapshot files themselves. Empty snapshots are
-    skipped so a kept 0-comment snapshot never becomes the reference, and the
-    guard keeps firing every day until comments return."""
+def previous_reference(directory, exclude):
+    """(name, counts) of the newest readable earlier snapshot that has comments, or (None, None)."""
     for _, name in owned_snapshots(directory, exclude):
         try:
             counts = verify_snapshot(os.path.join(directory, name))
         except Exception:
             continue
         if counts["comments"] > 0:
-            return counts
-    return None
+            return name, counts
+    return None, None
+
+
+def read_guard(directory):
+    """None when no guard is active, the baseline dict when valid; raises BackupError when unreadable."""
+    path = os.path.join(directory, GUARD_STATE)
+    if not os.path.lexists(path):
+        return None
+    try:
+        if not stat.S_ISREG(os.lstat(path).st_mode):
+            raise ValueError
+        with open(path, encoding="utf-8") as source:
+            state = json.load(source)
+        comments = state["comments"]
+        if type(comments) is not int or comments < 1 or not isinstance(state.get("snapshot"), str) or not isinstance(state.get("date"), str):
+            raise ValueError
+        return state
+    except Exception:
+        raise BackupError("Drop guard state is unreadable")
+
+
+def write_guard(directory, comments, snapshot, now):
+    path = os.path.join(directory, GUARD_STATE)
+    temporary = path + "." + secrets.token_hex(8) + ".part"
+    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as target:
+        json.dump({"comments": comments, "date": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "snapshot": snapshot}, target)
+    os.replace(temporary, path)
+
+
+def previous_counts(directory, exclude):
+    return previous_reference(directory, exclude)[1]
+
 
 
 def sharp_drop(previous, current, max_drop_percent):
@@ -256,10 +288,23 @@ def backup(config_filename):
     finally:
         os.unlink(temporary)
     result = {**counts, "bytes": size, "runtime": runtime}
-    previous = previous_counts(directory, filename)
-    if sharp_drop(previous, counts, config["max_drop_percent"]):
-        # Keep the new snapshot and every older one; the operator must review.
-        return {**result, "previous_comments": previous["comments"], "pruned": 0, "cleanup_errors": 0, "cleanup_skipped": "comment_drop"}
+    skipped = {"pruned": 0, "cleanup_errors": 0}
+    try:
+        guard = read_guard(directory)
+    except BackupError:
+        # A damaged guard is treated as an active drop: keep everything.
+        return {**result, **skipped, "cleanup_skipped": "guard_state_unreadable"}
+    if guard is not None:
+        if sharp_drop(guard, counts, config["max_drop_percent"]):
+            return {**result, "previous_comments": guard["comments"], **skipped, "cleanup_skipped": "comment_drop"}
+        os.unlink(os.path.join(directory, GUARD_STATE))
+        result["recovered_from"] = guard["comments"]
+    else:
+        reference, previous = previous_reference(directory, filename)
+        if sharp_drop(previous, counts, config["max_drop_percent"]):
+            # Keep the new snapshot and every older one; remember the baseline until comments return.
+            write_guard(directory, previous["comments"], reference, now)
+            return {**result, "previous_comments": previous["comments"], **skipped, "cleanup_skipped": "comment_drop"}
     removed, failed = prune(directory, config, now)
     return {**result, "pruned": removed, "cleanup_errors": failed}
 
@@ -275,8 +320,10 @@ def main(args):
         print("Backup failed; check private configuration, connectivity and snapshot integrity", file=sys.stderr)
         return 1
     print("Backup verified: " + ", ".join(f"{key}={value}" for key, value in result.items()))
+    if "recovered_from" in result:
+        print("Comment count recovered to at least half of the pre-drop baseline (%d); drop guard cleared and cleanup resumed." % result["recovered_from"])
     if result.get("cleanup_skipped"):
-        print("Comment count dropped sharply since the previous snapshot; cleanup skipped and all snapshots kept. Review before deleting anything.", file=sys.stderr)
+        print("Comment count dropped sharply since the previous snapshot, or the drop guard state is unreadable; cleanup skipped and all snapshots kept. Review before deleting anything; delete " + GUARD_STATE + " in the backup directory only after confirming a deliberate deletion.", file=sys.stderr)
         return 2
     return 0
 
