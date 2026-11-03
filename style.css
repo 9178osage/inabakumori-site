@@ -1703,7 +1703,6 @@ body.modal-open { overflow: hidden; }
   .hero { height: auto; min-height: 100vh; min-height: 100svh; padding: calc(148px + env(safe-area-inset-top)) 0 calc(76px + env(safe-area-inset-bottom)); }
   .station-brand { top: calc(84px + env(safe-area-inset-top)); left: max(22px, env(safe-area-inset-left)); gap: 12px; }
   .station-mark { font-size: 11px; }
-  .station-calendar { font-size: 10px; padding: 0 10px; }
   .station-mark-small { font-size: 8px; }
   .hero-content { width: calc(100% - 32px - env(safe-area-inset-left) - env(safe-area-inset-right)); padding-top: 0; }
   .hero-eyebrow { font-size: 10px; margin-bottom: 20px; }
@@ -2361,11 +2360,11 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
   .song-list .song-row { margin-bottom: 0; }
 }
 
-/* Hidden calendar: a small labelled entry beside the station mark, not in the navigation. */
-.station-calendar { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 0 12px; color: #fff; text-decoration: none; font: 500 11px/1.2 var(--font-data); letter-spacing: .08em; border: 1px solid rgba(255, 255, 255, .45); background: rgba(0, 0, 0, .12); transition: background-color .2s, border-color .2s; }
+/* Calendar entry: a distinct action below the homepage navigation. */
+.station-calendar { pointer-events: auto; display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; margin-top: 26px; padding: 10px 18px; color: #181818; text-decoration: none; font: 600 14px/1.4 var(--font-body); letter-spacing: var(--type-label-space); border: 1px solid #fff; background: #fff; box-shadow: 0 2px 12px rgba(0, 0, 0, .3); transition: background-color .2s, border-color .2s; }
 .station-calendar svg { flex: none; }
 .station-calendar:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
-@media (hover: hover) { .station-calendar:hover { background: rgba(255, 255, 255, .16); border-color: #fff; } }
+@media (hover: hover) { .station-calendar:hover { background: #e5e5e5; border-color: #e5e5e5; } }
 @media (prefers-reduced-motion: reduce) { .station-calendar { transition: none; } }
 
 .home-updates .x-post-translation {
@@ -2399,7 +2398,7 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
 .home-mobile-fold > summary, .mobile-song-intro, .mobile-songs-expand { display: none; }
 footer .home-mobile-fold-content > p { max-width: 720px; margin: 16px auto; font-size: 13px; }
 @media (max-width: 700px), (pointer: coarse) and (max-width: 1000px) {
-  .home-page .hero { min-height: 78svh; padding-block: calc(140px + env(safe-area-inset-top)) calc(56px + env(safe-area-inset-bottom)); }
+  .home-page .hero { min-height: 78svh; padding-block: calc(140px + env(safe-area-inset-top)) calc(80px + env(safe-area-inset-bottom)); }
   .home-page .hero-content nav { gap: 0; }
   .home-page .hero-content nav a { min-height: 44px; }
   .home-page .section-nav .back-top { display: none; }

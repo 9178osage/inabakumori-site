@@ -87,14 +87,14 @@ test("calendar page is hidden, CSP-safe, localized and motion-aware", () => {
   assert.doesNotMatch(js, /innerHTML|insertAdjacentHTML|document\.write/);
 });
 
-test("homepage reaches the calendar through a labelled entry beside the station mark only", () => {
+test("homepage reaches the calendar through a prominent labelled entry after its navigation", () => {
   const html = read("index.html");
-  assert.match(html, /<div class="station-brand"><a class="station-mark" href="#top">[\s\S]*?<\/a><a class="station-calendar" href="calendar\.html"><svg[^>]*aria-hidden="true"[\s\S]*?<span data-zh="神秘小日历" data-en="Secret Calendar" data-ja="秘密のカレンダー">神秘小日历<\/span><\/a><\/div>/);
+  assert.match(html, /<div class="hero-content">[\s\S]*?<\/nav>\s*<a class="station-calendar" href="calendar\.html"><svg[^>]*aria-hidden="true"[\s\S]*?<span data-zh="神秘小日历" data-en="Secret Calendar" data-ja="秘密のカレンダー">神秘小日历<\/span>/);
   assert.equal(html.split('href="calendar.html"').length, 2);
   assert.doesNotMatch(html, /footer-calendar/);
   for (const nav of html.match(/<nav[\s\S]*?<\/nav>/g) || []) assert.doesNotMatch(nav, /calendar/);
   const css = read("style.css");
-  assert.match(css, /\.station-calendar \{[^}]*min-height: 44px/);
+  assert.match(css, /\.station-calendar \{[^}]*pointer-events: auto;[^}]*min-height: 48px/);
   assert.match(css, /\.station-calendar:focus-visible \{ outline:/);
   assert.match(read("tools/build-site.mjs"), /"CALENDAR:SHEET"/);
 });

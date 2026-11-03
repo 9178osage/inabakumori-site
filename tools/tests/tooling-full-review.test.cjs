@@ -68,7 +68,7 @@ function publicBuild(box) {
 <script src="js/auth-loader.js?v=${fingerprint(authLoader)}" defer></script>
 <script type="application/ld+json">{"@type":"WebSite"}</script>
 <div id="nknk-gallery"></div><div id="nknk-lightbox"></div><section id="updates"><section class="x-posts-home" data-x-posts-home><p data-x-home-count></p><a data-x-archive-link></a><div class="x-posts-feed"></div></section></section><a href="#updates">Updates</a>
-${emptyXPostsMeta}<div class="station-brand"><a class="station-mark" href="#updates">INABAKUMORI</a><a class="station-calendar" href="calendar.html">calendar</a></div><a data-song-title="ユレール">ユレール</a>`);
+${emptyXPostsMeta}<div class="station-brand"><a class="station-mark" href="#updates">INABAKUMORI</a></div><div class="hero-content"><nav></nav><a class="station-calendar" href="calendar.html">calendar</a></div><a data-song-title="ユレール">ユレール</a>`);
   box.write("data/creator-updates.json", JSON.stringify({ items: [{ creator: "inabakumori", source: "youtube", title: "稲葉曇『ユレール』Vo. 弦巻マキ", publishedAt: "2026-03-08T10:00:07.000Z", url: "https://www.youtube.com/watch?v=2r4W_LoVFxA" }, { creator: "inabakumori", source: "youtube", title: "Live stream", publishedAt: "2026-09-01T10:00:00.000Z" }] }));
   box.write("dist/calendar.html", `<meta name="robots" content="noindex, nofollow"/>
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self';"/>
