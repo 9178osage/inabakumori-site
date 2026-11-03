@@ -85,3 +85,7 @@ span.song-fact-note{display:inline}
 }
 @media(max-width:700px){.song-facts{background:var(--card);padding:4px 14px;border:1px solid var(--card-line);border-top:2px solid var(--ink)}}
 @media(min-width:701px){.song-facts{background:var(--card);padding:6px 22px 14px;border:1px solid var(--card-line);border-top:2px solid var(--ink)}}
+
+/* Song names retain their own language's spacing, even inside another locale. */
+.song-title, .song-index-list a, .song-posts-group h3 { letter-spacing:var(--type-heading-space) }
+.song-fact dd, .song-sources { letter-spacing:var(--type-body-space) }

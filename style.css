@@ -2497,3 +2497,14 @@ footer .home-mobile-fold-content > p { max-width: 720px; margin: 16px auto; font
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   }
 }
+
+/* Station typography: measured spacing follows the language of each piece of text. */
+.hero-content h1 { line-height: 1.22; letter-spacing: var(--type-heading-space); }
+.hero-content nav a { letter-spacing: var(--type-label-space); }
+main h2, #artwork-title { letter-spacing: var(--type-heading-space); line-height: 1.3; }
+.artist-intro, .artwork-intro, .links-intro, .site-about > p,
+.home-updates .x-post-text, .home-updates .x-post-translation {
+  letter-spacing: var(--type-body-space);
+}
+.song-title-text { letter-spacing: var(--type-heading-space); }
+.section-kicker, .hero-eyebrow, .footer-brand { letter-spacing: var(--type-label-space); }

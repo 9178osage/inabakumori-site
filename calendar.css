@@ -17,3 +17,7 @@
 @media(prefers-reduced-motion:no-preference){.calendar-sheet[data-flip]{animation:calendar-flip .7s cubic-bezier(.3,.7,.3,1) both}}
 @keyframes calendar-flip{from{transform:perspective(900px) rotateX(-70deg);opacity:0}to{transform:none;opacity:1}}
 @media(max-width:700px){.calendar-main{padding-top:26px}.calendar-binding{gap:44px}}
+
+.calendar-heading, .calendar-unit, .calendar-song a { letter-spacing:var(--type-heading-space) }
+.calendar-date { letter-spacing:var(--type-label-space) }
+.calendar-sentence, .calendar-song, .calendar-note { letter-spacing:var(--type-body-space) }
