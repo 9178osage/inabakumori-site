@@ -21,8 +21,8 @@ TOTAL_TIMEOUT = 120
 MAX_INTEGER = 9_007_199_254_740_991
 BACKUP_NAME = re.compile(r"^inabakumori-comments-(\d{8}T\d{6}Z)-[0-9a-f]{16}\.db$")
 # A sharp fall in comment count (mass deletion, bad restore, wrong database)
-# keeps every previous snapshot instead of rotating good copies away.
-DROP_GUARD_MIN_PREVIOUS = 10
+# keeps every previous snapshot instead of rotating good copies away. Any
+# previous snapshot with at least one comment is compared, so 9 -> 0 counts.
 
 
 class BackupError(Exception):
@@ -194,7 +194,7 @@ def previous_counts(directory, exclude):
 
 
 def sharp_drop(previous, current, max_drop_percent):
-    if previous is None or previous["comments"] < DROP_GUARD_MIN_PREVIOUS:
+    if previous is None or previous["comments"] < 1:
         return False
     return current["comments"] * 100 < previous["comments"] * (100 - max_drop_percent)
 

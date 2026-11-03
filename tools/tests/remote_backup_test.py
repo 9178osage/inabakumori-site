@@ -229,7 +229,14 @@ class BackupTests(unittest.TestCase):
             result = REMOTE.backup(str(self.config))
         self.assertNotIn("cleanup_skipped", result)
         self.assertFalse(ancient.exists())
-        self.assertFalse(REMOTE.sharp_drop({"comments": 9}, {"comments": 0}, 50))
+
+    def test_small_comment_counts_are_still_guarded(self):
+        self.assertTrue(REMOTE.sharp_drop({"comments": 9}, {"comments": 0}, 50))
+        self.assertTrue(REMOTE.sharp_drop({"comments": 9}, {"comments": 4}, 50))
+        self.assertFalse(REMOTE.sharp_drop({"comments": 9}, {"comments": 5}, 50))
+        self.assertTrue(REMOTE.sharp_drop({"comments": 1}, {"comments": 0}, 50))
+        self.assertFalse(REMOTE.sharp_drop({"comments": 0}, {"comments": 0}, 50))
+        self.assertFalse(REMOTE.sharp_drop(None, {"comments": 0}, 50))
 
     def test_tier_configuration_is_validated(self):
         for change in [{"weekly_weeks": -1}, {"monthly_months": True}, {"max_drop_percent": 0}, {"max_drop_percent": 101}]:
