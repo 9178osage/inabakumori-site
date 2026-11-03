@@ -16,3 +16,8 @@ test("Forward onto a lightbox entry reopens that image without pushing another e
   assert.match(gallery, /Number\.isInteger\(index\) && index >= 0 && index < items\.length/, "stale or foreign indexes are ignored");
   assert.match(gallery, /delete rest\.nknkLightboxIndex;\s*delete rest\.nknkLightbox;/, "reload cleanup drops the index too");
 });
+
+test("reload cleanup gives scroll restoration back to the browser", () => {
+  assert.match(gallery, /history\.replaceState\(Object\.keys\(rest\)\.length \? rest : null, "", location\.href\);[\s\S]{0,300}if \("scrollRestoration" in history\) history\.scrollRestoration = "auto";\s*\}/);
+  assert.equal((gallery.match(/scrollRestoration = "manual"/g) || []).length, 1, "manual is only set while the lightbox entry exists");
+});

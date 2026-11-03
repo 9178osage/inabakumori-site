@@ -137,3 +137,17 @@ test("server wires the counter, CDN headers and tag purge into every comment wri
   assert.equal((source.match(/invalidatePublicComments\b/g) || []).length, 5, "definition + expiry + post + owner delete + admin delete");
   assert.doesNotMatch(source, /publicComments\.invalidate\)/);
 });
+
+test("cacheable anonymous 200s drop every RateLimit header; uncached responses keep them", async () => {
+  const { applyPublicCommentsCacheHeaders } = await import("../../backend/public-comments-cache.mjs");
+  const names = ["ratelimit", "ratelimit-policy", "ratelimit-limit", "ratelimit-remaining", "ratelimit-reset"];
+  const withAll = statusCode => { const res = fakeResponse(statusCode); for (const name of names) res.headers.set(name, "x"); return res; };
+  const cached = withAll(200);
+  assert.equal(applyPublicCommentsCacheHeaders({ headers: { origin: "https://osagechan.top" } }, cached), true);
+  for (const name of names) assert.ok(!cached.headers.has(name), name);
+  for (const [headers, status] of [[{ authorization: "Bearer token" }, 200], [{ cookie: "sAccessToken=x" }, 200], [{}, 429], [{}, 503]]) {
+    const res = withAll(status);
+    assert.equal(applyPublicCommentsCacheHeaders({ headers }, res), false);
+    for (const name of names) assert.equal(res.headers.get(name), "x", `${name} kept for ${status}`);
+  }
+});

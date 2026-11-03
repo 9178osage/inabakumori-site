@@ -163,6 +163,9 @@
         delete rest.nknkLightboxIndex;
         delete rest.nknkLightbox;
         history.replaceState(Object.keys(rest).length ? rest : null, "", location.href);
+        // The browser keeps "manual" on this entry across the reload; without this, later reloads and
+        // Back/Forward onto this page would stop restoring the scroll position. Only this file sets it.
+        if ("scrollRestoration" in history) history.scrollRestoration = "auto";
       }
     } catch { /* history unavailable */ }
     // The entry records the image index, so Forward onto it reopens the same illustration instead of
