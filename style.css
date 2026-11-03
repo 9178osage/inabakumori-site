@@ -2498,13 +2498,57 @@ footer .home-mobile-fold-content > p { max-width: 720px; margin: 16px auto; font
   }
 }
 
-/* Station typography: measured spacing follows the language of each piece of text. */
-.hero-content h1 { line-height: 1.22; letter-spacing: var(--type-heading-space); }
-.hero-content nav a { letter-spacing: var(--type-label-space); }
-main h2, #artwork-title { letter-spacing: var(--type-heading-space); line-height: 1.3; }
-.artist-intro, .artwork-intro, .links-intro, .site-about > p,
-.home-updates .x-post-text, .home-updates .x-post-translation {
+/* Station typography: quiet headings, readable copy and aligned observation numbers. */
+body {
+  font-size: var(--type-size-body);
+  font-weight: var(--type-weight-body);
+  line-height: var(--type-body-leading);
+}
+.hero-content h1 {
+  font-size: var(--type-size-hero);
+  font-weight: var(--type-weight-heading);
+  line-height: 1.28;
+  letter-spacing: var(--type-display-space);
+  text-wrap: balance;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, .55);
+}
+.hero-content nav a {
+  font-weight: var(--type-weight-ui);
+  letter-spacing: var(--type-label-space);
+}
+h2 { font-weight: var(--type-weight-heading); }
+main h2, #artwork-title {
+  letter-spacing: var(--type-heading-space);
+  line-height: 1.4;
+  text-wrap: balance;
+}
+.section-heading h2, .home-updates .home-updates-header h2,
+.songs-heading h2, #artwork-title, #messages-title { font-size: var(--type-size-section); }
+.home-page .artist-intro, .home-page .artwork-intro {
+  font-size: clamp(1rem, .95rem + .25vw, 1.125rem);
+}
+.artist-intro, .artwork-intro, .links-intro, .site-about > p, .unofficial-note,
+.home-page .artist-intro, .home-page .artwork-intro,
+.home-page .home-updates .x-post-text, .home-page .home-updates .x-post-translation {
+  line-height: var(--type-body-leading);
   letter-spacing: var(--type-body-space);
 }
-.song-title-text { letter-spacing: var(--type-heading-space); }
-.section-kicker, .hero-eyebrow, .footer-brand { letter-spacing: var(--type-label-space); }
+.home-page .home-updates .x-post-text { font-size: var(--type-size-body); }
+.home-page .home-updates .x-post-translation { font-size: var(--type-size-small); }
+.song-title-text {
+  font-weight: var(--type-weight-heading);
+  line-height: 1.6;
+  letter-spacing: var(--type-heading-space);
+}
+.home-page .section-kicker, .hero-eyebrow, .footer-brand {
+  font-size: var(--type-size-meta);
+  font-weight: var(--type-weight-ui);
+  line-height: 1.6;
+  letter-spacing: var(--type-label-space);
+}
+#lang-btn, #auth-btn, #auth-submit, #random-song-button, .message-box button {
+  font-weight: var(--type-weight-ui);
+}
+.song-views, #message-counter, .section-kicker {
+  font-variant-numeric: lining-nums tabular-nums;
+}

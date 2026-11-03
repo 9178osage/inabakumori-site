@@ -18,6 +18,19 @@
 @keyframes calendar-flip{from{transform:perspective(900px) rotateX(-70deg);opacity:0}to{transform:none;opacity:1}}
 @media(max-width:700px){.calendar-main{padding-top:26px}.calendar-binding{gap:44px}}
 
+.calendar-heading {
+  font-size:clamp(1.75rem, 1.25rem + 1.5vw, 2.5rem);
+  font-weight:var(--type-weight-heading);
+  line-height:1.4;
+  text-wrap:balance;
+  overflow-wrap:anywhere;
+}
 .calendar-heading, .calendar-unit, .calendar-song a { letter-spacing:var(--type-heading-space) }
-.calendar-date { letter-spacing:var(--type-label-space) }
-.calendar-sentence, .calendar-song, .calendar-note { letter-spacing:var(--type-body-space) }
+.calendar-date { flex-wrap:wrap; gap:.25rem .75rem; font-size:var(--type-size-meta); letter-spacing:var(--type-label-space); font-variant-numeric:lining-nums tabular-nums }
+.calendar-days { font-weight:var(--type-weight-body); font-variant-numeric:lining-nums tabular-nums }
+.calendar-sentence { font-size:var(--type-size-body) }
+.calendar-song, .calendar-note { font-size:var(--type-size-small) }
+.calendar-sentence, .calendar-song, .calendar-note {
+  letter-spacing:var(--type-body-space);
+  line-height:var(--type-body-leading);
+}

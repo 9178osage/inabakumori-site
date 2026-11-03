@@ -49,7 +49,38 @@
 @media(min-width:701px) and (prefers-color-scheme:dark){:root:not([data-theme="light"]){--white:#2c3439;--card:#1d2226;--card-line:#2c3439}}
 
 /* Shared reading rhythm for titles, source labels and multilingual posts. */
+body { font-size:var(--type-size-body); font-weight:var(--type-weight-body); line-height:var(--type-body-leading) }
+.updates-header { flex-wrap:wrap; padding-block:16px }
+.updates-intro h1 {
+  font-size:var(--type-size-page);
+  font-weight:var(--type-weight-heading);
+  line-height:1.35;
+  text-wrap:balance;
+  overflow-wrap:anywhere;
+}
+h2, h3, .x-posts-archive .feed-heading h2, .x-post-header h3 { font-weight:var(--type-weight-heading) }
 .updates-intro h1, .updates-lead, h2, .update-item h3, .creator-card h3,
 .x-account-name, .x-post-header h3 { letter-spacing:var(--type-heading-space) }
-.updates-description, .update-summary, .collection-info p, .x-post-text, .x-post-translation { letter-spacing:var(--type-body-space) }
-.section-kicker, .observation-label, .creator-role { letter-spacing:var(--type-label-space) }
+.updates-description, .update-summary, .collection-info p, .x-post-text, .x-post-translation {
+  line-height:var(--type-body-leading);
+  letter-spacing:var(--type-body-space);
+}
+.updates-description, .update-summary, .collection-info p, .x-post-translation { font-size:var(--type-size-small) }
+.x-post-text { font-size:var(--type-size-body) }
+.section-kicker, .observation-label, .creator-role {
+  font-size:var(--type-size-meta);
+  font-weight:var(--type-weight-ui);
+  letter-spacing:var(--type-label-space);
+}
+.update-meta, .update-source, .update-index, .feed-order, .updates-count,
+.x-post-header h3 span, .x-post-header time, .creator-handle, .source-status p, .source-status time {
+  font-size:var(--type-size-meta);
+}
+.page-controls button, .updates-filters button, .updates-navigation,
+.x-posts-author-links a, .x-posts-pagination a {
+  font-size:var(--type-size-small);
+  font-weight:var(--type-weight-ui);
+}
+.observation-number, .update-index, .updates-count, .x-posts-page-position {
+  font-variant-numeric:lining-nums tabular-nums;
+}
