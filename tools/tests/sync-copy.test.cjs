@@ -11,7 +11,7 @@ const OUT = "inabakumori-site-all-code";
 const GUIDE = "0-使用说明.txt";
 const X_POSTS_CAP = 140_000_000;
 const CAP = 130_000;
-const CHANGES_CAP = 220_000;
+const CHANGES_CAP = 250_000;
 const limitFor = name => name === "changes.txt" ? CHANGES_CAP : name.startsWith("4-x-posts-") ? X_POSTS_CAP : CAP;
 const exclusions = ["js/auth.js", "package-lock.json", "backend/package-lock.json", ".env.fixture",
   "backend/comments.db", "keys/private-key.pem", "dist/generated.js", "images/picture.png", "binary.dat"];
@@ -99,7 +99,7 @@ test("tracked generator creates the ignored output, exports itself and preserves
     assert.match(fs.readFileSync(path.join(box.output, GUIDE), "utf8"), /python3 tools\/sync-copy\.py/u);
     for (const name of textFiles(box)) assert.ok(fs.statSync(path.join(box.output, name)).size <= limitFor(name), name);
     assert.match(fs.readFileSync(path.join(box.output, GUIDE), "utf8"), /每个 txt 不超过 130,000 字节/u);
-    assert.match(fs.readFileSync(path.join(box.output, GUIDE), "utf8"), /changes\.txt 不超过 220,000 字节/u);
+    assert.match(fs.readFileSync(path.join(box.output, GUIDE), "utf8"), /changes\.txt 不超过 250,000 字节/u);
     assert.doesNotMatch(fs.readFileSync(path.join(box.output, GUIDE), "utf8"), /150,000|优先控制在 10/u);
     assert.equal(fs.existsSync(path.join(box.output, ".review-base")), false, "default fallback does not invent a saved baseline");
   } finally { box.close(); }
@@ -301,20 +301,20 @@ test("whole-source packing keeps each volume below 130000 bytes and rejects over
   try { failed(source.run(), /单个文件就超过 130,000 字节/u); } finally { source.close(); }
 });
 
-test("changes allow up to 220000 bytes while preserving the saved review base and prior copy on failure", () => {
+test("changes allow up to 250000 bytes while preserving the saved review base and prior copy on failure", () => {
   const box = fixture();
   try {
-    box.write("js/one.js", "x".repeat(105000)); box.write("js/two.js", "y".repeat(105000)); box.commit();
+    box.write("js/one.js", "x".repeat(115000)); box.write("js/two.js", "y".repeat(115000)); box.commit();
     fs.mkdirSync(box.output); fs.writeFileSync(path.join(box.output, ".review-base"), box.base + "\n");
     passed(box.run()); passed(box.run(["--check"]));
     const changePath = path.join(box.output, "changes.txt");
     const before = fs.readFileSync(changePath);
-    assert.ok(before.length > 200000 && before.length <= CHANGES_CAP, "diffs above the old limit are retained");
+    assert.ok(before.length > 220000 && before.length <= CHANGES_CAP, "diffs above the old limit are retained");
     fs.appendFileSync(changePath, Buffer.alloc(CHANGES_CAP + 1 - before.length, 0x20));
-    failed(box.run(["--check"]), /changes\.txt 超过 220,000 字节/u);
+    failed(box.run(["--check"]), /changes\.txt 超过 250,000 字节/u);
     fs.writeFileSync(changePath, before);
-    box.write("js/one.js", "x".repeat(115000)); box.write("js/two.js", "y".repeat(115000)); box.commit();
-    failed(box.run(), /changes\.txt.*超过 220,000 字节/u);
+    box.write("js/one.js", "x".repeat(125500)); box.write("js/two.js", "y".repeat(125500)); box.commit();
+    failed(box.run(), /changes\.txt.*超过 250,000 字节/u);
     assert.deepEqual(fs.readFileSync(changePath), before, "failed sync does not rewrite prior output");
     assert.equal(fs.readFileSync(path.join(box.output, ".review-base"), "utf8"), box.base + "\n");
   } finally { box.close(); }
