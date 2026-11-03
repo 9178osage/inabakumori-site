@@ -91,6 +91,13 @@ test("frontend talks only to the hardcoded HTTPS API and never renders server da
   const style = page404.match(/<style>([\s\S]*?)<\/style>/)[1];
   const hash = require("node:crypto").createHash("sha256").update(style).digest("base64");
   assert.ok(csp404.includes(`'sha256-${hash}'`), "404 style hash must match its inline style");
+  // The 404 page shows all three languages at once and runs no script at all.
+  assert.doesNotMatch(page404, /<script/iu, "404 page must not contain any script");
+  assert.doesNotMatch(csp404, /script-src/u, "404 CSP must not allow any script");
+  for (const text of ["这片雨云暂时找不到了。", "This page has drifted away.", "このページは見つかりませんでした。", "返回观测站", "Back to the station", "観測所に戻る"]) {
+    assert.ok(page404.includes(text), `404 page shows ${text}`);
+  }
+  assert.doesNotMatch(page404, /data-language|hidden/u, "no language is hidden on the 404 page");
 });
 
 test("the site refuses to render inside another site's frame", () => {

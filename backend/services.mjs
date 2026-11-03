@@ -198,14 +198,22 @@ export function nicknameSkeleton(value) {
   return normalizeCommentForComparison([...String(value ?? "").normalize("NFKC")].map(character => CONFUSABLE_LETTERS.get(character) ?? character).join(""))
     // Drop accents on Latin letters only; kana voicing marks (ば) must stay.
     .normalize("NFD").replace(/([a-z])\p{M}+/gu, "$1").normalize("NFC")
-    .replace(/[i1]/gu, "l").replace(/⻓/gu, "长").replace(/0/gu, "o").replace(/rn/gu, "m").replace(/vv/gu, "w");
+    .replace(/[i1]/gu, "l").replace(/⻓/gu, "长").replace(/[⻑⻒镸]/gu, "長").replace(/0/gu, "o").replace(/rn/gu, "m").replace(/vv/gu, "w");
 }
 const RESERVED_NICKNAME_WORDS = new RegExp(`(?:^|[^a-z0-9])(?:${["admin", "administrator", "moderator", "mod", "webmaster", "official", "owner", "staff", "inabakumori", "inaba kumori"]
   .map(word => nicknameSkeleton(word).replace(/ /gu, "\\s*")).join("|")})(?=$|[^a-z0-9])`, "u");
-export function isReservedNickname(nickname) {
-  const folded = nicknameSkeleton(nickname);
+// "admin1", "admin123", "1mod" or "站长!!" are the reserved word padded with a few digits or symbols,
+// so a copy with leading/trailing digits, punctuation and symbols trimmed is checked as well. Digits
+// are trimmed before the skeleton turns 1/0 into l/o; letters inside a word still decide ("Madmin",
+// "administrate2" and "user01" stay allowed).
+const NICKNAME_PADDING = /^[\s\p{N}\p{P}\p{S}]+|[\s\p{N}\p{P}\p{S}]+$/gu;
+function reservedSkeleton(folded) {
   const compact = folded.replace(/[\s\p{P}\p{S}]/gu, "");
   return RESERVED_NICKNAME_PARTS.some(part => compact.includes(part)) || RESERVED_NICKNAME_WORDS.test(folded);
+}
+export function isReservedNickname(nickname) {
+  const trimmed = String(nickname ?? "").normalize("NFKC").replace(NICKNAME_PADDING, "");
+  return reservedSkeleton(nicknameSkeleton(nickname)) || (trimmed.length > 0 && reservedSkeleton(nicknameSkeleton(trimmed)));
 }
 
 // Short deploy identifier for /healthz; only a public git commit prefix, never env details.

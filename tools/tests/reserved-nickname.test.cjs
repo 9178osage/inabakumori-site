@@ -35,3 +35,13 @@ test("lookalike letters cannot spell a reserved nickname (audit B6)", async () =
   assert.equal(nicknameSkeleton("ば"), "ば", "kana voicing marks are kept");
   assert.equal(nicknameSkeleton("аdmin"), nicknameSkeleton("admin"));
 });
+
+test("radical forms and a reserved word padded with digits or symbols are caught, ordinary names are not", async () => {
+  const { isReservedNickname } = await import("../../backend/services.mjs");
+  for (const name of ["站⻑", "本站⻑", "站⻒", "admin1", "admin_", "admin123", "Admin_2024", "1admin", "#admin#", "admin!!", "mod1", "m0d1", "owner99", "staff-01", "站长1", "站⻑123", "official.", "inabakumori2"]) {
+    assert.equal(isReservedNickname(name), true, name);
+  }
+  for (const name of ["Adam", "admiral", "Madmin", "badminton1", "administrate2", "admins_fan", "modem3", "user01", "staffordshire", "長谷川", "长江", "小明", "站台", "店长", "雨天123", "2024", "___", "!!"]) {
+    assert.equal(isReservedNickname(name), false, name);
+  }
+});

@@ -3,28 +3,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-VEk6uEo/eFDzK2enbdY375QaDrN0y+8MqFDxeZGnLE8='; script-src 'sha256-RlIev89BwEsy+bKzc5sgmLTmU3msz7Gz382JPICJASw='; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-iAbA2LXdbDwCpFQA+PSVjmbUfh8UqiikzGHmTT6OpUE='; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#c4c4c0">
 <title>404 · 气象观测站</title>
 <style>
-  :lang(en){font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}:lang(ja){font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans CJK JP",sans-serif}*{box-sizing:border-box}[data-language]:not([hidden]){display:block}body{margin:0;min-height:100svh;display:grid;place-items:center;background:#c4c4c0;color:#20252a;font:16px/1.8 "PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif;padding:28px}main{max-width:540px}small{letter-spacing:.15em;font-size:11px}h1{font-size:64px;margin:20px 0 0;font-weight:500}p{color:#575e61}a{display:inline-block;padding:12px 22px;background:#20252a;color:#fff;text-decoration:none;border-radius:6px}a:focus-visible{outline:3px solid #68796d;outline-offset:4px}@media(prefers-color-scheme:dark){body{background:#171b1f;color:#eef1f3}p{color:#adb6bc}a{background:#eef1f3;color:#171b1f}}
+  :lang(en){font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}:lang(ja){font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans CJK JP",sans-serif}*{box-sizing:border-box}body{margin:0;min-height:100svh;display:grid;place-items:center;background:#c4c4c0;color:#20252a;font:16px/1.8 "PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif;padding:28px}main{max-width:540px}small{letter-spacing:.15em;font-size:11px}h1{font-size:64px;margin:20px 0 0;font-weight:500}p{color:#575e61}a{display:inline-block;padding:12px 22px;background:#20252a;color:#fff;text-decoration:none;border-radius:6px}a:focus-visible{outline:3px solid #68796d;outline-offset:4px}@media(prefers-color-scheme:dark){body{background:#171b1f;color:#eef1f3}p{color:#adb6bc}a{background:#eef1f3;color:#171b1f}}
 </style>
 <main>
   <small lang="en">INABAKUMORI / WEATHER OBSERVATION STATION</small>
   <h1>404</h1>
-  <p><span data-language="zh">这片雨云暂时找不到了。</span><span lang="en" data-language="en">This page has drifted away.</span><span lang="ja" data-language="ja">このページは見つかりませんでした。</span></p>
-  <a href="/"><span data-language="zh">返回观测站</span><span lang="en" data-language="en">Back to the station</span><span lang="ja" data-language="ja">観測所に戻る</span></a>
+  <p>这片雨云暂时找不到了。<br><span lang="en">This page has drifted away.</span><br><span lang="ja">このページは見つかりませんでした。</span></p>
+  <a href="/">返回观测站 / <span lang="en">Back to the station</span> / <span lang="ja">観測所に戻る</span></a>
 </main>
-<script>
-  try {
-    const language = localStorage.getItem("language") || "zh";
-    if (["zh", "en", "ja"].includes(language)) {
-      document.documentElement.lang = { zh: "zh-CN", en: "en", ja: "ja" }[language];
-      document.title = { zh: "404 · 气象观测站", en: "404 · Weather Observation Station", ja: "404 · 気象観測所" }[language];
-      document.querySelectorAll("[data-language]").forEach(element => { element.hidden = element.dataset.language !== language; });
-    }
-  } catch { /* Keep the multilingual fallback if storage is unavailable. */ }
-</script>
 </html>
