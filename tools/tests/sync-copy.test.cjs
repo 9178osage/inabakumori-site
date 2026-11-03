@@ -11,6 +11,8 @@ const OUT = "inabakumori-site-all-code";
 const GUIDE = "0-使用说明.txt";
 const X_POSTS_CAP = 140_000_000;
 const CAP = 130_000;
+const CHANGES_CAP = 200_000;
+const limitFor = name => name === "changes.txt" ? CHANGES_CAP : name.startsWith("4-x-posts-") ? X_POSTS_CAP : CAP;
 const exclusions = ["js/auth.js", "package-lock.json", "backend/package-lock.json", ".env.fixture",
   "backend/comments.db", "keys/private-key.pem", "dist/generated.js", "images/picture.png", "binary.dat"];
 
@@ -64,7 +66,7 @@ function copySections(box) {
   const found = new Map();
   for (const name of textFiles(box).filter(name => /^[1-4]-/.test(name))) {
     const blob = fs.readFileSync(path.join(box.output, name));
-    assert.ok(blob.length <= (name.startsWith("4-x-posts-") ? X_POSTS_CAP : CAP), name);
+    assert.ok(blob.length <= limitFor(name), name);
     let offset = 0;
     while (offset < blob.length) {
       const header = /^===== ([^\n]+) =====\n/u.exec(blob.subarray(offset).toString("utf8"));
@@ -95,8 +97,9 @@ test("tracked generator creates the ignored output, exports itself and preserves
     const head = box.git("rev-parse", "--short", "HEAD");
     assert.match(fs.readFileSync(path.join(box.output, GUIDE), "utf8"), new RegExp(`对应提交：${head}`));
     assert.match(fs.readFileSync(path.join(box.output, GUIDE), "utf8"), /python3 tools\/sync-copy\.py/u);
-    for (const name of textFiles(box)) assert.ok(fs.statSync(path.join(box.output, name)).size <= CAP, name);
+    for (const name of textFiles(box)) assert.ok(fs.statSync(path.join(box.output, name)).size <= limitFor(name), name);
     assert.match(fs.readFileSync(path.join(box.output, GUIDE), "utf8"), /每个 txt 不超过 130,000 字节/u);
+    assert.match(fs.readFileSync(path.join(box.output, GUIDE), "utf8"), /changes\.txt 不超过 200,000 字节/u);
     assert.doesNotMatch(fs.readFileSync(path.join(box.output, GUIDE), "utf8"), /150,000|优先控制在 10/u);
     assert.equal(fs.existsSync(path.join(box.output, ".review-base")), false, "default fallback does not invent a saved baseline");
   } finally { box.close(); }
@@ -195,7 +198,7 @@ test("X shards stay separate from complete code and tests; their manifest stays 
     assert.match(guide, /日常前后端源码、测试与文档体检/u);
     assert.match(guide, /第 4 组帖子正文每个 txt 不超过 140,000,000 字节（140 MB）/u);
     assert.ok(guide.indexOf("4-x-posts-1.txt") > guide.indexOf("需要复核帖子正文或提供全部文本时"));
-    for (const name of textFiles(box).filter(name => !name.startsWith("4-x-posts-"))) assert.ok(fs.statSync(path.join(box.output, name)).size <= CAP);
+    for (const name of textFiles(box).filter(name => !name.startsWith("4-x-posts-"))) assert.ok(fs.statSync(path.join(box.output, name)).size <= limitFor(name));
     const dataVolume = path.join(box.output, "4-x-posts-1.txt");
     fs.appendFileSync(dataVolume, "TAMPERED");
     failed(box.run(["--check"]), /不一致/u);
@@ -230,7 +233,7 @@ test("committed X post shards and their manifest are exported whole with exact U
     assert.equal(sections.get(first.file), sections.get(second.file), "small X shards are combined in the separate data group");
     assert.ok(sections.has("data/x-posts/manifest.json"));
     assert.equal(sections.size, box.sources.size - exclusions.length);
-    for (const name of textFiles(box)) assert.ok(fs.statSync(path.join(box.output, name)).size <= (name.startsWith("4-x-posts-") ? X_POSTS_CAP : CAP), name);
+    for (const name of textFiles(box)) assert.ok(fs.statSync(path.join(box.output, name)).size <= limitFor(name), name);
   } finally { box.close(); }
 });
 
@@ -244,7 +247,7 @@ test("large X post shard changes stay out of changes.txt, are listed by name, an
     box.commit();
     passed(box.run());
     const changes = fs.readFileSync(path.join(box.output, "changes.txt"), "utf8");
-    assert.ok(Buffer.byteLength(changes) <= CAP, "post data no longer inflates changes.txt");
+    assert.ok(Buffer.byteLength(changes) <= CHANGES_CAP, "post data no longer inflates changes.txt");
     for (const item of shards) {
       assert.ok(changes.includes(`# 帖子正文分片有变化（未列入差异，见第 4 组）: ${item.file}\n`), item.file);
       assert.ok(!changes.includes(`+++ b/${item.file}`), "shard bodies are not diffed");
@@ -288,7 +291,7 @@ test("tampered copy bytes and uncommitted source changes fail without rewriting 
   } finally { box.close(); }
 });
 
-test("whole-source packing keeps each volume below 130000 bytes and rejects oversize sources and diffs", () => {
+test("whole-source packing keeps each volume below 130000 bytes and rejects oversize sources", () => {
   const packed = fixture({ "js/one.js": "x".repeat(90000), "js/two.js": "y".repeat(90000) });
   try {
     passed(packed.run()); const sections = copySections(packed);
@@ -296,15 +299,39 @@ test("whole-source packing keeps each volume below 130000 bytes and rejects over
   } finally { packed.close(); }
   const source = fixture({ "js/large.js": "x".repeat(131000) });
   try { failed(source.run(), /单个文件就超过 130,000 字节/u); } finally { source.close(); }
-  const diff = fixture();
+});
+
+test("changes allow up to 200000 bytes while preserving the saved review base and prior copy on failure", () => {
+  const box = fixture();
   try {
-    diff.write("js/one.js", "x".repeat(65000)); diff.write("js/two.js", "y".repeat(65000)); diff.commit();
-    const bytes = Buffer.byteLength(diff.git("diff", "--no-ext-diff", diff.base, "HEAD"));
-    assert.ok(bytes > CAP && bytes < 150000, "the diff fits the old cap but exceeds the new one");
-    fs.mkdirSync(diff.output); fs.writeFileSync(path.join(diff.output, ".review-base"), diff.base + "\n");
-    failed(diff.run(), /changes\.txt.*超过 130,000 字节/u);
-    assert.equal(fs.readFileSync(path.join(diff.output, ".review-base"), "utf8"), diff.base + "\n", "oversize diff never advances the saved base");
-  } finally { diff.close(); }
+    box.write("js/one.js", "x".repeat(65000)); box.write("js/two.js", "y".repeat(65000)); box.commit();
+    fs.mkdirSync(box.output); fs.writeFileSync(path.join(box.output, ".review-base"), box.base + "\n");
+    passed(box.run()); passed(box.run(["--check"]));
+    const changePath = path.join(box.output, "changes.txt");
+    const before = fs.readFileSync(changePath);
+    assert.ok(before.length > CAP && before.length <= CHANGES_CAP, "diffs between the two limits are retained");
+    fs.appendFileSync(changePath, Buffer.alloc(CHANGES_CAP + 1 - before.length, 0x20));
+    failed(box.run(["--check"]), /changes\.txt 超过 200,000 字节/u);
+    fs.writeFileSync(changePath, before);
+    box.write("js/one.js", "x".repeat(105000)); box.write("js/two.js", "y".repeat(105000)); box.commit();
+    failed(box.run(), /changes\.txt.*超过 200,000 字节/u);
+    assert.deepEqual(fs.readFileSync(changePath), before, "failed sync does not rewrite prior output");
+    assert.equal(fs.readFileSync(path.join(box.output, ".review-base"), "utf8"), box.base + "\n");
+  } finally { box.close(); }
+});
+
+test("changes retain all changed lines with two lines of surrounding context", () => {
+  const box = fixture();
+  try {
+    box.write("docs/context.md", "pre-three\npre-two\npre-one\nold line\npost-one\npost-two\npost-three\n");
+    const base = box.commit();
+    box.write("docs/context.md", "pre-three\npre-two\npre-one\nnew line\npost-one\npost-two\npost-three\n"); box.commit();
+    passed(box.run([base])); passed(box.run(["--check"]));
+    const changes = fs.readFileSync(path.join(box.output, "changes.txt"), "utf8");
+    assert.ok(changes.includes(" pre-two\n pre-one\n-old line\n+new line\n post-one\n post-two\n"));
+    // git may echo the line before a hunk in its "@@ … @@" header; only diff body lines count as context.
+    assert.ok(!changes.includes("\n pre-three\n") && !changes.includes("post-three"), "context is limited to two lines");
+  } finally { box.close(); }
 });
 
 test("TXT count follows capacity beyond fifteen with complete unique source sections", () => {
@@ -317,7 +344,7 @@ test("TXT count follows capacity beyond fifteen with complete unique source sect
       assert.doesNotMatch(result.stdout, /首选|超过.*个 txt/u);
       assert.equal(copySections(box).size, box.sources.size - exclusions.length);
       assert.ok(textFiles(box).length > (count === 8 ? 10 : 15));
-      for (const name of textFiles(box)) assert.ok(fs.statSync(path.join(box.output, name)).size <= CAP, name);
+      for (const name of textFiles(box)) assert.ok(fs.statSync(path.join(box.output, name)).size <= limitFor(name), name);
       const numeric = names => [...names].sort((a, b) => Number(a.match(/-(\d+)\.txt$/u)[1]) - Number(b.match(/-(\d+)\.txt$/u)[1]));
       const listed = [...fs.readFileSync(path.join(box.output, GUIDE), "utf8").matchAll(/^  (1-app-code-\d+\.txt)$/gmu)].map(match => match[1]);
       const printed = [...result.stdout.matchAll(/^  (1-app-code-\d+\.txt)\s+\d+ B$/gmu)].map(match => match[1]);
