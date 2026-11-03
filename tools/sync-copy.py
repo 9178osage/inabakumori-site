@@ -3,7 +3,7 @@
 
 规则（用户 2026-10-20 将代码上限恢复为 130,000 字节，帖子正文单独归档）：
   1. 每段以 `===== 文件路径 =====` 开头，内容与 `git show HEAD:<路径>` 逐字节相同。
-  2. 按文件拆分，单个文件绝不切开；代码和说明每个 txt 不超过 CAP 字节，changes.txt 不超过 CHANGES_CAP 字节。差异保留两行上下文，不含帖子正文分片，只列出最多 10 个变化的分片名，其余计数。
+  2. 按文件拆分，单个文件绝不切开；代码和说明每个 txt 不超过 CAP 字节，changes.txt 不超过 CHANGES_CAP 字节。差异保留一行上下文，不含帖子正文分片，只列出最多 10 个变化的分片名，其余计数。
   3. 四组互不重叠：1-app-code / 2-tools-tests / 3-docs / 4-x-posts；帖子正文上限为 X_POSTS_CAP。
   4. txt 文件数量按完整源文件体积自动调整，包含使用说明和 changes.txt。
   5. 只读 git 跟踪的文件，排除 js/auth.js（源码是 tools/auth-src.js）、两个 package-lock.json、
@@ -202,7 +202,7 @@ def changes(base):
                 break
         else:
             paths.append(p)
-    diff = git("--literal-pathspecs", "diff", "--no-ext-diff", "--no-textconv", "--no-color", "--no-renames", "--unified=2",
+    diff = git("--literal-pathspecs", "diff", "--no-ext-diff", "--no-textconv", "--no-color", "--no-renames", "--unified=1",
                f"{base}..HEAD", "--", *paths) if paths else b""
     head = git("rev-parse", "--short", "HEAD").decode().strip()
     # 分片名单最多列 SHARD_NOTE_NAMES 个，其余只计数，保证说明行本身不会挤占 changes.txt 的上限。
@@ -241,7 +241,7 @@ def guide(base, names):
 标记后的源码逐字节保留，包括缩进、空格、换行及是否有末尾换行。
 文件之间额外的两个换行属于分隔框架，不属于源码。
 不要手动重排或改写分卷。粘贴到聊天时可另加代码围栏，并保留文件名和缩进。
-前三组和说明每个 txt 不超过 {CAP:,} 字节；changes.txt 不超过 {CHANGES_CAP:,} 字节，差异保留两行上下文。
+前三组和说明每个 txt 不超过 {CAP:,} 字节；changes.txt 不超过 {CHANGES_CAP:,} 字节，差异保留一行上下文。
 第 4 组帖子正文每个 txt 不超过 {X_POSTS_CAP:,} 字节（{X_POSTS_CAP / 1_000_000:g} MB）。
 数量按完整源文件体积自动调整，不丢弃已提交帖子正文。
 

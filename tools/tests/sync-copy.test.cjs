@@ -320,7 +320,7 @@ test("changes allow up to 200000 bytes while preserving the saved review base an
   } finally { box.close(); }
 });
 
-test("changes retain all changed lines with two lines of surrounding context", () => {
+test("changes retain all changed lines with one line of surrounding context", () => {
   const box = fixture();
   try {
     box.write("docs/context.md", "pre-three\npre-two\npre-one\nold line\npost-one\npost-two\npost-three\n");
@@ -328,9 +328,9 @@ test("changes retain all changed lines with two lines of surrounding context", (
     box.write("docs/context.md", "pre-three\npre-two\npre-one\nnew line\npost-one\npost-two\npost-three\n"); box.commit();
     passed(box.run([base])); passed(box.run(["--check"]));
     const changes = fs.readFileSync(path.join(box.output, "changes.txt"), "utf8");
-    assert.ok(changes.includes(" pre-two\n pre-one\n-old line\n+new line\n post-one\n post-two\n"));
+    assert.ok(changes.includes(" pre-one\n-old line\n+new line\n post-one\n"));
     // git may echo the line before a hunk in its "@@ … @@" header; only diff body lines count as context.
-    assert.ok(!changes.includes("\n pre-three\n") && !changes.includes("post-three"), "context is limited to two lines");
+    assert.ok(!changes.includes("\n pre-two\n") && !changes.includes("\n post-two\n"), "context is limited to one line");
   } finally { box.close(); }
 });
 
