@@ -230,6 +230,27 @@ class BackupTests(unittest.TestCase):
         self.assertNotIn("cleanup_skipped", result)
         self.assertFalse(ancient.exists())
 
+    def test_guard_keeps_firing_on_later_days_until_comments_return(self):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        nine, empty = self.many(9), self.many(0)
+        self.named(now - datetime.timedelta(days=1), "8888888888888888", nine)
+        ancient = self.named(now - datetime.timedelta(days=900), "9999999999999999", nine)
+        for day in range(3):
+            before = set(self.files())
+            network, _ = self.network(empty)
+            with network:
+                result = REMOTE.backup(str(self.config))
+            self.assertEqual(result.get("cleanup_skipped"), "comment_drop", "day %d" % day)
+            self.assertEqual(result["previous_comments"], 9)
+            self.assertEqual(result["pruned"], 0)
+            self.assertTrue(before <= set(self.files()), "nothing may be deleted while comments are missing")
+        self.assertTrue(ancient.exists())
+        network, _ = self.network(nine)
+        with network:
+            result = REMOTE.backup(str(self.config))
+        self.assertNotIn("cleanup_skipped", result)
+        self.assertFalse(ancient.exists())
+
     def test_small_comment_counts_are_still_guarded(self):
         self.assertTrue(REMOTE.sharp_drop({"comments": 9}, {"comments": 0}, 50))
         self.assertTrue(REMOTE.sharp_drop({"comments": 9}, {"comments": 4}, 50))

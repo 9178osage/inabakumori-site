@@ -184,12 +184,18 @@ def owned_snapshots(directory, exclude=None):
 
 
 def previous_counts(directory, exclude):
-    """Counts from the newest readable earlier snapshot, or None."""
+    """Counts from the newest readable earlier snapshot that has comments, or None.
+
+    Counts are read from the snapshot files themselves. Empty snapshots are
+    skipped so a kept 0-comment snapshot never becomes the reference, and the
+    guard keeps firing every day until comments return."""
     for _, name in owned_snapshots(directory, exclude):
         try:
-            return verify_snapshot(os.path.join(directory, name))
+            counts = verify_snapshot(os.path.join(directory, name))
         except Exception:
             continue
+        if counts["comments"] > 0:
+            return counts
     return None
 
 

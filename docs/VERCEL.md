@@ -90,6 +90,6 @@ node backend/migrate-comments.mjs --source /private/backup/comments.db --apply
 
 Neon Free 的恢复历史最多 6 小时、手动快照限 1 个，不包含定时备份；不能把免费数据库接入等同持续异地备份已建立。[Neon 方案说明](https://neon.com/docs/introduction/plans)
 
-独立快照使用 `python3 tools/remote-backup.py /private/path/backup-config.json`。私有 JSON 包含 `url`（当前生产 `/api/admin/backup` 的完整 HTTPS 地址）、`token`、`directory`（绝对路径）及可选的分层保留参数：`retention_days`（默认 30，期间每份都留）、`weekly_weeks`（默认 12，此后每 ISO 周留最新一份）、`monthly_months`（默认 12，此后每月留最新一份）、`max_drop_percent`（默认 50）；配置与目录仅允许所有者访问，不放入 Git。工具拒绝重定向，限制下载体积，校验 SQLite 完整性、留言结构与 ID 序列后才保存，失败不轮换旧备份；成功后只按上述分层清理其自有命名的快照（按文件名中的 UTC 时间）。若新快照的留言数比上一份可读快照少了 `max_drop_percent`% 以上（上一份至少 1 条时就判断，少量留言全部消失也算），保存新快照但跳过清理、保留全部旧快照，并以退出码 2 提示人工核对。它不包含 SuperTokens 的身份、密码或会话备份。
+独立快照使用 `python3 tools/remote-backup.py /private/path/backup-config.json`。私有 JSON 包含 `url`（当前生产 `/api/admin/backup` 的完整 HTTPS 地址）、`token`、`directory`（绝对路径）及可选的分层保留参数：`retention_days`（默认 30，期间每份都留）、`weekly_weeks`（默认 12，此后每 ISO 周留最新一份）、`monthly_months`（默认 12，此后每月留最新一份）、`max_drop_percent`（默认 50）；配置与目录仅允许所有者访问，不放入 Git。工具拒绝重定向，限制下载体积，校验 SQLite 完整性、留言结构与 ID 序列后才保存，失败不轮换旧备份；成功后只按上述分层清理其自有命名的快照（按文件名中的 UTC 时间）。若新快照的留言数比上一份可读快照少了 `max_drop_percent`% 以上（参照之前最近一份能读取且留言数大于 0 的快照，少量留言全部消失也算；0 条和读不出的快照不作参照，所以留言恢复前每天都会继续跳过清理并提示），保存新快照但跳过清理、保留全部旧快照，并以退出码 2 提示人工核对。它不包含 SuperTokens 的身份、密码或会话备份。
 
 维护者机器使用本工具的私有安装副本每日备份；需要机器开机、用户登录且联网，不能宣称全天候云备份。应用快照导出为兼容的 SQLite 文件，便于离线核对与恢复演练；导出文件同样含私密留言及 user ID，不作为公开构建产物。成功备份响应的 `X-Backend-Node-Version` 仅向持有备份令牌的请求提供实际运行时版本；客户端日志保留版本证据，便于确认平台补丁。定期检查备份新鲜度、恢复可用性、数据库连接量和共享限流表的清理情况。
