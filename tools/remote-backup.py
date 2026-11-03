@@ -309,6 +309,16 @@ def backup(config_filename):
     return {**result, "pruned": removed, "cleanup_errors": failed}
 
 
+def review_line(result, guard_path):
+    """One summary line for backup.log / NEEDS-REVIEW.txt; the wrapper copies it verbatim."""
+    if result.get("cleanup_skipped") == "guard_state_unreadable":
+        cause = "drop guard state is damaged or unreadable (new snapshot has %d comments)" % result["comments"]
+    else:
+        cause = "comment count dropped sharply (reference %d, new %d)" % (result["previous_comments"], result["comments"])
+    return ("NEEDS REVIEW: " + cause + "; snapshot saved, cleanup skipped, nothing deleted. If the comments were deleted "
+            "intentionally, delete " + guard_path + " to release the guard. Details in backup-error.log.")
+
+
 def main(args):
     if len(args) != 1:
         print("Usage: remote-backup.py /absolute/private/config.json", file=sys.stderr)
@@ -323,7 +333,9 @@ def main(args):
     if "recovered_from" in result:
         print("Comment count recovered to at least half of the pre-drop baseline (%d); drop guard cleared and cleanup resumed." % result["recovered_from"])
     if result.get("cleanup_skipped"):
-        print("Comment count dropped sharply since the previous snapshot, or the drop guard state is unreadable; cleanup skipped and all snapshots kept. Review before deleting anything; delete " + GUARD_STATE + " in the backup directory only after confirming a deliberate deletion.", file=sys.stderr)
+        line = review_line(result, os.path.join(load_config(args[0])["directory"], GUARD_STATE))
+        print(line)
+        print(line, file=sys.stderr)
         return 2
     return 0
 

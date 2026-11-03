@@ -7,6 +7,8 @@ import os
 from pathlib import Path
 import sqlite3
 import stat
+import subprocess
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -295,6 +297,66 @@ class BackupTests(unittest.TestCase):
         self.assertEqual(self.run_day(nine)[0], 2)
         self.assertTrue(before <= set(self.files()))
         self.assertTrue(ancient.exists() and state.exists())
+
+    def review_output(self, body):
+        network, _ = self.network(body)
+        out, err = io.StringIO(), io.StringIO()
+        with network, contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = REMOTE.main([str(self.config)])
+        return code, [l for l in out.getvalue().splitlines() if l.startswith("NEEDS REVIEW: ")], err.getvalue()
+
+    def test_review_line_names_the_drop_with_counts_and_release_path(self):
+        nine, four, ancient, state = self.drop_setup()
+        code, lines, err = self.review_output(four)
+        self.assertEqual(code, 2)
+        self.assertEqual(len(lines), 1)
+        self.assertIn("comment count dropped sharply (reference 9, new 4)", lines[0])
+        self.assertIn("delete " + str(state) + " to release the guard", lines[0])
+        self.assertIn("backup-error.log", lines[0])
+        self.assertIn(lines[0], err)
+        self.assertTrue(ancient.exists())
+
+    def test_review_line_names_an_unreadable_guard_state(self):
+        nine, four, ancient, state = self.drop_setup()
+        state.write_text("{not json")
+        code, lines, _ = self.review_output(nine)
+        self.assertEqual(code, 2)
+        self.assertIn("drop guard state is damaged or unreadable", lines[0])
+        self.assertNotIn("dropped sharply", lines[0])
+        self.assertIn("delete " + str(state) + " to release the guard", lines[0])
+        self.assertTrue(ancient.exists() and state.exists())
+
+    def wrapper(self, line, code):
+        home = self.root / "wrapper"
+        home.mkdir()
+        (home / "remote-backup.py").write_text(
+            "import sys\nprint('Backup verified: comments=4')\nprint(%r)\nsys.exit(%d)\n" % (line, code))
+        env = dict(os.environ, INABAKUMORI_BACKUP_DIR=str(home), INABAKUMORI_BACKUP_PYTHON=sys.executable)
+        wrapper = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "run-backup.sh")
+        done = subprocess.run(["/bin/bash", wrapper], env=env, capture_output=True, text=True)
+        return done, home
+
+    def test_wrapper_copies_each_review_line_to_log_and_needs_review(self):
+        for line in ["NEEDS REVIEW: comment count dropped sharply (reference 9, new 4); delete /x/drop-guard.json to release the guard. Details in backup-error.log.",
+                     "NEEDS REVIEW: drop guard state is damaged or unreadable (new snapshot has 9 comments); delete /x/drop-guard.json to release the guard. Details in backup-error.log."]:
+            with self.subTest(line=line[:40]):
+                done, home = self.wrapper(line, 2)
+                self.assertEqual(done.returncode, 0)
+                self.assertIn("Backup verified", done.stdout)
+                self.assertNotIn("NEEDS REVIEW", done.stdout)
+                for name in ["backup.log", "NEEDS-REVIEW.txt"]:
+                    text = (home / name).read_text()
+                    self.assertEqual(text.count("NEEDS REVIEW"), 1)
+                    self.assertIn(line, text)
+                self.assertEqual(stat.S_IMODE((home / "NEEDS-REVIEW.txt").stat().st_mode), 0o600)
+                self.assertFalse((home / "backup-error.log").exists())
+                import shutil; shutil.rmtree(str(home))
+
+    def test_wrapper_records_other_failures_only_in_error_log(self):
+        done, home = self.wrapper("", 1)
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("FAILED: exit 1", (home / "backup-error.log").read_text())
+        self.assertFalse((home / "NEEDS-REVIEW.txt").exists())
 
     def test_small_comment_counts_are_still_guarded(self):
         self.assertTrue(REMOTE.sharp_drop({"comments": 9}, {"comments": 0}, 50))
