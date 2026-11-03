@@ -20,3 +20,18 @@ test("the server rejects reserved nicknames only for non-admins and exposes a bo
   const cache = fs.readFileSync("backend/public-comments-cache.mjs", "utf8");
   assert.doesNotMatch(cache, /user_?id/iu, "the public projection must not mention account IDs");
 });
+
+test("lookalike letters cannot spell a reserved nickname (audit B6)", async () => {
+  const { isReservedNickname, nicknameSkeleton } = await import("../../backend/services.mjs");
+  const lookalikes = [
+    "аdmin", "АDМІN", "αdmin", "ɑdmin", "ᴀᴅᴍɪɴ", "adm1n", "admín", "àdmïn", "ad\u200bmin", "аdmіn!",
+    "rnod", "m0d", "0wner", "оwner", "Оffісіаl", "staｆｆ", "ѕtaff", "ιnabakumοri", "1naba kumor1", "webrnaster",
+    "站⻓", "ＩＮＡＢＡＫＵＭＯＲＩ", "ⅰnabakumori"
+  ];
+  for (const name of lookalikes) assert.equal(isReservedNickname(name), true, name);
+  for (const name of ["badmіnton", "modern", "mood", "лето", "Ωmega", "κόσμος", "いなば", "ぱんだ", "user01", "milo", "nikola"]) {
+    assert.equal(isReservedNickname(name), false, name);
+  }
+  assert.equal(nicknameSkeleton("ば"), "ば", "kana voicing marks are kept");
+  assert.equal(nicknameSkeleton("аdmin"), nicknameSkeleton("admin"));
+});

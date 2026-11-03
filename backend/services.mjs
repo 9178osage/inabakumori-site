@@ -186,9 +186,24 @@ export function createAdminCheck(adminUserIds) {
 // "[站长]" badge on the wall cannot be imitated in a nickname. Role words match anywhere in a
 // CJK name; Latin role words match as whole words, so "badminton" stays allowed.
 const RESERVED_NICKNAME_PARTS = ["站长", "站長", "管理员", "管理員", "管理人", "版主", "官方", "公式", "稲葉曇", "稻叶昙", "稻葉曇", "稲叶昙", "いなばくもり", "イナバクモリ"];
-const RESERVED_NICKNAME_WORDS = /(?:^|[^a-z0-9])(?:admin|administrator|moderator|mod|webmaster|official|owner|staff|inabakumori|inaba\s*kumori)(?=$|[^a-z0-9])/u;
+// Lookalike letters (Cyrillic/Greek/small capitals, accents, 0/1/l/I, rn/m) would otherwise slip
+// past the list, so both the list and the nickname are compared as a "skeleton" in the spirit of
+// Unicode TR39: NFKC (fullwidth and compatibility forms), a confusables map, then the same folding.
+const CONFUSABLE_LETTERS = new Map(Object.entries({
+  a: "АаΑαɑᴀ", b: "ВвΒβʙЬ", c: "СсϲᴄⅽС", d: "ԁᴅⅾ", e: "ЕеΕεᴇ", g: "ɡɢ", h: "НнҺһΗʜ", i: "ІіΙιɪıӀ", j: "Јјϳᴊ",
+  k: "КкΚκᴋ", l: "ʟ", m: "МмΜᴍ", n: "ΝηɴП", o: "ОоΟοᴏσ", p: "РрΡρᴘ", q: "ԛ", r: "ʀг", s: "Ѕѕꜱ", t: "ТтΤτᴛ",
+  u: "υᴜμ", v: "νᴠ", w: "ԝωᴡ", x: "ХхΧχ", y: "УуΥʏү", z: "Ζᴢ"
+}).flatMap(([latin, lookalikes]) => [...lookalikes].map(character => [character, latin])));
+export function nicknameSkeleton(value) {
+  return normalizeCommentForComparison([...String(value ?? "").normalize("NFKC")].map(character => CONFUSABLE_LETTERS.get(character) ?? character).join(""))
+    // Drop accents on Latin letters only; kana voicing marks (ば) must stay.
+    .normalize("NFD").replace(/([a-z])\p{M}+/gu, "$1").normalize("NFC")
+    .replace(/[i1]/gu, "l").replace(/⻓/gu, "长").replace(/0/gu, "o").replace(/rn/gu, "m").replace(/vv/gu, "w");
+}
+const RESERVED_NICKNAME_WORDS = new RegExp(`(?:^|[^a-z0-9])(?:${["admin", "administrator", "moderator", "mod", "webmaster", "official", "owner", "staff", "inabakumori", "inaba kumori"]
+  .map(word => nicknameSkeleton(word).replace(/ /gu, "\\s*")).join("|")})(?=$|[^a-z0-9])`, "u");
 export function isReservedNickname(nickname) {
-  const folded = normalizeCommentForComparison(nickname);
+  const folded = nicknameSkeleton(nickname);
   const compact = folded.replace(/[\s\p{P}\p{S}]/gu, "");
   return RESERVED_NICKNAME_PARTS.some(part => compact.includes(part)) || RESERVED_NICKNAME_WORDS.test(folded);
 }
