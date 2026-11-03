@@ -7,6 +7,7 @@
   let loaded = false;
   let attempts = 0;
   let opening = false;
+  let unavailable = false;
   // Only picks the language of the loader's own error messages; blocked storage falls back to Chinese.
   const readLanguage = () => {
     try { return (window.siteStorage || localStorage).getItem("language"); } catch { return null; }
@@ -36,9 +37,12 @@
     }
     window.history.replaceState(window.history.state, "", resetUrl.pathname + resetUrl.search + resetUrl.hash);
   }
-  function markUnavailable() {
+  function updateLoaderButton() {
+    if (loaded) return;
     const button = document.getElementById("auth-btn");
-    if (button) button.innerText = text("登录加载失败，点击重试", "Sign-in unavailable. Retry", "ログインを再読み込み");
+    if (button) button.innerText = unavailable
+      ? text("登录加载失败，点击重试", "Sign-in unavailable. Retry", "ログインを再読み込み")
+      : text("登录 / 注册", "Sign In / Sign Up", "ログイン / 新規登録");
   }
   function loadAuth() {
     if (loaded) return Promise.resolve();
@@ -48,7 +52,8 @@
       loaded = true;
     }).catch(error => {
       loading = undefined;
-      markUnavailable();
+      unavailable = true;
+      updateLoaderButton();
       throw error;
     });
     return loading;
@@ -85,5 +90,7 @@
     if (event.key !== "auth-sync" || loaded || !hasLocalSession()) return;
     loadAuth().then(() => window.dispatchEvent(new Event("authchange"))).catch(() => {});
   });
+  window.addEventListener("languagechange", updateLoaderButton);
+  updateLoaderButton();
   if (hasLocalSession() || resetRequested) loadAuth().catch(() => {});
 })();

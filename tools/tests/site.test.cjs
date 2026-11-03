@@ -194,13 +194,13 @@ test("easter egg particles respect motion preferences and are cleared when close
       appendChild(child) { this.children.push(child); }
     };
     context.document.createElement = () => ({
-      className: "", style: { setProperty() {} }, children: [],
+      className: "", dataset: {}, style: { setProperty() {} }, children: [],
       append(...children) { this.children.push(...children); }
     });
     context.document.hidden = false;
     context.document.body = { children: [], classList: { add() {}, remove() {} } };
     elements["easter-egg-overlay"] = { classList: { add() {}, remove() {} }, setAttribute() {} };
-    elements["easter-egg-image"] = {};
+    elements["easter-egg-image"] = { dataset: {} };
     elements["easter-egg-close"] = { focus() {} };
     run("showEasterEgg()");
     assert.equal(layer.children.length, expected + streamerCount);

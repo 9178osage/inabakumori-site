@@ -22,6 +22,40 @@ test("calendar counts whole Japan-time days since the release and never goes neg
   assert.equal(daysSince(release, release - 86_400_000), 0);
 });
 
+test("English calendar uses the correct day form across updates and language switches", () => {
+  let now = Date.parse("2026-03-08T15:00:00.000Z"); // one JST day after release
+  class Clock extends Date {
+    constructor(...args) { super(...(args.length ? args : [now])); }
+    static now() { return now; }
+  }
+  const events = {};
+  const button = { addEventListener(type, fn) { events[type] = fn; }, setAttribute() {} };
+  const days = {};
+  const unit = { dataset: { zh: "天没有发新歌了", en: "days without a new song", ja: "日が経ちました" } };
+  const sheet = { dataset: { release: "2026-03-08T10:00:07.000Z" }, setAttribute() {} };
+  const window = { siteStorage: { getItem: key => key === "language" ? "en" : null, setItem() {} }, addEventListener() {}, setTimeout: () => 1, clearTimeout() {} };
+  const document = {
+    readyState: "complete", visibilityState: "visible", documentElement: { dataset: {} },
+    addEventListener(type, fn) { events[type] = fn; },
+    querySelector: selector => selector === ".calendar-sheet" ? sheet : null,
+    querySelectorAll: selector => selector === "[data-zh]" ? [unit] : [],
+    getElementById: id => ({ "calendar-days": days, "calendar-unit": unit, "calendar-lang-btn": button })[id] || null
+  };
+  vm.runInNewContext(read("js/calendar.js"), { window, document, Intl, Date: Clock, Math, Number, String });
+  assert.equal(days.textContent, "1");
+  assert.equal(unit.textContent, "day without a new song");
+  events.click();
+  assert.equal(unit.textContent, unit.dataset.ja);
+  events.click();
+  assert.equal(unit.textContent, unit.dataset.zh);
+  events.click();
+  assert.equal(unit.textContent, "day without a new song");
+  now += 86_400_000;
+  events.visibilitychange();
+  assert.equal(days.textContent, "2");
+  assert.equal(unit.textContent, "days without a new song");
+});
+
 test("calendar falls back to light when the media-query API is missing or returns nothing", () => {
   for (const matchMedia of [undefined, () => undefined, () => null, () => ({ matches: false }), () => ({ matches: true })]) {
     const window = {

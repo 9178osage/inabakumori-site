@@ -24,6 +24,8 @@
       if (!sheet || !daysElement || !Number.isFinite(release)) return;
       const days = daysSince(release);
       daysElement.textContent = String(days);
+      const unit = document.getElementById("calendar-unit");
+      if (unit && language === "en") unit.textContent = `${days === 1 ? "day" : "days"} without a new song`;
       const today = new Date();
       const format = options => new Intl.DateTimeFormat(locale(), { timeZone: "Asia/Tokyo", ...options }).format(today);
       const dateElement = document.getElementById("calendar-today");

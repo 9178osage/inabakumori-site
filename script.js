@@ -9,6 +9,7 @@ function commentErrorMessage(data, response) {
     DUPLICATE_COMMENT: ["相同内容请稍后再留言", "Please wait before posting the same message again."],
     GUEST_RATE_LIMITED: ["游客每小时最多留言 3 条，请稍后再试", "Guests can post up to 3 messages per hour. Please try again later."],
     RATE_LIMITED: ["留言发送过于频繁，请稍后再试", "Messages are being sent too quickly. Please try again later."],
+    IP_RATE_LIMITED: ["同一网络每小时最多留言 30 条，请稍后再试", "This network can post up to 30 messages per hour. Please try again later."],
     MEMBER_RATE_LIMITED: ["登录用户每小时最多留言 20 条，请稍后再试", "Signed-in members can post up to 20 messages per hour. Please try again later."],
     CLIENT_IDENTITY_UNAVAILABLE: ["暂时无法识别访客来源，请稍后重试。", "Your request source could not be identified. Please try again later."],
     TOO_MANY_LINE_BREAKS: ["留言换行太多，最多 15 个换行。", "Your message has too many line breaks (up to 15)."],
@@ -40,6 +41,11 @@ function applyLanguage() {
       element.setAttribute("href", href);
     }
   });
+  document.querySelectorAll("[data-title-zh][data-title-en]").forEach(element => {
+    element.title = element.dataset[`title${currentLanguage[0].toUpperCase()}${currentLanguage.slice(1)}`] || element.dataset.titleZh;
+  });
+  const easterImage = document.getElementById("easter-egg-image");
+  if (easterImage?.dataset?.memeNumber) updateEasterEggImageAlt(easterImage, easterImage.dataset.memeNumber);
   const glitchTitle = document.querySelector(".glitch");
   if (glitchTitle) {
     glitchTitle.setAttribute("data-text", glitchTitle.dataset[currentLanguage] || glitchTitle.dataset.zh);
@@ -884,7 +890,10 @@ function renderInlineSongTags(link) {
     views.dataset.ja = `YouTube · ${new Intl.NumberFormat("ja-JP", { notation: "compact", maximumFractionDigits: 1 }).format(song.viewCount)} 回再生 · ${song.viewsCheckedAt} 時点`;
     views.textContent = views.dataset[currentLanguage];
     const exactCount = song.viewCount.toLocaleString("en-US");
-    views.title = `${exactCount} 次播放 / views / 回再生 · ${song.viewsCheckedAt}`;
+    views.dataset.titleZh = `${exactCount} 次播放 · ${song.viewsCheckedAt}`;
+    views.dataset.titleEn = `${exactCount} ${song.viewCount === 1 ? "view" : "views"} · ${song.viewsCheckedAt}`;
+    views.dataset.titleJa = `${exactCount} 回再生 · ${song.viewsCheckedAt}`;
+    views.title = views.dataset[`title${currentLanguage[0].toUpperCase()}${currentLanguage.slice(1)}`];
     details.appendChild(views);
   }
   const tagList = document.createElement("span");
@@ -1264,6 +1273,9 @@ let easterEggInertState = [];
 // box animates in, so ignore backdrop clicks briefly (Escape and the close button still work).
 const EASTER_EGG_BACKDROP_GRACE_MS = 700;
 let easterEggIgnoreBackdropUntil = 0;
+function updateEasterEggImageAlt(image, number) {
+  image.alt = currentLanguage === "ja" ? `ランダムなミーム画像 ${number}` : currentLanguage === "zh" ? `随机表情包 ${number}` : `Random meme ${number}`;
+}
 function showEasterEgg() {
   const overlay = document.getElementById("easter-egg-overlay");
   const image = document.getElementById("easter-egg-image");
@@ -1276,7 +1288,8 @@ function showEasterEgg() {
     image.height = memeHeight;
   }
   image.src = MEME_FOLDER + filename;
-  image.alt = currentLanguage === "ja" ? `ランダムなミーム画像 ${randomNumber}` : currentLanguage === "zh" ? `随机表情包 ${randomNumber}` : `Random meme ${randomNumber}`;
+  image.dataset.memeNumber = String(randomNumber);
+  updateEasterEggImageAlt(image, randomNumber);
   easterEggOpen = true;
   easterEggCanClose = true;
   easterEggIgnoreBackdropUntil = Date.now() + EASTER_EGG_BACKDROP_GRACE_MS;
@@ -1308,7 +1321,12 @@ function createConfetti() {
       const title = document.createElement("strong");
       title.textContent = song?.title || "INABAKUMORI";
       const album = document.createElement("small");
-      album.textContent = song?.album || "";
+      if (song?.album === "SINGLES") {
+        album.dataset.zh = "单曲";
+        album.dataset.en = "Singles";
+        album.dataset.ja = "シングル";
+        album.textContent = album.dataset[currentLanguage];
+      } else album.textContent = song?.album || "";
       piece.append(number, title, album);
     } else piece.textContent = symbols[symbolIndex++ % symbols.length];
     piece.style.setProperty("--left", `${Math.random() * 100}%`);
