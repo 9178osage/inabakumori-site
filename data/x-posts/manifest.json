@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "count": 6111,
+  "count": 6112,
   "coverage": [
     {
       "creator": "inabakumori",
@@ -14,23 +14,8 @@
       ],
       "scannedRanges": [
         {
-          "from": "2018-03-30T05:31:06.000Z",
-          "to": "2026-10-18T18:36:00.000Z",
-          "status": "scanned"
-        },
-        {
           "from": "2015-12-16T07:54:05.000Z",
-          "to": "2026-10-18T18:36:00.000Z",
-          "status": "scanned"
-        },
-        {
-          "from": "2026-10-18T18:36:00.000Z",
-          "to": "2026-10-23T05:40:39.000Z",
-          "status": "scanned"
-        },
-        {
-          "from": "2026-10-23T05:40:39.000Z",
-          "to": "2026-10-26T22:44:00.000Z",
+          "to": "2026-11-04T13:35:00.000Z",
           "status": "scanned"
         }
       ],
@@ -51,37 +36,22 @@
       ],
       "scannedRanges": [
         {
-          "from": "2020-11-14T05:49:25.000Z",
-          "to": "2026-10-18T18:36:00.000Z",
-          "status": "scanned"
-        },
-        {
           "from": "2017-07-08T04:57:47.000Z",
-          "to": "2026-10-18T18:36:00.000Z",
-          "status": "scanned"
-        },
-        {
-          "from": "2026-10-18T18:36:00.000Z",
-          "to": "2026-10-23T05:40:39.000Z",
-          "status": "scanned"
-        },
-        {
-          "from": "2026-10-23T05:40:39.000Z",
-          "to": "2026-10-26T22:44:00.000Z",
+          "to": "2026-11-04T13:35:00.000Z",
           "status": "scanned"
         }
       ],
-      "count": 3540,
+      "count": 3541,
       "oldestAt": "2017-07-08T04:57:47.000Z",
-      "newestAt": "2026-10-21T10:42:38.000Z",
-      "lastCollectedAt": "2026-10-23T05:40:39.000Z"
+      "newestAt": "2026-11-04T09:34:40.000Z",
+      "lastCollectedAt": "2026-11-04T13:35:00.000Z"
     }
   ],
   "shards": [
     {
-      "file": "posts-38a52e7357147dccf3b95ebd1e9586840b0cdb8e49357346e9457f78841a0ea9.json",
-      "count": 203,
-      "sha256": "38a52e7357147dccf3b95ebd1e9586840b0cdb8e49357346e9457f78841a0ea9"
+      "file": "posts-ecf6604bdaf856f1d137ac91e77dccd1e82f9da8ef832edfab35111ed009d982.json",
+      "count": 204,
+      "sha256": "ecf6604bdaf856f1d137ac91e77dccd1e82f9da8ef832edfab35111ed009d982"
     },
     {
       "file": "posts-da8ef60178f2897a5b009196d3119e9bc5a0b0b668691caf17c7746e383a2f5b.json",
