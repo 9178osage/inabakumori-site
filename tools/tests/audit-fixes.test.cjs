@@ -83,7 +83,7 @@ test("every workflow job is time-boxed and only pushing jobs keep checkout crede
 
 test("published PNGs carry no text metadata (editor XMP, screen-capture window titles)", () => {
   const { execFileSync } = require("node:child_process");
-  for (const file of execFileSync("git", ["ls-files", "*.png"], { encoding: "utf8" }).split("\n").filter(Boolean)) {
+  for (const file of execFileSync("git", ["ls-files", "-z", "*.png"], { encoding: "utf8" }).split("\0").filter(Boolean)) {
     const data = fs.readFileSync(file);
     for (let offset = 8; offset < data.length;) {
       const length = data.readUInt32BE(offset);
