@@ -64,7 +64,7 @@ export function createStaticServer(directory = root) {
     }
   });
 }
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (import.meta.main) {
   const port = Number(process.env.FRONTEND_PORT || 5500);
   const server = createStaticServer();
   server.listen(port, "127.0.0.1", () => console.log(`Station preview: http://127.0.0.1:${port}${root.endsWith("dist") ? " (production build)" : ""}`));

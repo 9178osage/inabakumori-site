@@ -25,6 +25,8 @@
     if (/^\d{4}$/u.test(linked.year || "") && knownYears.has(linked.year)) year = linked.year;
     const langButton = document.getElementById("updates-lang-btn");
     const themeButton = document.getElementById("updates-theme-btn");
+    const ogDescription = document.querySelector('meta[property="og:description"]');
+    const shareDescriptions = { zh: ogDescription?.content, en: ogDescription?.dataset.en, ja: ogDescription?.dataset.ja };
     const systemTheme = window.matchMedia?.("(prefers-color-scheme: dark)");
     const text = (zh, en, ja) => ({ zh, en, ja })[language];
 
@@ -80,7 +82,8 @@
       const pageDescription = slice ? `${slice}${language === "en" ? ": " : "："}${baseDescription}` : baseDescription;
       if (description) description.content = pageDescription;
       document.querySelector('meta[property="og:title"]')?.setAttribute("content", document.title);
-      document.querySelector('meta[property="og:description"]')?.setAttribute("content", pageDescription);
+      const shareDescription = shareDescriptions[language] || shareDescriptions.zh;
+      if (ogDescription && shareDescription && ogDescription.content !== shareDescription) ogDescription.content = shareDescription;
       document.querySelectorAll(".x-post-translation[data-en]:not([data-zh])").forEach(element => {
         if (element.textContent.trim()) element.dataset.zh = element.textContent;
       });

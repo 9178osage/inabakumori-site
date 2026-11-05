@@ -2,10 +2,13 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
+const updatesSource = fs.readFileSync("updates.html", "utf8");
+const decode = value => value.replace(/&(amp|lt|gt|quot|#39);/gu, (_, name) => ({ amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'" })[name]);
 
 // Runs js/updates.js against a minimal DOM with a given ?query string.
-function load(search, archiveDataset = {}, language = null, dates = []) {
+function load(search, archiveDataset = {}, language = null, dates = [], html = updatesSource) {
   const element = (dataset = {}) => ({ dataset, hidden: false, textContent: "", attributes: {}, listeners: {},
+    get content() { return this.attributes.content; }, set content(value) { this.setAttribute("content", value); },
     setAttribute(name, value) { this.attributes[name] = value; }, removeAttribute(name) { delete this.attributes[name]; this.hidden = false; },
     addEventListener(type, handler) { this.listeners[type] = handler; }, querySelector: () => null });
   const entries = [
@@ -20,6 +23,12 @@ function load(search, archiveDataset = {}, language = null, dates = []) {
     return { dateTime, get textContent() { return value; }, set textContent(text) { value = text; timeWrites++; } };
   });
   const metadata = Object.fromEntries(['meta[name="description"]', 'meta[property="og:title"]', 'meta[property="og:description"]'].map(selector => [selector, element()]));
+  const shareMeta = metadata['meta[property="og:description"]'];
+  const shareTag = html.match(/<meta property="og:description"[^>]*>/u)?.[0] ?? "";
+  for (const [, name, value] of shareTag.matchAll(/(content|data-en|data-ja)="([^"]*)"/gu)) {
+    if (name === "content") shareMeta.content = decode(value);
+    else shareMeta.dataset[name.slice(5)] = decode(value);
+  }
   const document = {
     readyState: "complete", documentElement: { dataset: archiveDataset }, title: "",
     getElementById: id => ({ "updates-count": count, "updates-empty": empty, "updates-lang-btn": langButton })[id] || null,
@@ -125,28 +134,43 @@ test("the client title mirrors the build-time title for every language", async (
   }
 });
 
-test("language changes keep Open Graph metadata aligned with the current archive title and description", () => {
-  for (const dataset of [{}, { archiveCreator: "nknk", archivePage: "3" }]) {
-    const app = load("", dataset, "zh");
-    const check = language => {
+test("archive and source preview keep their share description through initialization and every language update", async () => {
+  const { renderXPostsOgDescription, xPostsPageTitle } = await import("../render-x-posts.mjs");
+  const sourceShare = { zh: "来自官方频道的作品记录。在声音与线条之间，记录新的消息。", en: "A record of work from the official channels, noting new releases between sound and line.", ja: "公式チャンネルからの作品記録。音と線のあいだで、新しい知らせを記録します。" };
+  for (const creator of ["all", "inabakumori", "nknk"]) for (const page of [1, 3]) {
+    const dataset = creator === "all" && page === 1 ? {} : { archiveCreator: creator, archivePage: String(page) };
+    const { title, description, descriptionPrefix } = xPostsPageTitle(creator, page);
+    const html = creator === "all" && page === 1 ? updatesSource : renderXPostsOgDescription(updatesSource, descriptionPrefix);
+    const check = (app, language) => {
       assert.equal(app.document.documentElement.lang, { zh: "zh-CN", en: "en", ja: "ja" }[language]);
-      assert.equal(app.metadata['meta[property="og:title"]'].attributes.content, app.document.title);
-      assert.equal(app.metadata['meta[property="og:description"]'].attributes.content, app.metadata['meta[name="description"]'].content);
-      assert.ok(app.metadata['meta[name="description"]'].content.length > 0);
+      assert.equal(app.document.title, title[language]);
+      assert.equal(app.metadata['meta[property="og:title"]'].content, title[language]);
+      assert.equal(app.metadata['meta[name="description"]'].content, description[language]);
+      assert.equal(app.metadata['meta[property="og:description"]'].content, descriptionPrefix[language] + sourceShare[language]);
     };
-    check("zh");
-    const originalDescription = app.metadata['meta[property="og:description"]'].attributes.content;
+    for (const language of ["zh", "en", "ja"]) check(load("", dataset, language, [], html), language);
+    const app = load("", dataset, "zh", [], html);
     for (const language of ["en", "ja", "zh"]) {
       app.langButton.listeners.click();
-      check(language);
-      if (language !== "zh") assert.notEqual(app.metadata['meta[property="og:description"]'].attributes.content, originalDescription);
+      check(app, language);
     }
     app.window.siteStorage.setItem("language", "en");
     app.events.storage({ key: "language", storageArea: app.window.localStorage });
-    check("en");
+    check(app, "en");
     app.window.siteStorage.setItem("language", "ja");
     app.events.pageshow();
-    check("ja");
+    check(app, "ja");
+  }
+});
+
+test("older cached archive markup keeps its original share copy if translations are missing", () => {
+  const html = '<meta property="og:description" content="档案原有的分享描述。"/>';
+  const app = load("", { archiveCreator: "nknk", archivePage: "3" }, "en", [], html);
+  const share = app.metadata['meta[property="og:description"]'];
+  for (const expectedLanguage of ["en", "ja", "zh"]) {
+    assert.equal(app.document.documentElement.lang, expectedLanguage === "zh" ? "zh-CN" : expectedLanguage);
+    assert.equal(share.content, "档案原有的分享描述。");
+    app.langButton.listeners.click();
   }
 });
 

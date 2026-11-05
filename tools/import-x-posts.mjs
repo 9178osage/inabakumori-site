@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readFile, lstat } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { importXPostsScan } from "./x-posts-data.mjs";
 
 export async function main(args = process.argv.slice(2)) {
@@ -17,6 +17,6 @@ export async function main(args = process.argv.slice(2)) {
   return result;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+if (import.meta.main) {
   main().catch(error => { console.error(error.message); process.exitCode = 1; });
 }

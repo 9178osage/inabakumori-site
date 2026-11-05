@@ -174,8 +174,8 @@ for (const creator of ["all", "inabakumori", "nknk"]) {
     assert.equal(title, [slice, "最新动态 · 稲葉曇与 NKNK"].filter(Boolean).join(" · "), `Archive title must name its slice: ${name}`);
     assert.equal(ogTitle, title, `Archive og:title must match the title: ${name}`);
     assert.ok(slice ? metaDescription.startsWith(`${slice}：`) : !metaDescription.includes("："), `Archive description must name its slice: ${name}`);
-    const ogDescription = pageHtml.match(/<meta property="og:description" content="([^"]*)"\/>/u)?.[1] ?? "";
-    assert.ok(ogDescription && (slice ? ogDescription.startsWith(`${slice}：`) : !ogDescription.includes(" · ")), `Archive og:description must name its slice: ${name}`);
+    const ogDescription = pageHtml.match(/<meta property="og:description" content="([^"]+)" data-en="[^"]+" data-ja="[^"]+"\/>/u)?.[1];
+    assert.ok(ogDescription && (slice ? ogDescription.startsWith(`${slice}：`) : !ogDescription.includes(" · ")), `Archive og:description must be localized and name its slice: ${name}`);
     assert.ok(pageHtml.includes(slice ? `data-archive-creator="${creator}" data-archive-page="${page}"` : '<html lang="zh-CN">'), `Archive slice attributes: ${name}`);
     // Page 1 carries the works snapshot; later pages link back to it instead of repeating it.
     assert.equal([...pageHtml.matchAll(/class="update-item"/gu)].length, page === 1 ? worksCount : 0, `Works snapshot must appear only on archive page 1: ${name}`);

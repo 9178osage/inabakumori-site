@@ -5,7 +5,6 @@ import { readFile, open, rename, rm } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import path from "node:path";
 import { parseChangelogTable } from "./check-changelog-table.mjs";
 import { requestGithubJson } from "./github-run-request.mjs";
 import { assertRepoPath } from "./safe-fs.mjs";
@@ -121,6 +120,6 @@ async function main() {
   const result = await recordCurrentDeployment({ token });
   console.log(`Current deployment ${result.head.slice(0, 7)}: ${result.reason}${result.runIds ? ` (${result.runIds.join(" / ")})` : ""}.`);
 }
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (import.meta.main) {
   main().catch(error => { console.error(error.message); process.exitCode = 1; });
 }

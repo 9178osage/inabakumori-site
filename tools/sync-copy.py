@@ -19,7 +19,6 @@ import codecs, os, re, stat, subprocess, sys, tempfile
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(REPO, "inabakumori-site-all-code")
-BASE_FILE = os.path.join(OUT, ".review-base")
 CAP = 130_000
 CHANGES_CAP = 250_000
 SHARD_NOTE_NAMES = 10
@@ -43,7 +42,10 @@ import runpy
 
 here = os.path.dirname(os.path.realpath(__file__))
 for root in (here, os.path.dirname(here)):
-    target = os.path.join(root, "tools", "sync-copy.py")
+    tools = os.path.join(root, "tools")
+    target = os.path.join(tools, "sync-copy.py")
+    if os.path.islink(tools) or os.path.islink(target):
+        raise SystemExit("Refusing symlink in tools/sync-copy.py path")
     if os.path.isfile(target):
         runpy.run_path(target, run_name="__main__")
         break
@@ -125,11 +127,18 @@ def volume_order(name):
     return (match.group(1), int(match.group(2)), name) if match else (name, 0, name)
 
 
-def git(*args):
+def git_environment():
     # 路径匹配由调用点决定，不能被终端继承的 pathspec 开关改写。
-    env = dict(os.environ, GIT_LITERAL_PATHSPECS="0", GIT_GLOB_PATHSPECS="0",
-               GIT_NOGLOB_PATHSPECS="0", GIT_ICASE_PATHSPECS="0")
-    r = subprocess.run(["git", *args], cwd=REPO, capture_output=True, env=env)
+    return dict(os.environ, GIT_LITERAL_PATHSPECS="0", GIT_GLOB_PATHSPECS="0",
+                GIT_NOGLOB_PATHSPECS="0", GIT_ICASE_PATHSPECS="0")
+
+
+def git_result(*args):
+    return subprocess.run(["git", *args], cwd=REPO, capture_output=True, env=git_environment())
+
+
+def git(*args):
+    r = git_result(*args)
     if r.returncode:
         sys.exit(f"git {' '.join(args)} 失败: {r.stderr.decode('utf-8', 'replace')[:200]}")
     return r.stdout
@@ -155,9 +164,16 @@ def is_text(data):
 
 def files():
     out = []
-    for p in git("ls-tree", "-r", "--name-only", "-z", "HEAD").decode().split("\0"):
-        if not p or not allowed(p):
+    for entry in git("ls-tree", "-r", "-z", "HEAD").split(b"\0"):
+        if not entry:
             continue
+        metadata, path = entry.split(b"\t", 1)
+        p = path.decode("utf-8")
+        if not allowed(p):
+            continue
+        # core.symlinks=false 会把已提交的符号链接检出为普通文本文件。
+        if metadata.startswith(b"120000 "):
+            sys.exit(f"{p} 源码路径不得使用符号链接")
         data = git("show", f"HEAD:{p}")
         if not is_text(data):
             continue
@@ -209,10 +225,31 @@ def build():
     return result
 
 
-def validate_base(base):
-    if not base or base.startswith("-") or any(character.isspace() for character in base):
-        sys.exit("无效的复核基线")
-    git("rev-parse", "--verify", "--end-of-options", f"{base}^{{commit}}")
+def read_review_base():
+    path = output_file(".review-base")
+    try:
+        with open(path, encoding="utf-8") as source:
+            return source.read().strip()
+    except FileNotFoundError:
+        return None
+    except UnicodeDecodeError:
+        return ""  # 损坏的基线与空基线都无效，不回退到其他提交。
+    except OSError:
+        sys.exit("无法读取 .review-base，请检查文件权限")
+
+
+def resolve_base(base):
+    if not base or base.startswith("-") or "\0" in base or any(character.isspace() for character in base):
+        return None
+    r = git_result("rev-parse", "--verify", "--quiet", "--end-of-options", f"{base}^{{commit}}")
+    return r.stdout.decode().strip() if r.returncode == 0 else None
+
+
+def validate_base(base, message="无效的复核基线"):
+    resolved = resolve_base(base)
+    if not resolved:
+        sys.exit(message)
+    return resolved
 
 
 def text_blobs(object_ids):
@@ -222,7 +259,8 @@ def text_blobs(object_ids):
         return accepted
     with tempfile.TemporaryFile() as errors:
         process = subprocess.Popen(["git", "cat-file", "--batch"], cwd=REPO,
-                                   stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=errors)
+                                   stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=errors,
+                                   env=git_environment())
         try:
             for object_id in sorted(object_ids):
                 process.stdin.write(object_id + b"\n")
@@ -297,13 +335,13 @@ def changes(base):
         p = path.decode("utf-8")
         if not allowed(p):
             continue
+        fields = metadata.split()
+        # 两端都须是普通文件或不存在，不导出符号链接目标和子模块记录。
+        if fields[0][1:] in (b"120000", b"160000") or fields[1] in (b"120000", b"160000"):
+            continue
         # 帖子正文分片属于第 4 组数据，不进入改动复核；只列出变化的分片名。
         if X_POSTS_FILE.fullmatch(p):
             shards.append(p)
-            continue
-        fields = metadata.split()
-        # gitlink 不是源码文本；已删除文件和类型变化同样检查两个版本。
-        if fields[0] == b":160000" or fields[1] == b"160000":
             continue
         ids = {value for value in fields[2:4] if value.strip(b"0")}
         candidates.append((p, ids))
@@ -385,20 +423,14 @@ def guide(base, names):
 
 def review_gap(base):
     # 临时指定较新的差异起点是允许的，所以缺口只提示、不判为失败，也不改 .review-base。
-    path = output_file(".review-base")
-    if not os.path.isfile(path):
+    saved = read_review_base()
+    if saved is None:
         return None
-    with open(path, "rb") as source:
-        saved = source.read().decode("utf-8", "replace").strip()
-    resolved = None
-    if saved and not saved.startswith("-") and not any(character.isspace() for character in saved):
-        r = subprocess.run(["git", "rev-parse", "--verify", "--quiet", "--end-of-options", f"{saved}^{{commit}}"],
-                           cwd=REPO, capture_output=True)
-        resolved = r.stdout.decode().strip() if r.returncode == 0 else None
+    resolved = resolve_base(saved)
     if not resolved:
         return ".review-base 不是有效提交，无法核对 changes.txt 是否覆盖复核基线以来的改动"
-    start = git("rev-parse", "--verify", "--end-of-options", f"{base}^{{commit}}").decode().strip()
-    if subprocess.run(["git", "merge-base", "--is-ancestor", start, resolved], cwd=REPO, capture_output=True).returncode == 0:
+    start = validate_base(base)
+    if git_result("merge-base", "--is-ancestor", start, resolved).returncode == 0:
         return None
     count = git("rev-list", "--count", f"{resolved}..{start}").decode().strip()
     return f"changes.txt 从 {base} 开始，未覆盖复核基线 {saved} 以来的全部改动：{saved}..{base}（{count} 个提交）不在差异中"
@@ -486,13 +518,13 @@ def main():
     extra = [n for n in os.listdir(OUT) if n.lower().endswith(".txt") and n != GUIDE and not GENERATED.match(n)]
     if extra:
         sys.exit(f"发现额外 txt，未写入；请维护者确认: {sorted(extra)}")
-    if args:
-        base = args[0]
-    elif os.path.exists(BASE_FILE):
-        base = open(BASE_FILE).read().strip()
+    saved = read_review_base() if not args else None
+    if saved is not None:
+        base = saved
+        validate_base(base, ".review-base 不是有效提交，无法生成 changes.txt")
     else:
-        base = "HEAD~1"
-    validate_base(base)
+        base = args[0] if args else "HEAD~1"
+        validate_base(base)
     vols = build()
     diff = changes(base)
     if len(diff) <= CHANGES_CAP:

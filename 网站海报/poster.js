@@ -1,3 +1,6 @@
+// Offline snapshot. The poster test checks these readings against the site data.
+const READINGS = [52, 107, 6112];
+
 const COPY = {
   zh: {
     obs: "REPORT 001 / 003 · ZH",
@@ -6,9 +9,9 @@ const COPY = {
     intro: ["一个因为太喜欢稲葉曇", "所以做出来的网站。"],
     panelK: "LATEST READINGS / 观测读数",
     reads: [
-      ["52", "首歌曲", "SONGS", "附 MV 链接、专辑、歌手与标签，可搜索、筛选、随机播放"],
-      ["107", "幅插画", "ARTWORKS", "ぬくぬくにぎりめし（NKNK）插画库"],
-      ["6,111", "条帖子", "POSTS", "稲葉曇与 NKNK 的公开帖子，保留原文与来源"],
+      ["首歌曲", "SONGS", "附 MV 链接、专辑、歌手与标签，可搜索、筛选、随机播放"],
+      ["幅插画", "ARTWORKS", "ぬくぬくにぎりめし（NKNK）插画库"],
+      ["条帖子", "POSTS", "稲葉曇与 NKNK 的公开帖子，保留原文与来源"],
     ],
     menu: [["01", "简介", "THE ARTIST"], ["02", "最新动态", "LATEST"], ["03", "NKNK 插画", "ARTWORK"], ["04", "歌曲", "DISCOGRAPHY"], ["05", "留言墙", "MESSAGES"], ["☂", "神秘小日历", "CALENDAR"]],
     footK: "VISIT THE STATION / 进入观测站",
@@ -23,9 +26,9 @@ const COPY = {
     intro: ["A website made because", "I really love Inabakumori."],
     panelK: "LATEST READINGS",
     reads: [
-      ["52", "songs", "SONGS", "MV links, albums, vocalists, tags, random picks"],
-      ["107", "artworks", "GALLERY", "Art by Nukunuku Nigirimeshi (NKNK)"],
-      ["6,111", "posts", "ARCHIVE", "Public posts by Inabakumori & NKNK, with sources"],
+      ["songs", "SONGS", "MV links, albums, vocalists, tags, random picks"],
+      ["artworks", "GALLERY", "Art by Nukunuku Nigirimeshi (NKNK)"],
+      ["posts", "ARCHIVE", "Public posts by Inabakumori & NKNK, with sources"],
     ],
     menu: [["01", "Intro", "THE ARTIST"], ["02", "Latest updates", "LATEST"], ["03", "NKNK artwork", "ARTWORK"], ["04", "Songs", "DISCOGRAPHY"], ["05", "Message Wall", "MESSAGES"], ["☂", "Secret Calendar", "CALENDAR"]],
     footK: "VISIT THE STATION",
@@ -40,9 +43,9 @@ const COPY = {
     intro: ["稲葉曇さんが大好きで", "作ったファンサイトです。"],
     panelK: "LATEST READINGS / 観測値",
     reads: [
-      ["52", "曲", "SONGS", "MV・アルバム・ボーカル・タグ、検索とランダム再生"],
-      ["107", "点のイラスト", "ARTWORKS", "ぬくぬくにぎりめし（NKNK）さんのイラスト集"],
-      ["6,111", "件の投稿", "POSTS", "稲葉曇さん・NKNKさんの公開投稿を原文のまま"],
+      ["曲", "SONGS", "MV・アルバム・ボーカル・タグ、検索とランダム再生"],
+      ["点のイラスト", "ARTWORKS", "ぬくぬくにぎりめし（NKNK）さんのイラスト集"],
+      ["件の投稿", "POSTS", "稲葉曇さん・NKNKさんの公開投稿を原文のまま"],
     ],
     menu: [["01", "紹介", "THE ARTIST"], ["02", "最新情報", "LATEST"], ["03", "NKNKイラスト", "ARTWORK"], ["04", "楽曲", "DISCOGRAPHY"], ["05", "メッセージウォール", "MESSAGES"], ["☂", "秘密のカレンダー", "CALENDAR"]],
     footK: "VISIT THE STATION / 観測所へ",
@@ -75,11 +78,11 @@ c.intro.forEach((text, index) => {
   $("intro").append(document.createTextNode(text));
 });
 $("panel-k").textContent = c.panelK;
-c.reads.forEach(([number, unit, label, description]) => {
+c.reads.forEach(([unit, label, description], index) => {
   const row = element("div", "read");
   const unitNode = element("span", "unit", unit);
   unitNode.append(element("small", "", label));
-  row.append(element("span", "n", number), unitNode, element("p", "d", description));
+  row.append(element("span", "n", READINGS[index].toLocaleString("en-US")), unitNode, element("p", "d", description));
   $("reads").append(row);
 });
 c.menu.forEach(([number, text, label], index) => {

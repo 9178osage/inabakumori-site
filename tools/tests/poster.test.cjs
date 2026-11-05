@@ -4,7 +4,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
-const directory = path.resolve(__dirname, "../../网站海报");
+const root = path.resolve(__dirname, "../..");
+const directory = path.join(root, "网站海报");
 const source = fs.readFileSync(path.join(directory, "poster.js"), "utf8");
 
 class Element {
@@ -69,6 +70,18 @@ test("poster copy stays text even when it contains markup characters", () => {
   assert.equal(heading.textContent, marker);
   assert.equal(heading.dataset.t, marker);
   assert.equal(heading.children.length, 1);
+});
+
+test("all three poster versions display the main site's song, gallery and post counts", () => {
+  const arrayLength = (file, name) => vm.runInNewContext(`${fs.readFileSync(path.join(root, file), "utf8")}\n${name}.length`);
+  const posts = JSON.parse(fs.readFileSync(path.join(root, "data/x-posts/manifest.json"), "utf8"));
+  const expected = [arrayLength("js/songs.js", "SONGS"), arrayLength("js/nknk-gallery.js", "NKNK_GALLERY"), posts.count]
+    .map(count => count.toLocaleString("en-US"));
+  for (const lang of ["zh", "en", "ja"]) {
+    const { nodes } = render(`?lang=${lang}`);
+    const readings = nodes.get("reads").children.map(row => row.children[0].textContent);
+    assert.deepEqual(readings, expected, `${lang}: update READINGS in 网站海报/poster.js when source totals change`);
+  }
 });
 
 test("offline poster has strict CSP, portable assets and remains outside public routes", async () => {

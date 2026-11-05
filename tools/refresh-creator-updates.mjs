@@ -2,7 +2,6 @@
 // Public creator metadata only. A failed source keeps its last successful snapshot.
 import { readFile, mkdir, open, rename, rm } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { assertRepoPath } from "./safe-fs.mjs";
 import { FORBIDDEN_TITLE_CHARACTERS } from "./text-guards.mjs";
@@ -353,6 +352,6 @@ async function main() {
   }
   if (persistent.size) process.exitCode = 1;
 }
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (import.meta.main) {
   main().catch(error => { console.error(error.message); process.exitCode = 1; });
 }

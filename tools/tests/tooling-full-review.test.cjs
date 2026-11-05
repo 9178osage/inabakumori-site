@@ -81,7 +81,7 @@ ${emptyXPostsMeta}<div class="station-brand"><a class="station-mark" href="#upda
 <title>${[slices[name], "最新动态 · 稲葉曇与 NKNK"].filter(Boolean).join(" · ")}</title>
 <meta property="og:title" content="${[slices[name], "最新动态 · 稲葉曇与 NKNK"].filter(Boolean).join(" · ")}"/>
 <meta name="description" content="${slices[name] ? `${slices[name]}：` : ""}作品动态。"/>
-<meta property="og:description" content="${slices[name] ? `${slices[name]}：` : ""}来自官方频道的作品记录。"/>
+<meta property="og:description" content="${slices[name] ? `${slices[name]}：` : ""}来自官方频道的作品记录。" data-en="Notes from official channels." data-ja="公式チャンネルの記録。"/>
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self';"/>
 <link rel="canonical" href="https://osagechan.top/${name}"/>
 <meta property="og:url" content="https://osagechan.top/${name}"/>

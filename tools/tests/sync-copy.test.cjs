@@ -61,20 +61,24 @@ function failed(result, message) {
   assert.notEqual(result.status, 0, result.stderr + result.stdout);
   if (message) assert.match(result.stderr + result.stdout, message);
 }
-function inspectChanges(box, base, batchBytes = 24000) {
-  const script = `import json, runpy, subprocess, sys
+function inspectChanges(box, base, batchBytes = 24000, inspectGap = false) {
+  const script = `import json, os, runpy, subprocess, sys
 module = runpy.run_path(sys.argv[1])
 module["changes"].__globals__["DIFF_PATH_BYTES"] = int(sys.argv[3])
 calls = []
+environments = []
 original = subprocess.Popen
 def observed(args, *positional, **keywords):
     calls.append(args)
+    env = keywords.get("env") or os.environ
+    environments.append([env.get("GIT_" + kind + "_PATHSPECS") for kind in ("LITERAL", "GLOB", "NOGLOB", "ICASE")])
     return original(args, *positional, **keywords)
 subprocess.Popen = observed
 diff = module["changes"](sys.argv[2])
-print(json.dumps({"diff": diff.decode("utf-8"), "calls": calls}))
+gap = module["review_gap"](sys.argv[2]) if sys.argv[4] == "true" else None
+print(json.dumps({"diff": diff.decode("utf-8"), "calls": calls, "environments": environments, "gap": gap}))
 `;
-  const result = spawnSync("python3", ["-c", script, path.join(box.root, "tools/sync-copy.py"), base, String(batchBytes)], { cwd: box.directory, env: box.env, encoding: "utf8", timeout: 10000, maxBuffer: 4_000_000 });
+  const result = spawnSync("python3", ["-c", script, path.join(box.root, "tools/sync-copy.py"), base, String(batchBytes), String(inspectGap)], { cwd: box.directory, env: box.env, encoding: "utf8", timeout: 10000, maxBuffer: 4_000_000 });
   assert.ifError(result.error); passed(result);
   return JSON.parse(result.stdout);
 }
@@ -184,6 +188,31 @@ test("sync and check name the review-base range a later changes.txt start leaves
     assert.equal(fs.existsSync(path.join(box.root, "not-a-commit")), false);
     fs.unlinkSync(saved);
     const missing = box.run(["--check"]); passed(missing); assert.doesNotMatch(missing.stdout, /\u26a0/u);
+  } finally { box.close(); }
+});
+
+test("malformed saved baselines fail sync cleanly and warn during read-only check", () => {
+  const box = fixture();
+  try {
+    passed(box.run());
+    const saved = path.join(box.output, ".review-base");
+    const changes = path.join(box.output, "changes.txt");
+    const before = fs.readFileSync(changes);
+    for (const invalid of [Buffer.from([0xff, 0x0a]), Buffer.from("HEAD\0\n"), Buffer.from("missing-ref\n"), Buffer.alloc(0)]) {
+      fs.writeFileSync(saved, invalid);
+      const sync = box.run();
+      failed(sync, /\.review-base 不是有效提交/u);
+      assert.doesNotMatch(sync.stderr, /Traceback/u);
+      const checked = box.run(["--check"]);
+      passed(checked);
+      assert.match(checked.stdout, /⚠️ \.review-base 不是有效提交/u);
+      assert.deepEqual(fs.readFileSync(saved), invalid);
+      assert.deepEqual(fs.readFileSync(changes), before);
+    }
+    const alternate = box.run(["HEAD~1"]);
+    passed(alternate);
+    assert.match(alternate.stdout, /⚠️ \.review-base 不是有效提交/u);
+    assert.deepEqual(fs.readFileSync(saved), Buffer.alloc(0));
   } finally { box.close(); }
 });
 
@@ -439,6 +468,65 @@ test("file-directory changes match exact paths without leaking excluded descenda
   } finally { box.close(); }
 });
 
+test("changes exclude deleted and added symlinks and file type transitions in either direction", { skip: process.platform === "win32" }, () => {
+  const toFile = "js/old-link.js", toLink = "js/new-link.js", removed = "js/removed-link.js";
+  const added = "js/added-link.js", shard = "data/x-posts/posts-link.json";
+  const box = fixture({ [toLink]: "REPLACED_TEXT\n" });
+  const remove = file => { fs.unlinkSync(path.join(box.root, file)); box.sources.delete(file); };
+  const link = file => {
+    const target = path.join(box.root, file);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.symlinkSync("/not/a/public/symlink-target", target);
+    box.sources.add(file);
+  };
+  try {
+    link(toFile); link(removed);
+    const base = box.commit();
+    remove(toFile); remove(toLink);
+    box.git("rm", "--", removed); box.sources.delete(removed);
+    box.write(toFile, "NEW_TEXT_AT_FORMER_LINK\n");
+    link(toLink); link(added); link(shard);
+    box.write("js/normal.js", "PUBLISHED_TEXT\n");
+    box.commit();
+    const { diff } = inspectChanges(box, base);
+    assert.match(diff, /\+PUBLISHED_TEXT/u);
+    assert.doesNotMatch(diff, /symlink-target|(?:old|new|removed|added)-link\.js|posts-link\.json|REPLACED_TEXT|NEW_TEXT_AT_FORMER_LINK/u);
+  } finally { box.close(); }
+});
+
+test("HEAD export rejects committed symlinks even when Git checks them out as regular files", () => {
+  const box = fixture();
+  try {
+    passed(box.run());
+    const before = fs.readFileSync(path.join(box.output, "changes.txt"));
+    const file = "js/flattened-link.js";
+    box.git("config", "core.symlinks", "false");
+    box.write(file, "/not/a/public/symlink-target");
+    const blob = box.git("hash-object", "-w", "--", file);
+    box.git("update-index", "--add", "--cacheinfo", `120000,${blob},${file}`);
+    box.git("-c", "user.name=Copy fixture", "-c", "user.email=copy@example.test", "commit", "-qm", "Committed symlink");
+    assert.ok(fs.lstatSync(path.join(box.root, file)).isFile());
+    for (const args of [[], ["--check"]]) failed(box.run(args), /flattened-link\.js.*不得使用符号链接/u);
+    assert.deepEqual(fs.readFileSync(path.join(box.output, "changes.txt")), before);
+  } finally { box.close(); }
+});
+
+test("all Git subprocesses use the same pathspec environment for changes and baseline gaps", () => {
+  const box = fixture();
+  try {
+    box.write("docs/note.md", "# Synthetic documentation\nAnother committed change.\n"); box.commit();
+    fs.mkdirSync(box.output);
+    fs.writeFileSync(path.join(box.output, ".review-base"), box.base + "\n");
+    for (const kind of ["LITERAL", "GLOB", "NOGLOB", "ICASE"]) box.env[`GIT_${kind}_PATHSPECS`] = "1";
+    const { calls, environments, gap } = inspectChanges(box, "HEAD~1", 24000, true);
+    assert.match(gap, /1 个提交/u);
+    for (const command of ["diff", "cat-file", "rev-parse", "merge-base", "rev-list"]) {
+      assert.ok(calls.some(args => args[1] === command), command);
+    }
+    for (const env of environments) assert.deepEqual(env, ["0", "0", "0", "0"]);
+  } finally { box.close(); }
+});
+
 test("TXT count follows capacity beyond fifteen with complete unique source sections", () => {
   for (const count of [8, 12]) {
     const extra = Object.fromEntries(Array.from({ length: count }, (_, i) => [`js/part-${i}.js`, "x".repeat(80000)]));
@@ -552,6 +640,35 @@ test("the short legacy launcher forwards arguments to the tracked generator with
     failed(box.run(["--check"]), /兼容入口 sync\.py 未同步/u);
     passed(box.run()); passed(box.run(["--check"]));
     assert.deepEqual(fs.readFileSync(path.join(box.output, "sync.py")), launcher);
+  } finally { box.close(); }
+});
+
+test("the launcher refuses linked generators and tools directories without executing their targets", { skip: process.platform === "win32" }, () => {
+  const box = fixture();
+  try {
+    passed(box.run());
+    const tools = path.join(box.root, "tools");
+    const generator = path.join(tools, "sync-copy.py");
+    const rootEntry = path.join(box.root, "sync.py");
+    fs.copyFileSync(path.join(box.output, "sync.py"), rootEntry);
+    const external = path.join(box.directory, "external-tools");
+    fs.mkdirSync(external);
+    const externalScript = path.join(external, "sync-copy.py");
+    const marker = path.join(box.directory, "unexpected-launch");
+    fs.writeFileSync(externalScript, `with open(${JSON.stringify(marker)}, "w") as marker:\n    marker.write("executed")\n`);
+    const assertBlocked = () => {
+      failed(box.run(["--check"], true), /Refusing symlink/u);
+      const fromRoot = spawnSync("python3", [rootEntry, "--check"], { cwd: box.directory, env: box.env, encoding: "utf8", timeout: 10000 });
+      assert.ifError(fromRoot.error);
+      failed(fromRoot, /Refusing symlink/u);
+      assert.equal(fs.existsSync(marker), false);
+    };
+    fs.unlinkSync(generator);
+    fs.symlinkSync(externalScript, generator); assertBlocked();
+    fs.unlinkSync(generator);
+    fs.symlinkSync(path.join(external, "missing.py"), generator); assertBlocked();
+    fs.renameSync(tools, path.join(box.directory, "original-tools"));
+    fs.symlinkSync(external, tools); assertBlocked();
   } finally { box.close(); }
 });
 

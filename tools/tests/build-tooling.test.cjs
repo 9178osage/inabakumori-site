@@ -387,6 +387,42 @@ test("link checker executes its CLI through regular, symlink and parent-director
   } finally { box.cleanup(); }
 });
 
+test("maintenance CLIs run through file and directory aliases and stay inert when imported from stdin", () => {
+  const scripts = [
+    ["import-x-posts.mjs", /Usage: node tools\/import-x-posts\.mjs/u],
+    ["record-current-deployment.mjs", /ENOENT.*docs/u],
+    ["refresh-creator-updates.mjs", /Unexpected end of JSON input/u],
+    ["static-server.mjs", /ERR_SOCKET_BAD_PORT/u]
+  ];
+  const dependencies = [
+    "x-posts-data.mjs", "safe-fs.mjs", "text-guards.mjs", "check-changelog-table.mjs", "github-run-request.mjs"
+  ];
+  const box = sandbox([...scripts.map(([file]) => file), ...dependencies].map(file => `tools/${file}`));
+  try {
+    fs.mkdirSync(path.join(box.root, "data"));
+    fs.writeFileSync(path.join(box.root, "data/creator-updates.json"), "");
+    fs.symlinkSync(path.join(box.root, "tools"), path.join(box.root, "tools-alias"), "dir");
+    for (const [file, diagnostic] of scripts) {
+      fs.symlinkSync(path.join(box.root, "tools", file), path.join(box.root, file));
+      for (const entry of [`tools/${file}`, file, `tools-alias/${file}`]) {
+        // All four fail locally before reading production data, networking or binding a port.
+        const result = run(box.root, entry, [], { FRONTEND_PORT: "-1" });
+        assert.ifError(result.error);
+        assert.equal(result.status, 1, `${entry}: ${result.stderr}`);
+        assert.match(result.stderr, diagnostic, entry);
+      }
+    }
+    const imported = spawnSync(process.execPath, ["--input-type=module", "-", "arbitrary-argument"], {
+      cwd: box.root, encoding: "utf8", timeout: 5000, env: { ...process.env, FRONTEND_PORT: "-1" },
+      input: scripts.map(([file]) => `import "./${file}";`).concat('console.log("imported");').join("\n")
+    });
+    assert.ifError(imported.error);
+    assert.equal(imported.status, 0, imported.stderr);
+    assert.equal(imported.stdout.trim(), "imported");
+    assert.equal(imported.stderr, "");
+  } finally { box.cleanup(); }
+});
+
 test("link checker pairs each song with its own youtube URL and fails loudly on a missing link", async () => {
   const { songsFromSource } = await import("../check-links.mjs");
   const file = list => `const SONGS = ${JSON.stringify(list, null, 2)};\n`;
