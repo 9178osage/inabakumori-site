@@ -25,6 +25,7 @@ CHANGES_CAP = 250_000
 SHARD_NOTE_NAMES = 10
 X_POSTS_CAP = 140_000_000  # 第 4 组数据单独打包，按十进制字节计。
 GUIDE = "0-使用说明.txt"
+GUIDE_TITLE = "稻网源码文本副本 · 使用说明"
 EXCLUDE = {"js/auth.js", "package-lock.json", "backend/package-lock.json"}
 BINARY = re.compile(r"\.(png|jpe?g|webp|gif|ico|avif|bmp|tiff?|svgz|eot|woff2?|ttf|otf|mp[34]|ogg|m4a|wav|flac|webm|mov|zip|gz|7z|pdf|dmp|ai|db|sqlite3?)(?:-(?:wal|shm|journal))?$", re.I)
 PRIVATE = re.compile(r"(?:^|[/_.-])(?:secrets?|credentials?|private[-_]?key|id_rsa|id_ed25519)(?:$|[/_.-])|\.(?:pem|key|p12|pfx|jks|keystore|sql|dump|bak)$", re.I)
@@ -33,6 +34,9 @@ CHANGE_PART = re.compile(r"changes-([1-9][0-9]{0,11})\.txt")
 CHANGE_HEADER = re.compile(r"# changes \S+\.\.[0-9a-f]{4,64}（仅含符合导出规则的文本文件）\n".encode())
 PART_HEADER = re.compile(rb"# sync-copy changes v1 part ([0-9]{1,12})/([0-9]{1,12}) ([0-9a-f]{40}(?:[0-9a-f]{24})?)\.\.([0-9a-f]{40}(?:[0-9a-f]{24})?)\n")
 GUIDE_RANGE = re.compile(r"^差异范围：(\S+)\.\.[0-9a-f]+(?:（|；)", re.M)
+FULL_SHA = r"[0-9a-f]{40}(?:[0-9a-f]{24})?"
+GUIDE_COVERAGE = re.compile(rf"差异范围：(\S+)\.\.([0-9a-f]{{4,64}})（实际提交：({FULL_SHA})\.\.({FULL_SHA})）")
+GUIDE_PART_LIST = re.compile(r"差异附件（([1-9][0-9]{0,11}) 份，按顺序）：(.+)")
 PATCH_START = re.compile(rb"^diff --git ", re.M)
 X_POSTS_FILE = re.compile(r"^data/x-posts/posts-[^/]+\.json$")
 APP_ROOT = {"index.html", "updates.html", "404.html", "calendar.html", "style.css", "updates.css", "archive.css", "calendar.css", "script.js", "site.webmanifest", "robots.txt",
@@ -45,16 +49,30 @@ LAUNCHER = b'''#!/usr/bin/env python3
 """Compatibility entry point; export rules live in tracked tools/sync-copy.py."""
 import os
 import runpy
+import stat
 
 here = os.path.dirname(os.path.realpath(__file__))
 for root in (here, os.path.dirname(here)):
     tools = os.path.join(root, "tools")
     target = os.path.join(tools, "sync-copy.py")
-    if os.path.islink(tools) or os.path.islink(target):
+    try:
+        tools_mode = os.lstat(tools).st_mode
+    except FileNotFoundError:
+        continue
+    if stat.S_ISLNK(tools_mode):
         raise SystemExit("Refusing symlink in tools/sync-copy.py path")
-    if os.path.isfile(target):
-        runpy.run_path(target, run_name="__main__")
-        break
+    if not stat.S_ISDIR(tools_mode):
+        raise SystemExit(f"Expected a directory at {tools}")
+    try:
+        target_mode = os.lstat(target).st_mode
+    except FileNotFoundError:
+        continue
+    if stat.S_ISLNK(target_mode):
+        raise SystemExit("Refusing symlink in tools/sync-copy.py path")
+    if not stat.S_ISREG(target_mode):
+        raise SystemExit(f"Expected a regular file at {target}")
+    runpy.run_path(target, run_name="__main__")
+    break
 else:
     raise SystemExit("Cannot locate tools/sync-copy.py beside this launcher or in its parent directory")
 '''
@@ -400,13 +418,12 @@ def change_volumes(change):
     if len(starts) != len(change.paths) or starts and starts[0] != 0:
         sys.exit("git diff 的文件补丁边界与已核对路径不一致，未写入")
     bounds = starts + [len(change.patch)]
-    # 预留相同宽度的序号，保证加入实际卷头后也不超限。
-    width = len(str(len(starts) + 1))
-
     def part_header(part, total):
-        return header + f"# sync-copy changes v1 part {part:0{width}d}/{total:0{width}d} {change.start}..{change.end}\n".encode()
+        return header + f"# sync-copy changes v1 part {part}/{total} {change.start}..{change.end}\n".encode()
 
-    cap = CHANGES_CAP - len(part_header(1, 1))
+    # 按最多一卷一个补丁及一卷摘要预留卷头空间。实际序号直接写出。
+    max_parts = len(starts) + 1
+    cap = CHANGES_CAP - len(part_header(max_parts, max_parts))
     oversized = [(path, stop - start) for path, start, stop in zip(change.paths, bounds, bounds[1:]) if stop - start > cap]
     if len(change.notes) > cap:
         oversized.append(("帖子分片变动摘要", len(change.notes)))
@@ -434,7 +451,7 @@ def guide(change, names, index, diffs, oversized, gap):
     if gap and not gap.startswith(".review-base"):
         coverage += f"\n复核基线提示：{gap}"
     paths = "\n".join(f"  {json.dumps(path, ensure_ascii=False)} → {name}" for path, name in sorted(index.items()))
-    return f"""稻网源码文本副本 · 使用说明
+    return f"""{GUIDE_TITLE}
 
 对应提交：{change.head_label}（main）
 差异范围：{change.base}..{change.head_label}（实际提交：{change.start}..{change.end}）
@@ -444,7 +461,8 @@ def guide(change, names, index, diffs, oversized, gap):
 一、选择附件
 
 只核对改动：只提供上方列出的差异附件，分卷时按编号顺序提供。差异待处理时先核对上方说明。
-只核对某段历史：运行 python3 tools/review-copy.py <起点> <终点>，按需另存附件。
+只核对某段历史：运行 python3 tools/review-copy.py 起点提交 终点提交，按需另存附件。
+请用实际的提交号替换「起点提交」和「终点提交」。区间需分卷时，在命令末尾加 --part 1 可输出第一卷。
 日常前后端源码、测试与文档体检：从以下互不重叠的前三组选取所需分卷，不同时提供差异附件：
 {volumes}
 
@@ -510,7 +528,49 @@ def review_gap(base, label="changes.txt"):
     return f"{label} 从 {base} 开始，未覆盖复核基线 {saved} 以来的全部改动：{saved}..{base}（{count} 个提交）不在差异中"
 
 
-def managed_change_part(name, part):
+def read_guide():
+    try:
+        with open(output_file(GUIDE), "rb") as source:
+            return source.read(CAP + 1)
+    except FileNotFoundError:
+        return b""
+
+
+def guide_change_parts(guide_bytes):
+    # 只承认生成说明开头的连续批次表，不扫描正文中的文件名或孤立列表。
+    if len(guide_bytes) > CAP:
+        return set()
+    try:
+        lines = guide_bytes.decode("utf-8").splitlines()
+    except UnicodeDecodeError:
+        return set()
+    if len(lines) < 8 or lines[:2] != [GUIDE_TITLE, ""]:
+        return set()
+    span = GUIDE_COVERAGE.fullmatch(lines[3])
+    listing = GUIDE_PART_LIST.fullmatch(lines[4])
+    if not span or not listing:
+        return set()
+    base, short, start, end = span.groups()
+    if lines[2] != f"对应提交：{short}（main）" or not end.startswith(short):
+        return set()
+    rest = 6 if lines[5].startswith("复核基线提示：") else 5
+    if lines[rest:rest + 3] != ["保留现有复核基线，不自动重置。", "", "一、选择附件"]:
+        return set()
+    names = listing[2].split("、")
+    if len(names) < 2 or len(names) != int(listing[1]) or any(name != f"changes-{i}.txt" for i, name in enumerate(names, 1)):
+        return set()
+    if resolve_base(start) != start or resolve_base(end) != end:
+        return set()
+    # 用说明记录的旧提交重算，清单不能自行增加卷名。保留旧标签以匹配当时的卷头大小。
+    try:
+        change = collect_changes(start, end)._replace(base=base, head_label=short)
+        expected, _ = change_volumes(change)
+    except SystemExit:
+        return set()
+    return set(names) if names == list(expected) else set()
+
+
+def has_generated_part_header(name, part):
     with open(output_file(name), "rb") as source:
         if not CHANGE_HEADER.fullmatch(source.readline(16_384)):
             return False
@@ -518,18 +578,24 @@ def managed_change_part(name, part):
     return marker is not None and int(marker[1]) == int(part[1]) and int(marker[2]) >= max(2, int(part[1]))
 
 
-def existing_outputs():
-    managed, extra = set(), []
+def existing_outputs(guide_bytes):
+    managed, extra, unmarked = set(), [], set()
     for name in os.listdir(OUT):
         part = CHANGE_PART.fullmatch(name)
         if name in (GUIDE, "changes.txt") or SOURCE_VOLUME.fullmatch(name):
             output_file(name)
             managed.add(name)
-        elif part and managed_change_part(name, part):
-            managed.add(name)
+        elif part:
+            if has_generated_part_header(name, part):
+                managed.add(name)
+            else:
+                unmarked.add(name)
         elif name.lower().endswith(".txt"):
             extra.append(name)
-    return managed, sorted(extra)
+    listed = guide_change_parts(guide_bytes) if unmarked else set()
+    managed.update(unmarked & listed)
+    extra.extend(unmarked - listed)
+    return managed, sorted(extra), listed
 
 
 def check():
@@ -537,7 +603,8 @@ def check():
     head = validate_base("HEAD")
     expected = dict(files(head))
     seen, actual_diffs, ok = {}, {}, True
-    managed, extra = existing_outputs()
+    actual_guide = read_guide()
+    managed, extra, _ = existing_outputs(actual_guide)
     launcher_path = output_file("sync.py")
     if not os.path.isfile(launcher_path) or open(launcher_path, "rb").read() != LAUNCHER:
         ok = False; print("  ❌ 兼容入口 sync.py 未同步")
@@ -547,13 +614,14 @@ def check():
         ok = False; print(f"  ❌ 发现额外 txt，请维护者确认: {n}")
     names = sorted(managed - {GUIDE}, key=volume_order)
     for n in names:
-        blob = open(output_file(n), "rb").read()
+        cap = limit(n)
+        with open(output_file(n), "rb") as source:
+            blob = source.read(cap + 1)
         is_diff = n == "changes.txt" or CHANGE_PART.fullmatch(n)
         if is_diff:
             actual_diffs[n] = blob
         if not blob:
             ok = False; print(f"  ❌ 空分卷: {n}"); continue
-        cap = limit(n)
         if len(blob) > cap:
             ok = False; print(f"  ❌ {n} 超过 {cap:,} 字节")
         if is_diff:
@@ -572,11 +640,6 @@ def check():
     missing = set(expected) - set(seen)
     if missing:
         ok = False; print(f"  ❌ 缺少: {sorted(missing)}")
-    guide_path = output_file(GUIDE)
-    actual_guide = b""
-    if GUIDE in managed:
-        with open(guide_path, "rb") as source:
-            actual_guide = source.read(CAP + 1)
     span = GUIDE_RANGE.search(actual_guide.decode("utf-8", "replace"))
     gap, oversized = None, []
     if not span or not resolve_base(span[1]):
@@ -624,7 +687,7 @@ def main():
         write_output(".review-base", (head + "\n").encode())
         print(f"  .review-base = {head}")
         return
-    managed, extra = existing_outputs()
+    managed, extra, listed = existing_outputs(read_guide())
     if extra:
         sys.exit(f"发现额外 txt，未写入；请维护者确认: {extra}")
     saved = read_review_base() if not args else None
@@ -652,7 +715,8 @@ def main():
     for n, data in vols.items():
         write_output(n, data)
     for n in managed - set(vols) - {GUIDE}:
-        if not CHANGE_PART.fullmatch(n) or managed_change_part(n, CHANGE_PART.fullmatch(n)):
+        part = CHANGE_PART.fullmatch(n)
+        if not part or n in listed or has_generated_part_header(n, part):
             os.remove(output_file(n))
     write_output(GUIDE, explanation)
     write_output("sync.py", LAUNCHER)

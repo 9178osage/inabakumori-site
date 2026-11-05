@@ -121,6 +121,10 @@ test("tracked generator creates the ignored output, exports itself and preserves
     for (const name of textFiles(box)) assert.ok(fs.statSync(path.join(box.output, name)).size <= limitFor(name), name);
     assert.match(fs.readFileSync(path.join(box.output, GUIDE), "utf8"), /每个 txt 不超过 130,000 字节/u);
     assert.match(fs.readFileSync(path.join(box.output, GUIDE), "utf8"), /每个差异附件不超过 250,000 字节/u);
+    const guide = fs.readFileSync(path.join(box.output, GUIDE), "utf8");
+    assert.match(guide, /python3 tools\/review-copy\.py 起点提交 终点提交/u);
+    assert.match(guide, /--part 1/u);
+    assert.doesNotMatch(guide, /review-copy\.py[^\n]*[<>]/u);
     assert.doesNotMatch(fs.readFileSync(path.join(box.output, GUIDE), "utf8"), /150,000|优先控制在 10/u);
     assert.equal(fs.existsSync(path.join(box.output, ".review-base")), false, "default fallback does not invent a saved baseline");
   } finally { box.close(); }
@@ -373,6 +377,7 @@ test("over-limit changes split into complete patches and safely migrate between 
     failed(box.run(["--check"]), /changes\.txt 超过 250,000 字节/u);
     fs.writeFileSync(changePath, before);
     box.write("js/one.js", "x".repeat(125500)); box.write("js/two.js", "y".repeat(125500));
+    for (let i = 0; i < 10; i++) box.write(`js/small-${i}.js`, "small change\n");
     const shard = postShard("雨"); box.write(shard.file, shard.source);
     const head = box.commit();
     passed(box.run()); passed(box.run(["--check"]));
@@ -405,12 +410,53 @@ test("over-limit changes split into complete patches and safely migrate between 
     const second = path.join(box.output, names[1]);
     fs.unlinkSync(second);
     failed(box.run(["--check"]), /差异卷集合不符/u);
+    passed(box.run());
+    assert.deepEqual(fs.readFileSync(second), parts[1]);
+
+    // b7c0601 wrote zero-padded part numbers and this older command example in its guide.
+    const first = path.join(box.output, names[0]);
+    const padded = parts[0].toString("utf8").replace("v1 part 1/2", "v1 part 01/02");
+    const legacyGuide = explanation.replace(/只核对某段历史：[^\n]+\n请用实际的提交号[^\n]+/u,
+      "只核对某段历史：运行 python3 tools/review-copy.py <起点> <终点>，按需另存附件。");
+    fs.writeFileSync(first, padded);
+    fs.writeFileSync(guideFile, legacyGuide);
+    fs.writeFileSync(second, "");
+    const empty = box.run(["--check"]);
+    failed(empty, /空分卷: changes-2\.txt/u);
+    assert.doesNotMatch(empty.stdout, /额外 txt/u);
+    assert.equal(fs.statSync(second).size, 0, "check does not rewrite a damaged part");
+    passed(box.run());
+    assert.deepEqual(fs.readFileSync(first), parts[0]);
+    assert.deepEqual(fs.readFileSync(second), parts[1]);
+
+    const broken = Buffer.from("truncated header\n");
+    fs.writeFileSync(second, broken);
+    const unknownStart = explanation.replace(`实际提交：${box.base}`, `实际提交：${"0".repeat(40)}`);
+    for (const invalid of [unknownStart, explanation + " ".repeat(CAP)]) {
+      fs.writeFileSync(guideFile, invalid);
+      failed(box.run(), /额外 txt.*changes-2\.txt/u);
+      assert.deepEqual(fs.readFileSync(second), broken, "an invalid guide does not grant ownership of a broken-looking file");
+    }
+    fs.writeFileSync(guideFile, explanation);
+    failed(box.run(["--check"]), /changes-2\.txt 与 git diff 不一致/u);
+    passed(box.run());
+    assert.deepEqual(fs.readFileSync(second), parts[1]);
+
+    const extra = path.join(box.output, "changes-3.txt");
+    const userFile = "manual notes\n";
+    fs.writeFileSync(extra, userFile);
+    fs.writeFileSync(guideFile, explanation.replace("（2 份，按顺序）：changes-1.txt、changes-2.txt",
+      "（3 份，按顺序）：changes-1.txt、changes-2.txt、changes-3.txt"));
+    for (const args of [[], ["--check"]]) failed(box.run(args), /额外 txt.*changes-3\.txt/u);
+    assert.equal(fs.readFileSync(extra, "utf8"), userFile, "a forged contiguous list cannot claim an unrelated file");
+    fs.unlinkSync(extra);
+    fs.writeFileSync(guideFile, explanation);
+
     fs.writeFileSync(second, Buffer.concat([parts[1], body(parts[0])]));
     failed(box.run(["--check"]), /changes-2\.txt 与 git diff 不一致/u);
     fs.writeFileSync(second, parts[1]);
     fs.writeFileSync(changePath, before);
-    const extra = path.join(box.output, "changes-3.txt");
-    fs.writeFileSync(extra, parts[0].toString("utf8").replace("v1 part 1/2", "v1 part 3/3"));
+    fs.writeFileSync(extra, parts[0].toString("utf8").replace("v1 part 1/2", "v1 part 03/03"));
     failed(box.run(["--check"]), /差异卷集合不符/u);
     passed(box.run());
     assert.equal(fs.existsSync(changePath), false);
@@ -418,6 +464,8 @@ test("over-limit changes split into complete patches and safely migrate between 
 
     box.write("docs/note.md", "One more committed change.\n"); box.commit();
     failed(box.run(["--check"]), /changes-1\.txt 与 git diff 不一致/u);
+    fs.writeFileSync(first, padded);
+    fs.writeFileSync(second, broken);
     passed(box.run(["HEAD~1"])); passed(box.run(["--check"]));
     assert.ok(fs.existsSync(changePath));
     assert.deepEqual(textFiles(box).filter(name => name.startsWith("changes-")), []);
@@ -634,7 +682,8 @@ test("numbered changes files are rejected without silently deleting or rewriting
   try {
     passed(box.run());
     const before = fs.readFileSync(path.join(box.output, "changes.txt"));
-  for (const content of ["", "LEGACY_DIFF\n", before.toString("utf8")]) {
+    fs.appendFileSync(path.join(box.output, GUIDE), "差异附件（2 份，按顺序）：changes-1.txt、changes-2.txt\n");
+    for (const content of ["", "LEGACY_DIFF\n", before.toString("utf8")]) {
       const extra = path.join(box.output, "changes-1.txt");
       fs.writeFileSync(extra, content);
       failed(box.run(["--check"]), /额外 txt.*changes-1\.txt/u);
@@ -658,7 +707,7 @@ test("empty volumes fail explicitly in every group and a sync regenerates valid 
 });
 
 test("output directory, generated files and saved baseline cannot redirect writes through symlinks", { skip: process.platform === "win32" }, () => {
-  for (const target of ["directory", "changes.txt", ".review-base", "4-x-posts-1.txt", "sync.py"]) {
+  for (const target of ["directory", "changes.txt", "changes-1.txt", ".review-base", "4-x-posts-1.txt", "sync.py"]) {
     const box = fixture();
     try {
       const outside = path.join(box.directory, "outside"); fs.mkdirSync(outside);
@@ -713,7 +762,7 @@ test("the short legacy launcher forwards arguments to the tracked generator with
   } finally { box.close(); }
 });
 
-test("the launcher refuses linked generators and tools directories without executing their targets", { skip: process.platform === "win32" }, () => {
+test("the launcher refuses symlinks and non-regular generators without executing their targets", { skip: process.platform === "win32" }, () => {
   const box = fixture();
   try {
     passed(box.run());
@@ -726,11 +775,11 @@ test("the launcher refuses linked generators and tools directories without execu
     const externalScript = path.join(external, "sync-copy.py");
     const marker = path.join(box.directory, "unexpected-launch");
     fs.writeFileSync(externalScript, `with open(${JSON.stringify(marker)}, "w") as marker:\n    marker.write("executed")\n`);
-    const assertBlocked = () => {
-      failed(box.run(["--check"], true), /Refusing symlink/u);
+    const assertBlocked = (expected = /Refusing symlink/u) => {
+      failed(box.run(["--check"], true, 1000), expected);
       const fromRoot = spawnSync("python3", [rootEntry, "--check"], { cwd: box.directory, env: box.env, encoding: "utf8", timeout: 10000 });
       assert.ifError(fromRoot.error);
-      failed(fromRoot, /Refusing symlink/u);
+      failed(fromRoot, expected);
       assert.equal(fs.existsSync(marker), false);
     };
     fs.unlinkSync(generator);
@@ -739,6 +788,17 @@ test("the launcher refuses linked generators and tools directories without execu
     fs.symlinkSync(path.join(external, "missing.py"), generator); assertBlocked();
     fs.renameSync(tools, path.join(box.directory, "original-tools"));
     fs.symlinkSync(external, tools); assertBlocked();
+    fs.unlinkSync(tools);
+    fs.renameSync(path.join(box.directory, "original-tools"), tools);
+    fs.unlinkSync(generator);
+    fs.mkdirSync(generator); assertBlocked(/Expected a regular file at .*tools\/sync-copy\.py/u);
+    fs.rmdirSync(generator);
+    const created = spawnSync("mkfifo", [generator], { encoding: "utf8" });
+    assert.ifError(created.error); passed(created);
+    assertBlocked(/Expected a regular file at .*tools\/sync-copy\.py/u);
+    fs.rmSync(tools, { recursive: true });
+    fs.writeFileSync(tools, "not a directory");
+    assertBlocked(/Expected a directory at .*tools/u);
   } finally { box.close(); }
 });
 

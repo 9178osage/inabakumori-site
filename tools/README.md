@@ -17,7 +17,7 @@
 | `npm run check:links` | 联网检查公开外链；`check:links:strict` 将全部失败计入退出状态 |
 | `python3 tools/sync-copy.py` | 发布核验后导出已提交文本及正式差异，差异超限时按完整文件补丁分卷 |
 | `python3 tools/sync-copy.py --check` | 只读核对源码卷、正式差异卷、说明与当前 Git HEAD |
-| `python3 tools/review-copy.py <起点> <终点>` | 按需将指定提交区间的差异写到标准输出，每份最多 250,000 字节。重定向到仓库外的新文件 |
+| `python3 tools/review-copy.py <起点> <终点> [--part N]` | 将指定提交区间的差异写到标准输出，分卷时用 `--part N` 每次导出一卷。每份最多 250,000 字节，重定向到仓库外的新文件 |
 | `python3 tools/remote-backup.py <私有配置.json>` | 从生产受保护接口下载并验证留言快照，仅保存于私有目录；配置、令牌和备份不进仓库，细节见[迁移说明](../docs/VERCEL.md#回退与后续备份) |
 | `tools/run-backup.sh` | launchd 外层脚本，与 `remote-backup.py` 一起装在私有备份目录；被拦时把 `NEEDS REVIEW:` 摘要写进 backup.log 和 NEEDS-REVIEW.txt |
 

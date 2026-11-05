@@ -35,13 +35,14 @@ function fixture(t) {
   for (const file of ["review-copy.py", "sync-copy.py"]) {
     write(`tools/${file}`, fs.readFileSync(path.join(__dirname, "..", file)));
   }
-  return { root, git, write, commit, review: (...args) => {
-    const result = spawnSync("python3", [path.join(root, "tools/review-copy.py"), ...args], {
+  function reviewAt(entry, ...args) {
+    const result = spawnSync("python3", [entry, ...args], {
       cwd: directory, env, encoding: "utf8", timeout: 10_000
     });
     assert.ifError(result.error);
     return result;
-  } };
+  }
+  return { directory, root, git, write, commit, reviewAt, review: (...args) => reviewAt(path.join(root, "tools/review-copy.py"), ...args) };
 }
 
 function diff(result, base, head) {
@@ -83,6 +84,7 @@ test("independent adjacent ranges use pinned historical commits, filter private 
   for (const [name, content] of Object.entries(official)) box.write(`${COPY}/${name}`, content);
 
   const first = diff(box.review(base.slice(0, 12), "review-middle"), base, middle);
+  assert.equal(diff(box.review(base, middle, "--part", "1"), base, middle), first);
   assert.match(first, /^\+first interval$/mu);
   assert.match(first, /^ near above\n-old line\n\+first interval\n near below$/mu);
   assert.match(first, /^# 帖子正文分片有变化.*data\/x-posts\/posts-fixture\.json$/mu);
@@ -108,6 +110,78 @@ test("oversize ranges produce no diff and can be split at an explicit intermedia
   assert.match(diff(box.review(base, middle), base, middle), /\+甲/u);
   assert.match(diff(box.review(middle, head), middle, head), /\+乙/u);
   assert.equal(fs.existsSync(path.join(box.root, COPY)), false);
+});
+
+test("part selection exports one complete patch volume even when the range is a single commit", t => {
+  const box = fixture(t);
+  const base = box.commit();
+  box.write("js/one.js", "甲".repeat(42_000) + "\n");
+  box.write("js/two.js", "乙".repeat(42_000) + "\n");
+  box.write("data/x-posts/posts-fixture.json", '"SHARD_BODY"\n');
+  const head = box.commit();
+
+  const unselected = box.review(base, "HEAD");
+  fails(unselected, /超过 250,000 字节.*--part 按卷导出（共 2 卷）/u);
+  assert.ok(unselected.stderr.includes(`python3 tools/review-copy.py ${base} ${head} --part 1`));
+  const first = diff(box.review(base, head, "--part", "1"), base, head);
+  const second = diff(box.review(base, head, "--part", "2"), base, head);
+  for (const [index, part] of [first, second].entries()) {
+    assert.ok(part.includes(`# sync-copy changes v1 part ${index + 1}/2 ${base}..${head}\n`));
+    assert.doesNotMatch(part, /SHARD_BODY/u);
+  }
+  assert.match(first, /# 帖子正文分片有变化.*posts-fixture\.json/u);
+  assert.doesNotMatch(second, /posts-fixture\.json/u);
+  const patches = [first, second].map(part => part.slice(part.indexOf("diff --git "))).join("");
+  assert.equal(patches.trimEnd(), box.git("diff", "--no-ext-diff", "--no-textconv", "--no-color", "--no-renames", "--unified=1", `${base}..${head}`, "--", "js/one.js", "js/two.js"));
+  fails(box.review(base, head, "--part", "0"), /--part 必须是从 1 开始/u);
+  fails(box.review(base, head, "--part", "3"), /共 2 卷/u);
+  assert.equal(fs.existsSync(path.join(box.root, COPY)), false);
+  assert.equal(box.git("status", "--porcelain"), "");
+});
+
+test("a single oversized patch remains pending with no partial output", t => {
+  const box = fixture(t);
+  const base = box.commit();
+  box.write("js/too-large.js", "甲".repeat(84_000) + "\n");
+  const head = box.commit();
+  for (const part of [[], ["--part", "1"]]) {
+    fails(box.review(base, head, ...part), /差异待处理[^]*"js\/too-large\.js"/u);
+  }
+});
+
+test("generator loading allows checkout and entry aliases but refuses symlinked tools and non-regular targets", { skip: process.platform === "win32" }, t => {
+  const box = fixture(t);
+  const base = box.commit();
+  const tools = path.join(box.root, "tools");
+  const target = path.join(tools, "sync-copy.py");
+  const alias = path.join(box.directory, "checkout-alias");
+  fs.symlinkSync(box.root, alias, "dir");
+  const entryAlias = path.join(box.directory, "entry-alias.py");
+  fs.symlinkSync(path.join(alias, "tools/review-copy.py"), entryAlias, "file");
+  const baseline = diff(box.review(base, base), base, base);
+  assert.equal(diff(box.reviewAt(path.join(alias, "tools/review-copy.py"), base, base), base, base), baseline);
+  assert.equal(diff(box.reviewAt(entryAlias, base, base), base, base), baseline);
+
+  const marker = path.join(box.directory, "UNEXPECTED_EXECUTION");
+  const payload = `from pathlib import Path\nPath(${JSON.stringify(marker)}).write_text("ran")\n`;
+  const sentinel = path.join(box.directory, "sentinel.py");
+  fs.writeFileSync(sentinel, payload);
+  fs.unlinkSync(target);
+  fs.symlinkSync(sentinel, target, "file");
+  fails(box.review(base, base), /tools\/sync-copy\.py.*不得使用符号链接/u);
+  fs.unlinkSync(target);
+  fs.mkdirSync(target);
+  fs.writeFileSync(path.join(target, "__main__.py"), payload);
+  fails(box.review(base, base), /tools\/sync-copy\.py.*必须是普通文件/u);
+  fs.rmSync(target, { recursive: true });
+  fs.writeFileSync(target, payload);
+
+  const relocated = path.join(box.directory, "outside-tools");
+  fs.renameSync(tools, relocated);
+  fs.symlinkSync(relocated, tools, "dir");
+  fails(box.review(base, base), /tools 必须是真实目录/u);
+  fails(box.reviewAt(entryAlias, base, base), /tools 必须是真实目录/u);
+  assert.equal(fs.existsSync(marker), false, "a rejected generator must never run");
 });
 
 test("both endpoints must resolve to commits and the base must be an ancestor", t => {
