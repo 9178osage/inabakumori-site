@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+@font-face { font-family: "Poster Mono"; src: url("file:///System/Library/Fonts/SFNSMono.ttf"); font-weight: 100 900; }
+:root {
+  --bg: #bbbbbb;
+  --ink: #252525;
+  --ink-soft: #3d3d3d;
+  --muted: #4a4a4a;
+  --paper: #e2e2e2;
+  --rule: rgba(37, 37, 37, .38);
+  --yellow: #facc15;
+  --red: #dc2626;
+  --blue: #2563eb;
+  --mono: "Poster Mono", "SF Mono", Menlo, monospace;
+}
+:lang(zh) { --font: -apple-system, "PingFang SC", "Hiragino Sans GB", sans-serif; --title-space: .1em; }
+:lang(ja) { --font: "Hiragino Kaku Gothic ProN", "Hiragino Sans", sans-serif; --title-space: .06em; }
+:lang(en) { --font: -apple-system, "Helvetica Neue", sans-serif; --title-space: .01em; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 2400px; height: 3200px; overflow: hidden; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font); position: relative; -webkit-font-smoothing: antialiased; }
+.mono { font-family: var(--mono); }
+
+/* Art: the illustration's flat #bbbbbb ground dissolves into the poster ground. */
+.art { position: absolute; right: -10px; bottom: 600px; width: 1420px; height: auto; z-index: 1; }
+
+.rain { position: absolute; inset: 0 0 600px 0; z-index: 3; pointer-events: none; overflow: hidden; }
+.rain i { position: absolute; width: 3px; background: linear-gradient(transparent, rgba(37,37,37,.30)); border-radius: 2px; }
+.rain i.l { background: linear-gradient(transparent, rgba(255,255,255,.75)); }
+
+/* Top report bar */
+.bar { position: absolute; top: 120px; left: 140px; right: 140px; z-index: 4; display: flex; align-items: center; justify-content: space-between; padding-bottom: 34px; border-bottom: 3px solid var(--ink); font-family: var(--mono); font-size: 36px; letter-spacing: .14em; }
+.mark { display: flex; align-items: center; gap: 22px; font-weight: 700; }
+.mark .u { font-size: 54px; line-height: 1; }
+.mark small { font-size: 26px; font-weight: 500; letter-spacing: .2em; color: var(--muted); margin-left: 12px; }
+.langs { display: flex; gap: 0; font-size: 30px; }
+.langs span { padding: 10px 22px; border: 2px solid var(--ink); margin-left: -2px; color: var(--ink); }
+.langs span.on { background: var(--ink); color: var(--paper); }
+.sub-bar { position: absolute; top: 236px; left: 140px; right: 140px; z-index: 4; display: flex; justify-content: space-between; font-family: var(--mono); font-size: 26px; letter-spacing: .18em; color: var(--muted); }
+.tri { display: inline-flex; gap: 10px; vertical-align: middle; margin-right: 22px; }
+.tri b { width: 46px; height: 12px; display: block; }
+
+/* Title */
+.head { position: absolute; top: 380px; left: 140px; right: 140px; z-index: 4; }
+.eyebrow { font-family: var(--mono); font-size: 40px; letter-spacing: .32em; font-weight: 600; display: flex; align-items: center; gap: 28px; }
+.eyebrow::after { content: ""; flex: 0 0 160px; height: 3px; background: var(--ink); }
+h1 { margin-top: 36px; font-weight: 800; color: var(--ink); line-height: .98; letter-spacing: var(--title-space); position: relative; }
+h1 .g { position: relative; display: inline-block; }
+h1 .g::before, h1 .g::after { content: attr(data-t); position: absolute; left: 0; top: 0; white-space: pre; mix-blend-mode: multiply; }
+h1 .g::before { color: var(--red); opacity: .55; transform: translate(-9px, 3px); clip-path: inset(0 0 52% 0); }
+h1 .g::after { color: var(--blue); opacity: .55; transform: translate(9px, -2px); clip-path: inset(56% 0 0 0); }
+:lang(zh) h1, :lang(ja) h1 { font-size: 330px; }
+:lang(en) h1 { font-size: 196px; line-height: .9; letter-spacing: -.01em; }
+.tagline { margin-top: 50px; font-size: 58px; font-weight: 500; letter-spacing: .06em; display: flex; align-items: center; gap: 30px; }
+:lang(en) .tagline { font-size: 60px; letter-spacing: .01em; font-style: italic; font-weight: 400; }
+.tagline::before { content: ""; width: 14px; height: 70px; background: var(--ink); flex: none; }
+
+/* Readings column */
+.panel { position: absolute; left: 140px; width: 880px; bottom: 670px; z-index: 4; }
+.panel-label { font-family: var(--mono); font-size: 28px; letter-spacing: .26em; color: var(--muted); padding-bottom: 20px; border-bottom: 3px solid var(--ink); display: flex; justify-content: space-between; }
+.read { display: grid; grid-template-columns: 1fr auto; align-items: end; padding: 26px 0 22px; border-bottom: 2px solid var(--rule); }
+.read .n { font-family: var(--mono); font-size: 150px; font-weight: 600; line-height: .86; letter-spacing: -.04em; }
+.read .unit { text-align: right; font-size: 40px; font-weight: 600; line-height: 1.25; }
+.read .unit small { display: block; font-family: var(--mono); font-size: 24px; letter-spacing: .2em; color: var(--muted); font-weight: 500; margin-top: 6px; }
+.read .d { grid-column: 1 / -1; font-size: 32px; color: var(--ink-soft); margin-top: 30px; line-height: 1.4; white-space: nowrap; }
+.menu { margin-top: 36px; display: grid; gap: 0; }
+.menu div { display: grid; grid-template-columns: 96px 1fr auto; align-items: baseline; padding: 12px 0; border-bottom: 1px dashed var(--rule); font-size: 40px; font-weight: 600; }
+.menu div span:first-child { font-family: var(--mono); font-size: 28px; color: var(--muted); font-weight: 500; letter-spacing: .1em; }
+.menu div span:last-child { font-family: var(--mono); font-size: 22px; color: var(--muted); letter-spacing: .18em; font-weight: 500; }
+.menu div.cal { border-bottom: 0; }
+.menu div.cal span:first-child { font-size: 36px; color: var(--ink); }
+.menu div.cal em { font-style: normal; background: var(--yellow); padding: 0 12px; box-decoration-break: clone; }
+
+.intro { position: absolute; z-index: 4; right: 140px; top: 840px; width: 520px; font-size: 36px; line-height: 1.6; font-weight: 500; color: var(--ink); text-align: right; }
+.intro::before { content: ""; display: block; margin-left: auto; width: 80px; height: 3px; background: var(--ink); margin-bottom: 26px; }
+:lang(en) .intro { font-size: 34px; line-height: 1.55; }
+
+/* Footer band */
+.foot { position: absolute; left: 0; right: 0; bottom: 0; height: 600px; background: var(--ink); color: var(--paper); z-index: 5; padding: 84px 140px 0; display: grid; grid-template-columns: 1fr auto; column-gap: 80px; }
+.foot .k { font-family: var(--mono); font-size: 28px; letter-spacing: .3em; color: #a9a9a9; }
+.url { font-family: var(--mono); font-size: 150px; font-weight: 700; letter-spacing: -.02em; margin-top: 18px; line-height: 1; }
+.url span { color: #8f8f8f; font-weight: 400; }
+.feat { margin-top: 38px; font-size: 38px; font-weight: 500; letter-spacing: .04em; color: var(--paper); }
+:lang(en) .feat { letter-spacing: 0; }
+.note { margin-top: 30px; font-size: 26px; color: #a9a9a9; line-height: 1.5; max-width: 1500px; }
+.qr { align-self: start; width: 372px; text-align: center; }
+.qr .tile { background: var(--paper); padding: 30px; width: 372px; height: 372px; }
+.qr .tile img { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+.qr p { margin-top: 20px; font-size: 28px; letter-spacing: .1em; color: #cfcfcf; font-weight: 500; }
+</style>
+</head>
+<body>
+<img class="art" src="art.jpg" alt="">
+<div class="rain" id="rain"></div>
+
+<div class="bar">
+  <div class="mark"><span class="u">☂</span>INABAKUMORI<small>UNOFFICIAL ARCHIVE</small></div>
+  <div class="langs" id="langs"><span data-l="zh">中文</span><span data-l="en">EN</span><span data-l="ja">日本語</span></div>
+</div>
+<div class="sub-bar"><span><span class="tri"><b style="background:var(--yellow)"></b><b style="background:var(--red)"></b><b style="background:var(--blue)"></b></span><span id="obs"></span></span><span>FAN-MADE · NON-COMMERCIAL</span></div>
+
+<div class="head">
+  <p class="eyebrow">稲葉曇 · INABAKUMORI</p>
+  <h1 id="title"></h1>
+  <p class="tagline" id="tagline"></p>
+</div>
+
+<p class="intro" id="intro"></p>
+
+<div class="panel">
+  <div class="panel-label"><span id="panel-k"></span><span>2026.11</span></div>
+  <div id="reads"></div>
+  <div class="menu" id="menu"></div>
+</div>
+
+<div class="foot">
+  <div>
+    <p class="k" id="foot-k"></p>
+    <p class="url">osagechan<span>.top</span></p>
+    <p class="feat" id="feat"></p>
+    <p class="note" id="note"></p>
+  </div>
+  <div class="qr"><div class="tile"><img src="qr.svg" alt=""></div><p id="scan"></p></div>
+</div>
+
+<script>
+const COPY = {
+  zh: {
+    obs: "REPORT 001 / 003 · ZH",
+    title: ["气象观测站"],
+    tagline: "在声音与线条之间，记录新的消息。",
+    intro: "一个因为太喜欢稲葉曇<br>所以做出来的网站。",
+    panelK: "LATEST READINGS / 观测读数",
+    reads: [
+      ["52", "首歌曲", "SONGS", "附 MV 链接、专辑、歌手与标签，可搜索、筛选、随机播放"],
+      ["107", "幅插画", "ARTWORKS", "ぬくぬくにぎりめし（NKNK）插画库"],
+      ["6,111", "条帖子", "POSTS", "稲葉曇与 NKNK 的公开帖子，保留原文与来源"],
+    ],
+    menu: [["01", "简介", "THE ARTIST"], ["02", "最新动态", "LATEST"], ["03", "NKNK 插画", "ARTWORK"], ["04", "歌曲", "DISCOGRAPHY"], ["05", "留言墙", "MESSAGES"], ["☂", "<em>神秘小日历</em>", "CALENDAR"]],
+    footK: "VISIT THE STATION / 进入观测站",
+    feat: "歌曲 · 动态 · 插画 · 留言墙 　|　 中文 · English · 日本語",
+    note: "本站为非官方粉丝站，与创作者及官方厂牌／平台无关。",
+    scan: "扫码进入观测站",
+  },
+  en: {
+    obs: "REPORT 002 / 003 · EN",
+    title: ["WEATHER", "OBSERVATION", "STATION"],
+    tagline: "New signals, between sound and line.",
+    intro: "A website made because<br>I really love Inabakumori.",
+    panelK: "LATEST READINGS",
+    reads: [
+      ["52", "songs", "SONGS", "MV links, albums, vocalists, tags, random picks"],
+      ["107", "artworks", "GALLERY", "Art by Nukunuku Nigirimeshi (NKNK)"],
+      ["6,111", "posts", "ARCHIVE", "Public posts by Inabakumori & NKNK, with sources"],
+    ],
+    menu: [["01", "Intro", "THE ARTIST"], ["02", "Latest updates", "LATEST"], ["03", "NKNK artwork", "ARTWORK"], ["04", "Songs", "DISCOGRAPHY"], ["05", "Message Wall", "MESSAGES"], ["☂", "<em>Secret Calendar</em>", "CALENDAR"]],
+    footK: "VISIT THE STATION",
+    feat: "Songs · Updates · Artwork · Message Wall 　|　 中文 · English · 日本語",
+    note: "An unofficial fan site, unaffiliated with the creators or any official label or platform.",
+    scan: "Scan to visit",
+  },
+  ja: {
+    obs: "REPORT 003 / 003 · JA",
+    title: ["気象観測所"],
+    tagline: "音と線のあいだで、新しい知らせを記録する。",
+    intro: "稲葉曇さんが大好きで<br>作ったファンサイトです。",
+    panelK: "LATEST READINGS / 観測値",
+    reads: [
+      ["52", "曲", "SONGS", "MV・アルバム・ボーカル・タグ、検索とランダム再生"],
+      ["107", "点のイラスト", "ARTWORKS", "ぬくぬくにぎりめし（NKNK）さんのイラスト集"],
+      ["6,111", "件の投稿", "POSTS", "稲葉曇さん・NKNKさんの公開投稿を原文のまま"],
+    ],
+    menu: [["01", "紹介", "THE ARTIST"], ["02", "最新情報", "LATEST"], ["03", "NKNKイラスト", "ARTWORK"], ["04", "楽曲", "DISCOGRAPHY"], ["05", "メッセージウォール", "MESSAGES"], ["☂", "<em>秘密のカレンダー</em>", "CALENDAR"]],
+    footK: "VISIT THE STATION / 観測所へ",
+    feat: "楽曲・最新情報・イラスト・メッセージウォール 　|　 中文 · English · 日本語",
+    note: "本サイトは非公式ファンサイトであり、クリエイターや公式レーベル・プラットフォームとは関係ありません。",
+    scan: "読み取って観測所へ",
+  },
+};
+const lang = new URLSearchParams(location.search).get("lang") || "zh";
+const c = COPY[lang];
+document.documentElement.lang = lang === "zh" ? "zh-CN" : lang;
+const $ = id => document.getElementById(id);
+const esc = s => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+$("obs").textContent = c.obs;
+$("title").innerHTML = c.title.map(t => `<span class="g" data-t="${esc(t)}">${t}</span>`).join("<br>");
+$("tagline").textContent = c.tagline;
+$("intro").innerHTML = c.intro;
+$("panel-k").textContent = c.panelK;
+$("reads").innerHTML = c.reads.map(([n, u, k, d]) => `<div class="read"><span class="n">${n}</span><span class="unit">${u}<small>${k}</small></span><p class="d">${d}</p></div>`).join("");
+$("menu").innerHTML = c.menu.map(([i, t, k], idx) => `<div class="${idx === c.menu.length - 1 ? "cal" : ""}"><span>${i}</span><span>${t}</span><span>${k}</span></div>`).join("");
+$("foot-k").textContent = c.footK;
+$("feat").textContent = c.feat;
+$("note").textContent = c.note;
+$("scan").textContent = c.scan;
+document.querySelectorAll("#langs span").forEach(s => s.classList.toggle("on", s.dataset.l === lang));
+
+// Deterministic rain, kept clear of every text block so readings stay legible.
+let seed = 20261103;
+const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const rain = $("rain");
+const pad = 28;
+const blocks = [...document.querySelectorAll(".bar, .sub-bar, .eyebrow, h1 .g, .tagline, .intro, .panel")].map(el => el.getBoundingClientRect());
+const clear = (x, y, h) => blocks.every(r => x < r.left - pad || x > r.right + pad || y + h < r.top - pad || y > r.bottom + pad);
+for (let placed = 0, tries = 0; placed < 96 && tries < 8000; tries++) {
+  const x = rnd() * 2400, y = rnd() * 2700 - 120, h = 70 + rnd() * 150, light = rnd() < .4, o = .35 + rnd() * .55;
+  if (!clear(x, y, h)) continue;
+  const i = document.createElement("i");
+  if (light) i.className = "l";
+  i.style.cssText = `left:${x.toFixed(0)}px;top:${y.toFixed(0)}px;height:${h.toFixed(0)}px;opacity:${o.toFixed(2)}`;
+  rain.append(i);
+  placed++;
+}
+</script>
+</body>
+</html>
