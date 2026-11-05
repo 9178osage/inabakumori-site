@@ -6,8 +6,12 @@ import { createHash } from "node:crypto";
 // Require JSON before either parser sees a body, including chunked requests and
 // requests without Content-Type. Bodyless session refresh/sign-out remains valid.
 export function requireJsonRequestBody(req, res, next) {
+  const contentLength = req.headers["content-length"];
+  // Only decimal zero (with HTTP optional whitespace) denotes an empty body.
+  // Numeric coercion would also accept malformed framing such as "", "-0" or "0e0".
+  const zeroLength = typeof contentLength === "string" && /^[ \t]*0+[ \t]*$/u.test(contentLength);
   const hasBody = req.headers["transfer-encoding"] !== undefined ||
-    (req.headers["content-length"] !== undefined && req.headers["content-length"] !== "0");
+    (contentLength !== undefined && !zeroLength);
   if (!hasBody || req.is("application/json")) return next();
   return res.status(415).json({ error: "请求必须使用 application/json", code: "UNSUPPORTED_MEDIA_TYPE" });
 }

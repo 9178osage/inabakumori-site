@@ -15,7 +15,7 @@
   python3 tools/sync-copy.py --check          只核对，不写任何文件；差异起点未覆盖 .review-base 时只提示缺口
   python3 tools/sync-copy.py --mark-reviewed  把 HEAD 记为新的 .review-base
 """
-import os, re, stat, subprocess, sys, tempfile
+import codecs, os, re, stat, subprocess, sys, tempfile
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(REPO, "inabakumori-site-all-code")
@@ -32,6 +32,24 @@ GENERATED = re.compile(r"^(?:(?:1-app-code|2-tools-tests|3-docs|4-x-posts)-\d+|c
 X_POSTS_FILE = re.compile(r"^data/x-posts/posts-[^/]+\.json$")
 APP_ROOT = {"index.html", "updates.html", "404.html", "calendar.html", "style.css", "updates.css", "archive.css", "calendar.css", "script.js", "site.webmanifest", "robots.txt",
             "sitemap.xml", "package.json", "CNAME", ".nojekyll", "tools/auth-src.js"}
+TOOL_ROOT = {".gitignore", ".npmrc", "eslint.config.mjs"}
+DOC_ROOT = {"AGENTS.md", "README.md", "SECURITY.md"}
+APP_DIRS = ("js/", "backend/", "fonts/", "images/", "data/", "网站海报/")
+DIFF_PATH_BYTES = 24_000  # 给命令、环境和系统的参数指针保留充足空间。
+LAUNCHER = b'''#!/usr/bin/env python3
+"""Compatibility entry point; export rules live in tracked tools/sync-copy.py."""
+import os
+import runpy
+
+here = os.path.dirname(os.path.realpath(__file__))
+for root in (here, os.path.dirname(here)):
+    target = os.path.join(root, "tools", "sync-copy.py")
+    if os.path.isfile(target):
+        runpy.run_path(target, run_name="__main__")
+        break
+else:
+    raise SystemExit("Cannot locate tools/sync-copy.py beside this launcher or in its parent directory")
+'''
 
 
 def output_directory(create=False):
@@ -44,6 +62,16 @@ def output_directory(create=False):
         info = os.lstat(OUT)
     if not stat.S_ISDIR(info.st_mode):
         sys.exit("副本输出目录必须是真实目录，不得使用符号链接")
+    if stat.S_IMODE(info.st_mode) != 0o700:
+        if not create:
+            sys.exit("副本目录权限必须为 0700，请先运行同步以收紧权限")
+        descriptor = os.open(OUT, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0))
+        try:
+            if not stat.S_ISDIR(os.fstat(descriptor).st_mode):
+                sys.exit("副本输出目录必须是真实目录")
+            os.fchmod(descriptor, 0o700)
+        finally:
+            os.close(descriptor)
 
 
 def output_file(name):
@@ -75,13 +103,15 @@ def write_output(name, data):
 
 
 def group(p):
+    if p not in APP_ROOT | TOOL_ROOT | DOC_ROOT and not p.startswith(APP_DIRS + ("tools/", ".github/", "docs/")):
+        sys.exit(f"未识别的源码分组: {p}；请先为新路径明确配置导出分组")
     if X_POSTS_FILE.fullmatch(p):
         return "4-x-posts"
     if p.endswith(".md") or p.startswith("docs/"):
         return "3-docs"
-    if p in APP_ROOT or p.startswith(("js/", "backend/", "fonts/", "data/")):
+    if p in APP_ROOT or p.startswith(APP_DIRS):
         return "1-app-code"
-    return "2-tools-tests"  # tools/、.github/、.gitignore、.npmrc 以及其余配置
+    return "2-tools-tests"  # tools/、.github/ 及显式列出的根目录配置。
 
 
 def limit(name):
@@ -96,7 +126,10 @@ def volume_order(name):
 
 
 def git(*args):
-    r = subprocess.run(["git", *args], cwd=REPO, capture_output=True)
+    # 路径匹配由调用点决定，不能被终端继承的 pathspec 开关改写。
+    env = dict(os.environ, GIT_LITERAL_PATHSPECS="0", GIT_GLOB_PATHSPECS="0",
+               GIT_NOGLOB_PATHSPECS="0", GIT_ICASE_PATHSPECS="0")
+    r = subprocess.run(["git", *args], cwd=REPO, capture_output=True, env=env)
     if r.returncode:
         sys.exit(f"git {' '.join(args)} 失败: {r.stderr.decode('utf-8', 'replace')[:200]}")
     return r.stdout
@@ -182,28 +215,107 @@ def validate_base(base):
     git("rev-parse", "--verify", "--end-of-options", f"{base}^{{commit}}")
 
 
+def text_blobs(object_ids):
+    """用一个 cat-file 进程逐个检查对象，内存不随大文件或文件总数膨胀。"""
+    accepted = set()
+    if not object_ids:
+        return accepted
+    with tempfile.TemporaryFile() as errors:
+        process = subprocess.Popen(["git", "cat-file", "--batch"], cwd=REPO,
+                                   stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=errors)
+        try:
+            for object_id in sorted(object_ids):
+                process.stdin.write(object_id + b"\n")
+                process.stdin.flush()
+                header = process.stdout.readline().split()
+                if len(header) != 3 or header[0] != object_id or header[1] != b"blob":
+                    sys.exit("git cat-file 返回了无效的源码对象")
+                remaining = int(header[2])
+                decoder = codecs.getincrementaldecoder("utf-8")()
+                valid = True
+                while remaining:
+                    chunk = process.stdout.read(min(remaining, 65_536))
+                    if not chunk:
+                        sys.exit("git cat-file 返回了不完整的源码对象")
+                    remaining -= len(chunk)
+                    if valid:
+                        try:
+                            decoder.decode(chunk)
+                        except UnicodeDecodeError:
+                            valid = False
+                        if any(b < 32 and b not in (9, 10, 13) for b in chunk):
+                            valid = False
+                if process.stdout.read(1) != b"\n":
+                    sys.exit("git cat-file 返回了无效的对象分隔符")
+                if valid:
+                    try:
+                        decoder.decode(b"", final=True)
+                    except UnicodeDecodeError:
+                        valid = False
+                if valid:
+                    accepted.add(object_id)
+            process.stdin.close()
+            if process.wait():
+                errors.seek(0)
+                sys.exit(f"git cat-file 失败: {errors.read(200).decode('utf-8', 'replace')}")
+        finally:
+            process.stdin.close()
+            process.stdout.close()
+            if process.poll() is None:
+                process.kill()
+                process.wait()
+    return accepted
+
+
+def path_batches(paths):
+    batch, size = [], 0
+    for p in paths:
+        # 计入每个参数的 NUL 和指针；不能只限制路径数量。
+        cost = len(os.fsencode(p)) + 1 + 8
+        if batch and size + cost > DIFF_PATH_BYTES:
+            yield batch
+            batch, size = [], 0
+        batch.append(p)
+        size += cost
+    if batch:
+        yield batch
+
+
+def exact_pathspec(p):
+    # literal pathspec 会把历史文件名同时当作目录前缀，重新带入已过滤的后代。
+    # glob 模式中转义全部元字符，并转义首字符以强制完整 wildmatch，避免目录前缀快路。
+    escaped = "".join("\\" + c if i == 0 or c in "\\*?[" else c for i, c in enumerate(p))
+    return ":(top,glob)" + escaped
+
+
 def changes(base):
     validate_base(base)
-    paths, shards = [], []
-    for raw in git("diff", "--no-renames", "--name-only", "-z", f"{base}..HEAD").split(b"\0"):
-        if not raw:
-            continue
-        p = raw.decode("utf-8")
+    candidates, shards, object_ids = [], [], set()
+    raw = git("diff", "--raw", "--no-ext-diff", "--no-textconv", "--no-color", "--no-abbrev", "--no-renames", "-z", f"{base}..HEAD").split(b"\0")
+    for offset in range(0, len(raw) - 1, 2):
+        metadata, path = raw[offset:offset + 2]
+        p = path.decode("utf-8")
         if not allowed(p):
             continue
         # 帖子正文分片属于第 4 组数据，不进入改动复核；只列出变化的分片名。
         if X_POSTS_FILE.fullmatch(p):
             shards.append(p)
             continue
-        # 删除或修改的文件也检查旧版本，防止二进制/敏感文件混进 diff。
-        for ref in (base, "HEAD"):
-            r = subprocess.run(["git", "show", f"{ref}:{p}"], cwd=REPO, capture_output=True)
-            if r.returncode == 0 and not is_text(r.stdout):
-                break
-        else:
+        fields = metadata.split()
+        # gitlink 不是源码文本；已删除文件和类型变化同样检查两个版本。
+        if fields[0] == b":160000" or fields[1] == b"160000":
+            continue
+        ids = {value for value in fields[2:4] if value.strip(b"0")}
+        candidates.append((p, ids))
+        object_ids.update(ids)
+    accepted = text_blobs(object_ids)
+    paths = []
+    for p, ids in candidates:
+        if ids <= accepted:
+            group(p)  # 删除的未知目录也不能静默归入工具组。
             paths.append(p)
-    diff = git("--literal-pathspecs", "diff", "--no-ext-diff", "--no-textconv", "--no-color", "--no-renames", "--unified=1",
-               f"{base}..HEAD", "--", *paths) if paths else b""
+    diff = b"".join(git("diff", "--no-ext-diff", "--no-textconv", "--no-color", "--no-renames", "--unified=1",
+                        f"{base}..HEAD", "--", *batch) for batch in path_batches(exact_pathspec(p) for p in paths))
     head = git("rev-parse", "--short", "HEAD").decode().strip()
     # 分片名单最多列 SHARD_NOTE_NAMES 个，其余只计数，保证说明行本身不会挤占 changes.txt 的上限。
     listed = sorted(shards)[:SHARD_NOTE_NAMES]
@@ -296,6 +408,9 @@ def check():
     output_directory()
     expected = dict(files())
     seen, ok, base = {}, True, None
+    launcher_path = output_file("sync.py")
+    if not os.path.isfile(launcher_path) or open(launcher_path, "rb").read() != LAUNCHER:
+        ok = False; print("  ❌ 兼容入口 sync.py 未同步")
     if os.path.lexists(os.path.join(OUT, ".DS_Store")):
         ok = False; print("  ❌ 副本目录含 .DS_Store，请重新同步以清理")
     text_names = sorted((n for n in os.listdir(OUT) if n.lower().endswith(".txt")), key=volume_order)
@@ -357,6 +472,7 @@ def main():
         sys.exit(f"用法: python3 tools/sync-copy.py [base | --check | --mark-reviewed]（前三组及说明 ≤{CAP:,} 字节；差异 ≤{CHANGES_CAP:,} 字节；帖子正文 ≤{X_POSTS_CAP:,} 字节）")
     output_directory(create=args != ["--check"])
     output_file(".review-base")
+    output_file("sync.py")
     for name in os.listdir(OUT):
         if name == GUIDE or GENERATED.match(name):
             output_file(name)
@@ -396,6 +512,7 @@ def main():
             os.remove(output_file(n))
     for n, data in vols.items():
         write_output(n, data)
+    write_output("sync.py", LAUNCHER)
     for n in sorted(vols, key=volume_order):
         print(f"  {n:24} {len(vols[n]):>7} B")
     sys.exit(0 if check() else 1)

@@ -17,7 +17,7 @@ GitHub Pages 提供网页、图片和音乐目录。登录与留言通过 HTTPS 
 3. 打开网站确认页面正常，再确认 Vercel 对应提交的部署为 Ready，并检查生产后端 `/healthz`：`ok` 应为 `true`，`version` 应与部署提交前七位一致。健康检查成功不等于所有登录、留言功能都验证过。
 4. 记录提交号、两项工作流的运行编号和后端版本。没有核实就写“待确认”，不要写“已上线”。
 5. 将访客可感知的变化补进 [更新日志](CHANGELOG.md)：一行一条，写「症状 → 处理（提交号）」。测试、内部重构和依赖升级留在提交记录中。
-6. 部署验证完成后，同步本地文本副本：运行 `python3 tools/sync-copy.py`，再运行 `python3 tools/sync-copy.py --check`，确认副本与当前已提交源码逐字节一致。保留现有 `.review-base`，除非维护者要求重置。生成器及其回归测试受版本控制；生成的副本仍由 `.gitignore` 排除，不提交、不部署。旧的 `inabakumori-site-all-code/sync.py` 仅为本地兼容入口，以 `realpath(__file__)` 定位实际路径，规则只维护在 `tools/sync-copy.py`。
+6. 部署验证完成后，同步本地文本副本：运行 `python3 tools/sync-copy.py`，再运行 `python3 tools/sync-copy.py --check`，确认副本与当前已提交源码逐字节一致。保留现有 `.review-base`，除非维护者要求重置。生成器及其回归测试受版本控制；生成的副本仍由 `.gitignore` 排除，不提交、不部署。本地兼容入口 `inabakumori-site-all-code/sync.py` 由同步工具维护，也支持复制到仓库根目录启动；通过真实路径查找当前目录或父目录中的生成器，规则只维护在 `tools/sync-copy.py`。同步时将副本目录权限收紧为 `0700`；`--check` 只读核对权限和入口模板，过宽或过期时失败。
 
 Vercel 以 `/backend` 为根目录，使用 Express 框架和 PostgreSQL（`DATABASE_URL`）。留言与限流计数使用共享数据库；不得把 SQLite 放到函数临时目录。版本来自 `VERCEL_GIT_COMMIT_SHA`。平台自动维护 Node 主版本内的补丁，须核实实际运行版本，不能用本地精确版本替代线上证据。过期留言与旧限流窗口由请求触发后台维护，以 `waitUntil` 保活，不阻塞响应或依赖常驻计时器。`/healthz` 不经过共享限流，数据库暂时不可用时明确返回 503；写入与备份仍要求限流存储可用，不能为恢复读取而关闭写入防护。
 
@@ -26,6 +26,8 @@ Vercel 以 `/backend` 为根目录，使用 Express 框架和 PostgreSQL（`DATA
 已停止的 Railway 服务此前使用 Railpack 构建 `/backend`。Railpack 会把复合范围简化为主版本，`>=24.22.1 <25` 曾实际构建出 `24.21.0`；若以后重新启用该回退服务，须核对构建日志和容器内 `node --version`，并确认连接当前 PostgreSQL。原 SQLite 卷不能作为生产写入来源。详见 [Railpack 版本解析](https://railpack.com/architecture/package-resolution/)。
 
 副本保留原始缩进和字节，按完整源文件拆卷，每段以 `===== 文件路径 =====` 开头。`1-app-code`、`2-tools-tests`、`3-docs` 以及说明每个最多 130,000 字节；`changes.txt` 最多 250,000 字节，以一行上下文保留全部实际增删行；`data/x-posts/posts-*.json` 独立归入第 4 组 `4-x-posts`，每个最多 140 MB（140,000,000 字节），避免帖子分片挤占代码附件。`data/x-posts/manifest.json` 留在第 1 组。数量随完整源文件体积自动调整，不设固定份数，说明和输出按组名与分卷数字顺序列出。空分卷会被校验拒绝；`changes-1.txt` 等编号差异文件视为额外文件，明确报错并保留，不自动删除。单个源文件连同段头超限时明确失败；`changes.txt` 仍保留为一个文件，超限时须由维护者明确调整复核基线，不自动拆分或重置。经维护者同意临时指定较新的起点（`python3 tools/sync-copy.py <base>`）时，同步和 `--check` 会列出 `.review-base` 到该起点之间未进入差异的范围和提交数，只作提示、不判为失败；报告时须说明这段改动不在 `changes.txt` 中。排除生成的 `js/auth.js`、两个 `package-lock.json`、`dist/`、二进制、环境变量、数据库及密钥。日常前后端、测试与文档复核只提供前三组；要复核帖子正文或全部文本时再附第 4 组，四组内容互不重叠。只核对改动时只提供 `changes.txt`，同一提问不要同时提供重叠内容。
+
+`网站海报/` 保留在 Git 中，用于离线制作海报，构建和预览的公开路径白名单均不发布该目录。其文本源码明确归入副本第 1 组；新的顶层文本路径须先在生成器中配置分组，未识别路径会报错，不会默认混入工具与测试。改动差异通过批量读取 Git 对象并限制每批命令参数体积生成，仍逐一校验新旧版本的文本内容；精确匹配完整路径，避免文件改为目录时把已排除的后代带进差异。
 
 ## 核对上线记录表
 

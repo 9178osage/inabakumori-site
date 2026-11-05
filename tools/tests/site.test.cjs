@@ -61,7 +61,7 @@ test("submission prevents duplicates, preserves new typing, and unlocks after er
   elements["message-name"].value = "tester";
   context.fetch = async () => ({ ok: false, json: async () => ({ error: "RATE LIMITED" }) });
   await run("addMessage()");
-  assert.equal(events.at(-1), "RATE LIMITED");
+  assert.equal(events.at(-1), "留言发布失败。");
   assert.equal(button.disabled, false);
   assert.equal(elements["message-input"].value, "new draft");
 });
@@ -767,6 +767,8 @@ test("unknown comment errors fall back to localized generic text", () => {
   assert.equal(run("commentErrorMessage(result, response)"), "Failed to post your message. Please try again.");
   run('currentLanguage="ja"');
   assert.equal(run("commentErrorMessage(result, response)"), "メッセージを投稿できませんでした。");
+  run('currentLanguage="zh"');
+  assert.equal(run("commentErrorMessage(result, response)"), "留言发布失败。");
 });
 
 test("a 429 without a known code gets a rate-limit message in every language", () => {
@@ -778,7 +780,21 @@ test("a 429 without a known code gets a rate-limit message in every language", (
   run('currentLanguage="ja"');
   assert.equal(run("commentErrorMessage(result, response)"), "投稿が多すぎます。しばらくしてから再試行してください。");
   run('currentLanguage="zh"');
-  assert.equal(run("commentErrorMessage(result, response)"), "留言发布失败。");
+  assert.equal(run("commentErrorMessage(result, response)"), "请求过于频繁，请稍后再试。");
+});
+
+test("unknown 400 and 413 comment responses keep input guidance localized without server text", () => {
+  const { run, context } = setup();
+  for (const status of [400, 413]) {
+    context.response = { status };
+    for (const result of [null, {}, { code: "NEW_ERROR", error: "internal English server detail" }]) {
+      context.result = result;
+      for (const [language, expected] of Object.entries({ zh: "请检查输入内容和留言长度。", en: "Please check your input and message length.", ja: "入力内容または文字数を確認して、もう一度お試しください。" })) {
+        run(`currentLanguage=${JSON.stringify(language)}`);
+        assert.equal(run("commentErrorMessage(result, response)"), expected, `${status} ${language}`);
+      }
+    }
+  }
 });
 
 test("a gateway 429 with an empty body shows the localized rate-limit text after submitting", async () => {
@@ -795,6 +811,9 @@ test("a gateway 429 with an empty body shows the localized rate-limit text after
   run('currentLanguage="ja"');
   await run("addMessage()");
   assert.equal(events.at(-1), "投稿が多すぎます。しばらくしてから再試行してください。");
+  run('currentLanguage="zh"');
+  await run("addMessage()");
+  assert.equal(events.at(-1), "请求过于频繁，请稍后再试。");
 });
 
 test("submission never surfaces a raw Error message", async () => {

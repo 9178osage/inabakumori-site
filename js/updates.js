@@ -81,7 +81,9 @@
       if (description) description.content = pageDescription;
       document.querySelector('meta[property="og:title"]')?.setAttribute("content", document.title);
       document.querySelector('meta[property="og:description"]')?.setAttribute("content", pageDescription);
-      document.querySelectorAll(".x-post-translation[data-en]:not([data-zh])").forEach(element => { element.dataset.zh = element.textContent; });
+      document.querySelectorAll(".x-post-translation[data-en]:not([data-zh])").forEach(element => {
+        if (element.textContent.trim()) element.dataset.zh = element.textContent;
+      });
       document.querySelectorAll("[data-zh][data-en][data-ja]").forEach(element => {
         element.textContent = element.dataset[language];
       });

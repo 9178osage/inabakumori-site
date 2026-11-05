@@ -9,7 +9,7 @@
     "test": "node --test tools/tests/*.test.cjs",
     "build": "node tools/build-site.mjs",
     "build:local": "node tools/build-site.mjs --keep-local-api-csp",
-    "lint": "eslint script.js js tools backend eslint.config.mjs",
+    "lint": "eslint script.js js tools backend 网站海报 eslint.config.mjs",
     "check": "npm run lint && npm run check:changelog:structure && npm test && npm --prefix backend run check && npm run build && node tools/check-build.mjs",
     "check:changelog": "node tools/check-changelog-table.mjs",
     "check:changelog:structure": "node tools/check-changelog-table.mjs --structure-only",

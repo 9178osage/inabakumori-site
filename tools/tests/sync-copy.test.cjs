@@ -61,6 +61,23 @@ function failed(result, message) {
   assert.notEqual(result.status, 0, result.stderr + result.stdout);
   if (message) assert.match(result.stderr + result.stdout, message);
 }
+function inspectChanges(box, base, batchBytes = 24000) {
+  const script = `import json, runpy, subprocess, sys
+module = runpy.run_path(sys.argv[1])
+module["changes"].__globals__["DIFF_PATH_BYTES"] = int(sys.argv[3])
+calls = []
+original = subprocess.Popen
+def observed(args, *positional, **keywords):
+    calls.append(args)
+    return original(args, *positional, **keywords)
+subprocess.Popen = observed
+diff = module["changes"](sys.argv[2])
+print(json.dumps({"diff": diff.decode("utf-8"), "calls": calls}))
+`;
+  const result = spawnSync("python3", ["-c", script, path.join(box.root, "tools/sync-copy.py"), base, String(batchBytes)], { cwd: box.directory, env: box.env, encoding: "utf8", timeout: 10000, maxBuffer: 4_000_000 });
+  assert.ifError(result.error); passed(result);
+  return JSON.parse(result.stdout);
+}
 function textFiles(box) { return fs.readdirSync(box.output).filter(name => name.endsWith(".txt")); }
 function copySections(box) {
   const found = new Map();
@@ -79,7 +96,7 @@ function copySections(box) {
       assert.deepEqual(blob.subarray(offset, offset + original.length), original, file);
       offset += original.length;
       assert.deepEqual(blob.subarray(offset, offset + 2), Buffer.from("\n\n"), file); offset += 2;
-      const group = /^data\/x-posts\/posts-[^/]+\.json$/u.test(file) ? "4-x-posts" : file.endsWith(".md") ? "3-docs" : ["index.html", "archive.css", "calendar.html", "calendar.css"].includes(file) || file.startsWith("js/") || file.startsWith("backend/") || file.startsWith("data/") ? "1-app-code" : "2-tools-tests";
+      const group = /^data\/x-posts\/posts-[^/]+\.json$/u.test(file) ? "4-x-posts" : file.endsWith(".md") ? "3-docs" : ["index.html", "archive.css", "calendar.html", "calendar.css"].includes(file) || ["js/", "backend/", "data/", "网站海报/"].some(prefix => file.startsWith(prefix)) ? "1-app-code" : "2-tools-tests";
       assert.ok(name.startsWith(group), `${file} in ${group}`); found.set(file, name);
     }
   }
@@ -114,6 +131,19 @@ test("calendar and archive frontend files are exported in the application group"
       assert.ok(sections.get(file)?.startsWith("1-app-code-"), `${file} belongs with the application code`);
     }
     assert.ok(sections.get("tools/example.py")?.startsWith("2-tools-tests-"));
+  } finally { box.close(); }
+});
+
+test("tracked poster text belongs with application code and new top-level paths need an explicit group", () => {
+  const box = fixture({ "网站海报/poster.html": "<main>poster</main>\n", "网站海报/qr.svg": '<svg xmlns="http://www.w3.org/2000/svg"/>\n' });
+  try {
+    passed(box.run()); passed(box.run(["--check"]));
+    const sections = copySections(box);
+    for (const file of ["网站海报/poster.html", "网站海报/qr.svg"]) assert.ok(sections.get(file)?.startsWith("1-app-code-"));
+    const before = fs.readFileSync(path.join(box.output, "changes.txt"));
+    box.write("unclassified/file.txt", "new source\n"); box.commit();
+    failed(box.run(), /未识别的源码分组: unclassified\/file\.txt/u);
+    assert.deepEqual(fs.readFileSync(path.join(box.output, "changes.txt")), before);
   } finally { box.close(); }
 });
 
@@ -334,6 +364,81 @@ test("changes retain all changed lines with one line of surrounding context", ()
   } finally { box.close(); }
 });
 
+test("large changes batch object reads and bound literal diff arguments without losing deletions or text safety", () => {
+  const names = Array.from({ length: 190 }, (_, index) => `js/long-${String(index).padStart(3, "0")}-${"p".repeat(150)}.js`);
+  const special = ["js/[literal]*?.js", "js/with\nnewline.js", "js/日本語.js", "js/utf8-boundary.js", "js/deleted.js"];
+  const extra = Object.fromEntries([...names, ...special].map(file => [file, "old text\n"]));
+  extra["js/old-binary.dat"] = Buffer.from([0, 65]);
+  extra["js/new-binary.dat"] = "previous text\n";
+  extra["js/invalid-utf8.dat"] = "previous valid text\n";
+  const box = fixture(extra);
+  try {
+    const base = box.git("rev-parse", "HEAD");
+    for (const file of [...names, ...special.filter(file => file !== "js/deleted.js")]) box.write(file, "new text\n");
+    box.write("js/utf8-boundary.js", "a".repeat(65535) + "雨\n");
+    box.git("rm", "--", "js/deleted.js"); box.sources.delete("js/deleted.js");
+    box.write("js/added.js", "added text\n");
+    box.write("js/old-binary.dat", "binary-to-text must remain excluded\n");
+    box.write("js/new-binary.dat", Buffer.from([1, 65]));
+    box.write("js/invalid-utf8.dat", Buffer.from([0xc3]));
+    box.commit();
+    const { diff, calls } = inspectChanges(box, base);
+    assert.equal(calls.filter(args => args[1] === "cat-file").length, 1, "all old and new blobs use one process");
+    assert.equal(calls.filter(args => args[1] === "show").length, 0, "changes never spawns git show per path");
+    const batches = calls.filter(args => args[1] === "diff" && !args.includes("--raw"));
+    assert.ok(batches.length >= 2, "long path sets are split before they approach the OS argument limit");
+    for (const args of batches) assert.ok(args.reduce((size, argument) => size + Buffer.byteLength(argument) + 9, 0) < 26000);
+    const expectedPaths = [...names, ...special, "js/added.js"];
+    const expected = spawnSync("git", ["--literal-pathspecs", "diff", "--no-ext-diff", "--no-textconv", "--no-color", "--no-renames", "--unified=1", `${base}..HEAD`, "--", ...expectedPaths], { cwd: box.root, env: box.env, encoding: "utf8", timeout: 10000 });
+    assert.ifError(expected.error); passed(expected);
+    const head = box.git("rev-parse", "--short", "HEAD");
+    assert.equal(diff, `# changes ${base}..${head}（仅含符合导出规则的文本文件）\n${expected.stdout}`, "batched output matches a complete literal diff byte for byte");
+    assert.doesNotMatch(diff, /binary-to-text|old-binary\.dat|new-binary\.dat|invalid-utf8\.dat/u);
+  } finally { box.close(); }
+});
+
+test("file-directory changes match exact paths without leaking excluded descendants or duplicating patches across batches", () => {
+  const parents = ["js/plain", "js/[literal]*?.js", "js/with\nnewline", "js/日本語", "js/back\\slash", "js/closing]", "js/space name", "js/colon:name", "网站海报/中文?[*]\\", "js/ending\\", "js/ending[", "js/ending]", "js/ending?", "js/ending*"];
+  const extra = {};
+  for (const [index, parent] of parents.entries()) {
+    extra[parent] = `REMOVED_PARENT_${index}\n`;
+    extra[`js/reversed/${parent}/public.js`] = `PUBLIC_OLD_${index}\n`;
+    extra[`js/reversed/${parent}/.env.fixture`] = `SENSITIVE_OLD_${index}\n`;
+    extra[`js/reversed/${parent}/binary.dat`] = Buffer.from(`\0BINARY_OLD_${index}\n`);
+  }
+  const box = fixture(extra);
+  try {
+    const base = box.git("rev-parse", "HEAD");
+    for (const [index, parent] of parents.entries()) {
+      box.git("--literal-pathspecs", "rm", "--", parent); box.sources.delete(parent);
+      box.write(`${parent}/public.js`, `PUBLIC_NEW_${index}\n`);
+      box.write(`${parent}/.env.fixture`, `SENSITIVE_NEW_${index}\n`);
+      box.write(`${parent}/binary.dat`, Buffer.from(`\0BINARY_NEW_${index}\n`));
+      box.write(`${parent}X`, `PUBLIC_SIBLING_${index}\n`);
+      box.write(`${parent}-secret.txt`, `SENSITIVE_SIBLING_${index}\n`);
+      const reverse = `js/reversed/${parent}`;
+      box.git("--literal-pathspecs", "rm", "-r", "--", reverse);
+      for (const suffix of ["public.js", ".env.fixture", "binary.dat"]) box.sources.delete(`${reverse}/${suffix}`);
+      box.write(reverse, `PUBLIC_REPLACEMENT_${index}\n`);
+    }
+    box.commit();
+    const normal = inspectChanges(box, base).diff;
+    const separate = inspectChanges(box, base, 1).diff;
+    assert.equal(separate, normal, "one path per batch produces the same complete diff without repeats");
+    assert.doesNotMatch(normal, /SENSITIVE_|BINARY_|\.env\.fixture|binary\.dat/u, "neither side of a file-directory transition reintroduces excluded descendants");
+    for (const index of parents.keys()) {
+      for (const prefix of ["REMOVED_PARENT", "PUBLIC_NEW", "PUBLIC_OLD", "PUBLIC_REPLACEMENT", "PUBLIC_SIBLING"]) {
+        assert.equal(normal.split(`${prefix}_${index}\n`).length - 1, 1, `${prefix}_${index} appears exactly once`);
+      }
+    }
+    for (const name of ["GIT_LITERAL_PATHSPECS", "GIT_GLOB_PATHSPECS", "GIT_NOGLOB_PATHSPECS", "GIT_ICASE_PATHSPECS"]) {
+      box.env[name] = "1";
+      assert.equal(inspectChanges(box, base, 1).diff, normal, `${name} cannot override exact path matching`);
+      delete box.env[name];
+    }
+  } finally { box.close(); }
+});
+
 test("TXT count follows capacity beyond fifteen with complete unique source sections", () => {
   for (const count of [8, 12]) {
     const extra = Object.fromEntries(Array.from({ length: count }, (_, i) => [`js/part-${i}.js`, "x".repeat(80000)]));
@@ -395,7 +500,7 @@ test("empty volumes fail explicitly in every group and a sync regenerates valid 
 });
 
 test("output directory, generated files and saved baseline cannot redirect writes through symlinks", { skip: process.platform === "win32" }, () => {
-  for (const target of ["directory", "changes.txt", ".review-base", "4-x-posts-1.txt"]) {
+  for (const target of ["directory", "changes.txt", ".review-base", "4-x-posts-1.txt", "sync.py"]) {
     const box = fixture();
     try {
       const outside = path.join(box.directory, "outside"); fs.mkdirSync(outside);
@@ -409,12 +514,32 @@ test("output directory, generated files and saved baseline cannot redirect write
   }
 });
 
+test("sync restricts an existing output directory to 0700 while check reports broad permissions without changing them", { skip: process.platform === "win32" }, () => {
+  const box = fixture();
+  try {
+    fs.mkdirSync(box.output, { mode: 0o755 });
+    fs.chmodSync(box.output, 0o755);
+    passed(box.run());
+    assert.equal(fs.statSync(box.output).mode & 0o777, 0o700);
+    fs.chmodSync(box.output, 0o750);
+    failed(box.run(["--check"]), /目录权限必须为 0700/u);
+    assert.equal(fs.statSync(box.output).mode & 0o777, 0o750, "check remains read-only");
+    passed(box.run()); passed(box.run(["--check"]));
+    assert.equal(fs.statSync(box.output).mode & 0o777, 0o700);
+  } finally { box.close(); }
+});
+
 test("the short legacy launcher forwards arguments to the tracked generator without duplicating rules", () => {
   const box = fixture();
   try {
     fs.mkdirSync(box.output);
     fs.writeFileSync(path.join(box.output, "sync.py"), 'import os, runpy\nrunpy.run_path(os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "tools", "sync-copy.py"), run_name="__main__")\n');
     passed(box.run([], true)); passed(box.run(["--check"], true));
+    const launcher = fs.readFileSync(path.join(box.output, "sync.py"));
+    const rootEntry = path.join(box.root, "sync.py");
+    fs.writeFileSync(rootEntry, launcher);
+    const rootRun = spawnSync("python3", [rootEntry, "--check"], { cwd: box.directory, env: box.env, encoding: "utf8", timeout: 10000 });
+    assert.ifError(rootRun.error); passed(rootRun);
     if (process.platform !== "win32") {
       const link = path.join(box.directory, "linked-sync.py");
       fs.symlinkSync(path.join(box.output, "sync.py"), link);
@@ -423,6 +548,10 @@ test("the short legacy launcher forwards arguments to the tracked generator with
     }
     assert.ok(copySections(box).has("tools/sync-copy.py"));
     assert.equal(fs.existsSync(path.join(box.root, "tools", OUT)), false);
+    fs.appendFileSync(path.join(box.output, "sync.py"), "# stale launcher\n");
+    failed(box.run(["--check"]), /兼容入口 sync\.py 未同步/u);
+    passed(box.run()); passed(box.run(["--check"]));
+    assert.deepEqual(fs.readFileSync(path.join(box.output, "sync.py")), launcher);
   } finally { box.close(); }
 });
 

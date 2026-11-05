@@ -11,14 +11,14 @@ const pageGlobals = {
 export default [
   { ignores: ["**/node_modules/**", "dist/**", "js/auth.js", "inabakumori-site-all-code/**", "artifacts/**"] },
   {
-    files: ["script.js", "js/**/*.js", "tools/**/*.{js,mjs,cjs}", "backend/**/*.{js,mjs,cjs}", "eslint.config.mjs"],
+    files: ["script.js", "js/**/*.js", "网站海报/*.js", "tools/**/*.{js,mjs,cjs}", "backend/**/*.{js,mjs,cjs}", "eslint.config.mjs"],
     rules: {
       "no-undef": "error",
       "no-use-before-define": ["error", { variables: true, classes: true, functions: false }]
     }
   },
   {
-    files: ["script.js", "js/**/*.js"],
+    files: ["script.js", "js/**/*.js", "网站海报/*.js"],
     languageOptions: { sourceType: "script", globals: { ...globals.browser, ...pageGlobals } }
   },
   { files: ["tools/auth-src.js"], languageOptions: { sourceType: "module", globals: globals.browser } },

@@ -83,23 +83,48 @@ test("translations name songs by their real titles and never swap one song for a
   }
 });
 
-test("Chinese gist is rendered once and restored into data-zh before any language switch (audit C1)", () => {
-  const fs = require("node:fs");
-  const path = require("node:path");
-  const stash = 'document.querySelectorAll(".x-post-translation[data-en]:not([data-zh])").forEach(element => { element.dataset.zh = element.textContent; });';
-  for (const [file, loop] of [["script.js", 'document.querySelectorAll("[data-zh][data-en]")'], ["js/updates.js", 'document.querySelectorAll("[data-zh][data-en][data-ja]")'], ["js/archive-pages.js", 'document.querySelectorAll("[data-zh][data-en][data-ja]")']]) {
-    const source = fs.readFileSync(path.resolve(__dirname, "../..", file), "utf8");
-    const at = source.indexOf(stash);
-    assert.ok(at >= 0 && at < source.indexOf(loop, at), `${file} must copy the gist into data-zh before switching languages`);
-    const elements = [{ textContent: "中文", dataset: { en: "English", ja: "" } }];
-    const document = { querySelectorAll: selector => selector.startsWith(".x-post-translation") ? elements.filter(e => !("zh" in e.dataset)) : [] };
-    new Function("document", stash)(document);
-    assert.equal(elements[0].dataset.zh, "中文");
-    elements[0].textContent = elements[0].dataset.en;
-    new Function("document", stash)(document);
-    assert.equal(elements[0].dataset.zh, "中文", "a second pass must not overwrite the stored Chinese gist");
+test("language changes wait for a nonempty Chinese gist and preserve it after English and Japanese", () => {
+  const vm = require("node:vm");
+  for (const file of ["script.js", "js/updates.js", "js/archive-pages.js"]) {
+    const elements = ["", " \n ", "已有中译"].map(textContent => ({ textContent, dataset: { en: "English", ja: "" } }));
+    const saved = new Map([["language", "en"]]);
+    const storage = { getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key, value) };
+    const events = {};
+    const document = {
+      readyState: "complete", documentElement: { dataset: {}, getAttribute: () => null },
+      querySelectorAll: selector => selector === ".x-post-translation[data-en]:not([data-zh])" ? elements.filter(element => !("zh" in element.dataset))
+        : selector === "[data-zh][data-en]" || selector === "[data-zh][data-en][data-ja]" ? elements.filter(element => "zh" in element.dataset) : [],
+      querySelector: () => null, getElementById: () => null, addEventListener() {}
+    };
+    const window = { APP_CONFIG: { apiDomain: "https://example.com" }, siteStorage: storage,
+      location: {}, matchMedia: () => ({ matches: false }),
+      addEventListener(name, handler) { events[name] = handler; }, dispatchEvent() {},
+      setInterval: () => 1, clearInterval() {}
+    };
+    const context = vm.createContext({ document, window, localStorage: storage, setTimeout, clearTimeout, setInterval: () => 1, Event });
+    vm.runInContext(read(file), context);
+    const refresh = language => {
+      saved.set("language", language);
+      if (file === "script.js") vm.runInContext(`currentLanguage=${JSON.stringify(language)}; applyLanguage()`, context);
+      else events.pageshow({ persisted: true });
+    };
+    refresh("en");
+    assert.equal("zh" in elements[0].dataset, false, `${file}: empty text must remain eligible for a later Chinese gist`);
+    assert.equal("zh" in elements[1].dataset, false, `${file}: whitespace is not a Chinese gist`);
+    assert.equal(elements[2].textContent, "English", `${file}: existing Chinese text switches to English`);
+    elements[0].textContent = "稍后填入的中译";
+    elements[1].textContent = " 保留原有空格 ";
+    refresh("en");
+    for (const element of elements) assert.equal(element.textContent, "English", `${file}: newly available Chinese text can switch immediately`);
+    refresh("ja");
+    for (const element of elements) assert.equal(element.textContent, "", `${file}: Japanese hides the gist`);
+    refresh("zh");
+    assert.deepEqual(elements.map(element => element.textContent), ["稍后填入的中译", " 保留原有空格 ", "已有中译"], `${file}: Chinese text survives every switch unchanged`);
   }
-  const check = fs.readFileSync(path.resolve(__dirname, "../check-build.mjs"), "utf8");
+});
+
+test("archive build warns before reaching its page budget", () => {
+  const check = read("tools/check-build.mjs");
   assert.match(check, /archiveBytes >= ARCHIVE_BUDGET \* 0\.8/u);
   assert.match(check, /::warning title=Archive page budget::/u);
 });

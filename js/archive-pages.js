@@ -42,7 +42,9 @@
         document.querySelector('meta[name="description"]')?.setAttribute("content", description);
         document.querySelector('meta[property="og:description"]')?.setAttribute("content", description);
       }
-      document.querySelectorAll(".x-post-translation[data-en]:not([data-zh])").forEach(element => { element.dataset.zh = element.textContent; });
+      document.querySelectorAll(".x-post-translation[data-en]:not([data-zh])").forEach(element => {
+        if (element.textContent.trim()) element.dataset.zh = element.textContent;
+      });
       document.querySelectorAll("[data-zh][data-en][data-ja]").forEach(element => { element.textContent = element.dataset[language]; });
       document.querySelectorAll("[data-aria-zh]").forEach(element => element.setAttribute("aria-label", element.dataset[`aria${language[0].toUpperCase()}${language.slice(1)}`] || element.dataset.ariaZh));
       document.querySelectorAll("time[data-local-time]").forEach(element => {

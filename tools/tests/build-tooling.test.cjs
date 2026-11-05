@@ -372,6 +372,21 @@ test("check-build only allows the known connect-src sources, so a loopback alias
   } finally { box.cleanup(); }
 });
 
+test("link checker executes its CLI through regular, symlink and parent-directory aliases", () => {
+  const box = sandbox(["tools/check-links.mjs", "tools/net-guards.mjs"]);
+  try {
+    fs.mkdirSync(path.join(box.root, "js"));
+    fs.writeFileSync(path.join(box.root, "js/songs.js"), "const SONGS = [];\n");
+    fs.symlinkSync(path.join(box.root, "tools/check-links.mjs"), path.join(box.root, "check-links-alias.mjs"));
+    fs.symlinkSync(path.join(box.root, "tools"), path.join(box.root, "tools-alias"), "dir");
+    for (const entry of ["tools/check-links.mjs", "check-links-alias.mjs", "tools-alias/check-links.mjs"]) {
+      const result = run(box.root, entry);
+      assert.equal(result.status, 1, `${entry}: ${result.stderr}`);
+      assert.match(result.stderr, /No song links found/u, "the empty catalogue must fail rather than silently skip the CLI");
+    }
+  } finally { box.cleanup(); }
+});
+
 test("link checker pairs each song with its own youtube URL and fails loudly on a missing link", async () => {
   const { songsFromSource } = await import("../check-links.mjs");
   const file = list => `const SONGS = ${JSON.stringify(list, null, 2)};\n`;

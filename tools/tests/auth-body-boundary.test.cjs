@@ -88,10 +88,29 @@ test("small JSON requests and bodyless session operations remain compatible with
   assert.equal(parsed.status, 200);
   assert.equal(parsed.sdkReached, true);
   assert.deepEqual(parsed.body, body);
-  for (const headers of [{}, { "content-length": "0" }]) {
+  for (const headers of [{}, ...["0", "00", " 0", "0 \t", "\t000\t"].map(value => ({ "content-length": value }))]) {
     const empty = await parseRequest(Buffer.alloc(0), headers);
     assert.equal(empty.status, 200);
     assert.equal(empty.sdkReached, true);
     assert.deepEqual(empty.body, {});
+  }
+});
+
+test("only decimal zero lengths bypass the JSON requirement and transfer encoding always requires it", async () => {
+  const { requireJsonRequestBody } = await import("../../backend/services.mjs");
+  for (const headers of [
+    ...["", " ", "-0", "+0", "0.0", "0e0", "0x0", "0, 0", "1", "999999999999999999999999999999"].map(value => ({ "content-length": value })),
+    { "content-length": "00", "transfer-encoding": "chunked" }
+  ]) {
+    let accepted = false;
+    let status;
+    let response;
+    requireJsonRequestBody({ headers, is: () => false }, {
+      status(value) { status = value; return this; },
+      json(value) { response = value; return this; }
+    }, () => { accepted = true; });
+    assert.equal(accepted, false, JSON.stringify(headers));
+    assert.equal(status, 415);
+    assert.equal(response.code, "UNSUPPORTED_MEDIA_TYPE");
   }
 });

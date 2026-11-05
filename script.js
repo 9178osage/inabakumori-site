@@ -24,13 +24,15 @@ function commentErrorMessage(data, response) {
   if (currentLanguage === "en") {
     return response.status === 429 ? "Too many requests. Please try again later." : response.status === 400 || response.status === 413 ? "Please check your input and message length." : "Failed to post your message. Please try again.";
   }
-  return data?.error || pageText("留言发布失败。", "Failed to post your message.");
+  return response.status === 429 ? "请求过于频繁，请稍后再试。" : response.status === 400 || response.status === 413 ? "请检查输入内容和留言长度。" : "留言发布失败。";
 }
 let currentTheme = document.documentElement?.dataset?.theme || (window.siteStorage || localStorage).getItem("theme") || "light";
 let currentSlide = 0;
 const COMMENTS_API = `${window.APP_CONFIG.apiDomain}/api/comments`;
 function applyLanguage() {
-  document.querySelectorAll(".x-post-translation[data-en]:not([data-zh])").forEach(element => { element.dataset.zh = element.textContent; });
+  document.querySelectorAll(".x-post-translation[data-en]:not([data-zh])").forEach(element => {
+    if (element.textContent.trim()) element.dataset.zh = element.textContent;
+  });
   document.querySelectorAll("[data-zh][data-en]").forEach((element) => {
     const text = element.dataset[currentLanguage] ?? pageText(element.dataset.zh, element.dataset.en);
     if (element.textContent !== text) element.textContent = text;
