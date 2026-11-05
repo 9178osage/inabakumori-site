@@ -12,7 +12,7 @@ const GUIDE = "0-使用说明.txt";
 const X_POSTS_CAP = 140_000_000;
 const CAP = 130_000;
 const CHANGES_CAP = 250_000;
-const limitFor = name => name === "changes.txt" ? CHANGES_CAP : name.startsWith("4-x-posts-") ? X_POSTS_CAP : CAP;
+const limitFor = name => /^changes(?:-\d+)?\.txt$/u.test(name) ? CHANGES_CAP : name.startsWith("4-x-posts-") ? X_POSTS_CAP : CAP;
 const exclusions = ["js/auth.js", "package-lock.json", "backend/package-lock.json", ".env.fixture",
   "backend/comments.db", "keys/private-key.pem", "dist/generated.js", "images/picture.png", "binary.dat"];
 
@@ -120,7 +120,7 @@ test("tracked generator creates the ignored output, exports itself and preserves
     assert.match(fs.readFileSync(path.join(box.output, GUIDE), "utf8"), /python3 tools\/sync-copy\.py/u);
     for (const name of textFiles(box)) assert.ok(fs.statSync(path.join(box.output, name)).size <= limitFor(name), name);
     assert.match(fs.readFileSync(path.join(box.output, GUIDE), "utf8"), /每个 txt 不超过 130,000 字节/u);
-    assert.match(fs.readFileSync(path.join(box.output, GUIDE), "utf8"), /changes\.txt 不超过 250,000 字节/u);
+    assert.match(fs.readFileSync(path.join(box.output, GUIDE), "utf8"), /每个差异附件不超过 250,000 字节/u);
     assert.doesNotMatch(fs.readFileSync(path.join(box.output, GUIDE), "utf8"), /150,000|优先控制在 10/u);
     assert.equal(fs.existsSync(path.join(box.output, ".review-base")), false, "default fallback does not invent a saved baseline");
   } finally { box.close(); }
@@ -360,7 +360,7 @@ test("whole-source packing keeps each volume below 130000 bytes and rejects over
   try { failed(source.run(), /单个文件就超过 130,000 字节/u); } finally { source.close(); }
 });
 
-test("changes allow up to 250000 bytes while preserving the saved review base and prior copy on failure", () => {
+test("over-limit changes split into complete patches and safely migrate between single and numbered outputs", () => {
   const box = fixture();
   try {
     box.write("js/one.js", "x".repeat(115000)); box.write("js/two.js", "y".repeat(115000)); box.commit();
@@ -372,10 +372,80 @@ test("changes allow up to 250000 bytes while preserving the saved review base an
     fs.appendFileSync(changePath, Buffer.alloc(CHANGES_CAP + 1 - before.length, 0x20));
     failed(box.run(["--check"]), /changes\.txt 超过 250,000 字节/u);
     fs.writeFileSync(changePath, before);
-    box.write("js/one.js", "x".repeat(125500)); box.write("js/two.js", "y".repeat(125500)); box.commit();
-    failed(box.run(), /changes\.txt.*超过 250,000 字节/u);
-    assert.deepEqual(fs.readFileSync(changePath), before, "failed sync does not rewrite prior output");
+    box.write("js/one.js", "x".repeat(125500)); box.write("js/two.js", "y".repeat(125500));
+    const shard = postShard("雨"); box.write(shard.file, shard.source);
+    const head = box.commit();
+    passed(box.run()); passed(box.run(["--check"]));
+    assert.equal(fs.existsSync(changePath), false, "the obsolete single file was removed");
+    const names = textFiles(box).filter(name => name.startsWith("changes-")).sort();
+    assert.deepEqual(names, ["changes-1.txt", "changes-2.txt"]);
+    const parts = names.map((name, i) => {
+      const blob = fs.readFileSync(path.join(box.output, name));
+      const [range, marker] = blob.toString("utf8").split("\n", 2);
+      assert.ok(blob.length <= CHANGES_CAP);
+      assert.ok(range.startsWith(`# changes ${box.base}..${head.slice(0, 7)}`));
+      assert.equal(marker, `# sync-copy changes v1 part ${i + 1}/2 ${box.base}..${head}`);
+      return blob;
+    });
+    const body = blob => blob.subarray(blob.indexOf(0x0a, blob.indexOf(0x0a) + 1) + 1);
+    const ordinary = Buffer.from(inspectChanges(box, box.base).diff);
+    assert.deepEqual(Buffer.concat(parts.map(body)), ordinary.subarray(ordinary.indexOf(0x0a) + 1), "parts reassemble every byte after the standard header");
+    assert.match(body(parts[0]).toString("utf8"), /帖子正文分片有变化/u);
+    assert.doesNotMatch(body(parts[1]).toString("utf8"), /帖子正文分片有变化/u);
+    assert.match(body(parts[1]).toString("utf8"), /^diff --git a\/js\/two\.js/u);
+    const guideFile = path.join(box.output, GUIDE);
+    const explanation = fs.readFileSync(guideFile, "utf8");
+    assert.match(explanation, /差异附件（2 份，按顺序）：changes-1\.txt、changes-2\.txt/u);
+    const index = copySections(box);
+    for (const [file, volume] of index) assert.ok(explanation.includes(`  ${JSON.stringify(file)} → ${volume}\n`));
+    fs.writeFileSync(guideFile, explanation.replace('"js/one.js" → 1-app-code-', '"js/one.js" → 2-tools-tests-'));
+    failed(box.run(["--check"]), /使用说明未同步/u);
+    fs.writeFileSync(guideFile, explanation);
+
+    const second = path.join(box.output, names[1]);
+    fs.unlinkSync(second);
+    failed(box.run(["--check"]), /差异卷集合不符/u);
+    fs.writeFileSync(second, Buffer.concat([parts[1], body(parts[0])]));
+    failed(box.run(["--check"]), /changes-2\.txt 与 git diff 不一致/u);
+    fs.writeFileSync(second, parts[1]);
+    fs.writeFileSync(changePath, before);
+    const extra = path.join(box.output, "changes-3.txt");
+    fs.writeFileSync(extra, parts[0].toString("utf8").replace("v1 part 1/2", "v1 part 3/3"));
+    failed(box.run(["--check"]), /差异卷集合不符/u);
+    passed(box.run());
+    assert.equal(fs.existsSync(changePath), false);
+    assert.equal(fs.existsSync(extra), false, "obsolete numbered files with generated headers can be cleaned up");
+
+    box.write("docs/note.md", "One more committed change.\n"); box.commit();
+    failed(box.run(["--check"]), /changes-1\.txt 与 git diff 不一致/u);
+    passed(box.run(["HEAD~1"])); passed(box.run(["--check"]));
+    assert.ok(fs.existsSync(changePath));
+    assert.deepEqual(textFiles(box).filter(name => name.startsWith("changes-")), []);
     assert.equal(fs.readFileSync(path.join(box.output, ".review-base"), "utf8"), box.base + "\n");
+  } finally { box.close(); }
+});
+
+test("a single oversized patch leaves the latest source copy intact and explicitly marks changes pending", () => {
+  const file = "js/huge-patch.js";
+  const box = fixture({ [file]: "x".repeat(126000) + "\n" });
+  try {
+    passed(box.run());
+    const saved = path.join(box.output, ".review-base");
+    fs.writeFileSync(saved, box.base + "\n");
+    box.write(file, "y".repeat(126000) + "\n");
+    const head = box.commit();
+    for (const args of [[], ["--check"]]) {
+      const result = box.run(args);
+      failed(result, /差异待处理/u);
+      assert.match(result.stdout, /源码分卷与源码逐字节一致/u);
+      assert.match(result.stdout, /"js\/huge-patch\.js"\s+252,[\d]{3} 字节/u);
+    }
+    assert.ok(copySections(box).has(file));
+    assert.deepEqual(textFiles(box).filter(name => name.startsWith("changes")), [], "no stale or partial diff is presented as current");
+    const explanation = fs.readFileSync(path.join(box.output, GUIDE), "utf8");
+    assert.match(explanation, /差异待处理/u);
+    assert.ok(explanation.includes(`${box.base}..${head}`));
+    assert.equal(fs.readFileSync(saved, "utf8"), box.base + "\n");
   } finally { box.close(); }
 });
 
@@ -564,7 +634,7 @@ test("numbered changes files are rejected without silently deleting or rewriting
   try {
     passed(box.run());
     const before = fs.readFileSync(path.join(box.output, "changes.txt"));
-    for (const content of ["", "LEGACY_DIFF\n"]) {
+  for (const content of ["", "LEGACY_DIFF\n", before.toString("utf8")]) {
       const extra = path.join(box.output, "changes-1.txt");
       fs.writeFileSync(extra, content);
       failed(box.run(["--check"]), /额外 txt.*changes-1\.txt/u);
@@ -680,7 +750,7 @@ test("a tampered diff header cannot turn a baseline into a git output option", (
     const escaped = path.join(box.directory, "unexpected..HEAD");
     const baseOption = "--output=" + path.join(box.directory, "unexpected");
     fs.writeFileSync(path.join(box.output, "changes.txt"), `# changes ${baseOption}..1234567\n`);
-    failed(box.run(["--check"]), /无效的复核基线/u);
+    failed(box.run(["--check"]), /changes\.txt 与 git diff 不一致/u);
     assert.equal(fs.existsSync(escaped), false);
   } finally { box.close(); }
 });

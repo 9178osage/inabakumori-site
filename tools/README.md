@@ -15,12 +15,15 @@
 | `npm run test:integration` | 使用隔离临时数据库验证 HTTP 接口 |
 | `npm run check:changelog` | 联网核对 GitHub Actions 与上线记录，更新本地 API 缓存 |
 | `npm run check:links` | 联网检查公开外链；`check:links:strict` 将全部失败计入退出状态 |
-| `python3 tools/sync-copy.py` | 发布核验后，将已提交文本导出到被忽略的本地副本目录 |
-| `python3 tools/sync-copy.py --check` | 只核对副本与 Git HEAD，不改写副本 |
+| `python3 tools/sync-copy.py` | 发布核验后导出已提交文本及正式差异，差异超限时按完整文件补丁分卷 |
+| `python3 tools/sync-copy.py --check` | 只读核对源码卷、正式差异卷、说明与当前 Git HEAD |
+| `python3 tools/review-copy.py <起点> <终点>` | 按需将指定提交区间的差异写到标准输出，每份最多 250,000 字节。重定向到仓库外的新文件 |
 | `python3 tools/remote-backup.py <私有配置.json>` | 从生产受保护接口下载并验证留言快照，仅保存于私有目录；配置、令牌和备份不进仓库，细节见[迁移说明](../docs/VERCEL.md#回退与后续备份) |
 | `tools/run-backup.sh` | launchd 外层脚本，与 `remote-backup.py` 一起装在私有备份目录；被拦时把 `NEEDS REVIEW:` 摘要写进 backup.log 和 NEEDS-REVIEW.txt |
 
 提交前必须通过 `npm test`、`npm run check`、`npm run test:integration`、`npm run check:changelog` 四项门禁。后者的网络或限流失败不能用离线结构检查代替。
+
+副本使用说明列出源码文件所在分卷和正式差异的覆盖范围。差异分卷、按需复核区间和基线规则见[站长手册](../docs/MAINTAINER.md#同步和复核文本副本)。
 
 ## 数据与资源维护
 

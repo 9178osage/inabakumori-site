@@ -3,19 +3,20 @@
 
 规则（用户 2026-10-20 将代码上限恢复为 130,000 字节，帖子正文单独归档）：
   1. 每段以 `===== 文件路径 =====` 开头，内容与 `git show HEAD:<路径>` 逐字节相同。
-  2. 按文件拆分，单个文件绝不切开；代码和说明每个 txt 不超过 CAP 字节，changes.txt 不超过 CHANGES_CAP 字节。差异保留一行上下文，不含帖子正文分片，只列出最多 10 个变化的分片名，其余计数。
+  2. 代码和说明每个 txt 不超过 CAP 字节，差异每卷不超过 CHANGES_CAP 字节。源文件与单文件补丁不切开。差异保留一行上下文，只列出最多 10 个变化的帖子分片名，其余计数。
   3. 四组互不重叠：1-app-code / 2-tools-tests / 3-docs / 4-x-posts；帖子正文上限为 X_POSTS_CAP。
-  4. txt 文件数量按完整源文件体积自动调整，包含使用说明和 changes.txt。
+  4. txt 文件数量按完整源文件体积自动调整，包含使用说明和差异附件。
   5. 只读 git 跟踪的文件，排除 js/auth.js（源码是 tools/auth-src.js）、两个 package-lock.json、
      二进制文件，以及 dist/、.env*、数据库、密钥和本地私有文件。
   6. 输出文件夹已被 .gitignore 忽略，永不提交、不上线；生成器在 tools/ 中受版本控制。
 
 用法
-  python3 tools/sync-copy.py [<base>]         生成副本 + changes.txt（<base>..HEAD，默认读 .review-base）
+  python3 tools/sync-copy.py [<base>]         生成副本和差异卷（<base>..HEAD，默认读 .review-base）
   python3 tools/sync-copy.py --check          只核对，不写任何文件；差异起点未覆盖 .review-base 时只提示缺口
   python3 tools/sync-copy.py --mark-reviewed  把 HEAD 记为新的 .review-base
 """
-import codecs, os, re, stat, subprocess, sys, tempfile
+import codecs, json, os, re, stat, subprocess, sys, tempfile
+from typing import NamedTuple
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(REPO, "inabakumori-site-all-code")
@@ -27,7 +28,12 @@ GUIDE = "0-使用说明.txt"
 EXCLUDE = {"js/auth.js", "package-lock.json", "backend/package-lock.json"}
 BINARY = re.compile(r"\.(png|jpe?g|webp|gif|ico|avif|bmp|tiff?|svgz|eot|woff2?|ttf|otf|mp[34]|ogg|m4a|wav|flac|webm|mov|zip|gz|7z|pdf|dmp|ai|db|sqlite3?)(?:-(?:wal|shm|journal))?$", re.I)
 PRIVATE = re.compile(r"(?:^|[/_.-])(?:secrets?|credentials?|private[-_]?key|id_rsa|id_ed25519)(?:$|[/_.-])|\.(?:pem|key|p12|pfx|jks|keystore|sql|dump|bak)$", re.I)
-GENERATED = re.compile(r"^(?:(?:1-app-code|2-tools-tests|3-docs|4-x-posts)-\d+|changes)\.txt$")
+SOURCE_VOLUME = re.compile(r"(?:1-app-code|2-tools-tests|3-docs|4-x-posts)-\d+\.txt")
+CHANGE_PART = re.compile(r"changes-([1-9][0-9]{0,11})\.txt")
+CHANGE_HEADER = re.compile(r"# changes \S+\.\.[0-9a-f]{4,64}（仅含符合导出规则的文本文件）\n".encode())
+PART_HEADER = re.compile(rb"# sync-copy changes v1 part ([0-9]{1,12})/([0-9]{1,12}) ([0-9a-f]{40}(?:[0-9a-f]{24})?)\.\.([0-9a-f]{40}(?:[0-9a-f]{24})?)\n")
+GUIDE_RANGE = re.compile(r"^差异范围：(\S+)\.\.[0-9a-f]+(?:（|；)", re.M)
+PATCH_START = re.compile(rb"^diff --git ", re.M)
 X_POSTS_FILE = re.compile(r"^data/x-posts/posts-[^/]+\.json$")
 APP_ROOT = {"index.html", "updates.html", "404.html", "calendar.html", "style.css", "updates.css", "archive.css", "calendar.css", "script.js", "site.webmanifest", "robots.txt",
             "sitemap.xml", "package.json", "CNAME", ".nojekyll", "tools/auth-src.js"}
@@ -117,7 +123,7 @@ def group(p):
 
 
 def limit(name):
-    if name == "changes.txt":
+    if name == "changes.txt" or CHANGE_PART.fullmatch(name):
         return CHANGES_CAP
     return X_POSTS_CAP if name == "4-x-posts" or name.startswith("4-x-posts-") else CAP
 
@@ -162,9 +168,9 @@ def is_text(data):
     return not any(b < 32 and b not in (9, 10, 13) for b in data)
 
 
-def files():
+def files(head="HEAD"):
     out = []
-    for entry in git("ls-tree", "-r", "-z", "HEAD").split(b"\0"):
+    for entry in git("ls-tree", "-r", "-z", head).split(b"\0"):
         if not entry:
             continue
         metadata, path = entry.split(b"\t", 1)
@@ -174,7 +180,7 @@ def files():
         # core.symlinks=false 会把已提交的符号链接检出为普通文本文件。
         if metadata.startswith(b"120000 "):
             sys.exit(f"{p} 源码路径不得使用符号链接")
-        data = git("show", f"HEAD:{p}")
+        data = git("show", f"{head}:{p}")
         if not is_text(data):
             continue
         # 副本基于已提交版本，但必须同时与磁盘上的实际源码一致。
@@ -206,9 +212,9 @@ def section(p, data):
     return f"===== {p} =====\n".encode() + data + b"\n\n"
 
 
-def build():
-    vols = {}
-    for p, data in files():
+def build(head):
+    vols, index = {}, {}
+    for p, data in files(head):
         g = group(p)
         piece = section(p, data)
         cap = limit(g)
@@ -218,11 +224,12 @@ def build():
         if sum(map(len, parts[-1])) + len(piece) > cap:
             parts.append([])
         parts[-1].append(piece)
+        index[p] = f"{g}-{len(parts)}.txt"
     result = {}
     for g in sorted(vols):
         for i, chunk in enumerate(vols[g], 1):
             result[f"{g}-{i}.txt"] = b"".join(chunk)
-    return result
+    return result, index
 
 
 def read_review_base():
@@ -326,10 +333,25 @@ def exact_pathspec(p):
     return ":(top,glob)" + escaped
 
 
-def changes(base):
-    validate_base(base)
+class ChangeSet(NamedTuple):
+    base: str
+    start: str
+    end: str
+    head_label: str
+    notes: bytes
+    patch: bytes
+    paths: list
+
+    def header(self):
+        return f"# changes {self.base}..{self.head_label}（仅含符合导出规则的文本文件）\n".encode()
+
+
+def collect_changes(base, head, short_head=False):
+    start = validate_base(base)
+    end = validate_base(head, "无效的差异终点")
+    span = f"{start}..{end}"
     candidates, shards, object_ids = [], [], set()
-    raw = git("diff", "--raw", "--no-ext-diff", "--no-textconv", "--no-color", "--no-abbrev", "--no-renames", "-z", f"{base}..HEAD").split(b"\0")
+    raw = git("diff", "--raw", "--no-ext-diff", "--no-textconv", "--no-color", "--no-abbrev", "--no-renames", "-z", span).split(b"\0")
     for offset in range(0, len(raw) - 1, 2):
         metadata, path = raw[offset:offset + 2]
         p = path.decode("utf-8")
@@ -353,34 +375,81 @@ def changes(base):
             group(p)  # 删除的未知目录也不能静默归入工具组。
             paths.append(p)
     diff = b"".join(git("diff", "--no-ext-diff", "--no-textconv", "--no-color", "--no-renames", "--unified=1",
-                        f"{base}..HEAD", "--", *batch) for batch in path_batches(exact_pathspec(p) for p in paths))
-    head = git("rev-parse", "--short", "HEAD").decode().strip()
+                        span, "--", *batch) for batch in path_batches(exact_pathspec(p) for p in paths))
+    head_label = git("rev-parse", "--short", end).decode().strip() if short_head else end
     # 分片名单最多列 SHARD_NOTE_NAMES 个，其余只计数，保证说明行本身不会挤占 changes.txt 的上限。
     listed = sorted(shards)[:SHARD_NOTE_NAMES]
     note = "".join(f"# 帖子正文分片有变化（未列入差异，见第 4 组）: {p}\n" for p in listed)
     if len(shards) > len(listed):
         note += f"# 另有 {len(shards) - len(listed)} 个帖子正文分片有变化（未逐一列出）\n"
-    return f"# changes {base}..{head}（仅含符合导出规则的文本文件）\n".encode() + note.encode() + diff
+    return ChangeSet(base, start, end, head_label, note.encode(), diff, paths)
 
 
-def guide(base, names):
-    head = git("rev-parse", "--short", "HEAD").decode().strip()
+def changes(base, head="HEAD"):
+    change = collect_changes(base, head, short_head=head == "HEAD")
+    return change.header() + change.notes + change.patch
+
+
+def change_volumes(change):
+    header = change.header()
+    if len(header) + len(change.notes) + len(change.patch) <= CHANGES_CAP:
+        return {"changes.txt": header + change.notes + change.patch}, []
+
+    # Git 文件补丁头位于行首。正文行都有差异前缀，不会被误当作边界。
+    starts = [match.start() for match in PATCH_START.finditer(change.patch)]
+    if len(starts) != len(change.paths) or starts and starts[0] != 0:
+        sys.exit("git diff 的文件补丁边界与已核对路径不一致，未写入")
+    bounds = starts + [len(change.patch)]
+    # 预留相同宽度的序号，保证加入实际卷头后也不超限。
+    width = len(str(len(starts) + 1))
+
+    def part_header(part, total):
+        return header + f"# sync-copy changes v1 part {part:0{width}d}/{total:0{width}d} {change.start}..{change.end}\n".encode()
+
+    cap = CHANGES_CAP - len(part_header(1, 1))
+    oversized = [(path, stop - start) for path, start, stop in zip(change.paths, bounds, bounds[1:]) if stop - start > cap]
+    if len(change.notes) > cap:
+        oversized.append(("帖子分片变动摘要", len(change.notes)))
+    if oversized:
+        return {}, oversized
+    parts = [bytearray(change.notes)]
+    for start, stop in zip(bounds, bounds[1:]):
+        if len(parts[-1]) + stop - start > cap:
+            parts.append(bytearray())
+        parts[-1].extend(change.patch[start:stop])
+    return {f"changes-{i}.txt": part_header(i, len(parts)) + part for i, part in enumerate(parts, 1)}, []
+
+
+def oversized_message(oversized):
+    files = "\n".join(f"  {json.dumps(path, ensure_ascii=False)}  {size:,} 字节" for path, size in oversized)
+    return f"差异待处理：以下完整补丁或摘要连同卷头无法放入 {CHANGES_CAP:,} 字节的分卷。\n{files}"
+
+
+def guide(change, names, index, diffs, oversized, gap):
     ordered = sorted(names, key=volume_order)
     volumes = "\n".join("  " + n for n in ordered if n.startswith(("1-app-code-", "2-tools-tests-", "3-docs-")))
     posts = "\n".join("  " + n for n in ordered if n.startswith("4-x-posts-")) or "  （本次没有帖子正文分卷）"
+    batches = "、".join(sorted(diffs, key=volume_order))
+    coverage = oversized_message(oversized) if oversized else f"差异附件（{len(diffs)} 份，按顺序）：{batches}"
+    if gap and not gap.startswith(".review-base"):
+        coverage += f"\n复核基线提示：{gap}"
+    paths = "\n".join(f"  {json.dumps(path, ensure_ascii=False)} → {name}" for path, name in sorted(index.items()))
     return f"""稻网源码文本副本 · 使用说明
 
-对应提交：{head}（main）
-差异范围：{base}..{head}；保留现有复核基线，不自动重置。
+对应提交：{change.head_label}（main）
+差异范围：{change.base}..{change.head_label}（实际提交：{change.start}..{change.end}）
+{coverage}
+保留现有复核基线，不自动重置。
 
 一、选择附件
 
-只核对改动：只提供 changes.txt。
-日常前后端源码、测试与文档体检：提供以下互不重叠的前三组，不同时提供 changes.txt：
+只核对改动：只提供上方列出的差异附件，分卷时按编号顺序提供。差异待处理时先核对上方说明。
+只核对某段历史：运行 python3 tools/review-copy.py <起点> <终点>，按需另存附件。
+日常前后端源码、测试与文档体检：从以下互不重叠的前三组选取所需分卷，不同时提供差异附件：
 {volumes}
 
 前三组保留 data/x-posts/manifest.json；X 帖子正文是独立数据，不在日常代码附件中。
-需要复核帖子正文或提供全部文本时，再按需附上第 4 组，不同时附 changes.txt：
+需要复核帖子正文或提供全部文本时，再按需附上第 4 组，不同时附差异附件：
 {posts}
 
 同一次提问不要重复提供相同内容。本说明无源码，按需提供即可。
@@ -391,14 +460,15 @@ def guide(base, names):
 标记后的源码逐字节保留，包括缩进、空格、换行及是否有末尾换行。
 文件之间额外的两个换行属于分隔框架，不属于源码。
 不要手动重排或改写分卷。粘贴到聊天时可另加代码围栏，并保留文件名和缩进。
-前三组和说明每个 txt 不超过 {CAP:,} 字节；changes.txt 不超过 {CHANGES_CAP:,} 字节，差异保留一行上下文。
+前三组和说明每个 txt 不超过 {CAP:,} 字节；每个差异附件不超过 {CHANGES_CAP:,} 字节，差异保留一行上下文。
+差异能放进单份时使用 changes.txt，超出时按完整文件补丁顺序生成编号分卷。
 第 4 组帖子正文每个 txt 不超过 {X_POSTS_CAP:,} 字节（{X_POSTS_CAP / 1_000_000:g} MB）。
 数量按完整源文件体积自动调整，不丢弃已提交帖子正文。
 
 三、附上背景和诉求
 
-全站复核示例：这是稻网提交 {head} 的前后端源码，请检查可证实的功能和安全问题。
-改动复核示例：这是 {base} 到 {head} 的 git diff，请检查本次改动是否引入回归。
+全站复核示例：这是稻网提交 {change.head_label} 的前后端源码，请检查可证实的功能和安全问题。
+改动复核示例：这是 {change.start} 到 {change.end} 的 git diff，请检查本次改动是否引入回归。
 具体故障请说明预期行为、实际行为和复现步骤。
 
 四、报错与敏感信息
@@ -418,51 +488,75 @@ def guide(base, names):
 同步命令：python3 tools/sync-copy.py
 校验命令：python3 tools/sync-copy.py --check
 不自动执行 --mark-reviewed；仅在维护者明确要求时重置复核基线。
+
+六、源码文件所在分卷
+
+{paths}
 """.encode()
 
 
-def review_gap(base):
+def review_gap(base, label="changes.txt"):
     # 临时指定较新的差异起点是允许的，所以缺口只提示、不判为失败，也不改 .review-base。
     saved = read_review_base()
     if saved is None:
         return None
     resolved = resolve_base(saved)
     if not resolved:
-        return ".review-base 不是有效提交，无法核对 changes.txt 是否覆盖复核基线以来的改动"
+        return f".review-base 不是有效提交，无法核对 {label} 是否覆盖复核基线以来的改动"
     start = validate_base(base)
     if git_result("merge-base", "--is-ancestor", start, resolved).returncode == 0:
         return None
     count = git("rev-list", "--count", f"{resolved}..{start}").decode().strip()
-    return f"changes.txt 从 {base} 开始，未覆盖复核基线 {saved} 以来的全部改动：{saved}..{base}（{count} 个提交）不在差异中"
+    return f"{label} 从 {base} 开始，未覆盖复核基线 {saved} 以来的全部改动：{saved}..{base}（{count} 个提交）不在差异中"
+
+
+def managed_change_part(name, part):
+    with open(output_file(name), "rb") as source:
+        if not CHANGE_HEADER.fullmatch(source.readline(16_384)):
+            return False
+        marker = PART_HEADER.fullmatch(source.readline(256))
+    return marker is not None and int(marker[1]) == int(part[1]) and int(marker[2]) >= max(2, int(part[1]))
+
+
+def existing_outputs():
+    managed, extra = set(), []
+    for name in os.listdir(OUT):
+        part = CHANGE_PART.fullmatch(name)
+        if name in (GUIDE, "changes.txt") or SOURCE_VOLUME.fullmatch(name):
+            output_file(name)
+            managed.add(name)
+        elif part and managed_change_part(name, part):
+            managed.add(name)
+        elif name.lower().endswith(".txt"):
+            extra.append(name)
+    return managed, sorted(extra)
 
 
 def check():
     output_directory()
-    expected = dict(files())
-    seen, ok, base = {}, True, None
+    head = validate_base("HEAD")
+    expected = dict(files(head))
+    seen, actual_diffs, ok = {}, {}, True
+    managed, extra = existing_outputs()
     launcher_path = output_file("sync.py")
     if not os.path.isfile(launcher_path) or open(launcher_path, "rb").read() != LAUNCHER:
         ok = False; print("  ❌ 兼容入口 sync.py 未同步")
     if os.path.lexists(os.path.join(OUT, ".DS_Store")):
         ok = False; print("  ❌ 副本目录含 .DS_Store，请重新同步以清理")
-    text_names = sorted((n for n in os.listdir(OUT) if n.lower().endswith(".txt")), key=volume_order)
-    for n in text_names:
-        if n != GUIDE and not GENERATED.match(n):
-            ok = False; print(f"  ❌ 发现额外 txt，请维护者确认: {n}")
-    names = sorted((n for n in os.listdir(OUT) if GENERATED.match(n)), key=volume_order)
+    for n in extra:
+        ok = False; print(f"  ❌ 发现额外 txt，请维护者确认: {n}")
+    names = sorted(managed - {GUIDE}, key=volume_order)
     for n in names:
         blob = open(output_file(n), "rb").read()
+        is_diff = n == "changes.txt" or CHANGE_PART.fullmatch(n)
+        if is_diff:
+            actual_diffs[n] = blob
         if not blob:
             ok = False; print(f"  ❌ 空分卷: {n}"); continue
         cap = limit(n)
         if len(blob) > cap:
             ok = False; print(f"  ❌ {n} 超过 {cap:,} 字节")
-        if n == "changes.txt":
-            header = re.match(rb"# changes (\S+)\.\.([0-9a-f]+)[^\n]*\n", blob)
-            if not header or blob != changes(header.group(1).decode()):
-                ok = False; print("  ❌ changes.txt 与 git diff 不一致")
-            if header:
-                base = header.group(1).decode()
+        if is_diff:
             continue
         pos = 0
         while pos < len(blob):
@@ -479,23 +573,41 @@ def check():
     if missing:
         ok = False; print(f"  ❌ 缺少: {sorted(missing)}")
     guide_path = output_file(GUIDE)
-    if not base or not os.path.isfile(guide_path):
+    actual_guide = b""
+    if GUIDE in managed:
+        with open(guide_path, "rb") as source:
+            actual_guide = source.read(CAP + 1)
+    span = GUIDE_RANGE.search(actual_guide.decode("utf-8", "replace"))
+    gap, oversized = None, []
+    if not span or not resolve_base(span[1]):
         ok = False; print("  ❌ 缺少有效使用说明或差异基线")
     else:
-        with open(guide_path, "rb") as source:
-            actual_guide = source.read()
-        if actual_guide != guide(base, names) or len(actual_guide) > CAP:
+        change = collect_changes(span[1], head, short_head=True)
+        diffs, oversized = change_volumes(change)
+        if actual_diffs.keys() != diffs.keys():
+            ok = False
+            print(f"  ❌ 差异卷集合不符，预期 {sorted(diffs, key=volume_order)}，实际 {sorted(actual_diffs, key=volume_order)}")
+        for name, content in diffs.items():
+            if name in actual_diffs and actual_diffs[name] != content:
+                ok = False; print(f"  ❌ {name} 与 git diff 不一致")
+        gap = review_gap(change.base, "changes.txt" if "changes.txt" in diffs else "差异")
+        if actual_guide != guide(change, names, seen, diffs, oversized, gap) or len(actual_guide) > CAP:
             ok = False; print(f"  ❌ 使用说明未同步或超过 {CAP:,} 字节")
-    total = len(text_names)
-    if "changes.txt" not in names:
-        ok = False; print("  ❌ 缺少 changes.txt")
-    gap = review_gap(base) if base else None
     if gap:
         print(f"  ⚠️ {gap}")
-    head = git("rev-parse", "--short", "HEAD").decode().strip()
-    print(f"  {len(seen)}/{len(expected)} 个源文件，{total} 个 txt，HEAD {head}")
-    print("  ✅ 副本与源码逐字节一致" if ok else "  ❌ 副本与源码不一致")
-    return ok
+    if validate_base("HEAD") != head:
+        ok = False; print("  ❌ 核对期间 HEAD 变动，请重试")
+    total = len(managed) + len(extra)
+    print(f"  {len(seen)}/{len(expected)} 个源文件，{total} 个 txt，HEAD {head[:7]}")
+    if oversized:
+        if ok:
+            print("  ✅ 源码分卷与源码逐字节一致")
+        print(f"  ❌ {oversized_message(oversized)}")
+    if not ok:
+        print("  ❌ 副本与源码不一致")
+    elif not oversized:
+        print("  ✅ 副本与源码逐字节一致")
+    return ok and not oversized
 
 
 def main():
@@ -505,9 +617,6 @@ def main():
     output_directory(create=args != ["--check"])
     output_file(".review-base")
     output_file("sync.py")
-    for name in os.listdir(OUT):
-        if name == GUIDE or GENERATED.match(name):
-            output_file(name)
     if args == ["--check"]:
         sys.exit(0 if check() else 1)
     if args == ["--mark-reviewed"]:
@@ -515,9 +624,9 @@ def main():
         write_output(".review-base", (head + "\n").encode())
         print(f"  .review-base = {head}")
         return
-    extra = [n for n in os.listdir(OUT) if n.lower().endswith(".txt") and n != GUIDE and not GENERATED.match(n)]
+    managed, extra = existing_outputs()
     if extra:
-        sys.exit(f"发现额外 txt，未写入；请维护者确认: {sorted(extra)}")
+        sys.exit(f"发现额外 txt，未写入；请维护者确认: {extra}")
     saved = read_review_base() if not args else None
     if saved is not None:
         base = saved
@@ -525,26 +634,29 @@ def main():
     else:
         base = args[0] if args else "HEAD~1"
         validate_base(base)
-    vols = build()
-    diff = changes(base)
-    if len(diff) <= CHANGES_CAP:
-        vols["changes.txt"] = diff
-    else:
-        sys.exit(f"changes.txt 有 {len(diff)} B，超过 {CHANGES_CAP:,} 字节；请换一个更近的 base")
-    vols[GUIDE] = guide(base, vols)
-    if len(vols[GUIDE]) > CAP:
+    change = collect_changes(base, "HEAD", short_head=True)
+    vols, index = build(change.end)
+    diffs, oversized = change_volumes(change)
+    vols.update(diffs)
+    gap = review_gap(base, "changes.txt" if "changes.txt" in diffs else "差异")
+    explanation = guide(change, vols, index, diffs, oversized, gap)
+    if len(explanation) > CAP:
         sys.exit(f"使用说明超过 {CAP:,} 字节，未写入")
+    if validate_base("HEAD") != change.end:
+        sys.exit("生成期间 HEAD 变动，未写入，请重试")
     metadata = os.path.join(OUT, ".DS_Store")
     if os.path.lexists(metadata):
         if os.path.islink(metadata) or not os.path.isfile(metadata):
             sys.exit(".DS_Store 不是普通文件，未写入，请维护者确认")
         os.remove(metadata)
-    for n in os.listdir(OUT):
-        if GENERATED.match(n) and n not in vols:
-            os.remove(output_file(n))
     for n, data in vols.items():
         write_output(n, data)
+    for n in managed - set(vols) - {GUIDE}:
+        if not CHANGE_PART.fullmatch(n) or managed_change_part(n, CHANGE_PART.fullmatch(n)):
+            os.remove(output_file(n))
+    write_output(GUIDE, explanation)
     write_output("sync.py", LAUNCHER)
+    vols[GUIDE] = explanation
     for n in sorted(vols, key=volume_order):
         print(f"  {n:24} {len(vols[n]):>7} B")
     sys.exit(0 if check() else 1)
