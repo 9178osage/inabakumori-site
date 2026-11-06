@@ -194,14 +194,14 @@ test("songs.html filters from one menu: choose album or year, then one value, ne
     }
     assert.equal(app.reset.hidden, !facet);
   };
-  assert.equal(total, 52);
+  assert.equal(total, 55);
   assert.equal(app.panel.hidden, false);
   assert.equal(app.visible().length, total);
   assert.equal(app.toggleLabel.textContent, "筛选");
   assert.equal(app.status.textContent, `共 ${total} 首`);
   assert.equal(app.empty.hidden, true);
   assert.deepEqual(app.buttons.filter(entry => entry.dataset.songFilter === "album").map(entry => [entry.dataset.value, entry.count.textContent]),
-    [["anticyclone", "14"], ["weather-station", "11"], ["singles", "27"]]);
+    [["anticyclone", "14"], ["weather-station", "11"], ["singles", "30"]]);
   expectMenu(false);
   expectFilter("", "");
   assert.deepEqual(app.urls, [], "the initial render leaves the address alone");
@@ -247,7 +247,7 @@ test("songs.html filters from one menu: choose album or year, then one value, ne
   const year = "2019";
   app.button("year", year).listeners.click();
   const byYear = app.items.filter(item => item.dataset.year === year);
-  assert.equal(byYear.length, 8);
+  assert.equal(byYear.length, 10);
   assert.deepEqual(app.visible(), byYear);
   assert.equal(new Set(app.visible().map(item => item.dataset.album)).size, 3, "the chosen year includes all albums");
   expectFilter("year", year);
@@ -314,7 +314,7 @@ test("songs.html menu closes with Escape, the trigger, an outside click or tabbi
   assert.equal(app.menu.hidden, false);
   app.dropdown.listeners.focusout({ relatedTarget: app.reset });
   assert.equal(app.menu.hidden, true);
-  assert.equal(app.visible().length, 52, "closing never applies a filter");
+  assert.equal(app.visible().length, 55, "closing never applies a filter");
   assert.deepEqual(app.urls, []);
 });
 
@@ -333,7 +333,7 @@ test("songs.html restores one filter and canonicalizes legacy combined, \"all\",
   assert.equal(malformed.button("year", "2020").getAttribute("aria-pressed"), "true", "a malformed value leaves the other filter working");
 
   const unknown = songFilterPage(html, "?album=bogus&album=singles&year=2019");
-  assert.equal(unknown.visible().length, 8, "a repeated key cannot replace its first, invalid value");
+  assert.equal(unknown.visible().length, 10, "a repeated key cannot replace its first, invalid value");
 
   const combined = songFilterPage(html, "?album=anticyclone&year=2026");
   assert.equal(combined.visible().length, 14, "a legacy combined link cannot leave an invisible second filter");
@@ -343,17 +343,17 @@ test("songs.html restores one filter and canonicalizes legacy combined, \"all\",
   assert.equal(yearFirst.visible().length, 2);
   assert.equal(yearFirst.urls.at(-1), "/songs.html?year=2026#list");
   const allThenYear = songFilterPage(html, "?album=all&year=2019");
-  assert.equal(allThenYear.visible().length, 8, "\"all\" is no filter, so the next real one applies");
+  assert.equal(allThenYear.visible().length, 10, "\"all\" is no filter, so the next real one applies");
   assert.equal(allThenYear.urls.at(-1), "/songs.html?year=2019#list");
 
   for (const facet of ["year", "album"]) {
     const all = songFilterPage(html, `?${facet}=all`);
-    assert.equal(all.visible().length, 52);
+    assert.equal(all.visible().length, 55);
     assert.equal(all.all.getAttribute("aria-pressed"), "true");
     assert.equal(all.urls.at(-1), "/songs.html#list", "the former branch-only link becomes the plain address");
   }
   const invalid = songFilterPage(html, "?year=%E0%A4%A&album=bogus");
-  assert.equal(invalid.visible().length, 52);
+  assert.equal(invalid.visible().length, 55);
   assert.equal(invalid.reset.hidden, true);
   assert.equal(invalid.urls.at(-1), "/songs.html#list");
 });

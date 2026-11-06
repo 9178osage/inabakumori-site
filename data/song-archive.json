@@ -1700,6 +1700,154 @@
         "en": "The existing YouTube link is an unofficial reupload. A prior collection preserves the creator post, but its official body could not be retrieved this round.",
         "ja": "既存YouTubeリンクは非公式転載。作者投稿の既収録資料はありますが、今回は公式本文を再取得できませんでした。"
       }
+    },
+    "JtYuM06hi3I": {
+      "fieldSources": {
+        "releasedAt": [
+          "作者官方 SoundCloud"
+        ],
+        "vocal": [
+          "作者官方 SoundCloud"
+        ],
+        "music": [
+          "作者官方 SoundCloud"
+        ]
+      },
+      "aliases": [
+        "Sen'i Hito-kukaku",
+        "Transition Section"
+      ],
+      "releasedAt": "2019-09-21T10:34:30Z",
+      "releaseNote": {
+        "zh": "作者官方 SoundCloud 公开时间。说明写作「昔の曲(2015年)」，未给出 2015 年首次公开的月日；不以转载的 2021 年上传日期为准。",
+        "en": "Publication time on the creator’s official SoundCloud. The description calls it an old 2015 work but gives no original 2015 day; the 2021 reupload date is not used.",
+        "ja": "作者公式 SoundCloud での公開日時。説明には「昔の曲(2015年)」とありますが、2015年の初公開の月日は不明です。転載の2021年投稿日は使いません。"
+      },
+      "vocal": "歌愛ユキ",
+      "credits": [
+        {
+          "role": "music",
+          "name": "稲葉曇"
+        }
+      ],
+      "unverified": [
+        "illustration",
+        "animation",
+        "movie"
+      ],
+      "sources": [
+        {
+          "label": "作者官方 SoundCloud",
+          "url": "https://soundcloud.com/inabakumori/senihitokukaku"
+        }
+      ],
+      "checkedAt": "2026-11-06",
+      "videoKind": "reupload",
+      "videoNote": {
+        "zh": "现有 YouTube 链接来自非官方转载；资料按下列作者、发行商或专访来源核对，不以转载的标题、上传日期和署名为依据。",
+        "en": "The existing YouTube link is an unofficial reupload. Facts are checked against the creator, label or interview sources below, rather than the reupload’s title, upload date or credits.",
+        "ja": "既存の YouTube リンクは非公式転載です。転載の題名・投稿日・クレジットではなく、以下の作者・発売元・インタビューの出典で確認しています。"
+      },
+      "creditNote": {
+        "zh": "SoundCloud 标题写明 Vo. 歌愛ユキ；未列出插画或影像署名。",
+        "en": "The SoundCloud title names Vo. Kaai Yuki; no illustration or movie credits are listed.",
+        "ja": "SoundCloud の題名に Vo. 歌愛ユキ とあります。イラストや映像のクレジットは未記載です。"
+      }
+    },
+    "voRk8NCeWsA": {
+      "fieldSources": {
+        "releasedAt": [
+          "X @inabakumori（发布帖）"
+        ],
+        "vocal": [
+          "X @inabakumori（发布帖）"
+        ],
+        "music": [
+          "X @inabakumori（发布帖）"
+        ]
+      },
+      "releasedAt": "2019-03-15T09:55:09.000Z",
+      "releaseNote": {
+        "zh": "作者发布帖日期与正文；不以英文字幕转载的上传日期为准。",
+        "en": "Date and text of the creator’s release post; the English-subtitled reupload date is not used.",
+        "ja": "作者の公開投稿の日付と本文。英字幕転載の投稿日は使いません。"
+      },
+      "vocal": "初音ミク",
+      "credits": [
+        {
+          "role": "music",
+          "name": "稲葉曇"
+        }
+      ],
+      "unverified": [
+        "illustration",
+        "animation",
+        "movie"
+      ],
+      "sources": [
+        {
+          "label": "X @inabakumori（发布帖）",
+          "url": "https://x.com/inabakumori/status/1106494030911660032"
+        }
+      ],
+      "checkedAt": "2026-11-06",
+      "videoKind": "reupload",
+      "videoNote": {
+        "zh": "现有 YouTube 链接来自非官方转载；资料按下列作者、发行商或专访来源核对，不以转载的标题、上传日期和署名为依据。",
+        "en": "The existing YouTube link is an unofficial reupload. Facts are checked against the creator, label or interview sources below, rather than the reupload’s title, upload date or credits.",
+        "ja": "既存の YouTube リンクは非公式転載です。転載の題名・投稿日・クレジットではなく、以下の作者・発売元・インタビューの出典で確認しています。"
+      },
+      "creditNote": {
+        "zh": "发布帖正文写明『SATURDAY SUNSET』Vo. 初音ミク；未列出插画或影像署名。",
+        "en": "The release post names “SATURDAY SUNSET” Vo. Hatsune Miku; no illustration or movie credits are listed.",
+        "ja": "公開投稿の本文に『SATURDAY SUNSET』Vo. 初音ミクとあります。イラストや映像のクレジットは未記載です。"
+      }
+    },
+    "e3Ty8nHaXyE": {
+      "fieldSources": {
+        "releasedAt": [
+          "無色透名祭3 niconico"
+        ],
+        "vocal": [
+          "無色透名祭3 niconico"
+        ]
+      },
+      "aliases": [
+        "Natsu no Shuumatsu",
+        "夏日终末"
+      ],
+      "releasedAt": "2025-11-21T10:00:00Z",
+      "releaseNote": {
+        "zh": "無色透名祭3 官方 niconico 公开时间（日本时间 2025-11-21 19:00）；不以转载的 YouTube 上传日期为准。",
+        "en": "Publication time on the Mushoku Toumei Festival 3 niconico upload (19:00 JST on 2025-11-21); the YouTube reupload date is not used.",
+        "ja": "無色透名祭3 の公式 niconico 公開日時（日本時間 2025-11-21 19:00）。YouTube 転載の投稿日は使いません。"
+      },
+      "vocal": "星尘Infinity",
+      "credits": [],
+      "unverified": [
+        "music",
+        "illustration",
+        "animation",
+        "movie"
+      ],
+      "sources": [
+        {
+          "label": "無色透名祭3 niconico",
+          "url": "https://www.nicovideo.jp/watch/so45521725"
+        }
+      ],
+      "checkedAt": "2026-11-06",
+      "videoKind": "reupload",
+      "videoNote": {
+        "zh": "现有 YouTube 链接来自非官方转载；资料按下列作者、发行商或专访来源核对，不以转载的标题、上传日期和署名为依据。",
+        "en": "The existing YouTube link is an unofficial reupload. Facts are checked against the creator, label or interview sources below, rather than the reupload’s title, upload date or credits.",
+        "ja": "既存の YouTube リンクは非公式転載です。転載の題名・投稿日・クレジットではなく、以下の作者・発売元・インタビューの出典で確認しています。"
+      },
+      "creditNote": {
+        "zh": "niconico 标题写明 星尘Infinity；说明为無色透名祭3 参加作品。官方页面未写作曲署名，作曲栏留空待核对；未列出插画或影像署名。",
+        "en": "The niconico title names 星尘Infinity; the description marks it as a Mushoku Toumei Festival 3 entry. The official page does not name the composer, so that field stays unverified; no illustration or movie credits are listed.",
+        "ja": "niconico の題名に星尘Infinityとあり、説明は無色透名祭3参加作品です。公式ページに作曲者の記載がないため作曲は未確認とします。イラストや映像のクレジットは未記載です。"
+      }
     }
   }
 }

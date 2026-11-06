@@ -794,7 +794,8 @@ function prepareSongTags(links) {
     const htmlTags = String(link.dataset.tags || "").split(",").map((tag) => tag.trim()).filter(Boolean);
     const singers = link._songData?.singers || [];
     const hasSingleSongSinger = singers.some(isSingleSongSinger);
-    const rawFilterTags = [albumTitle, ...htmlTags, ...singers, ...hasSingleSongSinger ? [OTHER_SINGER_TAG] : []];
+    const forceOtherTag = link._songData?.other === true;
+    const rawFilterTags = [albumTitle, ...htmlTags, ...singers, ...(hasSingleSongSinger || forceOtherTag ? [OTHER_SINGER_TAG] : [])];
     const seen = new Set();
     const filterTags = rawFilterTags.filter((tag) => {
       const normalized = normalizeTag(tag);

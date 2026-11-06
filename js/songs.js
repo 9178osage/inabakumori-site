@@ -517,5 +517,38 @@ const SONGS = [
     ],
     "viewCount": 505500,
     "viewsCheckedAt": "2026-11-02"
+  },
+  {
+    "title": "遷移一区画",
+    "youtube": "https://youtu.be/JtYuM06hi3I",
+    "album": "SINGLES",
+    "singers": [
+      "歌爱雪"
+    ],
+    "viewCount": 239988,
+    "viewsCheckedAt": "2026-11-06",
+    "other": true
+  },
+  {
+    "title": "SATURDAY SUNSET",
+    "youtube": "https://youtu.be/voRk8NCeWsA",
+    "album": "SINGLES",
+    "singers": [
+      "初音未来"
+    ],
+    "viewCount": 59566,
+    "viewsCheckedAt": "2026-11-06",
+    "other": true
+  },
+  {
+    "title": "なつのしゅうまつ",
+    "youtube": "https://youtu.be/e3Ty8nHaXyE",
+    "album": "SINGLES",
+    "singers": [
+      "星尘Infinity"
+    ],
+    "viewCount": 18617,
+    "viewsCheckedAt": "2026-11-06",
+    "other": true
   }
 ];

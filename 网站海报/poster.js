@@ -1,5 +1,5 @@
 // Offline snapshot. The poster test checks these readings against the site data.
-const READINGS = [52, 107, 6112];
+const READINGS = [55, 107, 6112];
 
 const COPY = {
   zh: {
