@@ -32,6 +32,27 @@ test("committed translation batches are small, valid and point at archived posts
   assert.ok(archive.items.every(item => item.translated === false));
 });
 
+test("the November 4 NKNK post includes both gists on full-post surfaces", async () => {
+  const { readXTranslations } = await import("../x-translations.mjs");
+  const { readXPostsArchive } = await import("../x-posts-data.mjs");
+  const { createXPostsRenderer } = await import("../render-x-posts.mjs");
+  const archive = await readXPostsArchive(root);
+  const post = archive.items.find(item => item.id === "2117913411011158385");
+  assert.ok(post);
+  const translations = await readXTranslations(root, archive);
+  const expected = {
+    zh: "画了好多不同的东西～～好期待❗️",
+    en: "I drew lots of different things~~ Looking forward to it❗️"
+  };
+  assert.deepEqual(translations.get(post.id), expected);
+  const renderer = createXPostsRenderer({ version: 1, items: [post] }, translations);
+  for (const html of [renderer.renderHome(), renderer.renderArchive().items, renderer.renderPost(post.id)]) {
+    assert.ok(html.includes(post.text));
+    assert.ok(html.includes(`<p class="x-post-translation" data-en="${expected.en}" data-ja="">${expected.zh}</p>`));
+  }
+  assert.equal(post.translated, false);
+});
+
 test("translation line is escaped, hidden for Japanese and absent without an entry", async () => {
   const { createXPostsRenderer } = await import("../render-x-posts.mjs");
   const { readXPostsArchive } = await import("../x-posts-data.mjs");
