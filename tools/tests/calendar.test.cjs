@@ -79,6 +79,8 @@ test("calendar page is hidden, CSP-safe, localized and motion-aware", () => {
   assert.match(html, /script-src 'self';/);
   assert.match(html, /<!-- CALENDAR:SHEET -->/);
   for (const element of html.match(/data-zh="[^"]*"[^>]*>/g)) assert.match(element, /data-en="[^"]+"[^>]*data-ja="[^"]+"/);
+  assert.match(html, /data-zh="神秘小日历" data-en="Secret little calendar" data-ja="ひみつの小さなカレンダー"/);
+  assert.match(read("js/calendar.js"), /ひみつの小さなカレンダー · 気象観測所/);
   assert.doesNotMatch(read("sitemap.xml"), /calendar/);
   const css = read("calendar.css");
   assert.match(css, /@media\(prefers-reduced-motion:no-preference\)\{\.calendar-sheet\[data-flip\]\{animation/);
@@ -89,7 +91,7 @@ test("calendar page is hidden, CSP-safe, localized and motion-aware", () => {
 
 test("homepage reaches the calendar through a prominent labelled entry after its navigation", () => {
   const html = read("index.html");
-  assert.match(html, /<div class="hero-content">[\s\S]*?<\/nav>\s*<a class="station-calendar" href="calendar\.html"><svg[^>]*aria-hidden="true"[\s\S]*?<span data-zh="神秘小日历" data-en="Secret Calendar" data-ja="秘密のカレンダー">神秘小日历<\/span>/);
+  assert.match(html, /<div class="hero-content">[\s\S]*?<\/nav>\s*<a class="station-calendar" href="calendar\.html"><svg[^>]*aria-hidden="true"[\s\S]*?<span data-zh="神秘小日历" data-en="Secret little calendar" data-ja="ひみつの小さなカレンダー">神秘小日历<\/span>/);
   assert.equal(html.split('href="calendar.html"').length, 2);
   assert.doesNotMatch(html, /footer-calendar/);
   for (const nav of html.match(/<nav[\s\S]*?<\/nav>/g) || []) assert.doesNotMatch(nav, /calendar/);

@@ -1,4 +1,4 @@
-// Secret little calendar: counts whole Japan-time days since Inabakumori's newest song.
+// 神秘小日历 / Secret little calendar: counts whole Japan-time days since Inabakumori's newest song.
 // The release time is pre-rendered by tools/build-site.mjs from data/creator-updates.json,
 // so a new upload resets the counter on the next scheduled rebuild.
 (() => {
@@ -48,9 +48,9 @@
     }
     function applyLanguage() {
       document.documentElement.lang = { zh: "zh-CN", en: "en", ja: "ja" }[language];
-      document.title = text("神秘小日历 · 气象观测站", "Secret little calendar · Weather Observation Station", "ひみつの日めくり · 気象観測所");
+      document.title = text("神秘小日历 · 气象观测站", "Secret little calendar · Weather Observation Station", "ひみつの小さなカレンダー · 気象観測所");
       const description = document.querySelector('meta[name="description"]');
-      if (description) description.content = text("气象观测站的神秘小日历。", "The Weather Observation Station's secret little calendar.", "気象観測所のひみつの日めくり。");
+      if (description) description.content = text("气象观测站的神秘小日历。", "The Weather Observation Station's secret little calendar.", "気象観測所のひみつの小さなカレンダー。");
       document.querySelectorAll("[data-zh]").forEach(element => { element.textContent = element.dataset[language] ?? element.dataset.zh; });
       document.querySelectorAll("[data-aria-zh]").forEach(element => element.setAttribute("aria-label", element.dataset[`aria${language[0].toUpperCase()}${language.slice(1)}`] || element.dataset.ariaZh));
       if (langButton) {

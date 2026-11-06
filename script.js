@@ -1113,7 +1113,7 @@ function updateTagFilter() {
 function updateTagLanguage() {
   const input = document.getElementById("tag-filter-input");
   if (input) {
-    input.placeholder = pageText("搜索歌名或标签，例如：ラグ / 歌爱 / yuki", "Search titles or tags, e.g. ラグ / yuki / weather");
+    input.placeholder = pageText("搜索歌名或标签，例如：ラグ / 歌爱雪", "Search titles or tags, e.g. ラグ / Kaai Yuki");
   }
   document.querySelectorAll(".song-inline-tag[data-raw-tag]").forEach((tagElement) => {
     tagElement.textContent = getTagDisplayLabel(tagElement.dataset.rawTag);

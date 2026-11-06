@@ -194,7 +194,7 @@ export function renderSongPage(song, index, { details, linked, renderPost, conta
   const unofficialLinks = unofficialVocal?.sources.map(source => `<a href="${escape(source.url)}" target="_blank" rel="noopener noreferrer">${escape(source.label)} <span aria-hidden="true">↗</span></a>`).join(" · ");
   const vocalValue = details?.vocal ? `<span lang="ja">${escape(details.vocal)}</span>${fieldSource("vocal")}`
     : unofficialVocal ? `<span lang="ja">${escape(unofficialVocal.name)}</span> ${UNOFFICIAL}<small class="song-fact-note">${tri("span", ["官方来源未确认。参考：", "Not confirmed by official sources. Reference: ", "公式の出典では未確認。参考："])}${unofficialLinks}</small>`
-    : !verified && song.singers.length ? `${escape(song.singers.join(" / "))} ${tri("span", ["站内歌曲表", "site song list", "サイト楽曲表"], ' class="song-fact-note"')}` : `<span>—</span> ${UNVERIFIED}`;
+    : !verified && song.singers.length ? `${escape(song.singers.join(" / "))} ${tri("span", ["站内歌曲表", "this site’s song list", "サイト楽曲表"], ' class="song-fact-note"')}` : `<span>—</span> ${UNVERIFIED}`;
   const creditRows = Object.entries(ROLES).filter(([role]) => ["illustration", "animation", "movie"].includes(role) || details?.unverified.includes(role) || details?.credits.some(credit => credit.role === role)).map(([role, label]) => {
     const credit = details?.credits.filter(entry => entry.role === role) ?? [];
     const value = credit.length
@@ -213,7 +213,7 @@ export function renderSongPage(song, index, { details, linked, renderPost, conta
     : tri("p", ["这首歌尚未逐项核对官方资料：标为“未核对”的栏目暂时留空，演唱来自本站歌曲表。", "This song has not been checked field by field yet: “Unverified” fields stay blank, and the vocal comes from this site’s song list.", "この曲は公式情報をまだ項目ごとに確認していません。「未確認」の欄は空欄で、ボーカルはサイトの楽曲表によるものです。"], ' class="song-sources"');
   const feedbackSubject = encodeURIComponent(`Song archive feedback: ${song.title}`);
   const feedbackBody = encodeURIComponent(`Song / 曲名: ${song.title}\nVideo ID: ${id}\n\nField / 待核对项目:\nCorrection / 建议修改:\nSource / 参考来源:\n`);
-  const feedback = contactAddress ? `<p class="song-sources"><a href="mailto:${escape(contactAddress)}?subject=${feedbackSubject}&amp;body=${feedbackBody}">${tri("span", ["提供资料或纠错", "Suggest a correction", "情報提供・訂正を提案"])}</a></p>` : "";
+  const feedback = contactAddress ? `<p class="song-sources"><a href="mailto:${escape(contactAddress)}?subject=${feedbackSubject}&amp;body=${feedbackBody}">${tri("span", ["提供资料或纠错", "Suggest a source or correction", "情報提供・訂正を提案"])}</a></p>` : "";
   const groups = [["release", ["发布消息", "Release announcements", "公開のお知らせ"]], ["milestone", ["播放里程碑", "View milestones", "再生数の節目"]], ["note", ["创作笔记与其他提及", "Creative notes and other mentions", "制作メモ・その他の言及"]]];
   const shown = linked.slice(0, SONG_POST_LIMIT);
   const postSections = groups.map(([category, label]) => {
@@ -276,7 +276,7 @@ export function renderSongIndex(songs, details, linkedMap) {
   const toggle = `<button type="button" id="song-filter-toggle" class="song-filter-toggle" aria-expanded="false" aria-controls="song-filter-menu">${tri("span", ["筛选", "Filter", "絞り込み"], ' id="song-filter-toggle-label"')}<span class="song-filter-caret" aria-hidden="true">▾</span></button>`;
   const filters = `<div id="song-filters" class="song-filters" hidden><div class="song-filter-dropdown">${toggle}${menu}</div><p id="song-filter-status" class="updates-count" role="status" aria-live="polite"></p>${tri("button", ["清除筛选", "Clear filter", "絞り込みを解除"], ' type="button" id="song-filter-reset" class="song-filter-reset" hidden')}</div>`;
   const list = entries.map(({ song, index, id, year, album, albumHtml }) => {
-    const badge = details[id] ? tri("span", ["部分资料已核对", "Sources checked", "一部資料を確認"], ' class="song-checked"') : "";
+    const badge = details[id] ? tri("span", ["部分资料已核对", "Some sources checked", "一部資料を確認"], ' class="song-checked"') : "";
     const inferred = details[id]?.releaseConfidence === "inferred" ? tri("span", ["日期推定", "Date inferred", "日付は推定"], ' class="song-year-inferred"') : "";
     const yearHtml = year === "unknown" ? tri("span", unknownYear, ' class="song-index-year"') : `<span class="song-index-year">${year}</span>`;
     const count = linkedMap.get(id)?.length ?? 0;

@@ -124,7 +124,7 @@ function renderCompactPost(post, href) {
   const chars = [...line];
   const title = chars.length > EXCERPT_LENGTH ? `${chars.slice(0, EXCERPT_LENGTH).join("")}…` : line;
   const headline = title ? `<p class="x-post-text x-post-excerpt"${KANA.test(title) ? ' lang="ja"' : ""} dir="auto">${escape(title)}</p>` : text("p", ["媒体帖子", "Media post", "メディア投稿"], ' class="x-post-text x-post-excerpt x-post-media-only"');
-  const link = text("a", ["在全部帖子中阅读全文 →", "Read in all posts →", "すべての投稿で全文を読む →"], ` href="${escape(href)}"`);
+  const link = text("a", ["在全部帖子中阅读全文 →", "Read the full post →", "すべての投稿で全文を読む →"], ` href="${escape(href)}"`);
   return `<article class="x-post x-post-compact" data-x-post-id="${post.id}" data-creator="${post.creator}"><header class="x-post-header"><h3>${escape(creator.name)} <span>@${creator.handle}</span></h3>${time(post.publishedAt)}</header>${headline}<div class="x-post-links">${link}</div></article>`;
 }
 function renderArchive(groups, status, renderItem, { page = 1, creator = "all", pageSize = 30 } = {}) {

@@ -19,7 +19,7 @@ test("creator archives show headlines that link to each post's place in the all-
   assert.match(nknk, /href="updates\.html#x-post-103"/u);
   assert.match(nknk, /href="updates-page-2\.html#x-post-101"/u);
   assert.match(nknk, /data-x-post-id="103"[^>]*>.*<time datetime=/u);
-  assert.match(nknk, /data-zh="在全部帖子中阅读全文 →" data-en="Read in all posts →" data-ja="すべての投稿で全文を読む →"/u);
+  assert.match(nknk, /data-zh="在全部帖子中阅读全文 →" data-en="Read the full post →" data-ja="すべての投稿で全文を読む →"/u);
   assert.match(nknk, /lang="ja"/u);
   assert.match(nknk, /…<\/p>/u);
   const ina = renderer.renderArchive({ creator: "inabakumori", page: 2, pageSize: 2 }).items;
