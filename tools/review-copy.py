@@ -7,6 +7,41 @@ from pathlib import Path
 import stat
 import sys
 
+TOOLS_DIRECTORY_ERROR = "tools 必须是真实目录，不得使用符号链接"
+
+
+def entry_parent(entry):
+    parent = entry.parent
+    if ".." not in parent.parts:
+        return parent
+
+    # Reject canceled links at or below tools using their original paths. Do not
+    # use this lexical stack to resolve ancestors: jump/.. follows jump first.
+    prefix = Path(parent.anchor)
+    prefixes = []
+    for part in parent.parts[1:]:
+        prefix /= part
+        if part != "..":
+            prefixes.append(prefix)
+        elif prefixes:
+            within_tools = any(path.name.casefold() == "tools" for path in prefixes)
+            canceled = prefixes.pop()
+            if within_tools and canceled.is_symlink():
+                sys.exit(TOOLS_DIRECTORY_ERROR)
+
+    # Recover the final directory name from paths such as tools/sub/../. Only
+    # remove a trailing '..' if its child is a real directory, never a symlink.
+    climb = 0
+    while climb or parent.name == "..":
+        if parent.name == "..":
+            climb += 1
+        else:
+            if not stat.S_ISDIR(parent.lstat().st_mode):
+                sys.exit(TOOLS_DIRECTORY_ERROR)
+            climb -= 1
+        parent = parent.parent
+    return parent
+
 
 def load_sync():
     # Follow entry-file aliases without resolving away any tools-directory link.
@@ -14,17 +49,18 @@ def load_sync():
     entry = Path(__file__).absolute()
     try:
         for _ in range(40):
-            tools = entry.parent
-            if tools.name == "tools" and tools.is_symlink():
-                sys.exit("tools 必须是真实目录，不得使用符号链接")
+            tools = entry_parent(entry)
+            entry = tools / entry.name
+            if tools.name.casefold() == "tools" and tools.is_symlink():
+                sys.exit(TOOLS_DIRECTORY_ERROR)
             if not entry.is_symlink():
                 break
             entry = tools / os.readlink(entry)
         else:
             sys.exit("无法定位 tools/review-copy.py，请检查入口符号链接")
         directory = tools.lstat()
-        if tools.name != "tools" or not stat.S_ISDIR(directory.st_mode):
-            sys.exit("tools 必须是真实目录，不得使用符号链接")
+        if tools.name.casefold() != "tools" or not stat.S_ISDIR(directory.st_mode):
+            sys.exit(TOOLS_DIRECTORY_ERROR)
         target = tools.parent.resolve() / "tools" / "sync-copy.py"
         expected = target.lstat()
         if not stat.S_ISREG(expected.st_mode):

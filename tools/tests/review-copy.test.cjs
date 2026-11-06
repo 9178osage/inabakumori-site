@@ -149,6 +149,32 @@ test("a single oversized patch remains pending with no partial output", t => {
   }
 });
 
+test("review paths preserve real traversal for dotdots and relative entry links", { skip: process.platform === "win32" }, t => {
+  const box = fixture(t);
+  const base = box.commit();
+  const tools = path.join(box.root, "tools");
+  fs.mkdirSync(path.join(tools, "sub", "deeper"), { recursive: true });
+  const ancestor = path.join(box.directory, "ancestor");
+  const sibling = path.join(box.directory, "sibling");
+  fs.mkdirSync(ancestor);
+  fs.mkdirSync(sibling);
+  fs.symlinkSync(sibling, path.join(ancestor, "jump"), "dir");
+  fs.symlinkSync(box.directory, path.join(ancestor, "tools"), "dir");
+  const entryAlias = path.join(box.directory, "relative-entry.py");
+  const relativeEntry = `${path.basename(box.root)}/tools/sub/../review-copy.py`;
+  fs.symlinkSync(`ancestor/jump/../${relativeEntry}`, entryAlias, "file");
+  const baseline = diff(box.review(base, base), base, base);
+  for (const entry of [
+    relativeEntry,
+    `${tools}/sub/deeper/../../review-copy.py`,
+    `${ancestor}/jump/../${relativeEntry}`,
+    `${ancestor}/tools/${relativeEntry}`,
+    entryAlias
+  ]) {
+    assert.equal(diff(box.reviewAt(entry, base, base), base, base), baseline, entry);
+  }
+});
+
 test("generator loading allows checkout and entry aliases but refuses symlinked tools and non-regular targets", { skip: process.platform === "win32" }, t => {
   const box = fixture(t);
   const base = box.commit();
@@ -176,11 +202,28 @@ test("generator loading allows checkout and entry aliases but refuses symlinked 
   fs.rmSync(target, { recursive: true });
   fs.writeFileSync(target, payload);
 
-  const relocated = path.join(box.directory, "outside-tools");
+  const outside = path.join(box.directory, "outside");
+  const relocated = path.join(outside, "tools");
+  fs.mkdirSync(outside);
   fs.renameSync(tools, relocated);
+  fs.mkdirSync(path.join(relocated, "sub"));
   fs.symlinkSync(relocated, tools, "dir");
   fails(box.review(base, base), /tools 必须是真实目录/u);
   fails(box.reviewAt(entryAlias, base, base), /tools 必须是真实目录/u);
+  fails(box.reviewAt(`${tools}/sub/../review-copy.py`, base, base), /tools 必须是真实目录/u);
+  fails(box.reviewAt(`${tools}/../tools/review-copy.py`, base, base), /tools 必须是真实目录/u);
+  if (fs.existsSync(path.join(box.root, "TOOLS"))) {
+    fails(box.reviewAt(`${box.root}/TOOLS/../tools/review-copy.py`, base, base), /tools 必须是真实目录/u);
+  }
+  const cancellingAlias = path.join(box.directory, "cancelling-entry.py");
+  fs.symlinkSync("checkout-alias/tools/sub/../../tools/review-copy.py", cancellingAlias, "file");
+  fails(box.reviewAt(cancellingAlias, base, base), /tools 必须是真实目录/u);
+
+  fs.unlinkSync(tools);
+  fs.mkdirSync(tools);
+  fs.symlinkSync(path.join(relocated, "sub"), path.join(tools, "redirect"), "dir");
+  fails(box.reviewAt(`${tools}/redirect/../review-copy.py`, base, base), /tools 必须是真实目录/u);
+  fails(box.reviewAt(`${tools}/redirect/../../tools/review-copy.py`, base, base), /tools 必须是真实目录/u);
   assert.equal(fs.existsSync(marker), false, "a rejected generator must never run");
 });
 

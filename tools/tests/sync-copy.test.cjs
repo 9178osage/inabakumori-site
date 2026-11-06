@@ -267,7 +267,8 @@ test("X shards stay separate from complete code and tests; their manifest stays 
     failed(box.run(["--check"]), /不一致/u);
     passed(box.run());
     const codeVolume = path.join(box.output, sections.get("data/x-posts/manifest.json"));
-    fs.appendFileSync(codeVolume, fs.readFileSync(dataVolume));
+    fs.appendFileSync(codeVolume, Buffer.concat([Buffer.from(`===== ${first.file} =====\n`), first.source, Buffer.from("\n\n")]));
+    assert.ok(fs.statSync(codeVolume).size <= CAP, "the misplaced shard is readable within the code volume limit");
     fs.unlinkSync(dataVolume);
     failed(box.run(["--check"]), /分组错误/u);
   } finally { box.close(); }
@@ -880,15 +881,37 @@ test("a whole source section may exactly fill 130000 bytes without splitting", (
   } finally { box.close(); }
 });
 
-test("check rejects an otherwise intact code volume over 130000 bytes", () => {
+test("check skips oversized source volumes without treating the bounded read as corrupt or complete", () => {
   const box = fixture({ "js/one.js": "x".repeat(70000), "js/two.js": "y".repeat(70000) });
   try {
     passed(box.run());
-    const volumes = textFiles(box).filter(name => name.startsWith("1-app-code-")).sort();
-    const combined = Buffer.concat(volumes.map(name => fs.readFileSync(path.join(box.output, name))));
-    assert.ok(combined.length > CAP && combined.length < 150000);
-    fs.writeFileSync(path.join(box.output, volumes[0]), combined);
-    for (const name of volumes.slice(1)) fs.unlinkSync(path.join(box.output, name));
-    failed(box.run(["--check"]), /1-app-code-1\.txt 超过 130,000 字节/u);
+    const first = path.join(box.output, "1-app-code-1.txt");
+    const second = path.join(box.output, "1-app-code-2.txt");
+    const secondBytes = fs.readFileSync(second);
+    const combined = Buffer.concat([fs.readFileSync(first), secondBytes]);
+    assert.equal(combined[CAP], "y".charCodeAt(0), "the bounded read ends inside an otherwise intact source section");
+    fs.writeFileSync(first, combined);
+    const checked = box.run(["--check"]);
+    failed(checked, /1-app-code-1\.txt 超过 130,000 字节/u);
+    assert.match(checked.stdout, /源码索引未核对/u);
+    assert.match(checked.stdout, /跳过 1 个超限源码卷/u);
+    assert.doesNotMatch(checked.stdout, /中 .*与源码不一致|缺少:|使用说明未同步|\d+\/\d+ 个源文件/u);
+    assert.deepEqual(fs.readFileSync(first), combined, "the check does not change the oversized volume");
+
+    // A readable volume in the same group and a missing file in another group still yield actual errors.
+    const badSecond = Buffer.from(secondBytes);
+    badSecond[badSecond.indexOf(0x0a) + 1] = "z".charCodeAt(0);
+    fs.writeFileSync(second, badSecond);
+    const docs = path.join(box.output, "3-docs-1.txt");
+    fs.unlinkSync(docs);
+    const changes = path.join(box.output, "changes.txt");
+    fs.appendFileSync(changes, "CORRUPT\n");
+    const otherErrors = box.run(["--check"]);
+    failed(otherErrors, /1-app-code-2\.txt 中 js\/two\.js 与源码不一致/u);
+    assert.match(otherErrors.stdout, /缺少: \['docs\/note\.md'\]/u);
+    assert.match(otherErrors.stdout, /changes\.txt 与 git diff 不一致/u);
+    assert.match(otherErrors.stdout, /使用说明未同步/u, "the guide still lists the now-missing documentation volume");
+
+    passed(box.run()); passed(box.run(["--check"]));
   } finally { box.close(); }
 });

@@ -26,6 +26,7 @@ SHARD_NOTE_NAMES = 10
 X_POSTS_CAP = 140_000_000  # 第 4 组数据单独打包，按十进制字节计。
 GUIDE = "0-使用说明.txt"
 GUIDE_TITLE = "稻网源码文本副本 · 使用说明"
+GUIDE_INDEX_HEADING = "六、源码文件所在分卷\n\n"
 EXCLUDE = {"js/auth.js", "package-lock.json", "backend/package-lock.json"}
 BINARY = re.compile(r"\.(png|jpe?g|webp|gif|ico|avif|bmp|tiff?|svgz|eot|woff2?|ttf|otf|mp[34]|ogg|m4a|wav|flac|webm|mov|zip|gz|7z|pdf|dmp|ai|db|sqlite3?)(?:-(?:wal|shm|journal))?$", re.I)
 PRIVATE = re.compile(r"(?:^|[/_.-])(?:secrets?|credentials?|private[-_]?key|id_rsa|id_ed25519)(?:$|[/_.-])|\.(?:pem|key|p12|pfx|jks|keystore|sql|dump|bak)$", re.I)
@@ -507,9 +508,7 @@ def guide(change, names, index, diffs, oversized, gap):
 校验命令：python3 tools/sync-copy.py --check
 不自动执行 --mark-reviewed；仅在维护者明确要求时重置复核基线。
 
-六、源码文件所在分卷
-
-{paths}
+{GUIDE_INDEX_HEADING}{paths}
 """.encode()
 
 
@@ -603,6 +602,7 @@ def check():
     head = validate_base("HEAD")
     expected = dict(files(head))
     seen, actual_diffs, ok = {}, {}, True
+    skipped_source_volumes = []
     actual_guide = read_guide()
     managed, extra, _ = existing_outputs(actual_guide)
     launcher_path = output_file("sync.py")
@@ -624,6 +624,9 @@ def check():
             ok = False; print(f"  ❌ 空分卷: {n}"); continue
         if len(blob) > cap:
             ok = False; print(f"  ❌ {n} 超过 {cap:,} 字节")
+            if not is_diff:
+                skipped_source_volumes.append(n)
+                continue
         if is_diff:
             continue
         pos = 0
@@ -637,7 +640,9 @@ def check():
                 ok = False; print(f"  ❌ {p} 重复或分组错误")
             seen[p] = n
             pos += len(section(p, want))
-    missing = set(expected) - set(seen)
+    # 超限卷只读了前 cap + 1 字节，不能用未解析的卷判断该组缺少什么。
+    skipped_groups = {n.rsplit("-", 1)[0] for n in skipped_source_volumes}
+    missing = {p for p in expected.keys() - seen.keys() if not skipped_groups or group(p) not in skipped_groups}
     if missing:
         ok = False; print(f"  ❌ 缺少: {sorted(missing)}")
     span = GUIDE_RANGE.search(actual_guide.decode("utf-8", "replace"))
@@ -654,14 +659,25 @@ def check():
             if name in actual_diffs and actual_diffs[name] != content:
                 ok = False; print(f"  ❌ {name} 与 git diff 不一致")
         gap = review_gap(change.base, "changes.txt" if "changes.txt" in diffs else "差异")
-        if actual_guide != guide(change, names, seen, diffs, oversized, gap) or len(actual_guide) > CAP:
+        expected_guide = guide(change, names, seen, diffs, oversized, gap)
+        if skipped_source_volumes:
+            # 缺少完整源码索引时，仍可核对说明中其他独立信息。
+            heading = GUIDE_INDEX_HEADING.encode()
+            guide_ok = heading in actual_guide and actual_guide.split(heading, 1)[0] == expected_guide.split(heading, 1)[0]
+        else:
+            guide_ok = actual_guide == expected_guide
+        if not guide_ok or len(actual_guide) > CAP:
             ok = False; print(f"  ❌ 使用说明未同步或超过 {CAP:,} 字节")
     if gap:
         print(f"  ⚠️ {gap}")
     if validate_base("HEAD") != head:
         ok = False; print("  ❌ 核对期间 HEAD 变动，请重试")
     total = len(managed) + len(extra)
-    print(f"  {len(seen)}/{len(expected)} 个源文件，{total} 个 txt，HEAD {head[:7]}")
+    if skipped_source_volumes:
+        print("  ⚠️ 源码索引未核对，有超限源码卷")
+        print(f"  已读取 {len(seen)} 个源文件，跳过 {len(skipped_source_volumes)} 个超限源码卷（应有 {len(expected)} 个源文件），{total} 个 txt，HEAD {head[:7]}")
+    else:
+        print(f"  {len(seen)}/{len(expected)} 个源文件，{total} 个 txt，HEAD {head[:7]}")
     if oversized:
         if ok:
             print("  ✅ 源码分卷与源码逐字节一致")
