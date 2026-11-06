@@ -163,13 +163,22 @@ test("review paths preserve real traversal for dotdots and relative entry links"
   const entryAlias = path.join(box.directory, "relative-entry.py");
   const relativeEntry = `${path.basename(box.root)}/tools/sub/../review-copy.py`;
   fs.symlinkSync(`ancestor/jump/../${relativeEntry}`, entryAlias, "file");
+  const chainedEntry = path.join(box.directory, "chained-entry.py");
+  fs.symlinkSync("ancestor/jump/../relative-entry.py", chainedEntry, "file");
+  const external = path.join(ancestor, "external");
+  fs.symlinkSync(path.join(tools, "sub"), external, "dir");
+  fs.symlinkSync("../review-copy.py", path.join(tools, "sub", "wrapper.py"), "file");
   const baseline = diff(box.review(base, base), base, base);
   for (const entry of [
     relativeEntry,
     `${tools}/sub/deeper/../../review-copy.py`,
     `${ancestor}/jump/../${relativeEntry}`,
     `${ancestor}/tools/${relativeEntry}`,
-    entryAlias
+    entryAlias,
+    `${ancestor}/jump/../relative-entry.py`,
+    chainedEntry,
+    `${external}/../review-copy.py`,
+    `${external}/wrapper.py`
   ]) {
     assert.equal(diff(box.reviewAt(entry, base, base), base, base), baseline, entry);
   }
@@ -218,12 +227,20 @@ test("generator loading allows checkout and entry aliases but refuses symlinked 
   const cancellingAlias = path.join(box.directory, "cancelling-entry.py");
   fs.symlinkSync("checkout-alias/tools/sub/../../tools/review-copy.py", cancellingAlias, "file");
   fails(box.reviewAt(cancellingAlias, base, base), /tools 必须是真实目录/u);
+  fs.symlinkSync("review-copy.py", path.join(relocated, "unsafe-wrapper.py"), "file");
+  fails(box.reviewAt(`${tools}/sub/../unsafe-wrapper.py`, base, base), /tools 必须是真实目录/u);
+  const hiddenTools = path.join(box.directory, "hidden-tools");
+  fs.symlinkSync(path.join(tools, "sub"), hiddenTools, "dir");
+  fails(box.reviewAt(`${hiddenTools}/../review-copy.py`, base, base), /tools 必须是真实目录/u);
 
   fs.unlinkSync(tools);
   fs.mkdirSync(tools);
   fs.symlinkSync(path.join(relocated, "sub"), path.join(tools, "redirect"), "dir");
   fails(box.reviewAt(`${tools}/redirect/../review-copy.py`, base, base), /tools 必须是真实目录/u);
   fails(box.reviewAt(`${tools}/redirect/../../tools/review-copy.py`, base, base), /tools 必须是真实目录/u);
+  const hiddenChild = path.join(box.directory, "hidden-child");
+  fs.symlinkSync(path.join(tools, "redirect"), hiddenChild, "dir");
+  fails(box.reviewAt(`${hiddenChild}/../review-copy.py`, base, base), /tools 必须是真实目录/u);
   assert.equal(fs.existsSync(marker), false, "a rejected generator must never run");
 });
 

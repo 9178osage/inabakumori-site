@@ -756,10 +756,17 @@ test("the short legacy launcher forwards arguments to the tracked generator with
     }
     assert.ok(copySections(box).has("tools/sync-copy.py"));
     assert.equal(fs.existsSync(path.join(box.root, "tools", OUT)), false);
-    fs.appendFileSync(path.join(box.output, "sync.py"), "# stale launcher\n");
+    const localEntry = path.join(box.output, "sync.py");
+    for (const bytes of [launcher.subarray(0, -1), Buffer.concat([launcher, Buffer.from("\n")])]) {
+      fs.writeFileSync(localEntry, bytes);
+      failed(box.run(["--check"]), /兼容入口 sync\.py 未同步/u);
+      assert.deepEqual(fs.readFileSync(localEntry), bytes);
+    }
+    fs.unlinkSync(localEntry);
     failed(box.run(["--check"]), /兼容入口 sync\.py 未同步/u);
+    assert.equal(fs.existsSync(localEntry), false);
     passed(box.run()); passed(box.run(["--check"]));
-    assert.deepEqual(fs.readFileSync(path.join(box.output, "sync.py")), launcher);
+    assert.deepEqual(fs.readFileSync(localEntry), launcher);
   } finally { box.close(); }
 });
 

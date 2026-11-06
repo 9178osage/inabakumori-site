@@ -605,8 +605,12 @@ def check():
     skipped_source_volumes = []
     actual_guide = read_guide()
     managed, extra, _ = existing_outputs(actual_guide)
-    launcher_path = output_file("sync.py")
-    if not os.path.isfile(launcher_path) or open(launcher_path, "rb").read() != LAUNCHER:
+    try:
+        with open(output_file("sync.py"), "rb") as source:
+            launcher = source.read(len(LAUNCHER) + 1)
+    except FileNotFoundError:
+        launcher = None
+    if launcher != LAUNCHER:
         ok = False; print("  ❌ 兼容入口 sync.py 未同步")
     if os.path.lexists(os.path.join(OUT, ".DS_Store")):
         ok = False; print("  ❌ 副本目录含 .DS_Store，请重新同步以清理")

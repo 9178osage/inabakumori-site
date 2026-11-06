@@ -8,13 +8,10 @@ import stat
 import sys
 
 TOOLS_DIRECTORY_ERROR = "tools 必须是真实目录，不得使用符号链接"
+MAX_SYMLINK_HOPS = 40
 
 
-def entry_parent(entry):
-    parent = entry.parent
-    if ".." not in parent.parts:
-        return parent
-
+def check_tool_detours(parent):
     # Reject canceled links at or below tools using their original paths. Do not
     # use this lexical stack to resolve ancestors: jump/.. follows jump first.
     prefix = Path(parent.anchor)
@@ -29,18 +26,34 @@ def entry_parent(entry):
             if within_tools and canceled.is_symlink():
                 sys.exit(TOOLS_DIRECTORY_ERROR)
 
-    # Recover the final directory name from paths such as tools/sub/../. Only
-    # remove a trailing '..' if its child is a real directory, never a symlink.
-    climb = 0
-    while climb or parent.name == "..":
-        if parent.name == "..":
-            climb += 1
+
+def entry_parent(entry):
+    parent = entry.parent
+    for _ in range(MAX_SYMLINK_HOPS):
+        if ".." not in parent.parts:
+            return parent
+        check_tool_detours(parent)
+
+        # Remove trailing '..' over real directories. When a climb crosses an
+        # external link, expand just that link before climbing. Checking the
+        # expanded spelling keeps links hidden in its target visible as well.
+        climb = 0
+        while climb or parent.name == "..":
+            if parent.name == "..":
+                climb += 1
+            else:
+                mode = parent.lstat().st_mode
+                if stat.S_ISLNK(mode):
+                    target = parent.parent / os.readlink(parent)
+                    parent = target.joinpath(*([".."] * climb))
+                    break
+                if not stat.S_ISDIR(mode):
+                    sys.exit(TOOLS_DIRECTORY_ERROR)
+                climb -= 1
+            parent = parent.parent
         else:
-            if not stat.S_ISDIR(parent.lstat().st_mode):
-                sys.exit(TOOLS_DIRECTORY_ERROR)
-            climb -= 1
-        parent = parent.parent
-    return parent
+            return parent
+    sys.exit("无法定位 tools/review-copy.py，请检查目录符号链接")
 
 
 def load_sync():
@@ -48,7 +61,7 @@ def load_sync():
     # Aliases above the checkout (such as /var on macOS) remain usable.
     entry = Path(__file__).absolute()
     try:
-        for _ in range(40):
+        for _ in range(MAX_SYMLINK_HOPS):
             tools = entry_parent(entry)
             entry = tools / entry.name
             if tools.name.casefold() == "tools" and tools.is_symlink():
