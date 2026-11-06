@@ -2073,47 +2073,11 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
   font-size: 15px;
   line-height: 1.9;
 }
-.home-updates .home-updates-accounts {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin: 30px 0 28px;
-}
-.home-updates .home-updates-accounts a {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 18px;
-  min-width: 0;
-  min-height: 56px;
-  padding: 15px 18px;
-  border: 1px solid var(--ui-border);
-  border-radius: 6px;
-  background: var(--link-bg);
-  color: var(--ui-text);
-  text-decoration: none;
-  font-size: 14px;
-  line-height: 1.65;
-  overflow-wrap: anywhere;
-  word-wrap: break-word;
-  transition: var(--transition-action);
-}
-.home-updates .home-updates-accounts a > span {
-  color: var(--ui-muted);
-  font-size: 12px;
-}
 .home-updates a:focus-visible,
 .home-updates button:focus-visible,
 .home-updates summary:focus-visible {
   outline: 2px solid var(--ui-text);
   outline-offset: 4px;
-}
-@media (hover: hover) {
-  .home-updates .home-updates-accounts a:hover {
-    border-color: var(--ui-border-strong);
-    background: var(--link-hover-bg);
-  }
 }
 @media (max-width: 700px), (pointer: coarse) and (max-width: 1000px) {
   .home-updates .home-updates-header h2 {
@@ -2122,20 +2086,6 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
   .home-updates .home-updates-header > p:not(.section-kicker),
   .home-updates .home-updates-header .home-mobile-fold-content > p {
     font-size: 14px;
-  }
-  .home-updates .home-updates-accounts {
-    grid-template-columns: 1fr;
-    gap: 9px;
-    margin: 24px 0;
-  }
-  .home-updates .home-updates-accounts a {
-    padding: 12px 14px;
-    min-height: 50px;
-  }
-}
-@supports not (overflow-wrap: anywhere) {
-  .home-updates .home-updates-accounts a {
-    overflow-wrap: break-word;
   }
 }
 /* X post snapshot on the homepage (pre-rendered by tools/render-x-posts.mjs). */
@@ -2337,11 +2287,6 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
   #intro .section-heading h2 { margin-bottom: 0; }
   #about .related-directory { margin-top: 0; }
   .home-updates .home-updates-header h2 { font-size: 36px; letter-spacing: .04em; }
-  .home-updates .home-updates-accounts { grid-template-columns: minmax(0, 1fr); margin: 26px 0 0; }
-  .home-updates .home-updates-accounts a { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 14px; }
-  .home-updates .home-updates-accounts strong,
-  .home-updates .home-updates-accounts a > span:first-of-type { grid-column: 1; }
-  .home-updates .home-updates-accounts a > span:last-child { grid-column: 2; grid-row: 1 / span 2; max-width: 14ch; font-size: 11px; }
 }
 @media (max-width: 1000px) {
   .home-updates-overview { margin-bottom: 30px; }
@@ -2351,8 +2296,6 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
   #about, .home-updates { padding-block: 40px; }
   #intro, #about, .home-updates { display: block; }
   .home-updates-overview { margin-bottom: 28px; }
-  .home-updates .home-updates-accounts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-block: 22px 0; }
-  .home-updates .home-updates-accounts a { flex-direction: column; align-items: flex-start; justify-content: center; gap: 3px; min-height: 96px; padding: 12px; }
   .related-directory { margin-top: 32px; }
 }
 @media (min-width: 1100px) and (hover: hover) {
@@ -2380,9 +2323,8 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
 .home-updates .x-post-translation:empty { display: none; }
 /* Translation sits a little apart from the original text. */
 .home-updates .x-post-translation { padding-left: 10px; border-left: 2px solid var(--link-border); }
-/* Phone: tighter, calmer X feed and creator cards on the homepage. */
+/* Phone: tighter, calmer X feed on the homepage. */
 @media (max-width: 700px) {
-  .home-updates .home-updates-accounts a { min-height: 48px; padding: 10px 14px; gap: 2px 12px; }
   .home-updates .x-post { padding: 18px 0; }
   .home-updates .x-post-text { margin-top: 10px; line-height: 1.8; }
   .home-updates .x-post-translation { margin-top: 6px; font-size: 12px; line-height: 1.7; }
@@ -2409,9 +2351,6 @@ footer .home-mobile-fold-content > p { max-width: 720px; margin: 16px auto; font
   .home-page .artist-intro { font-size: 15px; line-height: 1.75; }
   .home-page .unofficial-note { margin-top: 12px; }
   .home-page .home-updates-overview { margin-bottom: 16px; }
-  .home-page .home-updates .home-updates-accounts { margin-top: 12px; }
-  .home-page .home-updates .home-updates-accounts a { min-height: 44px; padding: 8px 10px; }
-  .home-page .home-updates .home-updates-accounts a > span:last-child { display: none; }
   .home-page .home-updates .x-post { padding-block: 14px; }
   .home-page .home-updates .x-post-text { margin-top: 8px; line-height: 1.65; }
   .home-page .home-updates .x-post-translation { line-height: 1.6; }
