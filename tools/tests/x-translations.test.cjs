@@ -53,6 +53,17 @@ test("the November 4 NKNK post includes both gists on full-post surfaces", async
   assert.equal(post.translated, false);
 });
 
+test("the June 19 post translates ボカロP as V家P", async () => {
+  const { readXTranslations } = await import("../x-translations.mjs");
+  const { readXPostsArchive } = await import("../x-posts-data.mjs");
+  const archive = await readXPostsArchive(root);
+  const post = archive.items.find(item => item.id === "1406261870617534468");
+  assert.ok(post);
+  assert.equal(post.text, "ボカロP");
+  const translations = await readXTranslations(root, archive);
+  assert.deepEqual(translations.get(post.id), { zh: "V家P", en: "Vocaloid producer" });
+});
+
 test("translation line is escaped, hidden for Japanese and absent without an entry", async () => {
   const { createXPostsRenderer } = await import("../render-x-posts.mjs");
   const { readXPostsArchive } = await import("../x-posts-data.mjs");
