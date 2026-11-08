@@ -6,8 +6,8 @@
       "creator": "inabakumori",
       "label": "YouTube",
       "url": "https://www.youtube.com/@inabakumori",
-      "checkedAt": "2026-11-07T16:51:41.323Z",
-      "lastAttemptAt": "2026-11-07T16:51:41.323Z",
+      "checkedAt": "2026-11-08T17:05:30.938Z",
+      "lastAttemptAt": "2026-11-08T17:05:30.938Z",
       "status": "ok"
     },
     {
@@ -15,8 +15,8 @@
       "creator": "nknk",
       "label": "pixiv",
       "url": "https://www.pixiv.net/users/27327959",
-      "checkedAt": "2026-11-07T16:51:41.323Z",
-      "lastAttemptAt": "2026-11-07T16:51:41.323Z",
+      "checkedAt": "2026-11-08T17:05:30.938Z",
+      "lastAttemptAt": "2026-11-08T17:05:30.938Z",
       "status": "ok"
     },
     {
@@ -24,12 +24,20 @@
       "creator": "nknk",
       "label": "CAMPFIRE Creation",
       "url": "https://camp-fire.jp/projects/970332/view/activities",
-      "checkedAt": "2026-11-07T16:51:41.323Z",
-      "lastAttemptAt": "2026-11-07T16:51:41.323Z",
+      "checkedAt": "2026-11-08T17:05:30.938Z",
+      "lastAttemptAt": "2026-11-08T17:05:30.938Z",
       "status": "ok"
     }
   ],
   "items": [
+    {
+      "id": "pixiv:151818517",
+      "creator": "nknk",
+      "source": "pixiv",
+      "title": "「CTCRECORDS RAINY POP UP STORE」",
+      "publishedAt": "2026-11-08T03:17:00.000Z",
+      "url": "https://www.pixiv.net/artworks/151818517"
+    },
     {
       "id": "campfire:891733",
       "creator": "nknk",
@@ -253,14 +261,6 @@
       "title": "ぞ",
       "publishedAt": "2020-05-31T10:32:00.000Z",
       "url": "https://www.pixiv.net/artworks/81994738"
-    },
-    {
-      "id": "pixiv:80220756",
-      "creator": "nknk",
-      "source": "pixiv",
-      "title": "モチモチ",
-      "publishedAt": "2020-03-19T09:30:00.000Z",
-      "url": "https://www.pixiv.net/artworks/80220756"
     }
   ]
 }
