@@ -149,7 +149,7 @@
       favoriteFilter.setAttribute("aria-pressed", "false");
       updateTagFilter();
     });
-    document.getElementById("share-search").addEventListener("click", async () => {
+    document.getElementById("share-search")?.addEventListener("click", async () => {
       refreshLibraryState();
       clearLibraryStatus();
       const version = shareVersion;
