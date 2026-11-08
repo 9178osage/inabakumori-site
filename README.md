@@ -1,8 +1,10 @@
 > **Project status / 项目状态 / プロジェクトの状態**
 >
-> The public site is built from `dist/` by GitHub Actions. Run `npm run check` before publishing; it covers the frontend tests, backend syntax, production build, asset allowlist, metadata, and pre-rendered songs. The full HTTP integration check is available with `npm run test:integration`.
+> GitHub Actions builds and publishes only `dist/`. Before committing, pass all four gates: `npm test`, `npm run check`, `npm run test:integration`, and `npm run check:changelog`. The last command verifies deployment records online and is separate from `check`.
 >
-> 生产环境只发布 `dist/`，不要直接把仓库根目录作为静态网站目录。优化记录、验证结果与运维说明见 [docs/OPTIMIZATION.md](docs/OPTIMIZATION.md)。
+> 生产环境只发布 `dist/`。提交前须通过测试、综合检查、HTTP 集成测试及上线记录联网核对四项门禁；`npm run check` 不包含最后一项。发布与副本同步流程见[站长手册](docs/MAINTAINER.md)。
+>
+> 公開するのは `dist/` のみです。コミット前に上記 4 コマンドをすべて実行してください。公開記録のオンライン照合は `npm run check` に含まれません。
 
 维护入口 / Maintenance / メンテナンス：[文档导航](docs/README.md) · [工具与命令](tools/README.md) · [站长手册](docs/MAINTAINER.md)。
 
@@ -13,7 +15,7 @@
 🇺🇸 **English** | 🇨🇳 [中文](#readme-zh) | 🇯🇵 [日本語](#readme-ja)
 
 > An unofficial fan site made out of a love for **稲葉曇 / Inabakumori**.  
-> It brings together songs, MVs, related creator links, plus a message wall and account features.
+> Browse songs and their sources, collected X posts, NKNK illustrations, and creator links, with a message wall and account features.
 
 🌐 **Live site:** [osagechan.top](https://osagechan.top/)
 
@@ -57,6 +59,23 @@ The project is still evolving. It is not meant to be authoritative or exhaustive
 - Filter by tags
 - Pick a random song
 - Search-result count
+- Sort by original order, recorded views, or title
+- Save star favorites in this browser and filter to favorites
+- Browse the song archive by album or year; individual pages provide release details, credits, and sources, with unverified information marked
+- On mobile, start with selected songs and expand to search the full library
+
+### 🗂️ Collected Posts & Creator Updates
+
+- The homepage shows each creator's latest collected X post, with its collection time
+- Read collected posts in paginated archives, filter by creator, and resume your reading position
+- Keep original text alongside Chinese and English summaries where available; view images and videos at the original post
+- Browse YouTube, pixiv, and CAMPFIRE work updates on the first archive page and filter by creator
+- Collection is incomplete and is not a live X feed; work-source checks run daily, while YouTube view counts refresh weekly
+
+### 🖼️ Gallery & Little Calendar
+
+- Browse NKNK illustrations in a scrolling gallery, open larger images, and pinch to zoom on mobile
+- The “Secret little calendar” counts days since the latest collected Inabakumori YouTube song, using Japan time
 
 ### 🌐 Languages
 
@@ -147,7 +166,9 @@ Authentication is powered by **SuperTokens**:
 ```text
 inabakumori-site/
 ├── index.html              # Frontend entry (keep at repo root)
-├── updates.html / updates.css
+├── updates.html / updates.css # Post archive template and styles
+├── calendar.html / calendar.css
+├── archive.css             # Song archive styles; HTML is generated in dist/
 ├── style.css / script.js
 ├── site.webmanifest
 ├── robots.txt / sitemap.xml / 404.html
@@ -156,6 +177,8 @@ inabakumori-site/
 ├── js/                     # Frontend modules
 ├── data/                   # Validated publication data
 │   ├── creator-updates.json
+│   ├── song-archive.json / song-redirects.json
+│   ├── x-translations/     # Reviewed post summaries
 │   └── x-posts/            # Manifest + complete collected post shards
 ├── images/
 │   ├── hero/               # Original desktop hero art (source)
@@ -189,7 +212,7 @@ inabakumori-site/
 - **Node.js 24.22.1** (the version pinned in CI)
 - npm
 - The frontend preview uses Node.js; no Python dependency.
-- A working SuperTokens Core / Managed SuperTokens instance
+- A working SuperTokens Core / Managed SuperTokens instance only for account and message-wall development
 
 ### 1. 📥 Clone the repository
 
@@ -201,15 +224,21 @@ cd inabakumori-site
 ### 2. 📦 Install frontend tooling dependencies
 
 ```bash
-npm install
+npm ci
 ```
 
-### 3. 📦 Install backend dependencies
+To browse the built frontend, including generated song and post archives, run:
 
 ```bash
-cd backend
-npm install
-cd ..
+npm run preview
+```
+
+Open `http://127.0.0.1:5500`. Static browsing needs no backend. Account and message-wall requests use the local API at port `3001`; continue below to run it.
+
+### 3. 📦 Install backend dependencies (for API development)
+
+```bash
+npm --prefix backend ci
 ```
 
 ### 4. 🔐 Configure backend environment variables
@@ -253,7 +282,7 @@ http://127.0.0.1:3001
 Open another terminal and run this from the repository root:
 
 ```bash
-npm run frontend
+npm run preview
 ```
 
 Then visit:
@@ -262,17 +291,22 @@ Then visit:
 http://127.0.0.1:5500
 ```
 
+For source-only editing, `npm run frontend` serves public source files without building. Use `npm run preview` for generated archive pages and pre-rendered content.
+
 ---
 
 ## ✅ Checks & Build
 
-Run tests and rebuild the authentication bundle:
+With both frontend tooling and backend dependencies installed, run all four required checks before committing:
 
 ```bash
+npm test
 npm run check
+npm run test:integration
+npm run check:changelog
 ```
 
-The check command is the release gate used by GitHub Actions. It does not start the backend or publish files.
+`npm run check` runs ESLint, local deployment-table structure checks, tests, backend syntax checks, the production build (including the authentication bundle), and public asset/metadata checks. It does not publish files or verify GitHub records online. `test:integration` starts an isolated test API; `check:changelog` separately queries GitHub Actions. Network, rate-limit, or API errors mean that gate failed. See [the maintainer guide](docs/MAINTAINER.md#核对上线记录表) for coverage and record timing.
 
 Run tests only:
 
@@ -303,6 +337,7 @@ Other useful commands:
 | --- | --- |
 | `npm test` | Run frontend, backend-service, and behavior tests |
 | `npm run test:integration` | Exercise the real HTTP API with an isolated temporary database |
+| `npm run check:changelog` | Verify deployment records and push coverage against GitHub Actions online |
 | `npm run check:links` | Check all recorded external song links |
 | `npm run optimize:images` | Generate optimized WebP hero assets |
 
@@ -325,6 +360,8 @@ npm run check:links:strict
 The frontend is deployed to **GitHub Pages** by `.github/workflows/pages.yml`. The workflow builds the public directory, runs the release checks, and deploys only `dist/`.
 
 The repository root contains source files, test tools, backend code, and documentation. It must not be used as the Pages artifact.
+
+After pushing to `main`, confirm both **Verify website** and **Publish public site** succeeded for the exact commit, then check the live pages. Verify the separate Vercel deployment and `/healthz` version too. After deployment verification, run `python3 tools/sync-copy.py` and `python3 tools/sync-copy.py --check`, preserving the existing `.review-base`. README and maintenance documents stay in GitHub and are not included in the public build.
 
 Because the account system and message wall are dynamic, they also require a separately hosted Node.js backend configured with:
 
@@ -400,7 +437,7 @@ I like Inabakumori, so I made a “Weather Observation Station” — a nod to t
 🇺🇸 [English](#readme-en) | 🇨🇳 **中文** | 🇯🇵 [日本語](#readme-ja)
 
 > 一个因为喜欢 **稲葉曇 / Inabakumori** 而做出来的非官方粉丝网站。  
-> 整理歌曲、MV、相关创作者链接，也提供留言墙与账号功能。
+> 整理歌曲及来源、已收录的 X 帖子、NKNK 插画与创作者链接，也提供留言墙与账号功能。
 
 🌐 **在线访问：** [osagechan.top](https://osagechan.top/)
 
@@ -431,6 +468,23 @@ I like Inabakumori, so I made a “Weather Observation Station” — a nod to t
 - 按标签筛选
 - 随机选择歌曲
 - 搜索结果计数
+- 按原始顺序、已记录播放量或曲名排序
+- 在当前浏览器保存星标收藏，并筛选只看收藏
+- 歌曲档案按专辑或年份浏览；单曲页提供发行资料、制作署名和来源，明确标出未核实信息
+- 手机首页先展示精选歌曲，可展开搜索全部歌曲
+
+### 🗂️ 帖子档案与作品动态
+
+- 首页分别展示两位创作者最新收录的一条 X 帖子，并标明本站收录时间
+- 帖子档案支持分页、按创作者浏览及继续上次阅读
+- 保留原语言正文，部分帖子附中文、英文大意；图片和视频请到原帖查看
+- 档案第一页保留 YouTube、pixiv、CAMPFIRE 作品动态，可按创作者筛选
+- 收录尚不完整，也不是 X 实时动态；作品来源每天核对，YouTube 播放量每周刷新
+
+### 🖼️ 插画画廊与小日历
+
+- NKNK 插画滚动画廊支持打开大图，手机可双指缩放
+- 「神秘小日历」按日本时间显示距最新收录的稲葉曇 YouTube 歌曲发布已过多少天
 
 ### 🌐 多语言
 
@@ -521,7 +575,9 @@ I like Inabakumori, so I made a “Weather Observation Station” — a nod to t
 ```text
 inabakumori-site/
 ├── index.html              # Frontend entry (keep at repo root)
-├── updates.html / updates.css
+├── updates.html / updates.css # Post archive template and styles
+├── calendar.html / calendar.css
+├── archive.css             # Song archive styles; HTML is generated in dist/
 ├── style.css / script.js
 ├── site.webmanifest
 ├── robots.txt / sitemap.xml / 404.html
@@ -530,6 +586,8 @@ inabakumori-site/
 ├── js/                     # Frontend modules
 ├── data/                   # Validated publication data
 │   ├── creator-updates.json
+│   ├── song-archive.json / song-redirects.json
+│   ├── x-translations/     # Reviewed post summaries
 │   └── x-posts/            # Manifest + complete collected post shards
 ├── images/
 │   ├── hero/               # Original desktop hero art (source)
@@ -563,7 +621,7 @@ inabakumori-site/
 - **Node.js 24.22.1**（与 CI 固定版本一致）
 - npm
 - 前端预览使用 Node.js，无需 Python。
-- 可用的 SuperTokens Core / Managed SuperTokens 实例
+- 联调账号与留言功能时，才需要可用的 SuperTokens Core / Managed SuperTokens 实例
 
 ### 1. 📥 克隆仓库
 
@@ -575,15 +633,21 @@ cd inabakumori-site
 ### 2. 📦 安装前端工具依赖
 
 ```bash
-npm install
+npm ci
 ```
 
-### 3. 📦 安装后端依赖
+只浏览构建后的前端（包含生成的歌曲与帖子档案），运行：
 
 ```bash
-cd backend
-npm install
-cd ..
+npm run preview
+```
+
+打开 `http://127.0.0.1:5500`。静态内容无需后端；账号与留言请求本地 `3001` 端口的 API，需要继续按以下步骤启动后端。
+
+### 3. 📦 安装后端依赖（联调 API 时）
+
+```bash
+npm --prefix backend ci
 ```
 
 ### 4. 🔐 配置后端环境变量
@@ -627,7 +691,7 @@ http://127.0.0.1:3001
 打开另一个终端，在仓库根目录运行：
 
 ```bash
-npm run frontend
+npm run preview
 ```
 
 然后访问：
@@ -636,17 +700,22 @@ npm run frontend
 http://127.0.0.1:5500
 ```
 
+仅编辑源码时可用 `npm run frontend`，它只预览公开源文件，不执行构建；生成的档案页和预渲染内容请用 `npm run preview` 查看。
+
 ---
 
 ## ✅ 检查与构建
 
-运行测试并重新构建认证脚本：
+安装前端工具与后端两套依赖后，提交前运行全部四项门禁：
 
 ```bash
+npm test
 npm run check
+npm run test:integration
+npm run check:changelog
 ```
 
-`npm run check` 是 GitHub Actions 使用的发布前检查，不会启动后端，也不会自动发布文件。
+`npm run check` 包含 ESLint、本地上线记录表结构校验、测试、后端语法检查、生产构建（含认证包）和公开产物／元数据检查，不自动发布，也不联网核对 GitHub 记录。`test:integration` 会启动隔离测试 API；`check:changelog` 单独查询 GitHub Actions，网络、限流或 API 错误均视为该门禁失败。覆盖范围和补记时机见[站长手册](docs/MAINTAINER.md#核对上线记录表)。
 
 只运行测试：
 
@@ -676,10 +745,11 @@ npm run preview
 | --- | --- |
 | `npm test` | 运行前端、后端服务和交互测试 |
 | `npm run test:integration` | 使用独立临时数据库验证真实 HTTP 接口 |
+| `npm run check:changelog` | 联网核对 GitHub Actions 上线记录及推送覆盖范围 |
 | `npm run check:links` | 检查歌曲资料中的外部链接 |
 | `npm run optimize:images` | 生成优化后的 WebP 背景资源 |
 
-检查站内链接：
+检查已记录的外部歌曲链接：
 
 ```bash
 npm run check:links
@@ -698,6 +768,8 @@ npm run check:links:strict
 前端由 `.github/workflows/pages.yml` 自动构建并部署到 **GitHub Pages**。工作流会运行发布前检查，只把 `dist/` 作为公开构建产物。
 
 仓库根目录包含源代码、测试工具、后端和文档，不能直接作为 Pages 静态目录。
+
+推送 `main` 后，须确认同一提交的 **Verify website** 与 **Publish public site** 均成功，再核对线上页面；另行确认 Vercel 部署及 `/healthz` 版本。部署验证完成后运行 `python3 tools/sync-copy.py` 及其 `--check`，保留现有 `.review-base`。README 和维护文档保存在 GitHub，不包含在网站公开产物中。
 
 账号系统和留言墙属于动态功能，因此还需要单独部署 Node.js 后端，并配置：
 
@@ -771,7 +843,7 @@ npm run check:links:strict
 🇺🇸 [English](#readme-en) | 🇨🇳 [中文](#readme-zh) | 🇯🇵 **日本語**
 
 > **稲葉曇 / Inabakumori** が好きで作った、非公式のファンサイトです。  
-> 楽曲やMV、関連クリエイターへのリンクをまとめ、メッセージウォールやアカウント機能も用意しています。
+> 楽曲と出典、収集済みの X 投稿、NKNK のイラスト、関連リンクをまとめ、メッセージウォールやアカウント機能も用意しています。
 
 🌐 **サイトを見る：** [osagechan.top](https://osagechan.top/)
 
@@ -802,6 +874,23 @@ npm run check:links:strict
 - タグによる絞り込み
 - ランダム選曲
 - 検索結果件数の表示
+- 元の順序・記録済み再生回数・曲名で並べ替え
+- このブラウザーに星付きのお気に入りを保存し、絞り込み表示
+- 楽曲アーカイブをアルバムまたは年で絞り込み、個別ページで発売情報・クレジット・出典を確認（未確認の情報は明記）
+- モバイルでは選曲リストから始め、展開して全曲を検索
+
+### 🗂️ 投稿アーカイブ・作品情報
+
+- ホームには各クリエイターの最新収集済み X 投稿を 1 件ずつ、収集日時とともに表示
+- ページ分割された投稿アーカイブ、クリエイター別表示、前回の読書位置への復帰
+- 原文を保持し、一部に中国語・英語の要約を掲載（画像・動画は元の投稿で閲覧）
+- アーカイブの最初のページに YouTube・pixiv・CAMPFIRE の作品情報を掲載し、クリエイターで絞り込み
+- 収集は未完了で、X のリアルタイムフィードではありません。作品の出典は毎日、YouTube 再生回数は毎週確認
+
+### 🖼️ ギャラリー・小さなカレンダー
+
+- NKNK のイラストをスクロール式ギャラリーで閲覧し、大きな画像を開く（モバイルではピンチズームに対応）
+- 「ひみつの小さなカレンダー」で、最新収集済みの稲葉曇の YouTube 楽曲公開からの日数を日本時間で表示
 
 ### 🌐 多言語対応
 
@@ -892,7 +981,9 @@ npm run check:links:strict
 ```text
 inabakumori-site/
 ├── index.html              # Frontend entry (keep at repo root)
-├── updates.html / updates.css
+├── updates.html / updates.css # Post archive template and styles
+├── calendar.html / calendar.css
+├── archive.css             # Song archive styles; HTML is generated in dist/
 ├── style.css / script.js
 ├── site.webmanifest
 ├── robots.txt / sitemap.xml / 404.html
@@ -901,6 +992,8 @@ inabakumori-site/
 ├── js/                     # Frontend modules
 ├── data/                   # Validated publication data
 │   ├── creator-updates.json
+│   ├── song-archive.json / song-redirects.json
+│   ├── x-translations/     # Reviewed post summaries
 │   └── x-posts/            # Manifest + complete collected post shards
 ├── images/
 │   ├── hero/               # Original desktop hero art (source)
@@ -934,7 +1027,7 @@ inabakumori-site/
 - **Node.js 24.22.1**（CI と同じ固定バージョン）
 - npm
 - フロントエンドのプレビューには Node.js を使用します。Python は不要です。
-- 利用可能な SuperTokens Core / Managed SuperTokens インスタンス
+- アカウント・メッセージ機能の開発時のみ、利用可能な SuperTokens Core / Managed SuperTokens インスタンス
 
 ### 1. 📥 リポジトリをクローン
 
@@ -946,15 +1039,21 @@ cd inabakumori-site
 ### 2. 📦 フロントエンド用ツール依存関係をインストール
 
 ```bash
-npm install
+npm ci
 ```
 
-### 3. 📦 バックエンド依存関係をインストール
+生成された楽曲・投稿アーカイブを含むフロントエンドを閲覧するには：
 
 ```bash
-cd backend
-npm install
-cd ..
+npm run preview
+```
+
+`http://127.0.0.1:5500` を開きます。静的な閲覧にバックエンドは不要です。アカウント・メッセージ機能はローカルの `3001` ポートへ接続するため、以下の手順で API を起動してください。
+
+### 3. 📦 バックエンド依存関係をインストール（API 開発時）
+
+```bash
+npm --prefix backend ci
 ```
 
 ### 4. 🔐 バックエンドの環境変数を設定
@@ -998,7 +1097,7 @@ http://127.0.0.1:3001
 別のターミナルを開き、リポジトリのルートで実行：
 
 ```bash
-npm run frontend
+npm run preview
 ```
 
 その後、以下にアクセスします：
@@ -1007,15 +1106,22 @@ npm run frontend
 http://127.0.0.1:5500
 ```
 
+ソースだけを編集する場合は `npm run frontend` で公開ソースをプレビューできます。生成されたアーカイブや事前描画コンテンツの確認には `npm run preview` を使ってください。
+
 ---
 
 ## ✅ チェックとビルド
 
-テストを実行し、認証スクリプトを再ビルド：
+フロントエンド用ツールとバックエンドの依存関係を両方インストールし、コミット前に必要な 4 つのチェックをすべて実行：
 
 ```bash
+npm test
 npm run check
+npm run test:integration
+npm run check:changelog
 ```
+
+`npm run check` は ESLint、公開記録表のローカル構造確認、テスト、バックエンドの構文確認、本番ビルド（認証バンドルを含む）、公開成果物・メタデータの確認を行います。公開や GitHub 記録のオンライン照合は行いません。`test:integration` は隔離したテスト API を起動し、`check:changelog` は別途 GitHub Actions を照合します。通信・レート制限・API のエラーも失敗として扱います。範囲と追記のタイミングは[管理者ガイド](docs/MAINTAINER.md#核对上线记录表)を参照してください。
 
 テストのみ：
 
@@ -1023,7 +1129,7 @@ npm run check
 npm test
 ```
 
-`js/auth.js` を再ビルド：
+公開用の本番ディレクトリ `dist/` をビルド：
 
 ```bash
 npm run build
@@ -1039,7 +1145,7 @@ npm run preview
 `build:local` の成果物はデプロイしないでください。`npm run build`（`npm run check` と GitHub Pages）は
 localhost を除去し、残っていれば `tools/check-build.mjs` が失敗します。
 
-サイト内リンクをチェック：
+記録済みの楽曲の外部リンクをチェック：
 
 ```bash
 npm run check:links
@@ -1055,7 +1161,9 @@ npm run check:links:strict
 
 ## ☁️ デプロイ
 
-フロントエンドは `.github/workflows/pages.yml` でビルドし、公開用の `dist/` のみを **GitHub Pages** にデプロイします。
+フロントエンドは `.github/workflows/pages.yml` でビルドし、公開用の `dist/` のみを **GitHub Pages** にデプロイします。リポジトリのルートをそのまま公開しないでください。
+
+`main` へ push 後、同じコミットの **Verify website** と **Publish public site** の成功、公開ページ、別途 Vercel のデプロイと `/healthz` のバージョンを確認します。その後、`python3 tools/sync-copy.py` と `python3 tools/sync-copy.py --check` を実行し、既存の `.review-base` を保持します。README と管理用文書は GitHub に保存され、公開ビルドには含まれません。
 
 アカウント機能とメッセージウォールは動的機能のため、別途 Node.js バックエンドをデプロイし、以下を設定する必要があります：
 
