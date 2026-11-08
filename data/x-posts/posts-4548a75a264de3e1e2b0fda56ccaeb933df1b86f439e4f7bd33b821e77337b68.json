@@ -2,6 +2,39 @@
   "version": 1,
   "items": [
     {
+      "creator": "nknk",
+      "handle": "NKNK_NGRMS",
+      "id": "913393083009589248",
+      "url": "https://x.com/NKNK_NGRMS/status/913393083009589248",
+      "text": "No.11 / 初音ミク (3:51) #sm31978664 nico.ms/sm31978664?cp_…\nですわよ",
+      "translated": false,
+      "publishedAt": "2017-09-28T13:20:55.000Z",
+      "collectedAt": "2026-10-19T17:08:00.000Z",
+      "hasVideo": false,
+      "links": [
+        {
+          "label": "nico.ms/sm31978664?cp_…",
+          "url": "https://t.co/3KOCpeKzCr"
+        }
+      ],
+      "media": [],
+      "relatedUrls": []
+    },
+    {
+      "creator": "inabakumori",
+      "handle": "inabakumori",
+      "id": "913349216264536064",
+      "url": "https://x.com/inabakumori/status/913349216264536064",
+      "text": "@sportsnavi_live お問い合わせがわからずこの場で申し訳ないのですが、プロ野球の放送で、回と回の合間などに再生される番組のお知らせの音量が、中継中と比べてとても大きいんじゃないかと思います。もう少し試合中継中との音量差がなくなったらいいなといつも思っています。",
+      "translated": false,
+      "publishedAt": "2017-09-28T10:26:37.000Z",
+      "collectedAt": "2026-10-19T17:08:00.000Z",
+      "hasVideo": false,
+      "links": [],
+      "media": [],
+      "relatedUrls": []
+    },
+    {
       "creator": "inabakumori",
       "handle": "inabakumori",
       "id": "913035228339363841",
@@ -3451,39 +3484,6 @@
           "url": "https://pbs.twimg.com/media/CzIx6RLUUAECiwD.jpg"
         }
       ],
-      "relatedUrls": []
-    },
-    {
-      "creator": "inabakumori",
-      "handle": "inabakumori",
-      "id": "806729160357859328",
-      "url": "https://x.com/inabakumori/status/806729160357859328",
-      "text": "音圧という概念を知ってからの何年もの試行錯誤を全力で否定してくる感じ",
-      "translated": false,
-      "publishedAt": "2016-12-08T05:16:34.000Z",
-      "collectedAt": "2026-10-19T17:08:00.000Z",
-      "hasVideo": false,
-      "links": [],
-      "media": [
-        {
-          "alt": "",
-          "url": "https://pbs.twimg.com/media/CzISKeAVIAAADyp.jpg"
-        }
-      ],
-      "relatedUrls": []
-    },
-    {
-      "creator": "inabakumori",
-      "handle": "inabakumori",
-      "id": "806315114672463872",
-      "url": "https://x.com/inabakumori/status/806315114672463872",
-      "text": "totoさん、そらさん、Twilyzeさん、ametomuchiさん、Geeさん、ぷりんちゃ～んさん、Fastsettelseさん、じゃのあさん、三毛catさん、はちみつさん、シロボウさん、ニコニ広告での宣伝ありがとうございます。 #sm30117882",
-      "translated": false,
-      "publishedAt": "2016-12-07T01:51:18.000Z",
-      "collectedAt": "2026-10-19T17:08:00.000Z",
-      "hasVideo": false,
-      "links": [],
-      "media": [],
       "relatedUrls": []
     }
   ]
