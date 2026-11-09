@@ -22,7 +22,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "AGPL-3.0-only",
   "type": "commonjs",
   "dependencies": {
     "esbuild": "^0.28.2",
