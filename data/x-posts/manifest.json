@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "count": 6113,
+  "count": 6114,
   "coverage": [
     {
       "creator": "inabakumori",
@@ -8,14 +8,14 @@
       "completeness": "partial",
       "note": "已收录全部原创帖与引用帖（回溯至最早一条），以及部分回复和自回复串；回复与转发尚未完成核对。 All original and quote posts back to the earliest one are collected, plus some replies/self-replies; replies and reposts remain incomplete.",
       "interruptedReason": "更早原创帖已于 2026-10-19 回溯完成；回复与转发仍未完整核对。 Earlier original posts were backfilled on 2026-10-19; replies and reposts are still not fully checked.",
-      "profilePostCount": 4046,
+      "profilePostCount": 4049,
       "scannedTabs": [
         "posts"
       ],
       "scannedRanges": [
         {
           "from": "2015-12-16T07:54:05.000Z",
-          "to": "2026-11-08T13:34:00.000Z",
+          "to": "2026-11-10T13:32:49.000Z",
           "status": "scanned"
         }
       ],
@@ -30,28 +30,28 @@
       "completeness": "partial",
       "note": "已收录全部原创帖与引用帖（回溯至最早一条），以及部分回复和自回复串；回复与转发尚未完成核对。 All original and quote posts back to the earliest one are collected, plus some replies/self-replies; replies and reposts remain incomplete.",
       "interruptedReason": "更早原创帖已于 2026-10-19 回溯完成；回复与转发仍未完整核对。 Earlier original posts were backfilled on 2026-10-19; replies and reposts are still not fully checked.",
-      "profilePostCount": 5957,
+      "profilePostCount": 5964,
       "scannedTabs": [
         "posts"
       ],
       "scannedRanges": [
         {
           "from": "2017-07-08T04:57:47.000Z",
-          "to": "2026-11-08T13:34:00.000Z",
+          "to": "2026-11-10T13:32:49.000Z",
           "status": "scanned"
         }
       ],
-      "count": 3541,
+      "count": 3542,
       "oldestAt": "2017-07-08T04:57:47.000Z",
-      "newestAt": "2026-11-04T09:34:40.000Z",
-      "lastCollectedAt": "2026-11-04T13:35:00.000Z"
+      "newestAt": "2026-11-09T10:29:01.000Z",
+      "lastCollectedAt": "2026-11-10T13:32:49.000Z"
     }
   ],
   "shards": [
     {
-      "file": "posts-9ddaa96149711fbfe8e3bebda764624f8e33e639640532e677e231c962200b12.json",
-      "count": 204,
-      "sha256": "9ddaa96149711fbfe8e3bebda764624f8e33e639640532e677e231c962200b12"
+      "file": "posts-2e3cff660080d7bd4207eea04bed4d3ba7c4a0e6d7fb6a48701a6e572d51bc90.json",
+      "count": 205,
+      "sha256": "2e3cff660080d7bd4207eea04bed4d3ba7c4a0e6d7fb6a48701a6e572d51bc90"
     },
     {
       "file": "posts-c5796ab4fccb7081fb2c6cfc9c38395807f54491ad8999fe4dc1484251d3140f.json",
