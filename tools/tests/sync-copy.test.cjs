@@ -142,12 +142,13 @@ test("calendar and archive frontend files are exported in the application group"
   } finally { box.close(); }
 });
 
-test("the root license is exported with documentation", () => {
-  const box = fixture({ "LICENSE": "Project license\n" });
+test("root license and notice files are exported with documentation", () => {
+  const box = fixture({ "LICENSE": "Project license\n", "NOTICE.md": "# Project notices\n" });
   try {
     passed(box.run()); passed(box.run(["--check"]));
     const sections = copySections(box);
     assert.ok(sections.get("LICENSE")?.startsWith("3-docs-"));
+    assert.ok(sections.get("NOTICE.md")?.startsWith("3-docs-"));
   } finally { box.close(); }
 });
 

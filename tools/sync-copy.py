@@ -43,7 +43,7 @@ X_POSTS_FILE = re.compile(r"^data/x-posts/posts-[^/]+\.json$")
 APP_ROOT = {"index.html", "updates.html", "404.html", "calendar.html", "style.css", "updates.css", "archive.css", "calendar.css", "script.js", "site.webmanifest", "robots.txt",
             "sitemap.xml", "package.json", "CNAME", ".nojekyll", "tools/auth-src.js"}
 TOOL_ROOT = {".gitignore", ".npmrc", "eslint.config.mjs"}
-DOC_ROOT = {"AGENTS.md", "LICENSE", "README.md", "SECURITY.md"}
+DOC_ROOT = {"AGENTS.md", "LICENSE", "NOTICE.md", "README.md", "SECURITY.md"}
 APP_DIRS = ("js/", "backend/", "fonts/", "images/", "data/", "网站海报/")
 DIFF_PATH_BYTES = 24_000  # 给命令、环境和系统的参数指针保留充足空间。
 LAUNCHER = b'''#!/usr/bin/env python3
