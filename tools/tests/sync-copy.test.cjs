@@ -100,7 +100,7 @@ function copySections(box) {
       assert.deepEqual(blob.subarray(offset, offset + original.length), original, file);
       offset += original.length;
       assert.deepEqual(blob.subarray(offset, offset + 2), Buffer.from("\n\n"), file); offset += 2;
-      const group = /^data\/x-posts\/posts-[^/]+\.json$/u.test(file) ? "4-x-posts" : file.endsWith(".md") ? "3-docs" : ["index.html", "archive.css", "calendar.html", "calendar.css"].includes(file) || ["js/", "backend/", "data/", "网站海报/"].some(prefix => file.startsWith(prefix)) ? "1-app-code" : "2-tools-tests";
+      const group = /^data\/x-posts\/posts-[^/]+\.json$/u.test(file) ? "4-x-posts" : file.endsWith(".md") || file === "LICENSE" ? "3-docs" : ["index.html", "archive.css", "calendar.html", "calendar.css"].includes(file) || ["js/", "backend/", "data/", "网站海报/"].some(prefix => file.startsWith(prefix)) ? "1-app-code" : "2-tools-tests";
       assert.ok(name.startsWith(group), `${file} in ${group}`); found.set(file, name);
     }
   }
@@ -139,6 +139,15 @@ test("calendar and archive frontend files are exported in the application group"
       assert.ok(sections.get(file)?.startsWith("1-app-code-"), `${file} belongs with the application code`);
     }
     assert.ok(sections.get("tools/example.py")?.startsWith("2-tools-tests-"));
+  } finally { box.close(); }
+});
+
+test("the root license is exported with documentation", () => {
+  const box = fixture({ "LICENSE": "Project license\n" });
+  try {
+    passed(box.run()); passed(box.run(["--check"]));
+    const sections = copySections(box);
+    assert.ok(sections.get("LICENSE")?.startsWith("3-docs-"));
   } finally { box.close(); }
 });
 
