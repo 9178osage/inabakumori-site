@@ -16,30 +16,28 @@ function snapshot(coverage = []) {
   ] };
 }
 
-test("home and archive show each creator's saved count and date range in JST", async () => {
-  const { renderXPostsHome, renderXPostsArchive } = await import("../render-x-posts.mjs");
-  const archive = snapshot();
-  for (const html of [renderXPostsHome(archive), renderXPostsArchive(archive).status]) {
-    assert.match(html, /稲葉曇：已收录 2 条 · 发布日期范围 2026-02-22 至 2026-03-08（JST）/u);
-    assert.match(html, /NKNK：已收录 1 条 · 发布日期范围 2026-08-20 至 2026-08-20（JST）/u);
-    assert.match(html, /data-en="稲葉曇: 2 collected · Post date range 2026-02-22 to 2026-03-08 \(JST\)"/u);
-    assert.match(html, /data-ja="NKNK：収録1件 · 投稿日の範囲 2026-08-20〜2026-08-20（JST）"/u);
-    assert.match(html, /全量历史、回复与转发仍未完整收录/u);
-    assert.match(html, /不代表区间内每条都已收录/u);
-  }
-});
-
-test("home collection notes can be expanded while archive coverage stays visible", async () => {
+test("archive shows each creator's saved count and date range in JST", async () => {
   const { renderXPostsHome, renderXPostsArchive } = await import("../render-x-posts.mjs");
   const archive = snapshot();
   const home = renderXPostsHome(archive);
-  const notes = home.match(/<details class="x-collection-details">([\s\S]*?)<\/details>/u);
-  assert.ok(notes, "home notes start collapsed using a native disclosure");
-  assert.match(notes[1], /<summary data-zh="收录范围与说明" data-en="Collection details" data-ja="収録範囲と説明">/u);
-  assert.match(notes[1], /最近收录/u);
-  assert.match(notes[1], /不代表区间内每条都已收录/u);
-  assert.match(home.slice(0, notes.index), /已收录 3 条公开帖子 · 历史仍在补全/u);
+  const status = renderXPostsArchive(archive).status;
+  assert.doesNotMatch(home, /x-posts-status|x-posts-summary|<details/u);
+  assert.match(status, /稲葉曇：已收录 2 条 · 发布日期范围 2026-02-22 至 2026-03-08（JST）/u);
+  assert.match(status, /NKNK：已收录 1 条 · 发布日期范围 2026-08-20 至 2026-08-20（JST）/u);
+  assert.match(status, /data-en="稲葉曇: 2 collected · Post date range 2026-02-22 to 2026-03-08 \(JST\)"/u);
+  assert.match(status, /data-ja="NKNK：収録1件 · 投稿日の範囲 2026-08-20〜2026-08-20（JST）"/u);
+  assert.match(status, /全量历史、回复与转发仍未完整收录/u);
+  assert.match(status, /不代表区间内每条都已收录/u);
+});
+
+test("home omits collection status while archive coverage stays visible", async () => {
+  const { renderXPostsHome, renderXPostsArchive } = await import("../render-x-posts.mjs");
+  const archive = snapshot();
+  const home = renderXPostsHome(archive);
+  assert.doesNotMatch(home, /收录范围与说明|Collection details|历史仍在补全|public posts collected/u);
+  assert.doesNotMatch(home, /x-posts-status|x-collection-details/u);
   assert.doesNotMatch(renderXPostsArchive(archive).status, /<details/u);
+  assert.match(renderXPostsArchive(archive).status, /最近收录/u);
 });
 
 test("home posts distinguish collection time from publication time", async () => {
@@ -61,11 +59,12 @@ test("stale scan summaries cannot inflate the saved count or extend its dates", 
 
 test("empty archives keep both creators and an explicit unknown date range", async () => {
   const { renderXPostsHome, renderXPostsArchive } = await import("../render-x-posts.mjs");
-  for (const html of [renderXPostsHome({ version: 1, coverage: [], items: [] }), renderXPostsArchive({ version: 1, coverage: [], items: [] }).status]) {
-    assert.match(html, /稲葉曇：已收录 0 条 · 尚无可确认的发布日期范围/u);
-    assert.match(html, /NKNK：已收录 0 条 · 尚无可确认的发布日期范围/u);
-    assert.doesNotMatch(html, /Invalid Date|undefined|null/u);
-  }
+  const home = renderXPostsHome({ version: 1, coverage: [], items: [] });
+  const archive = renderXPostsArchive({ version: 1, coverage: [], items: [] }).status;
+  assert.doesNotMatch(home, /x-posts-status|Invalid Date|undefined|null/u);
+  assert.match(archive, /稲葉曇：已收录 0 条 · 尚无可确认的发布日期范围/u);
+  assert.match(archive, /NKNK：已收录 0 条 · 尚无可确认的发布日期范围/u);
+  assert.doesNotMatch(archive, /Invalid Date|undefined|null/u);
 });
 
 test("original text keeps whitespace and is escaped before insertion", async () => {

@@ -2099,28 +2099,6 @@ body.nknk-lightbox-open .site-controls { visibility: hidden; }
   font: 600 20px/1.6 var(--font-heading);
   letter-spacing: .03em;
 }
-.home-updates .x-posts-status p {
-  margin: 0;
-  color: var(--ui-muted);
-  font-size: 12px;
-  line-height: 1.85;
-}
-.home-updates .x-posts-status .x-posts-summary {
-  color: var(--ui-text);
-  font-size: 13px;
-}
-.home-updates .x-collection-details { margin-top: 4px; }
-.home-updates .x-collection-details > summary {
-  width: fit-content;
-  min-height: 44px;
-  padding-block: 10px;
-  color: var(--ui-muted);
-  cursor: pointer;
-  font-size: 12px;
-}
-.home-updates .x-collection-details > summary:focus-visible { outline: 2px solid var(--ui-text); outline-offset: 2px; }
-.home-updates .x-collection-details-content { padding: 12px 16px; border-left: 2px solid var(--ui-border-strong); background: var(--link-bg); }
-.home-updates .x-collection-details-content .x-posts-coverage-note { margin-bottom: 0; }
 .home-updates .x-home-filters {
   display: flex;
   flex-wrap: wrap;
