@@ -5,6 +5,9 @@ on:
   delete:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: gitlab-mirror
   cancel-in-progress: false
@@ -12,6 +15,7 @@ concurrency:
 jobs:
   mirror:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Push branches and tags to GitLab
         env:
