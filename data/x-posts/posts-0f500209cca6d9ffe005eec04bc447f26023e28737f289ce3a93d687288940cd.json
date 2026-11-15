@@ -4,6 +4,25 @@
     {
       "creator": "inabakumori",
       "handle": "inabakumori",
+      "id": "806762194943623168",
+      "url": "https://x.com/inabakumori/status/806762194943623168",
+      "text": "をしている",
+      "translated": false,
+      "publishedAt": "2016-12-08T07:27:50.000Z",
+      "collectedAt": "2026-10-19T17:08:00.000Z",
+      "hasVideo": false,
+      "links": [],
+      "media": [
+        {
+          "alt": "",
+          "url": "https://pbs.twimg.com/media/CzIx6RLUUAECiwD.jpg"
+        }
+      ],
+      "relatedUrls": []
+    },
+    {
+      "creator": "inabakumori",
+      "handle": "inabakumori",
       "id": "806729160357859328",
       "url": "https://x.com/inabakumori/status/806729160357859328",
       "text": "音圧という概念を知ってからの何年もの試行錯誤を全力で否定してくる感じ",
@@ -3375,20 +3394,6 @@
           "url": "https://t.co/vpeyHt7zPC"
         }
       ],
-      "media": [],
-      "relatedUrls": []
-    },
-    {
-      "creator": "inabakumori",
-      "handle": "inabakumori",
-      "id": "752127999059775488",
-      "url": "https://x.com/inabakumori/status/752127999059775488",
-      "text": "cubaseが1日に20回くらい落ちるのさすがにおかしいと思ってみたら32bit版使ってた…………",
-      "translated": false,
-      "publishedAt": "2016-07-10T13:11:03.000Z",
-      "collectedAt": "2026-10-19T17:08:00.000Z",
-      "hasVideo": false,
-      "links": [],
       "media": [],
       "relatedUrls": []
     }

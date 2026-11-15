@@ -2,6 +2,39 @@
   "version": 1,
   "items": [
     {
+      "creator": "nknk",
+      "handle": "NKNK_NGRMS",
+      "id": "1171039942966796289",
+      "url": "https://x.com/NKNK_NGRMS/status/1171039942966796289",
+      "text": "しかし自由を知れば\nもう止められません  \n【画像】",
+      "translated": false,
+      "publishedAt": "2019-09-09T12:37:33.000Z",
+      "collectedAt": "2026-10-19T17:08:00.000Z",
+      "hasVideo": false,
+      "links": [],
+      "media": [],
+      "relatedUrls": []
+    },
+    {
+      "creator": "nknk",
+      "handle": "NKNK_NGRMS",
+      "id": "1171024896668794881",
+      "url": "https://x.com/NKNK_NGRMS/status/1171024896668794881",
+      "text": "ダンスガールダンスガールダンスガール feat.初音ミク\n nico.ms/sm34825118?cp_…",
+      "translated": false,
+      "publishedAt": "2019-09-09T11:37:46.000Z",
+      "collectedAt": "2026-10-19T17:08:00.000Z",
+      "hasVideo": false,
+      "links": [
+        {
+          "label": "nico.ms/sm34825118?cp_…",
+          "url": "https://nico.ms/sm34825118?cp_webto=share_others_iosapp"
+        }
+      ],
+      "media": [],
+      "relatedUrls": []
+    },
+    {
       "creator": "inabakumori",
       "handle": "inabakumori",
       "id": "1171023623294877696",
@@ -3644,53 +3677,6 @@
           "url": "https://nico.ms/sm35488084?cp_webto=share_tw_iosapp"
         }
       ],
-      "media": [],
-      "relatedUrls": []
-    },
-    {
-      "creator": "inabakumori",
-      "handle": "inabakumori",
-      "id": "1157632453399347201",
-      "url": "https://x.com/inabakumori/status/1157632453399347201",
-      "text": "なにも・・・できない・・・",
-      "translated": false,
-      "publishedAt": "2019-08-03T12:40:59.000Z",
-      "collectedAt": "2026-10-18T18:36:00.000Z",
-      "hasVideo": false,
-      "links": [],
-      "media": [
-        {
-          "alt": "",
-          "url": "https://pbs.twimg.com/media/EBC8k3bUIAA2u4-.jpg"
-        }
-      ],
-      "relatedUrls": []
-    },
-    {
-      "creator": "nknk",
-      "handle": "NKNK_NGRMS",
-      "id": "1157496593945251840",
-      "url": "https://x.com/NKNK_NGRMS/status/1157496593945251840",
-      "text": "チャクラを練ろうかな\n\n練り  練り♪",
-      "translated": false,
-      "publishedAt": "2019-08-03T03:41:07.000Z",
-      "collectedAt": "2026-10-19T17:08:00.000Z",
-      "hasVideo": false,
-      "links": [],
-      "media": [],
-      "relatedUrls": []
-    },
-    {
-      "creator": "inabakumori",
-      "handle": "inabakumori",
-      "id": "1157446123910385664",
-      "url": "https://x.com/inabakumori/status/1157446123910385664",
-      "text": "墨汁をなめて空腹をしのぐ夢を見てつらかった",
-      "translated": false,
-      "publishedAt": "2019-08-03T00:20:34.000Z",
-      "collectedAt": "2026-10-18T18:36:00.000Z",
-      "hasVideo": false,
-      "links": [],
       "media": [],
       "relatedUrls": []
     }

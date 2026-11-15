@@ -2,6 +2,20 @@
   "version": 1,
   "items": [
     {
+      "creator": "inabakumori",
+      "handle": "inabakumori",
+      "id": "913698099276558336",
+      "url": "https://x.com/inabakumori/status/913698099276558336",
+      "text": "この寒さはsnow knowsを聞きたくなる",
+      "translated": false,
+      "publishedAt": "2017-09-29T09:32:57.000Z",
+      "collectedAt": "2026-10-19T17:08:00.000Z",
+      "hasVideo": false,
+      "links": [],
+      "media": [],
+      "relatedUrls": []
+    },
+    {
       "creator": "nknk",
       "handle": "NKNK_NGRMS",
       "id": "913393083009589248",
@@ -3465,25 +3479,6 @@
       "hasVideo": false,
       "links": [],
       "media": [],
-      "relatedUrls": []
-    },
-    {
-      "creator": "inabakumori",
-      "handle": "inabakumori",
-      "id": "806762194943623168",
-      "url": "https://x.com/inabakumori/status/806762194943623168",
-      "text": "をしている",
-      "translated": false,
-      "publishedAt": "2016-12-08T07:27:50.000Z",
-      "collectedAt": "2026-10-19T17:08:00.000Z",
-      "hasVideo": false,
-      "links": [],
-      "media": [
-        {
-          "alt": "",
-          "url": "https://pbs.twimg.com/media/CzIx6RLUUAECiwD.jpg"
-        }
-      ],
       "relatedUrls": []
     }
   ]
