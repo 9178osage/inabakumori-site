@@ -6,8 +6,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 3056294,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 3062742,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "ロストアンブレラ",
@@ -16,8 +16,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 101008497,
-    "viewsCheckedAt": "2026-11-09",
+    "viewCount": 101328944,
+    "viewsCheckedAt": "2026-11-16",
     "mobileFeatured": true
   },
   {
@@ -27,8 +27,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 1833355,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 1837922,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "クーラーガール",
@@ -37,8 +37,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 1102961,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 1104954,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "ループスピナ",
@@ -47,8 +47,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 1909029,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 1914846,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "ナミダ電波",
@@ -57,8 +57,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 1473415,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 1477066,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "ツクリカケノ心象",
@@ -67,8 +67,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 1537429,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 1540685,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "浮遊月光街",
@@ -77,8 +77,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 3155600,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 3161605,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "絶体暗星",
@@ -87,16 +87,16 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 1187824,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 1193431,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "渦巻ハナビ",
     "youtube": "https://youtu.be/e5d-DvD55OI",
     "album": "ANTICYCLONE",
     "singers": [],
-    "viewCount": 1163754,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 1167952,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "うつしあそび",
@@ -105,8 +105,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 1317195,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 1319667,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "さかさま少女感",
@@ -115,8 +115,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 824618,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 827967,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "ノンユース",
@@ -126,8 +126,8 @@ const SONGS = [
       "歌爱雪",
       "初音未来"
     ],
-    "viewCount": 4904672,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 4914596,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "秘密音楽",
@@ -136,8 +136,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 1247009,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 1249625,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "ひみつの小学生",
@@ -146,8 +146,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 5299589,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 5310401,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "ハローマリーナ",
@@ -157,8 +157,8 @@ const SONGS = [
       "歌爱雪",
       "初音未来"
     ],
-    "viewCount": 4478540,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 4488867,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "レイニーブーツ",
@@ -167,8 +167,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 9982230,
-    "viewsCheckedAt": "2026-11-09",
+    "viewCount": 10005109,
+    "viewsCheckedAt": "2026-11-16",
     "mobileFeatured": true
   },
   {
@@ -178,8 +178,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 107869552,
-    "viewsCheckedAt": "2026-11-09",
+    "viewCount": 108282554,
+    "viewsCheckedAt": "2026-11-16",
     "mobileFeatured": true
   },
   {
@@ -189,8 +189,8 @@ const SONGS = [
     "singers": [
       "弦卷真纪"
     ],
-    "viewCount": 11775799,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 11798235,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "カゼマチグサ (album ver.)",
@@ -200,8 +200,8 @@ const SONGS = [
       "歌爱雪",
       "鸣花Hime"
     ],
-    "viewCount": 2745,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 2829,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "レーダー",
@@ -210,8 +210,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 552570,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 554989,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "かたむすび",
@@ -220,8 +220,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 722309,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 725480,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "天泣",
@@ -230,8 +230,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 793203,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 797686,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "ポストシェルター",
@@ -240,8 +240,8 @@ const SONGS = [
     "singers": [
       "弦卷真纪"
     ],
-    "viewCount": 3208876,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 3215539,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "きみに回帰線",
@@ -250,8 +250,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 8903998,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 8928087,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "とこしずめ",
@@ -260,8 +260,8 @@ const SONGS = [
     "singers": [
       "星界"
     ],
-    "viewCount": 2098297,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 2102257,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "シンクタンク",
@@ -270,8 +270,8 @@ const SONGS = [
     "singers": [
       "里命"
     ],
-    "viewCount": 2990218,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 2996297,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "フロートプレイ",
@@ -280,8 +280,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 7433078,
-    "viewsCheckedAt": "2026-11-09",
+    "viewCount": 7458540,
+    "viewsCheckedAt": "2026-11-16",
     "mobileFeatured": true
   },
   {
@@ -291,8 +291,8 @@ const SONGS = [
     "singers": [
       "音街鳗"
     ],
-    "viewCount": 2680370,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 2689242,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "リレイアウター",
@@ -301,8 +301,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 12245892,
-    "viewsCheckedAt": "2026-11-09",
+    "viewCount": 12287735,
+    "viewsCheckedAt": "2026-11-16",
     "mobileFeatured": true
   },
   {
@@ -312,8 +312,8 @@ const SONGS = [
     "singers": [
       "初音未来"
     ],
-    "viewCount": 8915730,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 8935464,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "余裕欲",
@@ -323,8 +323,8 @@ const SONGS = [
       "nagiβ",
       "カゼヒキβ"
     ],
-    "viewCount": 3547419,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 3562173,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "私は雨",
@@ -333,8 +333,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 9440333,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 9478142,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "アイペース",
@@ -343,8 +343,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 1449790,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 1455406,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "超深淵帯",
@@ -353,8 +353,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 2544603,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 2559944,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "春難色",
@@ -364,8 +364,8 @@ const SONGS = [
       "彩澄しゅお",
       "彩澄りりせ"
     ],
-    "viewCount": 1272928,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 1281223,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "ユレール",
@@ -374,8 +374,8 @@ const SONGS = [
     "singers": [
       "弦卷真纪"
     ],
-    "viewCount": 1304131,
-    "viewsCheckedAt": "2026-11-09",
+    "viewCount": 1318731,
+    "viewsCheckedAt": "2026-11-16",
     "mobileFeatured": true
   },
   {
@@ -385,8 +385,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 2766845,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 2796229,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "たびのまえ、たびのあと (tabitabi Remix)",
@@ -395,48 +395,48 @@ const SONGS = [
     "singers": [
       "初音未来"
     ],
-    "viewCount": 1145821,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 1151449,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "あいたい星人 (大気圏外 Remix)",
     "youtube": "https://youtu.be/io5HEdBNqWk",
     "album": "SINGLES",
     "singers": [],
-    "viewCount": 50044,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 50458,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "僕のサイノウ (稲葉曇 Cover)",
     "youtube": "https://youtu.be/v03uVgQZOOM",
     "album": "SINGLES",
     "singers": [],
-    "viewCount": 57913,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 58985,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "かにだいすき",
     "youtube": "https://youtu.be/KK9nXYdmkiM",
     "album": "SINGLES",
     "singers": [],
-    "viewCount": 31502,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 31670,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "もち",
     "youtube": "https://youtu.be/QpKaP3oGBXE",
     "album": "SINGLES",
     "singers": [],
-    "viewCount": 36339,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 36491,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "ダンスロボットダンス (MVアレンジメドレー)",
     "youtube": "https://youtu.be/Vb-z6AR-2F0",
     "album": "SINGLES",
     "singers": [],
-    "viewCount": 15781936,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 15812085,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "おはようオーパーツ (稲葉曇 Cover)",
@@ -446,8 +446,8 @@ const SONGS = [
       "稲葉曇",
       "歌爱雪"
     ],
-    "viewCount": 199849,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 200667,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "失敗作少女 (稲葉曇 Remix)",
@@ -456,16 +456,16 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 183372,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 183767,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "篝火 (feat. 稲葉曇)",
     "youtube": "https://youtu.be/2A46CwhV4aE",
     "album": "SINGLES",
     "singers": [],
-    "viewCount": 247871,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 249033,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "ラストリヴ",
@@ -474,8 +474,8 @@ const SONGS = [
     "singers": [
       "宮下遊"
     ],
-    "viewCount": 535849,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 536798,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "忘れん坊の猫かぶり",
@@ -484,8 +484,8 @@ const SONGS = [
     "singers": [
       "镜音铃"
     ],
-    "viewCount": 75030,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 75494,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "ロールレスウエポン (稲葉曇×Neru)",
@@ -495,8 +495,8 @@ const SONGS = [
       "歌爱雪",
       "镜音连"
     ],
-    "viewCount": 1861381,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 1865886,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "ノンユース (Original Version)",
@@ -505,8 +505,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 99336,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 99684,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "紗痲 (稲葉曇 Cover)",
@@ -515,8 +515,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 506929,
-    "viewsCheckedAt": "2026-11-09"
+    "viewCount": 508553,
+    "viewsCheckedAt": "2026-11-16"
   },
   {
     "title": "遷移一区画",
@@ -525,8 +525,8 @@ const SONGS = [
     "singers": [
       "歌爱雪"
     ],
-    "viewCount": 240715,
-    "viewsCheckedAt": "2026-11-09",
+    "viewCount": 242021,
+    "viewsCheckedAt": "2026-11-16",
     "other": true
   },
   {
@@ -536,8 +536,8 @@ const SONGS = [
     "singers": [
       "初音未来"
     ],
-    "viewCount": 59691,
-    "viewsCheckedAt": "2026-11-09",
+    "viewCount": 59938,
+    "viewsCheckedAt": "2026-11-16",
     "other": true
   },
   {
@@ -547,8 +547,8 @@ const SONGS = [
     "singers": [
       "星尘Infinity"
     ],
-    "viewCount": 18750,
-    "viewsCheckedAt": "2026-11-09",
+    "viewCount": 19147,
+    "viewsCheckedAt": "2026-11-16",
     "other": true
   }
 ];
