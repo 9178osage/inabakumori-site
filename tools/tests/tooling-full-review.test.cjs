@@ -67,6 +67,7 @@ function publicBuild(box) {
 <link rel="canonical" href="https://osagechan.top/"/>
 <script src="js/auth-loader.js?v=${fingerprint(authLoader)}" defer></script>
 <script type="application/ld+json">{"@type":"WebSite"}</script>
+<div class="artwork-heading"><h2 id="artwork-title">NKNK</h2><a class="artwork-comics-link" href="nknk-comics.html">Comics</a></div>
 <div id="nknk-gallery"></div><div id="nknk-lightbox"></div><section id="updates"><section class="x-posts-home" data-x-posts-home><p data-x-home-count></p><a data-x-archive-link></a><div class="x-posts-feed"></div></section></section><a href="#updates">Updates</a>
 ${emptyXPostsMeta}<div class="station-brand"><a class="station-mark" href="#updates">INABAKUMORI</a></div><div class="hero-content"><nav></nav><a class="station-calendar" href="calendar.html">calendar</a></div><a data-song-title="ユレール">ユレール</a>`);
   box.write("data/creator-updates.json", JSON.stringify({ items: [{ creator: "inabakumori", source: "youtube", title: "稲葉曇『ユレール』Vo. 弦巻マキ", publishedAt: "2026-03-08T10:00:07.000Z", url: "https://www.youtube.com/watch?v=2r4W_LoVFxA" }, { creator: "inabakumori", source: "youtube", title: "Live stream", publishedAt: "2026-09-01T10:00:00.000Z" }] }));
@@ -74,7 +75,7 @@ ${emptyXPostsMeta}<div class="station-brand"><a class="station-mark" href="#upda
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self';"/>
 <article class="calendar-sheet" data-release="2026-03-08T10:00:07.000Z"></article>`);
   box.write("dist/CNAME", "osagechan.top\n"); box.write("dist/site.webmanifest", '{"icons":[]}');
-  box.write("dist/sitemap.xml", `<urlset>${["", "updates.html", "updates-inabakumori.html", "updates-nknk.html", "songs.html", "song-2r4W_LoVFxA.html"].map(name => `<url><loc>https://osagechan.top/${name}</loc></url>`).join("")}</urlset>\n`);
+  box.write("dist/sitemap.xml", `<urlset>${["", "updates.html", "updates-inabakumori.html", "updates-nknk.html", "songs.html", "song-2r4W_LoVFxA.html", "nknk-comics.html"].map(name => `<url><loc>https://osagechan.top/${name}</loc></url>`).join("")}</urlset>\n`);
   // An empty X archive (no data/x-posts) still yields one archive page per author filter.
   const slices = { "updates.html": "", "updates-inabakumori.html": "稲葉曇的 X 帖子", "updates-nknk.html": "NKNK 的 X 帖子" };
   for (const name of ["updates.html", "updates-inabakumori.html", "updates-nknk.html"]) box.write(`dist/${name}`, `${slices[name] ? `<html lang="zh-CN" data-archive-creator="${name.slice(8, -5)}" data-archive-page="1">` : '<html lang="zh-CN">'}
@@ -94,6 +95,8 @@ ${emptyXPostsMeta}
   box.write("data/song-redirects.json", JSON.stringify({ version: 1, redirects: {} }));
   box.write("dist/js/nknk-gallery.js", 'const NKNK_GALLERY = [{id:1,thumb:"images/picture.webp",full:"images/picture.webp"}];\n');
   box.write("dist/images/picture.webp", "PUBLIC_IMAGE");
+  box.write("dist/nknk-comics.html", '<a href="index.html#artwork">Back to NKNK</a><a href="#comic-01">01</a><section class="comic-strip" id="comic-01"><img src="images/optimized/nknk-comics/01.webp" alt="First comic"/></section>');
+  box.write("dist/images/optimized/nknk-comics/01.webp", "COMIC_IMAGE");
 }
 
 test("public build check rejects symlinked assets and directories before publication", () => {

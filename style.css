@@ -312,11 +312,40 @@ h2 {
   transition: transform 0.2s ease, opacity 0.2s ease;
   width: 100%;
 }
+.artwork-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: clamp(12px, 2vw, 24px);
+  row-gap: 8px;
+  padding-block-end: 8px;
+}
 #artwork-title {
+  margin-block-end: 0;
   font-size: clamp(24px, 3.2vw, 36px);
   letter-spacing: 1px;
   overflow-wrap: anywhere;
   line-height: 1.5;
+}
+.artwork-comics-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 14px;
+  border: 1px solid var(--ui-border);
+  border-radius: 6px;
+  background: var(--ui-surface);
+  color: var(--ui-text);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+@media (hover: hover) {
+  .artwork-comics-link:hover {
+    border-color: var(--ui-border-strong);
+    background: var(--ui-surface-solid);
+  }
 }
 .artwork-intro {
   font-family: var(--font-heading);

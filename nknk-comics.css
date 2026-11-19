@@ -1,0 +1,145 @@
+.nknk-comics-page {
+  scroll-behavior: auto;
+}
+
+.comics-header, .comics-main {
+  max-width: 64rem;
+}
+
+.comics-header {
+  min-height: 0;
+}
+
+.comics-back, .comics-header .page-controls button {
+  min-height: 44px;
+}
+
+.comics-main {
+  padding-block: clamp(24px, 4vw, 48px) 64px;
+}
+
+.comics-intro h1 {
+  margin: 0;
+  font: var(--type-weight-heading) var(--type-size-page)/1.25 var(--font-title);
+  text-wrap: balance;
+}
+
+.comics-intro p {
+  margin: 10px 0 24px;
+  color: var(--muted);
+  font-size: var(--type-size-small);
+}
+
+.comics-layout, .comics-strips {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(24px, 4vw, 48px);
+}
+
+.comics-index {
+  align-self: start;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--card-line);
+  border-radius: 8px;
+}
+
+.comics-index summary {
+  min-height: 44px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: var(--type-weight-heading);
+}
+
+.comics-count {
+  color: var(--muted);
+}
+
+.comics-index-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 4px;
+  margin: 0;
+  padding: 0 10px 10px;
+  list-style: none;
+}
+
+.comics-index-list a {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  color: var(--ink);
+  border-radius: 4px;
+  font: 500 14px/1 var(--font-data);
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .comics-index-list a:hover {
+    background: var(--surface);
+  }
+}
+
+.comic-strip, .comics-index {
+  scroll-margin-top: 16px;
+}
+
+.comic-strip:focus-visible, .comics-index summary:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+.comic-strip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0 16px;
+  border-block-start: 1px solid var(--line);
+  margin-block-end: 10px;
+}
+
+.comic-strip-header h2 {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: var(--type-weight-heading);
+}
+
+.comic-strip-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 12px;
+}
+
+.comic-strip-actions a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-inline: 4px;
+  font-size: var(--type-size-small);
+}
+
+.comic-strip img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-inline: auto;
+  background: var(--white);
+  box-shadow: 0 2px 9px rgba(0, 0, 0, 0.13);
+}
+
+@media (min-width: 761px) {
+  .comics-layout {
+    grid-template-columns: minmax(14rem, 16.5rem) minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 761px) and (min-height: 500px) {
+  .comics-index {
+    position: sticky;
+    top: 16px;
+  }
+  .comic-strip-actions .comic-index-back {
+    display: none;
+  }
+}

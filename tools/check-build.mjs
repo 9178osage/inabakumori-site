@@ -122,6 +122,21 @@ for (const item of nknk) {
 assert.ok(html.includes('id="nknk-gallery"'), "NKNK gallery mount missing");
 assert.ok(html.includes('id="nknk-lightbox"'), "NKNK lightbox missing");
 assert.ok(!html.includes('id="nknk-gallery-more"'), "NKNK load-more should be removed");
+assert.match(html, /<div class="artwork-heading">\s*<h2 id="artwork-title"[^>]*>[^<]*<\/h2>\s*<a class="artwork-comics-link" href="nknk-comics\.html">/u,
+  "The comics reader link must sit next to the NKNK heading");
+const comicsHtml = await readFile(distFile("nknk-comics.html"), "utf8");
+assert.doesNotMatch(comicsHtml, /<!-- NKNK-COMICS:/u, "The comics reader must be pre-rendered");
+assert.match(comicsHtml, /href="index\.html#artwork"/u, "The comics reader must link back to NKNK");
+const comicNumbers = [...comicsHtml.matchAll(/<section class="comic-strip" id="comic-([0-9]+)"/gu)].map(match => match[1]);
+const comicIndex = [...comicsHtml.matchAll(/href="#comic-([0-9]+)"/gu)].map(match => match[1]);
+const comicImages = [...comicsHtml.matchAll(/<img src="images\/optimized\/nknk-comics\/([0-9]+)\.webp"/gu)].map(match => match[1]);
+assert.ok(comicNumbers.length > 0 && new Set(comicNumbers).size === comicNumbers.length, "The comics reader needs distinct comic IDs");
+assert.deepEqual(comicIndex, comicNumbers, "The comics index must link to each strip in order");
+assert.deepEqual(comicImages, comicNumbers, "Each strip must have its pre-rendered image");
+for (const value of htmlReferences(comicsHtml)) {
+  if (/^(https?:|#)/u.test(value)) continue;
+  assert.ok((await stat(distFile(value.split(/[?#]/u)[0]))).isFile(), `Missing comics reference: ${value}`);
+}
 const updatesHtml = await readFile(path.join(root, "updates.html"), "utf8");
 assert.ok(html.includes('id="updates"'), "Homepage must include the updates section");
 assert.ok(html.indexOf('id="intro"') < html.indexOf('id="updates"'), "Homepage intro must precede updates");
@@ -206,9 +221,11 @@ const sitemap = await readFile(path.join(root, "sitemap.xml"), "utf8");
 const sitemapLocations = [...sitemap.matchAll(/<loc>https:\/\/osagechan\.top\/([^<]*)<\/loc>/gu)].map(match => match[1]);
 assert.equal(sitemapLocations.length, new Set(sitemapLocations).size, "Sitemap must not repeat a page");
 assert.ok(sitemapLocations.includes(""), "Sitemap must list the homepage");
+assert.ok(sitemapLocations.includes("nknk-comics.html"), "Sitemap must list the NKNK comics reader");
 for (const name of expectedPages) assert.ok(sitemapLocations.includes(name), `Sitemap must list archive page: ${name}`);
 const generatedPages = new Set(["songs.html", ...vm.runInContext("SONGS", songContext).map(songPageName)]);
-for (const name of sitemapLocations) assert.ok(name === "" || expectedPages.has(name) || generatedPages.has(name) || name === "index.html", `Sitemap lists an unknown page: ${name}`);
+const staticPages = new Set(["", "index.html", "nknk-comics.html"]);
+for (const name of sitemapLocations) assert.ok(staticPages.has(name) || expectedPages.has(name) || generatedPages.has(name), `Sitemap lists an unknown page: ${name}`);
 // Translations: every pre-rendered post with a gist carries exactly one zh/en line (ja shows none).
 const xTranslations = await readXTranslations(path.resolve(root, ".."), xArchive);
 // Every pre-rendered page that shows posts (homepage and each archive page) is checked.
