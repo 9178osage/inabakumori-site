@@ -149,6 +149,21 @@ try {
   const expiresAt = Date.parse(comment.expiresAt);
   assert.equal(expiresAt - createdAt, 182 * 24 * 60 * 60 * 1e3);
   assert.equal((await post({ nickname: "另一个昵称", content: comment.content })).status, 409);
+  // Idempotency-Key: a retried short guest post (no text dedup) returns the first result once.
+  const preflight = await request(`${api}/api/comments`, { method: "OPTIONS", headers: { Origin: previewUrl, "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "content-type,idempotency-key" } });
+  assert.ok(preflight.status < 300, `preflight ${preflight.status}`);
+  assert.match(preflight.headers.get("access-control-allow-headers") || "", /idempotency-key/iu);
+  const keyed = (key, content = "谢谢") => request(`${api}/api/comments`, { method: "POST", headers: { "Content-Type": "application/json", Origin: previewUrl, "x-real-ip": "203.0.113.77", "Idempotency-Key": key }, body: JSON.stringify({ nickname: "重试", content }) });
+  assert.equal((await (await keyed("bad key!")).json()).code, "INVALID_IDEMPOTENCY_KEY");
+  const firstTry = await keyed("integration-retry-key-0001");
+  assert.equal(firstTry.status, 201, await firstTry.clone().text());
+  const retried = await keyed("integration-retry-key-0001");
+  assert.equal(retried.status, 201);
+  const [firstBody, retryBody] = [await firstTry.json(), await retried.json()];
+  assert.deepEqual(retryBody, firstBody, "the retry returns the first response");
+  assert.equal((await (await keyed("integration-retry-key-0001", "别的内容")).json()).code, "IDEMPOTENCY_KEY_REUSED");
+  const keyedList = (await (await request(`${api}/api/comments`, { headers: { Origin: previewUrl } })).json()).comments;
+  assert.equal(keyedList.filter(item => item.content === "谢谢").length, 1, "one stored copy");
   assert.equal((await request(`${api}/api/comments/mine`)).status, 401);
   assert.equal((await request(`${api}/api/admin/comments`)).status, 401);
   // Omitting or spoofing Origin must never grant protected access.
@@ -203,7 +218,7 @@ try {
   assert.equal(bodylessRefresh.status, 401, "bodyless refresh reaches session verification");
   await bodylessRefresh.arrayBuffer();
   assert.equal((await request(`${api}/api/missing`)).status, 404);
-  assert.equal((await (await request(`${api}/api/comments`)).json()).comments.length, 1);
+  assert.equal((await (await request(`${api}/api/comments`)).json()).comments.length, 2, "the first post plus one idempotent short post");
   let deleteLimited = false;
   for (let i = 0; i < 31; i++) {
     const result = await request(`${api}/API/ADMIN/COMMENTS/1`, { method: "DELETE" });

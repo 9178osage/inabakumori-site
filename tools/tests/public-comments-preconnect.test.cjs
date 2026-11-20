@@ -10,7 +10,7 @@ test("public wall GET omits credentials so it can reuse the anonymous preconnect
   assert.match(read("index.html"), /<link rel="preconnect" href="https:\/\/inabakumori-backend\.vercel\.app" crossorigin\/?>/);
   const script = read("script.js");
   assert.match(script, /\(COMMENTS_API, \{ credentials: "omit", cache: "no-store" \}\)/);
-  assert.match(script, /\(COMMENTS_API, \{ method: "POST",[^}]*\}, credentials: "include"/);
+  assert.match(script, /\(COMMENTS_API, \{ method: "POST", headers, credentials: "include"/);
 });
 
 test("signed-in and admin comment requests keep their credentials", () => {

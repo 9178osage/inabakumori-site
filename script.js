@@ -398,6 +398,21 @@ function enforceCommentFieldLimits(nameInput, messageInput) {
   if (trimmed) showLengthFeedback(trimmed);
   return trimmed;
 }
+// One key per submit action: a manual retry of the same unchanged text after a timeout
+// reuses it, so the server returns the first result instead of posting a second copy.
+let pendingCommentAttempt = null;
+function newIdempotencyKey() {
+  const webCrypto = globalThis.crypto;
+  if (typeof webCrypto?.randomUUID === "function") return webCrypto.randomUUID();
+  if (typeof webCrypto?.getRandomValues !== "function") return null;
+  return Array.from(webCrypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("");
+}
+function commentIdempotencyKey(nickname, content) {
+  if (pendingCommentAttempt?.nickname !== nickname || pendingCommentAttempt?.content !== content) {
+    pendingCommentAttempt = { nickname, content, key: newIdempotencyKey() };
+  }
+  return pendingCommentAttempt.key;
+}
 async function addMessage() {
   if (messageSubmitting) return;
   const nameInput = document.getElementById("message-name");
@@ -438,7 +453,9 @@ async function addMessage() {
   showMessageFeedback(() => pageText("正在发送…", "Posting…"), false);
   if (button) button.disabled = true;
   try {
-    const response = await (window.siteFetch || fetch)(COMMENTS_API, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ nickname, content }) });
+    const idempotencyKey = commentIdempotencyKey(nickname, content);
+    const headers = { "Content-Type": "application/json", ...idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {} };
+    const response = await (window.siteFetch || fetch)(COMMENTS_API, { method: "POST", headers, credentials: "include", body: JSON.stringify({ nickname, content }) });
     // Gateway/proxy errors (e.g. an empty 429) carry no JSON; the status alone still picks the message.
     const data = response.ok ? await response.json() : await response.json().catch(() => null);
     if (!response.ok) {
@@ -449,6 +466,7 @@ async function addMessage() {
     if (!data.comment || !Number.isSafeInteger(data.comment.id)) {
       throw new SyntaxError("Invalid comment response");
     }
+    pendingCommentAttempt = null;
     if (nameInput.value === originalName) nameInput.value = "";
     if (messageInput.value === originalContent) messageInput.value = "";
     wallRevision++;

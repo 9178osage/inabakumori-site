@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { normalizeRequestPath, passwordResetEmailKey, validateCommentInput, websiteLocation, parseAdditionalOrigins, clientIpResolver, parseAdminUserIds, createAdminCheck, buildVersion, insertFreshCommentAsync, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery, isReservedNickname, requireJsonRequestBody, revokeSessionsAfterPasswordReset, createFinalErrorHandler } from "./services.mjs";
+import { normalizeRequestPath, passwordResetEmailKey, validateCommentInput, websiteLocation, parseAdditionalOrigins, clientIpResolver, parseAdminUserIds, createAdminCheck, buildVersion, insertFreshCommentAsync, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery, isReservedNickname, requireJsonRequestBody, revokeSessionsAfterPasswordReset, createFinalErrorHandler, commentIdempotency, COMMENT_IDEMPOTENCY_TTL_MS } from "./services.mjs";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -178,7 +178,7 @@ const corsOptions = { origin(origin, callback) {
   if (!origin) return callback(null, true);
   if (ALLOWED_ORIGINS.has(origin)) return callback(null, true);
   return callback(new Error("Origin not allowed by CORS"));
-}, exposedHeaders: ["X-Request-Id", "Retry-After"], allowedHeaders: ["content-type", ...supertokens.getAllCORSHeaders()], methods: ["GET", "POST", "DELETE", "OPTIONS"], credentials: true, maxAge: 600 };
+}, exposedHeaders: ["X-Request-Id", "Retry-After"], allowedHeaders: ["content-type", "idempotency-key", ...supertokens.getAllCORSHeaders()], methods: ["GET", "POST", "DELETE", "OPTIONS"], credentials: true, maxAge: 600 };
 const corsMiddleware = cors(corsOptions);
 // Diagnostics must not depend on shared counters, authentication or maintenance.
 // A temporarily unavailable pool can recover on a later probe, including cold starts.
@@ -311,6 +311,7 @@ const deleteExpiredGuestsStatement = db.prepare(`
         AND expires_at IS NOT NULL
         AND expires_at <= ?
 `);
+const deleteExpiredIdempotencyStatement = db.prepare("DELETE FROM comment_idempotency WHERE created_at <= ?");
 const MAX_PUBLIC_COMMENTS = 100;
 const selectCommentListVersionStatement = db.prepare(SELECT_COMMENT_LIST_VERSION);
 // The account ID only decides the public admin badge; it never leaves the server.
@@ -344,6 +345,7 @@ async function deleteExpiredGuestComments() {
     invalidatePublicComments();
     console.log(`🧹 Deleted ${deleted} expired guest comment(s)`);
   }
+  await deleteExpiredIdempotencyStatement.run(Date.now() - COMMENT_IDEMPOTENCY_TTL_MS);
   await cleanupExpiredRateLimits(db);
 }
 app.use(createRequestMaintenance({ work: deleteExpiredGuestComments, env: process.env,
@@ -381,19 +383,29 @@ app.post("/api/comments", commentLimiter, requireJsonContentType, verifySession(
   if (!isAdmin && isReservedNickname(nickname)) {
     return res.status(400).json({ error: "这个昵称为站长保留，请换一个昵称", code: "RESERVED_NICKNAME" });
   }
-  const createdAt = Date.now();
-  const expiresAt = isGuest ? createdAt + GUEST_COMMENT_RETENTION_MS : null;
+  const idempotency = commentIdempotency(req.get("idempotency-key"), { userId, nickname, content });
+  if (idempotency === false) {
+    return res.status(400).json({ error: "请求编号无效，请刷新页面后重试", code: "INVALID_IDEMPOTENCY_KEY" });
+  }
+  const now = Date.now();
   const inserted = await insertFreshCommentAsync(db, {
     memberCap: MEMBER_COMMENT_CAP,
-    row: { nickname, content, userId, isGuest, createdAt, expiresAt }
+    idempotency,
+    row: { nickname, content, userId, isGuest, createdAt: now, expiresAt: isGuest ? now + GUEST_COMMENT_RETENTION_MS : null }
   });
   if (!inserted.ok && inserted.code === "DUPLICATE_COMMENT") {
     return res.status(409).json({ error: "相同内容请稍后再留言", code: "DUPLICATE_COMMENT" });
   }
+  if (!inserted.ok && inserted.code === "IDEMPOTENCY_KEY_REUSED") {
+    return res.status(409).json({ error: "请求编号已用于其他留言，请刷新页面后重试", code: "IDEMPOTENCY_KEY_REUSED" });
+  }
   if (!inserted.ok) {
     return res.status(409).json({ error: "每个账号最多保留 100 条留言，请先删除旧留言", code: "MEMBER_COMMENT_CAP" });
   }
-  invalidatePublicComments();
+  // A replay repeats the first response; that write already purged the cache.
+  if (!inserted.replayed) invalidatePublicComments();
+  const createdAt = inserted.replayed ? inserted.createdAt : now;
+  const expiresAt = inserted.replayed ? inserted.expiresAt : isGuest ? now + GUEST_COMMENT_RETENTION_MS : null;
   return res.status(201).json({ success: true, comment: { id: inserted.id, nickname, content, isGuest, isAdmin, createdAt: new Date(createdAt).toISOString(), expiresAt: expiresAt === null ? null : new Date(expiresAt).toISOString() } });
 });
 registerCommentManagement(app, db, verifySession, invalidatePublicComments);
