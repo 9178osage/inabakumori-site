@@ -207,9 +207,9 @@ test("the YouTube API key only reaches a job that installs and runs no dependenc
   assert.match(fetch, /name: youtube-views-fetched\n\s+path: js\/songs\.js\n/u);
   assert.match(jobs.refresh, /needs: fetch/u);
   assert.match(jobs.refresh, /name: youtube-views-fetched\n\s+path: js\n/u);
-  // The fetch script and its local helper import only Node built-ins.
-  for (const file of ["tools/refresh-youtube-views.mjs", "tools/safe-fs.mjs"]) {
+  // The fetch script and its local helpers import only Node built-ins.
+  for (const file of ["tools/refresh-youtube-views.mjs", "tools/safe-fs.mjs", "tools/youtube-id.mjs"]) {
     const imports = [...fs.readFileSync(path.join(__dirname, "../..", file), "utf8").matchAll(/^import [^"]*"([^"]+)"/gmu)].map(m => m[1]);
-    for (const name of imports) assert.ok(name.startsWith("node:") || name === "./safe-fs.mjs", `${file} imports ${name}`);
+    for (const name of imports) assert.ok(name.startsWith("node:") || name === "./safe-fs.mjs" || name === "./youtube-id.mjs", `${file} imports ${name}`);
   }
 });

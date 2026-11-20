@@ -57,7 +57,7 @@ test("preview refuses allowlisted symlink files, parent directories and linked 4
 
 const emptyXPostsMeta = `<meta name="x-posts-version" content="${require("node:crypto").createHash("sha256").update(JSON.stringify({ version: 1, coverage: [], items: [] })).digest("hex")}"/>`;
 function publicBuild(box) {
-  for (const file of ["tools/check-build.mjs", "tools/net-guards.mjs", "tools/x-posts-data.mjs", "tools/x-translations.mjs", "tools/calendar-song.mjs", "tools/safe-fs.mjs", "tools/song-archive.mjs"]) box.copy(file);
+  for (const file of ["tools/check-build.mjs", "tools/net-guards.mjs", "tools/x-posts-data.mjs", "tools/x-translations.mjs", "tools/calendar-song.mjs", "tools/safe-fs.mjs", "tools/song-archive.mjs", "tools/youtube-id.mjs"]) box.copy(file);
   const authBundle = "/* synthetic public auth bundle */";
   const fingerprint = value => require("node:crypto").createHash("sha256").update(value).digest("hex").slice(0, 12);
   const authLoader = `const bundleUrl = new URL("./auth.js?v=${fingerprint(authBundle)}", document.currentScript.src);`;
@@ -260,7 +260,7 @@ test("the real build gate accepts trusted watch links and rejects an untrusted v
 
 function refreshFixture() {
   const box = fixture();
-  box.copy("tools/refresh-youtube-views.mjs"); box.copy("tools/safe-fs.mjs");
+  box.copy("tools/refresh-youtube-views.mjs"); box.copy("tools/safe-fs.mjs"); box.copy("tools/youtube-id.mjs");
   const original = 'const SONGS = ' + JSON.stringify([
     { title: "Synthetic song", youtube: "https://youtu.be/AAAAAAAAAAA", viewCount: 7, viewsCheckedAt: "2020-01-01" }
   ]) + ';\n';

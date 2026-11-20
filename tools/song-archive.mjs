@@ -3,6 +3,7 @@
 // vocal shown as a labelled unofficial record with its reference pages. Linked posts are matched
 // from the collected X archive at build time by video ID or title, so daily imports flow in.
 import assert from "node:assert/strict";
+import { youtubeVideoId } from "./youtube-id.mjs";
 
 // Text folding for title matching: NFKC (full/half width), lower case, katakana → hiragana,
 // whitespace removed; half-width voiced marks stay with the preceding kana (ｶﾞ → が).
@@ -42,12 +43,8 @@ export const SONG_POST_LIMIT = 60;
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/u;
 
 export function youtubeId(url) {
-  const parsed = new URL(url);
-  assert.ok(parsed.protocol === "https:" && !parsed.username && !parsed.password && !parsed.port, `Invalid YouTube URL ${url}`);
-  const id = parsed.hostname === "youtu.be" ? parsed.pathname.slice(1)
-    : ["youtube.com", "www.youtube.com", "m.youtube.com"].includes(parsed.hostname) && parsed.pathname === "/watch" && parsed.searchParams.getAll("v").length === 1
-      ? parsed.searchParams.get("v") : null;
-  assert.match(id ?? "", VIDEO_ID, `Invalid YouTube URL ${url}`);
+  const id = youtubeVideoId(url);
+  assert.ok(id, `Invalid YouTube URL ${url}`);
   return id;
 }
 export const songPageName = song => `song-${youtubeId(song.youtube)}.html`;
