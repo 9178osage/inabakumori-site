@@ -184,6 +184,39 @@ test("PostgreSQL engine validates migration, backup and shared rate counters", a
       assert.equal((await active.get("a")).totalHits, 1);
     });
 
+    await t.test("expiry cleanup keeps deleting full batches within its budget instead of leaving a backlog", async () => {
+      const backlog = newStore("backlog");
+      for (let index = 0; index < 7; index++) await backlog.increment(`visitor-${index}`);
+      await db.prepare("UPDATE rate_limit_counters SET reset_at = ? WHERE prefix = ?").run(Date.now() - 1000, "backlog");
+      assert.equal(await cleanupExpiredRateLimits(db, { batchSize: 3, maxBatches: 2 }), 6, "the batch budget bounds one run");
+      assert.equal((await db.prepare("SELECT count(*) AS n FROM rate_limit_counters WHERE prefix = ?").get("backlog")).n, 1);
+      assert.equal(await cleanupExpiredRateLimits(db, { batchSize: 3 }), 1, "a short batch ends the loop");
+      assert.equal((await db.prepare("SELECT count(*) AS n FROM rate_limit_counters WHERE prefix = ?").get("backlog")).n, 0);
+      let clock = 0;
+      for (let index = 0; index < 4; index++) await backlog.increment(`late-${index}`);
+      await db.prepare("UPDATE rate_limit_counters SET reset_at = ? WHERE prefix = ?").run(Date.now() - 1000, "backlog");
+      assert.equal(await cleanupExpiredRateLimits(db, { batchSize: 2, maxMs: 10, now: () => (clock += 10) }), 2, "the time budget bounds one run");
+      await assert.rejects(cleanupExpiredRateLimits(db, { batchSize: 0 }), TypeError);
+    });
+
+    await t.test("deleting an author's comments reports exactly the rows one DELETE ... RETURNING removed", async () => {
+      const { registerAdminCommentManagement } = await import("../../backend/services.mjs");
+      const insert = db.prepare("INSERT INTO comments (nickname, content, user_id, is_guest, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)");
+      const ids = [];
+      for (const [userId, content] of [["author-sweep", "one"], ["author-keep", "two"], ["author-sweep", "three"]]) ids.push((await insert.run("n", content, userId, 0, Date.now(), null)).lastInsertRowid);
+      const routes = {};
+      const auth = (_req, _res, next) => next();
+      registerAdminCommentManagement({ get() {}, delete(path, ...handlers) { routes[path] = handlers; } }, db, () => auth, userId => userId === "admin");
+      const res = { code: 200, setHeader() {}, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
+      const req = { params: { id: String(ids[0]) }, session: { getUserId: () => "admin" } };
+      let index = 0;
+      const next = () => routes["/api/admin/comments/:id/author"][index++]?.(req, res, next);
+      await next();
+      assert.deepEqual(res.body, { success: true, deletedCommentIds: [ids[2], ids[0]], deletedCount: 2 });
+      assert.equal((await db.prepare("SELECT count(*) AS n FROM comments WHERE user_id = ?").get("author-keep")).n, 1);
+      await db.prepare("DELETE FROM comments WHERE user_id = ?").run("author-keep");
+    });
+
     await t.test("comment transactions preserve duplicate protection, member caps and rollback in PostgreSQL", async () => {
       const { insertFreshCommentAsync } = await import("../../backend/services.mjs");
       const row = { nickname: "用户", content: "a member comment", userId: "member", isGuest: false, createdAt: 1800000000000, expiresAt: null };

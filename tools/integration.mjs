@@ -106,17 +106,18 @@ try {
     assert.equal(signed.status, 200);
     assert.equal(signed.headers.get("cache-control"), "no-store", "credentialed list reads stay out of shared caches");
     assert.equal(signed.headers.get("vercel-cache-tag"), null);
+    assert.ok(signed.headers.get("x-request-id"), "uncached responses keep their request ID");
     assert.equal(signed.headers.get("access-control-allow-origin"), previewUrl);
   }
   assert.match(get.headers.get("content-security-policy"), /default-src 'none'/);
-  assert.ok(get.headers.get("x-request-id"));
+  assert.equal(get.headers.get("x-request-id"), null, "a CDN-cacheable read carries no per-request ID to replay");
   assert.deepEqual((await get.json()).comments, []);
   assert.equal((await request(`${api}/api/comments`, { headers: { Origin: "https://untrusted.example" } })).status, 403);
   const legacy = await request(`${api}/api/comments`, { headers: { Origin: "https://old-site.example" } });
   assert.equal(legacy.status, 200);
   assert.equal(legacy.headers.get("access-control-allow-origin"), "https://old-site.example");
   assert.match(legacy.headers.get("vary"), /\bOrigin\b/, "each allowed origin gets its own CDN entry");
-  assert.notEqual(legacy.headers.get("x-request-id"), get.headers.get("x-request-id"), "cached data must not reuse request-specific headers");
+  assert.equal(legacy.headers.get("x-request-id"), null, "cached data must not reuse request-specific headers");
   assert.deepEqual((await legacy.json()).comments, [], "warm public cache works for a different allowed origin");
   // An allowed Origin is not authentication: protected routes still need a session.
   assert.equal((await request(`${api}/api/comments/mine`, { headers: { Origin: "https://old-site.example" } })).status, 401);

@@ -321,12 +321,18 @@ const publicComments = createPublicCommentsCache({ load: async now => (await sel
   version: async () => (await selectCommentListVersionStatement.get())?.version });
 // Same-instance memory is cleared at once; the shared CDN copy is deleted by tag
 // (Hobby plans include tag purges). A failed purge is bounded by s-maxage.
+// Runs after a committed write: a cache or background-task failure is only logged
+// and must never turn that write's success response into an error (and a retry).
 function invalidatePublicComments() {
-  publicComments.invalidate();
-  if (!IS_VERCEL) return;
-  const purge = Promise.resolve().then(() => dangerouslyDeleteByTag(PUBLIC_COMMENTS_CACHE_TAG))
-    .catch(error => console.error("Public comments CDN purge failed", { name: error?.name, code: error?.code }));
-  waitUntil(purge);
+  try {
+    publicComments.invalidate();
+    if (!IS_VERCEL) return;
+    const purge = Promise.resolve().then(() => dangerouslyDeleteByTag(PUBLIC_COMMENTS_CACHE_TAG))
+      .catch(error => console.error("Public comments CDN purge failed", { name: error?.name, code: error?.code }));
+    waitUntil(purge);
+  } catch (error) {
+    console.error("Public comments cache invalidation failed", { name: error?.name, code: error?.code });
+  }
 }
 const MEMBER_COMMENT_CAP = 100;
 const GUEST_COMMENT_RETENTION_DAYS = 182;
