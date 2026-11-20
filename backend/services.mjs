@@ -508,8 +508,9 @@ export function registerAdminCommentManagement(app, db, verifySession, isAdmin, 
   // Removes every comment from the account that wrote comment :id, so moderation never needs the
   // account ID itself (it stays server-side). Guests have no account; admin accounts are refused.
   const author = db.prepare("SELECT user_id, is_guest FROM comments WHERE id = ?");
-  const authorComments = db.prepare("SELECT id FROM comments WHERE user_id = ? AND is_guest = 0 ORDER BY id DESC");
-  const removeAuthor = db.prepare("DELETE FROM comments WHERE user_id = ? AND is_guest = 0");
+  // One statement deletes and reports the same rows, so a comment the author posts while
+  // this runs is either deleted and listed, or kept; never deleted without being listed.
+  const removeAuthor = db.prepare("DELETE FROM comments WHERE user_id = ? AND is_guest = 0 RETURNING id");
   app.delete("/api/admin/comments/:id/author", verifySession(), requireAdmin, async (req, res) => {
     const id = positiveInteger(req.params.id);
     if (!Number.isSafeInteger(id) || id <= 0) {
@@ -524,10 +525,9 @@ export function registerAdminCommentManagement(app, db, verifySession, isAdmin, 
     if ((await isAdmin(userId)) === true) {
       return res.status(403).json({ error: "不能批量删除站长的留言", code: "ADMIN_AUTHOR" });
     }
-    const ids = (await authorComments.all(userId)).map(entry => Number(entry.id));
-    const deleted = Number((await removeAuthor.run(userId)).changes);
-    if (deleted > 0) onDeleted();
-    return res.json({ success: true, deletedCommentIds: ids, deletedCount: deleted });
+    const ids = (await removeAuthor.all(userId)).map(entry => Number(entry.id)).sort((a, b) => b - a);
+    if (ids.length > 0) onDeleted();
+    return res.json({ success: true, deletedCommentIds: ids, deletedCount: ids.length });
   });
   app.delete("/api/admin/comments/:id", verifySession(), requireAdmin, async (req, res) => {
     const id = positiveInteger(req.params.id);
