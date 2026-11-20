@@ -5,8 +5,10 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+# Shared with the other scheduled refresh: both commit to main and add CHANGELOG rows,
+# so they run one at a time instead of racing each other to the push.
 concurrency:
-  group: refresh-creator-updates
+  group: refresh-main-content
   cancel-in-progress: false
 jobs:
   refresh:

@@ -13,12 +13,14 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+# Shared with the other scheduled refresh: both commit to main and add CHANGELOG rows,
+# so they run one at a time instead of racing each other to the push.
 concurrency:
-  group: refresh-youtube-views
+  group: refresh-main-content
   cancel-in-progress: false
 jobs:
   # The API key is only ever present in this job, which installs no packages and runs only
-  # tools/refresh-youtube-views.mjs (Node built-ins plus tools/safe-fs.mjs). npm lifecycle
+  # tools/refresh-youtube-views.mjs (Node built-ins plus tools/safe-fs.mjs and tools/youtube-id.mjs). npm lifecycle
   # scripts and test dependencies run later, in a job that never receives the key.
   fetch:
     if: github.ref == 'refs/heads/main'
