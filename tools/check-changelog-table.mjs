@@ -440,8 +440,11 @@ async function main() {
   try { rewriteSource = await readFile(new URL("./changelog-history-rewrites.json", import.meta.url), "utf8"); }
   catch (error) { if (error.code !== "ENOENT") throw error; }
   const rewrites = parseHistoryRewrites(rewriteSource === undefined ? undefined : JSON.parse(rewriteSource));
+  // Queued refresh runs can retain a stale event-time GITHUB_SHA. Their workflows
+  // deliberately check out main at execution time and pass that validated HEAD.
+  const checkoutSha = (process.env.CHANGELOG_HEAD_SHA || process.env.GITHUB_SHA || "").trim();
   const coverage = localChangelogCoverage({ directory: fileURLToPath(new URL("../", import.meta.url)),
-    since: configuration.since, baselineRunIds: configuration.baselineRunIds, githubSha: process.env.GITHUB_SHA || "" });
+    since: configuration.since, baselineRunIds: configuration.baselineRunIds, githubSha: checkoutSha });
   let result, failure;
   try { result = await verifyChangelogTable(markdown, { repo, token, lookup: "paginated", cache, stats, coverage, rewrites }); }
   catch (error) { failure = error; }

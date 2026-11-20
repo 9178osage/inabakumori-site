@@ -64,7 +64,7 @@ function fixture() {
   for (const key of ["GITHUB_TOKEN", "GH_TOKEN", "CI", "GITHUB_ACTIONS"]) delete env[key];
   const script = path.join(directory, "tools/check-changelog-table.mjs");
   return {
-    directory, cache, script,
+    directory, cache, script, head,
     close() { fs.rmSync(directory, { recursive: true, force: true }); },
     calls() { return fs.existsSync(log) ? fs.readFileSync(log, "utf8").trim().split("\n").filter(Boolean).map(line => JSON.parse(line)) : []; },
     readCache() { return JSON.parse(fs.readFileSync(cache, "utf8")); },
@@ -99,6 +99,16 @@ function responseEntry(cache) {
   assert.ok(cache.responses[endpoint], "the CLI caches the requested page endpoint");
   return cache.responses[endpoint];
 }
+
+test("CLI prefers an explicit validated HEAD over a stale queued event SHA", () => {
+  const app = fixture();
+  try {
+    const stale = app.run("200", [], { GITHUB_SHA: "f".repeat(40) });
+    assert.equal(stale.status, 1, stale.stderr);
+    assert.match(stale.stderr, /does not match the checked out HEAD/u);
+    passed(app.run("200", [], { GITHUB_SHA: "f".repeat(40), CHANGELOG_HEAD_SHA: app.head }));
+  } finally { app.close(); }
+});
 
 test("CLI persists a 200 ETag and revalidates cached metadata through an actual HTTP 304", () => {
   const app = fixture();
