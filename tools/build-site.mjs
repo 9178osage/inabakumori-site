@@ -32,7 +32,7 @@ await build({ entryPoints: [source("tools/auth-src.js")], bundle: true, platform
 await rm(output("dist"), { recursive: true, force: true });
 await mkdir(out, { recursive: true });
 const scripts = ["script.js", ...["preferences", "config", "network", "i18n", "auth", "auth-loader", "songs", "nknk-gallery", "nknk-gallery-ui", "experience", "comments", "updates", "x-posts-home", "home-mobile", "calendar", "archive-pages"].map(name => `js/${name}.js`)];
-const css = ["style.css", "updates.css", "calendar.css", "archive.css", "fonts/fonts.css"];
+const css = ["style.css", "updates.css", "calendar.css", "archive.css", "nknk-comics.css", "fonts/fonts.css"];
 const hashes = new Map();
 for (const file of [...scripts, ...css]) {
   let text = await readFile(source(file), "utf8");
@@ -42,6 +42,7 @@ for (const file of [...scripts, ...css]) {
   await writeFile(output(`dist/${file}`), code);
   hashes.set(file, createHash("sha256").update(code).digest("hex").slice(0, 12));
 }
+const fingerprintAssets = markup => markup.replace(/(src|href)="([^"?]+)(?:\?[^"\s]*)?"/g, (match, attribute, file) => hashes.has(file) ? `${attribute}="${file}?v=${hashes.get(file)}"` : match);
 async function copyPublicFolder(folder, allowed) {
   await mkdir(output(`dist/${folder}`), { recursive: true });
   // withFileTypes does not follow symlinks: linked files and folders are never copied.
@@ -90,6 +91,36 @@ function fillOnce(template, marker, content) {
   if (template.split(placeholder).length !== 2) throw new Error(`Expected one ${marker} placeholder`);
   return template.replace(placeholder, () => content);
 }
+const comics = JSON.parse(await readFile(source("data/nknk-comics.json"), "utf8"));
+if (!Array.isArray(comics) || !comics.length) throw new Error("The NKNK comics collection is empty");
+const comicIds = new Set();
+const comicIndex = [];
+const comicStrips = [];
+for (const { id, width, height } of comics) {
+  if (typeof id !== "string" || !/^[0-9]{2,4}$/u.test(id) || comicIds.has(id) ||
+      !Number.isSafeInteger(width) || width <= 0 || !Number.isSafeInteger(height) || height <= 0) {
+    throw new Error("Invalid or duplicate entry in data/nknk-comics.json");
+  }
+  comicIds.add(id);
+  const image = `images/optimized/nknk-comics/${id}.webp`;
+  if (!(await stat(assertRepoPath(out, image, { mustExist: true }))).isFile()) throw new Error(`Missing comic image: ${image}`);
+  comicIndex.push(`<li><a href="#comic-${id}">${id}</a></li>`);
+  comicStrips.push(`<section class="comic-strip" id="comic-${id}" tabindex="-1" aria-labelledby="comic-${id}-title">
+<div class="comic-strip-header">
+<h2 id="comic-${id}-title" data-zh="第 ${Number(id)} 张" data-en="Image ${Number(id)}" data-ja="${Number(id)} 枚目">第 ${Number(id)} 张</h2>
+<div class="comic-strip-actions">
+<a href="${image}" data-zh="打开大图" data-en="Open full image" data-ja="原寸で開く">打开大图</a>
+<a class="comic-index-back" href="#comics-index" data-zh="返回目录" data-en="Back to contents" data-ja="目次に戻る">返回目录</a>
+</div>
+</div>
+<img src="${image}" lang="ja" alt="ぬくぬくにぎりめしの漫画 (${id})" width="${width}" height="${height}" decoding="async"${comicStrips.length ? ' loading="lazy"' : ""}/>
+</section>`);
+}
+let comicsHtml = await readFile(source("nknk-comics.html"), "utf8");
+for (const [marker, content] of [["COUNT", String(comics.length)], ["INDEX", comicIndex.join("\n")], ["STRIPS", comicStrips.join("\n")]]) {
+  comicsHtml = fillOnce(comicsHtml, `NKNK-COMICS:${marker}`, content);
+}
+await writeFile(output("dist/nknk-comics.html"), fingerprintAssets(comicsHtml));
 const newestXPost = [...xPosts.items].sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt) || (BigInt(a.id) < BigInt(b.id) ? 1 : -1))[0];
 // Archive pages compare against this to badge posts added since the reader's last visit.
 const newestXPostMeta = newestXPost ? `<meta name="x-posts-newest" content="${new Date(newestXPost.publishedAt).toISOString()} ${newestXPost.id}"/>\n` : "";
@@ -123,7 +154,7 @@ if (!keepLocalApiCsp) {
   html = html.replace(/(<meta http-equiv="Content-Security-Policy" content=")([^"]*)(")/, (match, start, policy, end) =>
     start + stripLoopbackCspSources(policy) + end);
 }
-html = html.replace(/(src|href)="([^"?]+)(?:\?[^"\s]*)?"/g, (match, attribute, file) => hashes.has(file) ? `${attribute}="${file}?v=${hashes.get(file)}"` : match);
+html = fingerprintAssets(html);
 await writeFile(output("dist/index.html"), html);
 const updatesSourceHtml = await readFile(source("updates.html"), "utf8");
 const updatesTemplate = fillUpdates(updatesSourceHtml, "UPDATES");
@@ -165,7 +196,7 @@ for (const creator of ["all", "inabakumori", "nknk"]) {
       // updates.js re-titles the page per language; it reads the slice from these whitelisted attributes.
       swap('<html lang="zh-CN">', `<html lang="zh-CN" data-archive-creator="${creator}" data-archive-page="${page}">`);
     }
-    updatesHtml = updatesHtml.replace(/(src|href)="([^"?]+)(?:\?[^"\s]*)?"/g, (match, attribute, file) => hashes.has(file) ? `${attribute}="${file}?v=${hashes.get(file)}"` : match);
+    updatesHtml = fingerprintAssets(updatesHtml);
     await writeFile(output(`dist/${name}`), updatesHtml);
     archivePageNames.push(name);
     archivePages++;
@@ -186,7 +217,7 @@ const calendarSheet = `<section class="calendar-stack" aria-labelledby="calendar
 <p class="calendar-song"><span data-zh="最新歌曲：" data-en="Latest song: " data-ja="最新曲：">最新歌曲：</span><a href="${escape(newestSong.url)}" lang="ja">${escape(songTitle)}</a><br/><span data-zh="发布于 " data-en="Released " data-ja="公開日 ">发布于 </span><time id="calendar-release" datetime="${escape(newestSong.publishedAt)}">${releaseDay}</time></p>
 </article></section>`;
 let calendarHtml = fillOnce(await readFile(source("calendar.html"), "utf8"), "CALENDAR:SHEET", calendarSheet);
-calendarHtml = calendarHtml.replace(/(src|href)="([^"?]+)(?:\?[^"\s]*)?"/g, (match, attribute, file) => hashes.has(file) ? `${attribute}="${file}?v=${hashes.get(file)}"` : match);
+calendarHtml = fingerprintAssets(calendarHtml);
 await writeFile(output("dist/calendar.html"), calendarHtml);
 // Song archive pages are regenerated from the same
 // sources on every build, so daily X imports and translation batches flow in automatically.
@@ -196,7 +227,7 @@ const archiveExtras = renderArchivePages({ songs, xPosts, xTranslations, xPostsR
 const extraPageNames = [];
 for (const [name, content] of [...archiveExtras.files, ...archiveExtras.redirects]) {
   await mkdir(output(path.dirname(`dist/${name}`)), { recursive: true });
-  const body = name.endsWith(".html") ? content.replace(/(src|href)="([^"?]+)(?:\?[^"\s]*)?"/g, (match, attribute, file) => hashes.has(file) ? `${attribute}="${file}?v=${hashes.get(file)}"` : match) : content;
+  const body = name.endsWith(".html") ? fingerprintAssets(content) : content;
   await writeFile(output(`dist/${name}`), body);
   // Redirect pages for retired song addresses are published but never listed in the sitemap.
   if (name.endsWith(".html") && !archiveExtras.redirects.has(name)) extraPageNames.push(name);

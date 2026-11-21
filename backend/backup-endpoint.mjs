@@ -55,7 +55,10 @@ export function registerBackupEndpoint(app, { databasePath, snapshot = destinati
     let finished;
     const completion = new Promise(resolve => { finished = resolve; });
     onBackgroundTask(completion);
-    const cleanup = () => directory && rm(directory, { recursive: true, force: true }).catch(() => {});
+    // A leftover private snapshot must be visible in logs (without its path); the response is already decided.
+    const cleanup = () => directory && rm(directory, { recursive: true, force: true }).catch(error => {
+      try { log.warn("Backup temp cleanup failed", { requestId: req.requestId, name: error?.name, code: error?.code }); } catch { /* logging must not fail the request */ }
+    });
     try {
       directory = await mkdtemp(path.join(os.tmpdir(), "inabakumori-backup-"));
       const file = path.join(directory, "snapshot.db");

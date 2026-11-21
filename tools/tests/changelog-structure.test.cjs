@@ -36,7 +36,7 @@ const forbidden = label => {
 globalThis.fetch = async () => forbidden("fetch");
 const originalEnv = process.env;
 process.env = new Proxy(originalEnv, { get(target, key) {
-  if (["GITHUB_TOKEN", "GH_TOKEN", "GITHUB_REPOSITORY", "GITHUB_SHA"].includes(key)) forbidden("environment");
+  if (["GITHUB_TOKEN", "GH_TOKEN", "GITHUB_REPOSITORY", "GITHUB_SHA", "CHANGELOG_HEAD_SHA"].includes(key)) forbidden("environment");
   return Reflect.get(target, key);
 } });
 for (const method of ["readFile", "lstat", "open", "mkdir", "rename", "unlink"]) {
@@ -54,7 +54,7 @@ syncBuiltinESMExports();
     run(args = ["--structure-only"]) {
       const result = spawnSync(process.execPath, ["--import", preload, path.join(directory, "tools/check-changelog-table.mjs"), ...args], {
         cwd: directory, encoding: "utf8", timeout: 5000,
-        env: { PATH: process.env.PATH, GITHUB_REPOSITORY: "invalid-repository", GITHUB_SHA: "invalid-head", GITHUB_TOKEN: "synthetic-private-token" }
+        env: { PATH: process.env.PATH, GITHUB_REPOSITORY: "invalid-repository", GITHUB_SHA: "invalid-head", CHANGELOG_HEAD_SHA: "invalid-valid-head", GITHUB_TOKEN: "synthetic-private-token" }
       });
       assert.ifError(result.error);
       assert.equal(result.signal, null, result.stderr);

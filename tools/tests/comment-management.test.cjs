@@ -514,6 +514,30 @@ test('admin deletion failures preserve content and translated error; duplicate c
   assert.equal(elements['admin-comments-status'].textContent, '削除に失敗しました。再試行してください。');
 });
 
+test('a committed admin deletion still leaves the wall when the sign-in changes mid-request', async () => {
+  for (const author of [false, true]) {
+    const { elements, events, context } = adminUi();
+    const removed = [];
+    const announced = [];
+    context.window.removeWallMessage = id => removed.push(id);
+    const dispatch = context.window.dispatchEvent;
+    context.window.dispatchEvent = event => { if (event.type === 'commentdeleted') announced.push(event.detail.id); return dispatch(event); };
+    context.fetch = async () => ({ ok: true, json: async () => ({ comments: [{ id: 7, nickname: 'member', content: 'message', isGuest: false, isAdmin: false }] }) });
+    await events.authchange();
+    const buttons = elements['admin-comments-list'].children[0].children.filter(child => child.listeners?.click);
+    const button = author ? buttons.at(-1) : buttons[0];
+    let resolve;
+    context.fetch = () => new Promise(r => { resolve = r; });
+    const pending = button.listeners.click();
+    context.fetch = async () => ({ ok: true, json: async () => ({ comments: [] }) });
+    await events.authchange();
+    resolve(author ? { ok: true, status: 200, json: async () => ({ deletedCommentIds: [7] }) } : { ok: true, status: 200 });
+    await pending;
+    assert.deepEqual(removed, [7], author ? 'author deletion' : 'single deletion');
+    assert.deepEqual(announced, [7]);
+  }
+});
+
 test('admin rights come only from ADMIN_USER_IDS, never from emails', async () => {
   const { parseAdminUserIds, createAdminCheck, buildVersion, detectCommentSafetyIssue } = await import('../../backend/services.mjs');
   const ids = parseAdminUserIds(' d1ec4565-3063-4f7c-acd5-eb9d141482d6 , ,other-id ');

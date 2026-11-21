@@ -70,6 +70,27 @@ const POSTGRES_COMMENT_LIST_VERSION = `
     END IF;
   END
   $comment_list_version$;`;
+// Remembers the result of a comment POST by its Idempotency-Key for a day, so a
+// retried request returns the first response. Additive only: older deployments
+// never read it, and it holds hashes and comment IDs, never text or account IDs.
+const SQLITE_COMMENT_IDEMPOTENCY = `
+  CREATE TABLE IF NOT EXISTS comment_idempotency (
+    key_hash TEXT PRIMARY KEY,
+    request_hash TEXT NOT NULL,
+    comment_id INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS idx_comment_idempotency_created ON comment_idempotency(created_at);`;
+const POSTGRES_COMMENT_IDEMPOTENCY = `
+  CREATE TABLE IF NOT EXISTS comment_idempotency (
+    key_hash TEXT PRIMARY KEY,
+    request_hash TEXT NOT NULL,
+    comment_id BIGINT NOT NULL,
+    created_at BIGINT NOT NULL,
+    expires_at BIGINT
+  );
+  CREATE INDEX IF NOT EXISTS idx_comment_idempotency_created ON comment_idempotency(created_at);`;
 export const SELECT_COMMENT_LIST_VERSION = "SELECT version FROM comment_list_version WHERE id = 1";
 const RATE_LIMIT_SCHEMA = `
   CREATE TABLE IF NOT EXISTS rate_limit_counters (
@@ -237,7 +258,7 @@ export async function createPostgresDatabase(pool) {
     // message retains transaction order, replacing four network round trips with one.
     await initializer.query(`BEGIN;
       SELECT pg_advisory_xact_lock(${SCHEMA_COMPATIBILITY_LOCK});
-      ${POSTGRES_SCHEMA}${COMMENT_INDEXES}${POSTGRES_COMMENT_LIST_VERSION}${RATE_LIMIT_SCHEMA}
+      ${POSTGRES_SCHEMA}${COMMENT_INDEXES}${POSTGRES_COMMENT_LIST_VERSION}${RATE_LIMIT_SCHEMA}${POSTGRES_COMMENT_IDEMPOTENCY}
       COMMIT;`);
   } catch (error) {
     initializerReleaseError = await rollbackForRelease(initializer);
@@ -300,7 +321,7 @@ async function openSqliteDatabase(env, directory) {
   await mkdir(path.dirname(databasePath), { recursive: true });
   const database = new DatabaseSync(databasePath);
   try {
-    database.exec(`PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000; ${SQLITE_SCHEMA}${COMMENT_INDEXES}${SQLITE_COMMENT_LIST_VERSION}`);
+    database.exec(`PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000; ${SQLITE_SCHEMA}${COMMENT_INDEXES}${SQLITE_COMMENT_LIST_VERSION}${SQLITE_COMMENT_IDEMPOTENCY}`);
   } catch (error) { try { database.close(); } catch {} throw error; }
   let tail = Promise.resolve();
   const context = new AsyncLocalStorage();

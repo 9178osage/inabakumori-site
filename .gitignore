@@ -37,4 +37,6 @@ inabakumori-site-all-code/
 .vercel/
 # NKNK gallery originals are local-only; only generated WebP files are committed.
 /NKNK/
+# Keep the original comic scans local as well.
+/NKNK anime/
 /inabakumori-assets-src/

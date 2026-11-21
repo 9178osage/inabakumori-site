@@ -7,6 +7,7 @@ const { spawnSync } = require("node:child_process");
 
 const root = path.join(__dirname, "..", "..");
 const workflow = fs.readFileSync(path.join(root, ".github/workflows/refresh-creator-updates.yml"), "utf8");
+const refresh = workflow.slice(workflow.indexOf("  refresh:\n"), workflow.indexOf("  commit:\n"));
 const commit = workflow.slice(workflow.indexOf("  commit:\n"), workflow.indexOf("  publish:\n"));
 const publish = workflow.slice(workflow.indexOf("  publish:\n"));
 const commitScript = commit.split("        run: |\n")[1].split("\n").map(line => line.replace(/^ {10}/u, "")).join("\n");
@@ -61,18 +62,26 @@ function sandbox(t) {
   return {
     dir, repo, remote, base, output, writeSnapshot,
     // GitHub Actions runs `run:` scripts with `bash -e -o pipefail`.
-    run: () => command(repo, "bash", ["-e", "-o", "pipefail", "-c", commitScript], { GITHUB_SHA: base, GITHUB_OUTPUT: output })
+    run: () => command(repo, "bash", ["-e", "-o", "pipefail", "-c", commitScript], {
+      GITHUB_SHA: "f".repeat(40), VALIDATED_HEAD: base, GITHUB_OUTPUT: output
+    })
   };
 }
 
 test("creator write jobs run no repository or dependency code", () => {
+  assert.match(workflow, /group: refresh-main-content/u);
+  assert.match(refresh, /ref: main/u);
+  assert.match(refresh, /validated_sha: \$\{\{ steps\.validated_head\.outputs\.sha \}\}/u);
+  assert.match(refresh, /CHANGELOG_HEAD_SHA: \$\{\{ steps\.validated_head\.outputs\.sha \}\}/u);
+  assert.doesNotMatch(commitScript, /\bGITHUB_SHA\b/u, "the commit guard must not use the event's stale SHA");
+  assert.match(commit, /VALIDATED_HEAD: \$\{\{ needs\.refresh\.outputs\.validated_sha \}\}/u);
   for (const job of [commit, publish]) {
     assert.doesNotMatch(job, /(?:^|\n)\s*(?:- run: |run: )?(?:node|npm|npx|python\d?|source)\s/mu);
     assert.doesNotMatch(job, /uses: \.\//u);
   }
 });
 
-test("creator commit step pushes a checked snapshot and this commit's record row", t => {
+test("creator commit step pushes a checked snapshot despite a stale queued event SHA", t => {
   const box = sandbox(t);
   box.writeSnapshot();
   const result = box.run();

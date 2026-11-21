@@ -6,12 +6,18 @@ const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
 const workflow = fs.readFileSync(path.join(__dirname, "../../.github/workflows/refresh-youtube-views.yml"), "utf8");
+const fetch = workflow.slice(workflow.indexOf("  fetch:\n"), workflow.indexOf("  refresh:\n"));
 const refresh = workflow.slice(workflow.indexOf("  refresh:\n"), workflow.indexOf("  commit:\n"));
 const commit = workflow.slice(workflow.indexOf("  commit:\n"), workflow.indexOf("  publish:\n"));
 const publish = workflow.slice(workflow.indexOf("  publish:\n"));
 const commitScript = commit.split("        run: |\n")[1].split("\n").map(line => line.replace(/^ {10}/u, "")).join("\n");
 
 test("YouTube refresh has all four unconditional gates before exporting a read-only snapshot", () => {
+  assert.match(workflow, /group: refresh-main-content/u);
+  assert.match(fetch, /ref: main/u);
+  assert.match(refresh, /ref: main/u);
+  assert.match(refresh, /validated_sha: \$\{\{ steps\.validated_head\.outputs\.sha \}\}/u);
+  assert.match(refresh, /CHANGELOG_HEAD_SHA: \$\{\{ steps\.validated_head\.outputs\.sha \}\}/u);
   assert.match(refresh, /if: github\.ref == 'refs\/heads\/main'/u);
   assert.match(refresh, /permissions:\n      contents: read\n      actions: read/u);
   assert.match(refresh, /persist-credentials: false/u);
@@ -38,6 +44,8 @@ test("write jobs only commit checked files or dispatch and verify the resulting 
     assert.doesNotMatch(job, /YOUTUBE_API_KEY/u);
   }
   assert.doesNotMatch(commit, /git (?:pull|rebase|merge)|git push[^\n]*--force/u);
+  assert.doesNotMatch(commitScript, /\bGITHUB_SHA\b/u, "the commit guard must not use the event's stale SHA");
+  assert.match(commit, /VALIDATED_HEAD: \$\{\{ needs\.refresh\.outputs\.validated_sha \}\}/u);
   assert.match(publish, /needs: \[refresh, commit\]/u);
   assert.match(publish, /if: needs\.commit\.outputs\.changed == 'true'/u);
   assert.match(publish, /gh workflow run check\.yml --ref main/u);
@@ -97,11 +105,13 @@ function sandbox(t) {
   return {
     root, repo, remote, base, output, writeSnapshot,
     // GitHub Actions runs `run:` scripts with `bash -e -o pipefail`.
-    run: () => command(repo, "bash", ["-e", "-o", "pipefail", "-c", commitScript], { GITHUB_SHA: base, GITHUB_OUTPUT: output })
+    run: () => command(repo, "bash", ["-e", "-o", "pipefail", "-c", commitScript], {
+      GITHUB_SHA: "f".repeat(40), VALIDATED_HEAD: base, GITHUB_OUTPUT: output
+    })
   };
 }
 
-test("actual commit step pushes only the checked files and reports the resulting SHA", t => {
+test("actual commit step pushes only the checked files despite a stale queued event SHA", t => {
   const box = sandbox(t);
   box.writeSnapshot();
   const result = box.run();
@@ -207,9 +217,9 @@ test("the YouTube API key only reaches a job that installs and runs no dependenc
   assert.match(fetch, /name: youtube-views-fetched\n\s+path: js\/songs\.js\n/u);
   assert.match(jobs.refresh, /needs: fetch/u);
   assert.match(jobs.refresh, /name: youtube-views-fetched\n\s+path: js\n/u);
-  // The fetch script and its local helper import only Node built-ins.
-  for (const file of ["tools/refresh-youtube-views.mjs", "tools/safe-fs.mjs"]) {
+  // The fetch script and its local helpers import only Node built-ins.
+  for (const file of ["tools/refresh-youtube-views.mjs", "tools/safe-fs.mjs", "tools/youtube-id.mjs"]) {
     const imports = [...fs.readFileSync(path.join(__dirname, "../..", file), "utf8").matchAll(/^import [^"]*"([^"]+)"/gmu)].map(m => m[1]);
-    for (const name of imports) assert.ok(name.startsWith("node:") || name === "./safe-fs.mjs", `${file} imports ${name}`);
+    for (const name of imports) assert.ok(name.startsWith("node:") || name === "./safe-fs.mjs" || name === "./youtube-id.mjs", `${file} imports ${name}`);
   }
 });

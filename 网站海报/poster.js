@@ -98,7 +98,7 @@ $("foot-k").textContent = c.footK;
 $("feat").textContent = c.feat;
 $("note").textContent = c.note;
 $("scan").textContent = c.scan;
-document.querySelectorAll("#langs span").forEach(s => s.classList.toggle("on", s.dataset.l === lang));
+document.querySelectorAll("#langs [data-l]").forEach(link => link.classList.toggle("on", link.dataset.l === lang));
 
 // Deterministic rain, kept clear of every text block so readings stay legible.
 let seed = 20261103;

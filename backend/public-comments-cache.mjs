@@ -91,7 +91,7 @@ export function applyPublicCommentsCacheHeaders(req, res) {
   }
   res.setHeader("Cache-Control", PUBLIC_COMMENTS_CDN_CACHE_CONTROL);
   res.setHeader("Vercel-Cache-Tag", PUBLIC_COMMENTS_CACHE_TAG);
-  // Per-client limiter counters must not be replayed to other visitors.
-  for (const name of ["RateLimit", "RateLimit-Policy", "RateLimit-Limit", "RateLimit-Remaining", "RateLimit-Reset"]) res.removeHeader(name);
+  // Per-client limiter counters and the per-request ID must not be replayed to other visitors.
+  for (const name of ["RateLimit", "RateLimit-Policy", "RateLimit-Limit", "RateLimit-Remaining", "RateLimit-Reset", "X-Request-Id"]) res.removeHeader(name);
   return true;
 }

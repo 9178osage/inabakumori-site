@@ -87,6 +87,21 @@ test("dry-run is the default, reads a backup without changing bytes and never op
   assert.deepEqual(fs.readFileSync(source), before);
 });
 
+test("a failing close() after a committed import still reports success and logs only sanitized metadata", async t => {
+  const { source } = fixture(t);
+  const { target, state } = fakeTarget();
+  target.close = async () => { state.closed = true; throw Object.assign(new Error(`private close error ${URL}`), { code: "ECONNRESET" }); };
+  const warnings = [];
+  const { migrateComments } = await import("../../backend/migrate-comments.mjs");
+  const result = await migrateComments({ source, apply: true, env: { DATABASE_URL: URL } }, { openTarget: async () => target, log: { warn: (...args) => warnings.push(args) } });
+  assert.equal(result.applied, true);
+  assert.equal(state.committed, true);
+  assert.equal(state.closed, true);
+  assert.equal(warnings.length, 1);
+  assert.deepEqual(warnings[0][1], { name: "Error", code: "ECONNRESET" });
+  assert.equal(JSON.stringify(warnings).includes(URL), false, "the connection string never reaches the log");
+});
+
 test("apply preserves IDs, owners, original text, timestamps and expired guest rows, then advances the sequence", async t => {
   const { source } = fixture(t);
   const { target, state } = fakeTarget();
