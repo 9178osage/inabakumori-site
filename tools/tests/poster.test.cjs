@@ -25,7 +25,7 @@ class Element {
 function render(search, script = source) {
   const nodes = new Map();
   const langs = ["zh", "en", "ja"].map(lang => {
-    const node = new Element("span");
+    const node = new Element("a");
     node.dataset.l = lang;
     return node;
   });
@@ -37,7 +37,7 @@ function render(search, script = source) {
       if (!nodes.has(id)) nodes.set(id, new Element("div"));
       return nodes.get(id);
     },
-    querySelectorAll: selector => selector === "#langs span" ? langs : []
+    querySelectorAll: selector => selector === "#langs [data-l]" ? langs : []
   };
   vm.runInNewContext(script, { document, location: { search }, URLSearchParams });
   return { nodes, document, langs };
@@ -72,6 +72,17 @@ test("poster copy stays text even when it contains markup characters", () => {
   assert.equal(heading.children.length, 1);
 });
 
+test("poster language controls link to renderable translations", () => {
+  const html = fs.readFileSync(path.join(directory, "poster.html"), "utf8");
+  const links = [...html.matchAll(/<a href="\?lang=([^"]+)" data-l="([^"]+)"/gu)].map(match => [match[1], match[2]]);
+  assert.deepEqual(links, [["zh", "zh"], ["en", "en"], ["ja", "ja"]]);
+  const headings = ["气象观测站", "WEATHEROBSERVATIONSTATION", "気象観測所"];
+  links.forEach(([queryLang], index) => {
+    const { nodes } = render(`?lang=${queryLang}`);
+    assert.equal(nodes.get("title").textContent, headings[index]);
+  });
+});
+
 test("all three poster versions display the main site's song, gallery and post counts", () => {
   const arrayLength = (file, name) => vm.runInNewContext(`${fs.readFileSync(path.join(root, file), "utf8")}\n${name}.length`);
   const posts = JSON.parse(fs.readFileSync(path.join(root, "data/x-posts/manifest.json"), "utf8"));
@@ -93,6 +104,7 @@ test("offline poster has strict CSP, portable assets and remains outside public 
   assert.doesNotMatch(html, /unsafe-inline|<style\b|<script>|\bstyle=/u);
   assert.doesNotMatch(css, /@font-face|file:\/\//u);
   for (const match of html.matchAll(/(?:src|href)="([^"]+)"/gu)) {
+    if (match[1].startsWith("?")) continue;
     assert.ok(fs.statSync(path.join(directory, match[1])).isFile(), match[1]);
   }
   const { publicPath } = await import("../static-server.mjs");

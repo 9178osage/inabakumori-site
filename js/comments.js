@@ -300,14 +300,18 @@
     render();
     try {
       const response = await (window.siteFetch || fetch)(`${api}/${id}`, { method: "DELETE", credentials: "include" });
+      // The server already committed (or the row was gone): reflect that on the wall and in
+      // other panels even if the sign-in changed meanwhile. Only this panel's UI is version-gated.
+      if (response.ok || response.status === 404) {
+        deleted.add(id);
+        comments = comments.filter(comment => comment.id !== id);
+        window.removeWallMessage?.(id);
+        window.dispatchEvent(new CustomEvent("commentdeleted", { detail: { id } }));
+        return;
+      }
       if (current !== authVersion) return;
       if (response.status === 401 || response.status === 403) return hide();
-      if (!response.ok && response.status !== 404) throw new Error("Could not delete message");
-      deleted.add(id);
-      comments = comments.filter(comment => comment.id !== id);
-      window.removeWallMessage?.(id);
-      window.dispatchEvent(new CustomEvent("commentdeleted", { detail: { id } }));
-      render();
+      throw new Error("Could not delete message");
     } catch {
       if (current === authVersion) error = "delete";
     } finally {
@@ -324,9 +328,12 @@
     render();
     try {
       const response = await (window.siteFetch || fetch)(`${api}/${id}/author`, { method: "DELETE", credentials: "include" });
-      if (current !== authVersion) return;
-      if (response.status === 401 || response.status === 403) return hide();
-      if (!response.ok) throw new Error("Could not delete the user's messages");
+      if (!response.ok) {
+        if (current !== authVersion) return;
+        if (response.status === 401 || response.status === 403) return hide();
+        throw new Error("Could not delete the user's messages");
+      }
+      // A committed deletion is applied to the wall even if the sign-in changed meanwhile.
       const data = await response.json();
       const ids = Array.isArray(data.deletedCommentIds) ? data.deletedCommentIds.filter(value => Number.isSafeInteger(value) && value > 0) : [];
       for (const removed of ids) {
@@ -335,7 +342,6 @@
         window.dispatchEvent(new CustomEvent("commentdeleted", { detail: { id: removed } }));
       }
       comments = comments.filter(comment => !deleted.has(comment.id));
-      render();
     } catch {
       if (current === authVersion) error = "delete";
     } finally {

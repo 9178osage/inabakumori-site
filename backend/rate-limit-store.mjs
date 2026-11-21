@@ -155,9 +155,20 @@ export function createPostgresRateLimitStore(db, { prefix, windowMs, onBackgroun
 // Call from the same request-driven maintenance as expired guest comments.
 // No persistent process or background timer is needed. Bounded work prevents a
 // large dormant table from monopolizing the database when traffic returns.
-export async function cleanupExpiredRateLimits(db) {
-  if (db.kind !== "postgres") return;
-  await db.exec(`DELETE FROM rate_limit_counters WHERE ctid IN (
-    SELECT ctid FROM rate_limit_counters WHERE reset_at <= ${NOW_MS} LIMIT 1000
+// Each pass deletes up to one batch; a full batch means more may be waiting, so
+// repeat within a row and time budget instead of leaving a backlog for an hour.
+export async function cleanupExpiredRateLimits(db, { batchSize = 1000, maxBatches = 20, maxMs = 5000, now = Date.now } = {}) {
+  if (db.kind !== "postgres") return 0;
+  if (!Number.isSafeInteger(batchSize) || batchSize < 1) throw new TypeError("Rate limit cleanup batch size must be a positive integer");
+  const statement = db.prepare(`DELETE FROM rate_limit_counters WHERE ctid IN (
+    SELECT ctid FROM rate_limit_counters WHERE reset_at <= ${NOW_MS} LIMIT ${batchSize}
   )`);
+  const startedAt = now();
+  let total = 0;
+  for (let batch = 0; batch < maxBatches; batch++) {
+    const deleted = Number((await statement.run()).changes) || 0;
+    total += deleted;
+    if (deleted < batchSize || now() - startedAt >= maxMs) break;
+  }
+  return total;
 }

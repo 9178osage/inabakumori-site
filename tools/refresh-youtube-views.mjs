@@ -16,6 +16,7 @@ import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { assertRepoPath } from "./safe-fs.mjs";
+import { youtubeVideoId } from "./youtube-id.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SONGS_PATH = assertRepoPath(ROOT, "js/songs.js", { mustExist: true });
@@ -47,30 +48,6 @@ const apiKey = process.env.YOUTUBE_API_KEY?.trim();
 if (!apiKey) {
   console.error("Missing YOUTUBE_API_KEY env var. Set it for this run only; do not commit it.");
   process.exit(1);
-}
-
-function extractVideoId(url) {
-  if (!url || typeof url !== "string") return null;
-  try {
-    const u = new URL(url);
-    if (u.hostname === "youtu.be") {
-      const id = u.pathname.replace(/^\//, "").split("/")[0];
-      return id || null;
-    }
-    if (u.hostname.includes("youtube.com")) {
-      const v = u.searchParams.get("v");
-      if (v) return v;
-      const parts = u.pathname.split("/").filter(Boolean);
-      const embedIdx = parts.indexOf("embed");
-      if (embedIdx >= 0 && parts[embedIdx + 1]) return parts[embedIdx + 1];
-      const shortsIdx = parts.indexOf("shorts");
-      if (shortsIdx >= 0 && parts[shortsIdx + 1]) return parts[shortsIdx + 1];
-    }
-  } catch {
-    // fall through
-  }
-  const m = url.match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([A-Za-z0-9_-]{11})/);
-  return m ? m[1] : null;
 }
 
 function loadSongs(source) {
@@ -181,7 +158,7 @@ const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 const entries = songs.map((song, index) => ({
   index,
   title: song.title,
-  videoId: extractVideoId(song.youtube),
+  videoId: youtubeVideoId(song.youtube),
   prev: song.viewCount
 }));
 

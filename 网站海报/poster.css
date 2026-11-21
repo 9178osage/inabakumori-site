@@ -31,8 +31,9 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font); posit
 .mark .u { font-size: 54px; line-height: 1; }
 .mark small { font-size: 26px; font-weight: 500; letter-spacing: .2em; color: var(--muted); margin-left: 12px; }
 .langs { display: flex; gap: 0; font-size: 30px; }
-.langs span { padding: 10px 22px; border: 2px solid var(--ink); margin-left: -2px; color: var(--ink); }
-.langs span.on { background: var(--ink); color: var(--paper); }
+.langs a { padding: 10px 22px; border: 2px solid var(--ink); margin-left: -2px; color: var(--ink); text-decoration: none; }
+.langs a.on { background: var(--ink); color: var(--paper); }
+.langs a:focus-visible { outline: 4px solid var(--yellow); outline-offset: 6px; }
 .sub-bar { position: absolute; top: 236px; left: 140px; right: 140px; z-index: 4; display: flex; justify-content: space-between; font-family: var(--mono); font-size: 26px; letter-spacing: .18em; color: var(--muted); }
 .tri { display: inline-flex; gap: 10px; vertical-align: middle; margin-right: 22px; }
 .tri b { width: 46px; height: 12px; display: block; }

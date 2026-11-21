@@ -99,7 +99,7 @@ test("a failed version probe keeps the bounded snapshot instead of failing the r
 });
 
 function fakeResponse(statusCode = 200) {
-  const headers = new Map([["ratelimit", "limit=120, remaining=119"], ["ratelimit-policy", "120;w=60"]]);
+  const headers = new Map([["ratelimit", "limit=120, remaining=119"], ["ratelimit-policy", "120;w=60"], ["x-request-id", "first-visitor-request"]]);
   return {
     statusCode, headers,
     setHeader(name, value) { headers.set(name.toLowerCase(), value); },
@@ -117,11 +117,13 @@ test("only credential-free list reads become CDN-cacheable and every variant var
   assert.match(anonymous.headers.get("vary"), /Origin/);
   assert.doesNotMatch(anonymous.headers.get("vary"), /Cookie/, "Vercel never stores Vary: Cookie responses");
   assert.ok(!anonymous.headers.has("ratelimit") && !anonymous.headers.has("ratelimit-policy"), "per-client counters are not shared");
+  assert.ok(!anonymous.headers.has("x-request-id"), "a cached copy does not replay the first visitor's request ID");
   for (const headers of [{ authorization: "Bearer token" }, { cookie: "sAccessToken=x" }, { "st-auth-mode": "header" }, { rid: "session" }]) {
     const res = fakeResponse();
     assert.equal(applyPublicCommentsCacheHeaders({ headers: { origin: "https://osagechan.top", ...headers } }, res), false);
     assert.equal(res.headers.get("cache-control"), "no-store");
     assert.ok(!res.headers.has("vercel-cache-tag"));
+    assert.equal(res.headers.get("x-request-id"), "first-visitor-request", "uncached responses keep their own request ID");
     assert.match(res.headers.get("vary"), /Origin/);
   }
   const failed = fakeResponse(503);

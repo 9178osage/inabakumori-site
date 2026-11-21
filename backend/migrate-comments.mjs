@@ -88,6 +88,7 @@ export async function migrateComments({ source, apply = false, env = process.env
   };
   if (!apply) return result;
   requirePostgresUrl(env);
+  const log = dependencies.log || console;
   let target;
   try {
     target = await (dependencies.openTarget || openTarget)(env);
@@ -107,14 +108,21 @@ export async function migrateComments({ source, apply = false, env = process.env
         await tx.prepare("SELECT setval(pg_get_serial_sequence('comments', 'id'), ?, true)").get(highWater);
       }
     });
-    return { ...result, applied: true };
   } catch (error) {
+    await closeQuietly(target, log);
     if (error instanceof MigrationError) throw error;
     // Driver errors can contain connection strings, SQL parameters and private text.
     throw new MigrationError("PostgreSQL migration failed; no successful import was confirmed; check private database diagnostics");
-  } finally {
-    await target?.close();
   }
+  // The import is committed and verified at this point. A failing close() is a
+  // cleanup problem only and must not be reported as a failed import.
+  await closeQuietly(target, log);
+  return { ...result, applied: true };
+}
+
+async function closeQuietly(target, log) {
+  try { await target?.close(); }
+  catch (error) { log.warn("PostgreSQL connection close failed after the migration finished", { name: error?.name, code: error?.code }); }
 }
 
 export async function migrationCli(args, env = process.env, output = console) {

@@ -16,7 +16,7 @@ function runRefresh(input) {
   try {
     fs.mkdirSync(path.join(root, "tools"));
     fs.mkdirSync(path.join(root, "js"));
-    for (const file of ["refresh-youtube-views.mjs", "safe-fs.mjs"]) {
+    for (const file of ["refresh-youtube-views.mjs", "safe-fs.mjs", "youtube-id.mjs"]) {
       fs.copyFileSync(path.join(ROOT, "tools", file), path.join(root, "tools", file));
     }
     fs.writeFileSync(path.join(root, "js/songs.js"), ORIGINAL);

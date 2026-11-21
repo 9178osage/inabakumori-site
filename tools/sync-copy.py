@@ -41,7 +41,7 @@ GUIDE_PART_LIST = re.compile(r"差异附件（([1-9][0-9]{0,11}) 份，按顺序
 PATCH_START = re.compile(rb"^diff --git ", re.M)
 X_POSTS_FILE = re.compile(r"^data/x-posts/posts-[^/]+\.json$")
 APP_ROOT = {"index.html", "updates.html", "404.html", "calendar.html", "style.css", "updates.css", "archive.css", "calendar.css", "script.js", "site.webmanifest", "robots.txt",
-            "sitemap.xml", "package.json", "CNAME", ".nojekyll", "tools/auth-src.js"}
+            "sitemap.xml", "package.json", "CNAME", ".nojekyll", "tools/auth-src.js", "nknk-comics.html", "nknk-comics.css"}
 TOOL_ROOT = {".gitignore", ".npmrc", "eslint.config.mjs"}
 DOC_ROOT = {"AGENTS.md", "LICENSE", "NOTICE.md", "README.md", "SECURITY.md"}
 APP_DIRS = ("js/", "backend/", "fonts/", "images/", "data/", "网站海报/")

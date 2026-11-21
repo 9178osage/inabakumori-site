@@ -398,6 +398,21 @@ function enforceCommentFieldLimits(nameInput, messageInput) {
   if (trimmed) showLengthFeedback(trimmed);
   return trimmed;
 }
+// One key per submit action: a manual retry of the same unchanged text after a timeout
+// reuses it, so the server returns the first result instead of posting a second copy.
+let pendingCommentAttempt = null;
+function newIdempotencyKey() {
+  const webCrypto = globalThis.crypto;
+  if (typeof webCrypto?.randomUUID === "function") return webCrypto.randomUUID();
+  if (typeof webCrypto?.getRandomValues !== "function") return null;
+  return Array.from(webCrypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("");
+}
+function commentIdempotencyKey(nickname, content) {
+  if (pendingCommentAttempt?.nickname !== nickname || pendingCommentAttempt?.content !== content) {
+    pendingCommentAttempt = { nickname, content, key: newIdempotencyKey() };
+  }
+  return pendingCommentAttempt.key;
+}
 async function addMessage() {
   if (messageSubmitting) return;
   const nameInput = document.getElementById("message-name");
@@ -438,7 +453,9 @@ async function addMessage() {
   showMessageFeedback(() => pageText("正在发送…", "Posting…"), false);
   if (button) button.disabled = true;
   try {
-    const response = await (window.siteFetch || fetch)(COMMENTS_API, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ nickname, content }) });
+    const idempotencyKey = commentIdempotencyKey(nickname, content);
+    const headers = { "Content-Type": "application/json", ...idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {} };
+    const response = await (window.siteFetch || fetch)(COMMENTS_API, { method: "POST", headers, credentials: "include", body: JSON.stringify({ nickname, content }) });
     // Gateway/proxy errors (e.g. an empty 429) carry no JSON; the status alone still picks the message.
     const data = response.ok ? await response.json() : await response.json().catch(() => null);
     if (!response.ok) {
@@ -449,6 +466,7 @@ async function addMessage() {
     if (!data.comment || !Number.isSafeInteger(data.comment.id)) {
       throw new SyntaxError("Invalid comment response");
     }
+    pendingCommentAttempt = null;
     if (nameInput.value === originalName) nameInput.value = "";
     if (messageInput.value === originalContent) messageInput.value = "";
     wallRevision++;
@@ -819,23 +837,29 @@ function prepareSongTags(links) {
     renderInlineSongTags(link);
   });
 }
-function getSongThumbnailUrl(href) {
-  try {
-    const url = new URL(href);
-    const host = url.hostname.toLowerCase();
-    let id;
-    if (host === "youtu.be") {
-      id = url.pathname.split("/")[1];
-    } else if (["youtube.com", "www.youtube.com", "m.youtube.com"].includes(host)) {
-      id = url.searchParams.get("v");
-      if (!id && /^\/(embed|shorts)\//.test(url.pathname)) {
-        id = url.pathname.split("/")[2];
-      }
+// Same rules as tools/youtube-id.mjs (kept identical; tools/tests/youtube-id.test.cjs compares them).
+function youtubeVideoId(value) {
+  if (typeof value !== "string") return null;
+  let url;
+  try { url = new URL(value); } catch { return null; }
+  if (url.protocol !== "https:" || url.username || url.password || url.port) return null;
+  let id = null;
+  if (url.hostname === "youtu.be") {
+    const parts = url.pathname.split("/");
+    if (parts.length === 2) id = parts[1];
+  } else if (["youtube.com", "www.youtube.com", "m.youtube.com"].includes(url.hostname)) {
+    if (url.pathname === "/watch") {
+      const values = url.searchParams.getAll("v");
+      if (values.length === 1) id = values[0];
+    } else {
+      id = /^\/(?:embed|shorts)\/([^/]+)$/u.exec(url.pathname)?.[1] ?? null;
     }
-    return /^[A-Za-z0-9_-]{11}$/.test(id || "") ? `https://i.ytimg.com/vi/${id}/mqdefault.jpg` : null;
-  } catch {
-    return null;
   }
+  return id !== null && /^[A-Za-z0-9_-]{11}$/u.test(id) ? id : null;
+}
+function getSongThumbnailUrl(href) {
+  const id = youtubeVideoId(href);
+  return id ? `https://i.ytimg.com/vi/${id}/mqdefault.jpg` : null;
 }
 function formatChineseViews(count) {
   const units = [[100000000, "亿"], [10000, "万"]];

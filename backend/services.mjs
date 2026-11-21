@@ -356,20 +356,50 @@ export function insertFreshComment(db, { duplicate, insert, countMember, memberC
   }
 }
 
+// Negative advisory keys cannot hit the positive schema compatibility gate.
+function advisoryLockKey(identity) {
+  const digest = createHash("sha256").update(identity).digest();
+  return (digest.readBigInt64BE(0) | -(1n << 63n)).toString();
+}
+
+export const COMMENT_IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
+const IDEMPOTENCY_KEY = /^[A-Za-z0-9_-]{16,128}$/u;
+// Returns null when no key was sent (older pages), false for a malformed key,
+// otherwise hashes that bind the key to its sender and to the exact request.
+// A guest key cannot replay a member's result and vice versa.
+export function commentIdempotency(header, { userId, nickname, content }) {
+  if (header === undefined || header === "") return null;
+  if (typeof header !== "string" || !IDEMPOTENCY_KEY.test(header)) return false;
+  const scope = userId ? `member\0${userId}` : "guest";
+  return {
+    keyHash: createHash("sha256").update(`${scope}\0${header}`).digest("hex"),
+    requestHash: createHash("sha256").update(JSON.stringify([nickname, content])).digest("hex")
+  };
+}
+
 // Remote database calls are asynchronous. Keep every read and the insert in
 // the same write transaction so concurrent requests cannot bypass dedup or cap.
-export async function insertFreshCommentAsync(db, { memberCap = 100, row }) {
+export async function insertFreshCommentAsync(db, { memberCap = 100, row, idempotency = null, idempotencyTtlMs = COMMENT_IDEMPOTENCY_TTL_MS }) {
   return db.transaction(async tx => {
+    if (idempotency) {
+      // Same-key requests run one at a time; the first committed result is replayed.
+      if (db.kind === "postgres") await tx.prepare("SELECT pg_advisory_xact_lock(?)").get(advisoryLockKey(`idempotency\0${idempotency.keyHash}`));
+      const previous = await tx.prepare(`SELECT request_hash, comment_id, created_at, expires_at FROM comment_idempotency
+        WHERE key_hash = ? AND created_at > ?`).get(idempotency.keyHash, row.createdAt - idempotencyTtlMs);
+      if (previous) {
+        if (previous.request_hash !== idempotency.requestHash) return { ok: false, code: "IDEMPOTENCY_KEY_REUSED" };
+        return { ok: true, id: Number(previous.comment_id), replayed: true, createdAt: Number(previous.created_at),
+          expiresAt: previous.expires_at === null ? null : Number(previous.expires_at) };
+      }
+    }
     const normalized = normalizeCommentForComparison(row.content);
     const needsDedup = Boolean(row.userId) || Array.from(normalized).length >= GUEST_GLOBAL_DEDUP_MIN_LENGTH;
     if (db.kind === "postgres" && needsDedup) {
       // Members share a lock across all their text to protect the account cap.
       // Guests only conflict with equivalent long text. Separate prefixes keep
-      // those scopes independent; negative keys cannot hit the positive schema gate.
+      // those scopes independent.
       const identity = row.userId ? `member\0${row.userId}` : `guest\0${normalized}`;
-      const digest = createHash("sha256").update(identity).digest();
-      const lock = (digest.readBigInt64BE(0) | -(1n << 63n)).toString();
-      await tx.prepare("SELECT pg_advisory_xact_lock(?)").get(lock);
+      await tx.prepare("SELECT pg_advisory_xact_lock(?)").get(advisoryLockKey(identity));
     }
     if (needsDedup) {
       const recent = row.userId
@@ -392,7 +422,16 @@ export async function insertFreshCommentAsync(db, { memberCap = 100, row }) {
     const result = await tx.prepare(`INSERT INTO comments (nickname, content, user_id, is_guest, created_at, expires_at)
       VALUES (?, ?, ?, ?, ?, ?)`)
       .run(row.nickname, row.content, row.userId, row.isGuest ? 1 : 0, row.createdAt, row.expiresAt);
-    return { ok: true, id: Number(result.lastInsertRowid) };
+    const id = Number(result.lastInsertRowid);
+    if (idempotency) {
+      // An expired record with the same key is replaced; a live one was returned above.
+      await tx.prepare(`INSERT INTO comment_idempotency (key_hash, request_hash, comment_id, created_at, expires_at)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT (key_hash) DO UPDATE SET request_hash = excluded.request_hash, comment_id = excluded.comment_id,
+          created_at = excluded.created_at, expires_at = excluded.expires_at`)
+        .run(idempotency.keyHash, idempotency.requestHash, id, row.createdAt, row.expiresAt);
+    }
+    return { ok: true, id };
   });
 }
 
@@ -469,8 +508,9 @@ export function registerAdminCommentManagement(app, db, verifySession, isAdmin, 
   // Removes every comment from the account that wrote comment :id, so moderation never needs the
   // account ID itself (it stays server-side). Guests have no account; admin accounts are refused.
   const author = db.prepare("SELECT user_id, is_guest FROM comments WHERE id = ?");
-  const authorComments = db.prepare("SELECT id FROM comments WHERE user_id = ? AND is_guest = 0 ORDER BY id DESC");
-  const removeAuthor = db.prepare("DELETE FROM comments WHERE user_id = ? AND is_guest = 0");
+  // One statement deletes and reports the same rows, so a comment the author posts while
+  // this runs is either deleted and listed, or kept; never deleted without being listed.
+  const removeAuthor = db.prepare("DELETE FROM comments WHERE user_id = ? AND is_guest = 0 RETURNING id");
   app.delete("/api/admin/comments/:id/author", verifySession(), requireAdmin, async (req, res) => {
     const id = positiveInteger(req.params.id);
     if (!Number.isSafeInteger(id) || id <= 0) {
@@ -485,10 +525,9 @@ export function registerAdminCommentManagement(app, db, verifySession, isAdmin, 
     if ((await isAdmin(userId)) === true) {
       return res.status(403).json({ error: "不能批量删除站长的留言", code: "ADMIN_AUTHOR" });
     }
-    const ids = (await authorComments.all(userId)).map(entry => Number(entry.id));
-    const deleted = Number((await removeAuthor.run(userId)).changes);
-    if (deleted > 0) onDeleted();
-    return res.json({ success: true, deletedCommentIds: ids, deletedCount: deleted });
+    const ids = (await removeAuthor.all(userId)).map(entry => Number(entry.id)).sort((a, b) => b - a);
+    if (ids.length > 0) onDeleted();
+    return res.json({ success: true, deletedCommentIds: ids, deletedCount: ids.length });
   });
   app.delete("/api/admin/comments/:id", verifySession(), requireAdmin, async (req, res) => {
     const id = positiveInteger(req.params.id);
