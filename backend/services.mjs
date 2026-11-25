@@ -377,6 +377,21 @@ export function commentIdempotency(header, { userId, nickname, content }) {
   };
 }
 
+export async function findCommentReplay(db, idempotency, now, ttlMs = COMMENT_IDEMPOTENCY_TTL_MS) {
+  const previous = await db.prepare(`
+    SELECT saved.request_hash, saved.comment_id, saved.created_at, saved.expires_at, live.id AS live_id
+    FROM comment_idempotency AS saved
+    LEFT JOIN comments AS live ON live.id = saved.comment_id AND live.created_at = saved.created_at
+      AND (live.expires_at IS NULL OR live.expires_at > ?)
+    WHERE saved.key_hash = ? AND saved.created_at > ?
+  `).get(now, idempotency.keyHash, now - ttlMs);
+  if (!previous) return null;
+  if (previous.request_hash !== idempotency.requestHash) return { ok: false, code: "IDEMPOTENCY_KEY_REUSED" };
+  if (previous.live_id === null) return { ok: false, code: "COMMENT_REMOVED", replayed: true };
+  return { ok: true, id: Number(previous.comment_id), replayed: true, createdAt: Number(previous.created_at),
+    expiresAt: previous.expires_at === null ? null : Number(previous.expires_at) };
+}
+
 // Remote database calls are asynchronous. Keep every read and the insert in
 // the same write transaction so concurrent requests cannot bypass dedup or cap.
 export async function insertFreshCommentAsync(db, { memberCap = 100, row, idempotency = null, idempotencyTtlMs = COMMENT_IDEMPOTENCY_TTL_MS }) {
@@ -384,13 +399,8 @@ export async function insertFreshCommentAsync(db, { memberCap = 100, row, idempo
     if (idempotency) {
       // Same-key requests run one at a time; the first committed result is replayed.
       if (db.kind === "postgres") await tx.prepare("SELECT pg_advisory_xact_lock(?)").get(advisoryLockKey(`idempotency\0${idempotency.keyHash}`));
-      const previous = await tx.prepare(`SELECT request_hash, comment_id, created_at, expires_at FROM comment_idempotency
-        WHERE key_hash = ? AND created_at > ?`).get(idempotency.keyHash, row.createdAt - idempotencyTtlMs);
-      if (previous) {
-        if (previous.request_hash !== idempotency.requestHash) return { ok: false, code: "IDEMPOTENCY_KEY_REUSED" };
-        return { ok: true, id: Number(previous.comment_id), replayed: true, createdAt: Number(previous.created_at),
-          expiresAt: previous.expires_at === null ? null : Number(previous.expires_at) };
-      }
+      const replay = await findCommentReplay(tx, idempotency, row.createdAt, idempotencyTtlMs);
+      if (replay) return replay;
     }
     const normalized = normalizeCommentForComparison(row.content);
     const needsDedup = Boolean(row.userId) || Array.from(normalized).length >= GUEST_GLOBAL_DEDUP_MIN_LENGTH;

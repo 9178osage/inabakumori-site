@@ -63,5 +63,5 @@ test("every generated archive page is listed once in the published sitemap", () 
   const check = fs.readFileSync(path.join(repo, "tools/check-build.mjs"), "utf8");
   assert.match(check, /Sitemap must list archive page/u);
   assert.match(check, /Archive pages exceed 20 MiB/u);
-  assert.match(check, /Public build \(excluding archive pages\) exceeds 12 MiB/u);
+  assert.match(check, /Public build \(excluding archive pages and English comics\) exceeds 12 MiB/u);
 });

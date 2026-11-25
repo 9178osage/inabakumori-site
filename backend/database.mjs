@@ -71,8 +71,8 @@ const POSTGRES_COMMENT_LIST_VERSION = `
   END
   $comment_list_version$;`;
 // Remembers the result of a comment POST by its Idempotency-Key for a day, so a
-// retried request returns the first response. Additive only: older deployments
-// never read it, and it holds hashes and comment IDs, never text or account IDs.
+// retried request returns the first response while the comment is still visible.
+// Older deployments never read it, and it holds hashes and IDs without the text or account IDs.
 const SQLITE_COMMENT_IDEMPOTENCY = `
   CREATE TABLE IF NOT EXISTS comment_idempotency (
     key_hash TEXT PRIMARY KEY,

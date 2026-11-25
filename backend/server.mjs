@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { normalizeRequestPath, passwordResetEmailKey, validateCommentInput, websiteLocation, parseAdditionalOrigins, clientIpResolver, parseAdminUserIds, createAdminCheck, buildVersion, insertFreshCommentAsync, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery, isReservedNickname, requireJsonRequestBody, revokeSessionsAfterPasswordReset, createFinalErrorHandler, commentIdempotency, COMMENT_IDEMPOTENCY_TTL_MS } from "./services.mjs";
+import { normalizeRequestPath, passwordResetEmailKey, validateCommentInput, websiteLocation, parseAdditionalOrigins, clientIpResolver, parseAdminUserIds, createAdminCheck, buildVersion, insertFreshCommentAsync, registerAdminCommentManagement, registerCommentManagement, passwordResetDelivery, isReservedNickname, requireJsonRequestBody, revokeSessionsAfterPasswordReset, createFinalErrorHandler, commentIdempotency, findCommentReplay, COMMENT_IDEMPOTENCY_TTL_MS } from "./services.mjs";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -275,14 +275,15 @@ app.use(middleware());
 app.use(commentWriteMaintenance(process.env));
 const commentLimiter = createRequestRateLimit({ ...sharedStore("commentLimiter"), keyGenerator: clientIpKey, windowMs: 60 * 1e3, limit: 10, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "留言发送过于频繁，请稍后再试", code: "RATE_LIMITED" } });
 // A 409 duplicate still counts: otherwise a guest could probe (or squat) recent texts for free.
-const guestCommentLimiter = createRequestRateLimit({ ...sharedStore("guestCommentLimiter"), keyGenerator: clientIpKey, windowMs: 60 * 60 * 1e3, limit: 3, skipFailedRequests: true, requestWasSuccessful: (_req, res) => res.statusCode < 400 || res.statusCode === 409, standardHeaders: "draft-7", legacyHeaders: false, skip: req => req.session !== undefined, message: { error: "游客每小时最多留言 3 条，请稍后再试", code: "GUEST_RATE_LIMITED" } });
+const guestCommentLimiter = createRequestRateLimit({ ...sharedStore("guestCommentLimiter"), keyGenerator: clientIpKey, windowMs: 60 * 60 * 1e3, limit: 3, skipFailedRequests: true, requestWasSuccessful: (_req, res) => !res.locals.commentReplayed && (res.statusCode < 400 || res.statusCode === 409), standardHeaders: "draft-7", legacyHeaders: false, skip: req => req.session !== undefined, message: { error: "游客每小时最多留言 3 条，请稍后再试", code: "GUEST_RATE_LIMITED" } });
 // One hourly budget per IP across guest and member posts, so many accounts on one address cannot
 // multiply the per-account limits. Failed posts (except duplicates) do not count.
-const ipHourlyCommentLimiter = createRequestRateLimit({ ...sharedStore("ipHourlyCommentLimiter"), keyGenerator: clientIpKey, windowMs: 60 * 60 * 1e3, limit: 30, skipFailedRequests: true, requestWasSuccessful: (_req, res) => res.statusCode < 400 || res.statusCode === 409, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "这个网络每小时最多留言 30 条，请稍后再试", code: "IP_RATE_LIMITED" } });
+const ipHourlyCommentLimiter = createRequestRateLimit({ ...sharedStore("ipHourlyCommentLimiter"), keyGenerator: clientIpKey, windowMs: 60 * 60 * 1e3, limit: 30, skipFailedRequests: true, requestWasSuccessful: (_req, res) => !res.locals.commentReplayed && (res.statusCode < 400 || res.statusCode === 409), standardHeaders: "draft-7", legacyHeaders: false, message: { error: "这个网络每小时最多留言 30 条，请稍后再试", code: "IP_RATE_LIMITED" } });
 const memberCommentLimiter = createRequestRateLimit({ ...sharedStore("memberCommentLimiter"),
   windowMs: 60 * 60 * 1e3,
   limit: 20,
   skipFailedRequests: true,
+  requestWasSuccessful: (_req, res) => !res.locals.commentReplayed && res.statusCode < 400,
   standardHeaders: "draft-7",
   legacyHeaders: false,
   skip: req => req.session === undefined,
@@ -376,10 +377,10 @@ app.get("/api/comments", async (req, res) => {
   applyPublicCommentsCacheHeaders(req, res);
   res.json({ comments });
 });
-app.post("/api/comments", commentLimiter, requireJsonContentType, verifySession({ sessionRequired: false }), ipHourlyCommentLimiter, guestCommentLimiter, memberCommentLimiter, async (req, res) => {
+function readCommentSubmission(req, key = req.get("idempotency-key")) {
   const validation = validateCommentInput(req.body);
   if (!validation.ok) {
-    return res.status(400).json({ error: validation.error, code: validation.code || "INVALID_COMMENT" });
+    return { error: validation.error, code: validation.code || "INVALID_COMMENT" };
   }
   const { nickname, content } = validation;
   const isLoggedIn = req.session !== void 0;
@@ -387,32 +388,57 @@ app.post("/api/comments", commentLimiter, requireJsonContentType, verifySession(
   const isGuest = !isLoggedIn;
   const isAdmin = isLoggedIn && isAdminUserId(userId);
   if (!isAdmin && isReservedNickname(nickname)) {
-    return res.status(400).json({ error: "这个昵称为站长保留，请换一个昵称", code: "RESERVED_NICKNAME" });
+    return { error: "这个昵称为站长保留，请换一个昵称", code: "RESERVED_NICKNAME" };
   }
-  const idempotency = commentIdempotency(req.get("idempotency-key"), { userId, nickname, content });
+  const idempotency = commentIdempotency(key, { userId, nickname, content });
   if (idempotency === false) {
-    return res.status(400).json({ error: "请求编号无效，请刷新页面后重试", code: "INVALID_IDEMPOTENCY_KEY" });
+    return { error: "请求编号无效，请刷新页面后重试", code: "INVALID_IDEMPOTENCY_KEY" };
   }
   const now = Date.now();
-  const inserted = await insertFreshCommentAsync(db, {
-    memberCap: MEMBER_COMMENT_CAP,
+  return {
+    isAdmin,
     idempotency,
     row: { nickname, content, userId, isGuest, createdAt: now, expiresAt: isGuest ? now + GUEST_COMMENT_RETENTION_MS : null }
-  });
-  if (!inserted.ok && inserted.code === "DUPLICATE_COMMENT") {
+  };
+}
+function sendCommentResult(res, { row, isAdmin }, result) {
+  // Refund hourly reservations if a matching request committed during this request.
+  res.locals.commentReplayed = result.replayed === true;
+  if (result.code === "COMMENT_REMOVED") {
+    return res.status(410).json({ error: "原留言已被移除。", code: "COMMENT_REMOVED" });
+  }
+  if (result.code === "DUPLICATE_COMMENT") {
     return res.status(409).json({ error: "相同内容请稍后再留言", code: "DUPLICATE_COMMENT" });
   }
-  if (!inserted.ok && inserted.code === "IDEMPOTENCY_KEY_REUSED") {
+  if (result.code === "IDEMPOTENCY_KEY_REUSED") {
     return res.status(409).json({ error: "请求编号已用于其他留言，请刷新页面后重试", code: "IDEMPOTENCY_KEY_REUSED" });
   }
-  if (!inserted.ok) {
+  if (!result.ok) {
     return res.status(409).json({ error: "每个账号最多保留 100 条留言，请先删除旧留言", code: "MEMBER_COMMENT_CAP" });
   }
-  // A replay repeats the first response; that write already purged the cache.
-  if (!inserted.replayed) invalidatePublicComments();
-  const createdAt = inserted.replayed ? inserted.createdAt : now;
-  const expiresAt = inserted.replayed ? inserted.expiresAt : isGuest ? now + GUEST_COMMENT_RETENTION_MS : null;
-  return res.status(201).json({ success: true, comment: { id: inserted.id, nickname, content, isGuest, isAdmin, createdAt: new Date(createdAt).toISOString(), expiresAt: expiresAt === null ? null : new Date(expiresAt).toISOString() } });
+  if (!result.replayed) invalidatePublicComments();
+  const { createdAt, expiresAt } = result.replayed ? result : row;
+  const { nickname, content, isGuest } = row;
+  return res.status(201).json({ success: true, comment: { id: result.id, nickname, content, isGuest, isAdmin, createdAt: new Date(createdAt).toISOString(), expiresAt: expiresAt === null ? null : new Date(expiresAt).toISOString() } });
+}
+async function replayComment(req, res, next) {
+  const key = req.get("idempotency-key");
+  if (!key) return next();
+  const submission = readCommentSubmission(req, key);
+  res.locals.commentSubmission = submission;
+  if (submission.idempotency) {
+    // The IP/minute and session checks already ran. Only an exact, committed replay
+    // bypasses the hourly quotas here; new writes still recheck under the DB lock.
+    const replay = await findCommentReplay(db, submission.idempotency, submission.row.createdAt);
+    if (replay?.replayed) return sendCommentResult(res, submission, replay);
+  }
+  return next();
+}
+app.post("/api/comments", commentLimiter, requireJsonContentType, verifySession({ sessionRequired: false }), replayComment, ipHourlyCommentLimiter, guestCommentLimiter, memberCommentLimiter, async (req, res) => {
+  const submission = res.locals.commentSubmission ?? readCommentSubmission(req);
+  if (!submission.row) return res.status(400).json(submission);
+  const inserted = await insertFreshCommentAsync(db, { memberCap: MEMBER_COMMENT_CAP, row: submission.row, idempotency: submission.idempotency });
+  return sendCommentResult(res, submission, inserted);
 });
 registerCommentManagement(app, db, verifySession, invalidatePublicComments);
 registerAdminCommentManagement(app, db, verifySession, createAdminCheck(ADMIN_USER_IDS), invalidatePublicComments);

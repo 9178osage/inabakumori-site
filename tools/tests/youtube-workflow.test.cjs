@@ -14,6 +14,7 @@ const commitScript = commit.split("        run: |\n")[1].split("\n").map(line =>
 
 test("YouTube refresh has all four unconditional gates before exporting a read-only snapshot", () => {
   assert.match(workflow, /group: refresh-main-content/u);
+  assert.match(workflow, /cancel-in-progress: false\n  queue: max/u);
   assert.match(fetch, /ref: main/u);
   assert.match(refresh, /ref: main/u);
   assert.match(refresh, /validated_sha: \$\{\{ steps\.validated_head\.outputs\.sha \}\}/u);

@@ -28,10 +28,11 @@ function postgresPool(engine) {
 }
 
 const NOW = 1800000000000;
-const guest = { nickname: "访客", content: "谢谢", userId: null, isGuest: true, createdAt: NOW, expiresAt: NOW + 1000 };
+const EXPIRES = NOW + 182 * 24 * 60 * 60 * 1000;
+const guest = { nickname: "访客", content: "谢谢", userId: null, isGuest: true, createdAt: NOW, expiresAt: EXPIRES };
 
 async function exercise(db) {
-  const { insertFreshCommentAsync, commentIdempotency } = await import("../../backend/services.mjs");
+  const { insertFreshCommentAsync, commentIdempotency, findCommentReplay } = await import("../../backend/services.mjs");
   const count = async () => Number((await db.prepare("SELECT count(*) AS n FROM comments").get()).n);
   assert.equal(commentIdempotency(undefined, guest), null, "older pages without a key keep working");
   assert.equal(commentIdempotency("short", guest), false);
@@ -42,8 +43,9 @@ async function exercise(db) {
   // Short guest text skips text dedup on purpose, so without a key a retry would post twice.
   const first = await insertFreshCommentAsync(db, { row: guest, idempotency });
   assert.deepEqual(first, { ok: true, id: first.id });
-  const retry = await insertFreshCommentAsync(db, { row: { ...guest, createdAt: NOW + 5000, expiresAt: NOW + 6000 }, idempotency });
-  assert.deepEqual(retry, { ok: true, id: first.id, replayed: true, createdAt: NOW, expiresAt: NOW + 1000 }, "a retry replays the first result");
+  const retry = await insertFreshCommentAsync(db, { row: { ...guest, createdAt: NOW + 5000, expiresAt: EXPIRES + 5000 }, idempotency });
+  assert.deepEqual(retry, { ok: true, id: first.id, replayed: true, createdAt: NOW, expiresAt: EXPIRES }, "a retry replays the first result");
+  assert.deepEqual(await findCommentReplay(db, idempotency, NOW + 5000), retry, "the read-only check agrees with the transaction");
   assert.equal(await count(), 1);
   assert.deepEqual(await insertFreshCommentAsync(db, { row: { ...guest, content: "别的" }, idempotency: commentIdempotency(key, { ...guest, content: "别的" }) }),
     { ok: false, code: "IDEMPOTENCY_KEY_REUSED" }, "one key cannot post different text");
@@ -55,6 +57,11 @@ async function exercise(db) {
   const racing = await Promise.all(Array.from({ length: 5 }, () => insertFreshCommentAsync(db, { row: { ...guest, content: "好" }, idempotency: concurrentKey })));
   assert.equal(new Set(racing.map(result => result.id)).size, 1, "concurrent same-key requests store one comment");
   assert.equal(await count(), 3);
+  await db.prepare("DELETE FROM comments WHERE id = ?").run(first.id);
+  const removed = { ok: false, code: "COMMENT_REMOVED", replayed: true };
+  assert.deepEqual(await findCommentReplay(db, idempotency, NOW + 5000), removed);
+  assert.deepEqual(await insertFreshCommentAsync(db, { row: { ...guest, createdAt: NOW + 5000 }, idempotency }), removed);
+  assert.equal(await count(), 2, "retrying a deleted comment must never restore it");
   const later = await insertFreshCommentAsync(db, { row: { ...guest, createdAt: NOW + 24 * 60 * 60 * 1000 + 1 }, idempotency });
   assert.equal(later.replayed, undefined, "a key older than the replay window starts a new post");
   const stored = await db.prepare("SELECT * FROM comment_idempotency").all();
@@ -89,9 +96,9 @@ test("comment idempotency on PostgreSQL, including a database created before the
 test("the server binds the key to the sender, allows the header in CORS and expires old records", () => {
   const server = fs.readFileSync("backend/server.mjs", "utf8");
   assert.match(server, /allowedHeaders: \["content-type", "idempotency-key", \.\.\.supertokens\.getAllCORSHeaders\(\)\]/u);
-  assert.match(server, /commentIdempotency\(req\.get\("idempotency-key"\), \{ userId, nickname, content \}\)/u);
+  assert.match(server, /commentIdempotency\(key, \{ userId, nickname, content \}\)/u);
   assert.match(server, /DELETE FROM comment_idempotency WHERE created_at <= \?/u);
-  assert.match(server, /if \(!inserted\.replayed\) invalidatePublicComments\(\);/u);
+  assert.match(server, /if \(!result\.replayed\) invalidatePublicComments\(\);/u);
   const script = fs.readFileSync("script.js", "utf8");
   assert.match(script, /"Idempotency-Key": idempotencyKey/u);
   assert.match(script, /pendingCommentAttempt = null;\n    if \(nameInput\.value === originalName\)/u, "the key is dropped only after a confirmed post");

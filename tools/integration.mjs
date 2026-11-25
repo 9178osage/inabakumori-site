@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { once } from "node:events";
 import { gzipSync, deflateSync, brotliCompressSync } from "node:zlib";
 import { setTimeout as delay } from "node:timers/promises";
+import { DatabaseSync } from "node:sqlite";
 import { createStaticServer } from "./static-server.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -154,7 +155,7 @@ try {
   const preflight = await request(`${api}/api/comments`, { method: "OPTIONS", headers: { Origin: previewUrl, "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "content-type,idempotency-key" } });
   assert.ok(preflight.status < 300, `preflight ${preflight.status}`);
   assert.match(preflight.headers.get("access-control-allow-headers") || "", /idempotency-key/iu);
-  const keyed = (key, content = "谢谢") => request(`${api}/api/comments`, { method: "POST", headers: { "Content-Type": "application/json", Origin: previewUrl, "x-real-ip": "203.0.113.77", "Idempotency-Key": key }, body: JSON.stringify({ nickname: "重试", content }) });
+  const keyed = (key, content = "谢谢", ip = "203.0.113.77") => request(`${api}/api/comments`, { method: "POST", headers: { "Content-Type": "application/json", Origin: previewUrl, "x-real-ip": ip, "Idempotency-Key": key }, body: JSON.stringify({ nickname: "重试", content }) });
   assert.equal((await (await keyed("bad key!")).json()).code, "INVALID_IDEMPOTENCY_KEY");
   const firstTry = await keyed("integration-retry-key-0001");
   assert.equal(firstTry.status, 201, await firstTry.clone().text());
@@ -282,6 +283,36 @@ try {
   for (let i = 0; i < 3; i++) probes.push((await guestPost("198.51.100.73", comment.content)).status);
   probes.push((await guestPost("198.51.100.73", "另一条完全不同的测试留言内容")).status);
   assert.deepEqual(probes, [409, 409, 409, 429], "duplicates must consume the guest hourly quota");
+  const quotaClient = "203.0.113.78";
+  const submit = (number, content) => keyed(`integration-quota-key-${number}`, content, quotaClient);
+  const firstPair = await Promise.all([submit(1, "早安"), submit(1, "早安")]);
+  assert.deepEqual(firstPair.map(response => response.status), [201, 201]);
+  const firstPairBodies = await Promise.all(firstPair.map(response => response.json()));
+  assert.deepEqual(firstPairBodies[0], firstPairBodies[1], "concurrent retries produce one receipt");
+  assert.equal((await submit(2, "午安")).status, 201);
+  const last = await submit(3, "晚安");
+  assert.equal(last.status, 201, "replays leave all three guest publishing slots available for new comments");
+  const lastBody = await last.json();
+  const atQuota = await submit(3, "晚安");
+  assert.equal(atQuota.status, 201, "a verified replay is available even after all three slots are used");
+  assert.deepEqual(await atQuota.json(), lastBody);
+  const overQuota = await submit(4, "再见");
+  assert.equal(overQuota.status, 429);
+  assert.equal((await overQuota.json()).code, "GUEST_RATE_LIMITED");
+  // Simulate an administrator removing the comment in the isolated test database.
+  const testDatabase = new DatabaseSync(path.join(directory, "comments.db"));
+  try { assert.equal(testDatabase.prepare("DELETE FROM comments WHERE id = ?").run(lastBody.comment.id).changes, 1); }
+  finally { testDatabase.close(); }
+  const removedReplay = await submit(3, "晚安");
+  assert.equal(removedReplay.status, 410);
+  assert.equal((await removedReplay.json()).code, "COMMENT_REMOVED");
+  const afterRemoval = await request(`${api}/api/comments`, { headers: { Origin: previewUrl, "x-real-ip": quotaClient } });
+  assert.equal(afterRemoval.status, 200);
+  assert.ok((await afterRemoval.json()).comments.every(comment => comment.id !== lastBody.comment.id));
+  for (let i = 0; i < 3; i++) assert.equal((await submit(1, "早安")).status, 201);
+  const minuteLimit = await submit(1, "早安");
+  assert.equal(minuteLimit.status, 429);
+  assert.equal((await minuteLimit.json()).code, "RATE_LIMITED", "replays still use the per-minute request limit");
   // An idle keep-alive socket (as the Railway edge holds) must not delay or fail shutdown.
   const keepAlive = new http.Agent({ keepAlive: true });
   await new Promise((resolve, reject) => {

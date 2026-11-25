@@ -93,27 +93,34 @@ function fillOnce(template, marker, content) {
 }
 const comics = JSON.parse(await readFile(source("data/nknk-comics.json"), "utf8"));
 if (!Array.isArray(comics) || !comics.length) throw new Error("The NKNK comics collection is empty");
+const englishComicsFolder = "images/nknk-comics-en";
+await mkdir(output(`dist/${englishComicsFolder}`), { recursive: true });
 const comicIds = new Set();
 const comicIndex = [];
 const comicStrips = [];
-for (const { id, width, height } of comics) {
+for (const { id, width, height, english = { width, height } } of comics) {
   if (typeof id !== "string" || !/^[0-9]{2,4}$/u.test(id) || comicIds.has(id) ||
-      !Number.isSafeInteger(width) || width <= 0 || !Number.isSafeInteger(height) || height <= 0) {
+      ![width, height, english?.width, english?.height].every(size => Number.isSafeInteger(size) && size > 0)) {
     throw new Error("Invalid or duplicate entry in data/nknk-comics.json");
   }
   comicIds.add(id);
   const image = `images/optimized/nknk-comics/${id}.webp`;
   if (!(await stat(assertRepoPath(out, image, { mustExist: true }))).isFile()) throw new Error(`Missing comic image: ${image}`);
+  const translated = `${englishComicsFolder}/${id}.webp`;
+  await copyFile(source(translated), output(`dist/${translated}`));
   comicIndex.push(`<li><a href="#comic-${id}">${id}</a></li>`);
   comicStrips.push(`<section class="comic-strip" id="comic-${id}" tabindex="-1" aria-labelledby="comic-${id}-title">
 <div class="comic-strip-header">
 <h2 id="comic-${id}-title" data-zh="第 ${Number(id)} 张" data-en="Image ${Number(id)}" data-ja="${Number(id)} 枚目">第 ${Number(id)} 张</h2>
 <div class="comic-strip-actions">
-<a href="${image}" data-zh="打开大图" data-en="Open full image" data-ja="原寸で開く">打开大图</a>
+<a href="${image}" data-comic-full data-zh="打开大图" data-en="Open full image" data-ja="原寸で開く">打开大图</a>
 <a class="comic-index-back" href="#comics-index" data-zh="返回目录" data-en="Back to contents" data-ja="目次に戻る">返回目录</a>
 </div>
 </div>
-<img src="${image}" lang="ja" alt="ぬくぬくにぎりめしの漫画 (${id})" width="${width}" height="${height}" decoding="async"${comicStrips.length ? ' loading="lazy"' : ""}/>
+<picture>
+<source data-comic-english media="not all" srcset="${translated}" width="${english.width}" height="${english.height}"/>
+<img src="${image}" lang="ja" alt="ぬくぬくにぎりめしの漫画 (${id})" data-alt-en="NKNK comic ${id}, English translation" width="${width}" height="${height}" decoding="async"${comicStrips.length ? ' loading="lazy"' : ""}/>
+</picture>
 </section>`);
 }
 let comicsHtml = await readFile(source("nknk-comics.html"), "utf8");

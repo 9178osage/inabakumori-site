@@ -9,7 +9,7 @@ const attributes = tag => Object.fromEntries([...tag.matchAll(/([^\s=]+)="([^"]*
 
 // Only the controls and metadata are needed: no search form or calendar sheet is
 // mounted, so this runs the real page initialization without a second full DOM.
-function page(source, html) {
+function page(source, html, { comics = [], language = "zh" } = {}) {
   let writes = 0, blockedStorage = false;
   const node = (attrs = {}) => ({
     attributes: attrs, dataset: {}, listeners: {},
@@ -32,11 +32,12 @@ function page(source, html) {
     readyState: "complete", documentElement: root,
     title: decode(html.match(/<title>([^<]*)<\/title>/u)[1]),
     querySelector: selector => metadata.get(selector) || (selector === ".page-controls" ? controls : null),
-    querySelectorAll: selector => selector === 'meta[name="theme-color"]' ? [metadata.get(selector)].filter(Boolean) : [],
+    querySelectorAll: selector => selector === 'meta[name="theme-color"]' ? [metadata.get(selector)].filter(Boolean)
+      : selector === "source[data-comic-english]" ? comics : [],
     getElementById: id => buttons[id] || null,
     addEventListener() {}
   };
-  const saved = new Map([["language", "zh"], ["theme", "light"]]);
+  const saved = new Map([["language", language], ["theme", "light"]]);
   const localStorage = {}, sessionStorage = {}, events = {};
   const window = {
     siteStorage: { getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key, value) },
@@ -49,6 +50,25 @@ function page(source, html) {
   return { root, document, metadata, saved, events, localStorage, sessionStorage, languageButton,
     writes: () => writes, blockStorage: () => { blockedStorage = true; } };
 }
+
+test("the NKNK reader selects the English picture, alt text and full-image link together", () => {
+  const original = "images/optimized/nknk-comics/01.webp";
+  const english = "images/nknk-comics-en/01.webp";
+  const originalAlt = "ぬくぬくにぎりめしの漫画 (01)";
+  const altEn = "NKNK comic 01, English translation";
+  const image = { alt: originalAlt, dataset: { altEn }, getAttribute: () => original };
+  const link = {};
+  const translation = { nextElementSibling: image, srcset: english, closest: () => ({ querySelector: () => link }) };
+  const { languageButton, metadata, root } = page("js/archive-pages.js", read("nknk-comics.html"), { comics: [translation], language: "en" });
+  assert.deepEqual([root.lang, translation.media, image.lang, image.alt, link.href], ["en", "all", "en", altEn, english]);
+  assert.match(metadata.get('meta[property="og:description"]').content, /English translations/u);
+  languageButton.listeners.click();
+  assert.deepEqual([root.lang, translation.media, image.lang, image.alt, link.href], ["ja", "not all", "ja", originalAlt, original]);
+  languageButton.listeners.click();
+  assert.deepEqual([root.lang, translation.media, image.lang, image.alt, link.href], ["zh-CN", "not all", "ja", originalAlt, original]);
+  languageButton.listeners.click();
+  assert.deepEqual([root.lang, translation.media, image.alt, link.href], ["en", "all", altEn, english]);
+});
 
 const generatedPages = (async () => {
   const { renderArchivePages } = await import("../render-archive-pages.mjs");

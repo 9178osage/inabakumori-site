@@ -34,9 +34,10 @@ function distFile(reference) {
   assert.ok(relative && !relative.startsWith("..") && !path.isAbsolute(relative), `Asset reference escapes dist: ${reference}`);
   return resolved;
 }
-let bytes = 0, archiveBytes = 0;
-// Paginated X archive pages are pre-rendered HTML that grows with the archive; they get their
-// own budget so the 12 MiB guard on every other public file (images, fonts, scripts) stays tight.
+let bytes = 0, archiveBytes = 0, englishComicBytes = 0;
+const englishComicFiles = [];
+// The growing archive and the English comic editions have their own budgets so
+// the 12 MiB guard on the rest of the public build stays tight.
 const SONG_PAGE = /^song-[A-Za-z0-9_-]{11}\.html$/u;
 const ARCHIVE_PAGE = /^updates(?:-(?:inabakumori|nknk))?(?:-page-[0-9]+)?\.html$/u;
 async function checkFolder(folder) {
@@ -52,7 +53,13 @@ async function checkFolder(folder) {
     else {
       const size = (await stat(path.join(folder, entry.name))).size;
       // Song pages grow with the archive too, so they share its budget.
-      if (folder === root && (ARCHIVE_PAGE.test(entry.name) || SONG_PAGE.test(entry.name))) archiveBytes += size; else bytes += size;
+      if (folder === root && (ARCHIVE_PAGE.test(entry.name) || SONG_PAGE.test(entry.name))) archiveBytes += size;
+      else if (name.startsWith("images/nknk-comics-en/")) {
+        const comic = /^images\/nknk-comics-en\/([0-9]{2,4})\.webp$/u.exec(name);
+        assert.ok(comic, `Unexpected English comic asset: ${name}`);
+        englishComicFiles.push(comic[1]);
+        englishComicBytes += size;
+      } else bytes += size;
       if (name.endsWith(".js")) new vm.Script(await readFile(path.join(root, name), "utf8"), { filename: name });
     }
   }
@@ -130,9 +137,12 @@ assert.match(comicsHtml, /href="index\.html#artwork"/u, "The comics reader must 
 const comicNumbers = [...comicsHtml.matchAll(/<section class="comic-strip" id="comic-([0-9]+)"/gu)].map(match => match[1]);
 const comicIndex = [...comicsHtml.matchAll(/href="#comic-([0-9]+)"/gu)].map(match => match[1]);
 const comicImages = [...comicsHtml.matchAll(/<img src="images\/optimized\/nknk-comics\/([0-9]+)\.webp"/gu)].map(match => match[1]);
+const englishComics = [...comicsHtml.matchAll(/<source data-comic-english media="not all" srcset="images\/nknk-comics-en\/([0-9]+)\.webp" width="[1-9][0-9]*" height="[1-9][0-9]*"/gu)].map(match => match[1]);
 assert.ok(comicNumbers.length > 0 && new Set(comicNumbers).size === comicNumbers.length, "The comics reader needs distinct comic IDs");
 assert.deepEqual(comicIndex, comicNumbers, "The comics index must link to each strip in order");
 assert.deepEqual(comicImages, comicNumbers, "Each strip must have its pre-rendered image");
+assert.deepEqual(englishComics, comicNumbers, "Each strip must have an English image for the English reader");
+assert.deepEqual(englishComicFiles.sort(), [...comicNumbers].sort(), "Published English comic images must match the reader");
 for (const value of htmlReferences(comicsHtml)) {
   if (/^(https?:|#)/u.test(value)) continue;
   assert.ok((await stat(distFile(value.split(/[?#]/u)[0]))).isFile(), `Missing comics reference: ${value}`);
@@ -283,12 +293,13 @@ for (const [from, to] of Object.entries(songRedirects)) {
   assert.ok(pageHtml.includes(`<a href="${target}"`), `${name} must link to ${target}`);
 }
 assert.ok(!(await readdir(root)).some(name => name === "search.html" || name === "search-index"), "Post search page and index must not be published");
-assert.ok(bytes < 12 * 1024 * 1024, `Public build (excluding archive pages) exceeds 12 MiB: ${bytes}`);
+assert.ok(bytes < 12 * 1024 * 1024, `Public build (excluding archive pages and English comics) exceeds 12 MiB: ${bytes}`);
 const ARCHIVE_BUDGET = 20 * 1024 * 1024;
 assert.ok(archiveBytes < ARCHIVE_BUDGET, `Archive pages exceed 20 MiB: ${archiveBytes}`);
+assert.ok(englishComicBytes < 8 * 1024 * 1024, `English comic images exceed 8 MiB: ${englishComicBytes}`);
 // Early warning at 80% so the budget is revisited before a weekly refresh fails the build.
 if (archiveBytes >= ARCHIVE_BUDGET * 0.8) {
   const message = `Archive pages use ${(archiveBytes / ARCHIVE_BUDGET * 100).toFixed(1)}% of the 20 MiB budget (${(archiveBytes / 1024 / 1024).toFixed(2)} MiB); plan a reduction or a budget review.`;
   console.warn(process.env.GITHUB_ACTIONS ? `::warning title=Archive page budget::${message}` : `Warning: ${message}`);
 }
-console.log(`Public build verified: references, anchors, JS syntax, metadata, pre-rendering, privacy allowlist; ${(bytes / 1024 / 1024).toFixed(2)} MiB + ${(archiveBytes / 1024 / 1024).toFixed(2)} MiB archive pages.`);
+console.log(`Public build verified: references, anchors, JS syntax, metadata, pre-rendering, privacy allowlist; ${(bytes / 1024 / 1024).toFixed(2)} MiB + ${(archiveBytes / 1024 / 1024).toFixed(2)} MiB archive pages + ${(englishComicBytes / 1024 / 1024).toFixed(2)} MiB English comics.`);

@@ -7,6 +7,7 @@ function commentErrorMessage(data, response) {
   const messages = {
     PROMOTIONAL_CONTENT: ["留言内容不能包含链接、邮箱、电话号码或广告联系方式", "Messages cannot contain links, email addresses, phone numbers, or promotional contact details."],
     DUPLICATE_COMMENT: ["相同内容请稍后再留言", "Please wait before posting the same message again."],
+    COMMENT_REMOVED: ["原留言已被移除。", "The original message has been removed."],
     GUEST_RATE_LIMITED: ["游客每小时最多留言 3 条，请稍后再试", "Guests can post up to 3 messages per hour. Please try again later."],
     RATE_LIMITED: ["留言发送过于频繁，请稍后再试", "Messages are being sent too quickly. Please try again later."],
     IP_RATE_LIMITED: ["同一网络每小时最多留言 30 条，请稍后再试", "This network can post up to 30 messages per hour. Please try again later."],

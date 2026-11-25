@@ -116,6 +116,8 @@ CI 的联网记录校验只在 `push` 到 `refs/heads/main` 时执行。PR、其
 - 网页图标（favicon / 主屏图标）：改 `index.html` 和 `site.webmanifest`，**整组一起 +1**（`?v=3` → `?v=4`），主屏图标最"粘"，整组更新最省心。
 - 只改文字、样式、脚本则不用管：构建时会自动给它们算出新的 `?v=` 指纹。
 
+NKNK 四格漫画的两版图片使用同一编号。`data/nknk-comics.json` 记录各张的宽高，英文图尺寸不同才需要 `english` 字段。英文界面选择 `images/nknk-comics-en/` 中对应的 WebP，中文和日文界面使用日文原图。构建逐张核对两版文件，英文图单独使用 8 MiB 发布预算，档案页与其余公开产物仍分别使用 20 MiB 与 12 MiB 预算。
+
 ## 构建产物里的隐藏文件
 
 用 Finder 打开过 `dist/`、`images/` 等目录后，macOS 会生成 `.DS_Store`。这类文件不会被发布（GitHub Pages 对点文件返回 404），构建也会自动把它们从产物里清掉，`check-build` 还会在发现其它点文件时直接让构建失败。
@@ -127,7 +129,7 @@ CI 的联网记录校验只在 `push` 到 `refs/heads/main` 时执行。PR、其
 
 ### YouTube 播放量
 
-每周播放量刷新先在只读作业中更新 `js/songs.js`、核对并补记此前的 main/push 上线记录，再运行四项门禁。该任务与每日动态刷新共用 `refresh-main-content` 并发组；排队运行实际开始时重新检出当时的 `main`，保存本轮已校验的完整 HEAD，联网覆盖检查与写入作业都使用这个 SHA，不再沿用任务创建时可能已过期的 `GITHUB_SHA`。独立写入作业只接收已通过检查的歌曲和日志文件，并且不运行仓库或依赖代码，只用 git、jq 复核：`js/songs.js` 须为规范格式的 SONGS 数组，与 HEAD 相比仅播放量（非负整数）和核对日期（不早于原值、不晚于次日）变化；`docs/CHANGELOG.md` 至多新增一行本提交的补记行。不符合即拒绝提交；若 `main` 在校验后前移则拒绝提交，不把旧快照重新合并到未验证的新代码上。提交后显式派发 Verify / Publish，等待该提交的两项运行成功，再比对线上 `js/songs.js` 的 SHA-256 与已检查构建一致。
+每周播放量刷新先在只读作业中更新 `js/songs.js`、核对并补记此前的 main/push 上线记录，再运行四项门禁。该任务与每日动态刷新共用 `refresh-main-content` 并发组。两个工作流都用 `queue: max` 保留排队请求，并按顺序运行。排队运行实际开始时重新检出当时的 `main`，保存本轮已校验的完整 HEAD，联网覆盖检查与写入作业都使用这个 SHA，不再沿用任务创建时可能已过期的 `GITHUB_SHA`。独立写入作业只接收已通过检查的歌曲和日志文件，并且不运行仓库或依赖代码，只用 git、jq 复核：`js/songs.js` 须为规范格式的 SONGS 数组，与 HEAD 相比仅播放量（非负整数）和核对日期（不早于原值、不晚于次日）变化；`docs/CHANGELOG.md` 至多新增一行本提交的补记行。不符合即拒绝提交；若 `main` 在校验后前移则拒绝提交，不把旧快照重新合并到未验证的新代码上。提交后显式派发 Verify / Publish，等待该提交的两项运行成功，再比对线上 `js/songs.js` 的 SHA-256 与已检查构建一致。
 
 API 失败时，刷新日志只显示 HTTP 状态及固定白名单中的 Google 错误代码和处理建议；不输出响应原文、错误 message、metadata 或密钥。根据代码核对 GitHub Actions 的 `YOUTUBE_API_KEY`、对应 Cloud 项目的 YouTube Data API v3 启用状态、密钥限制或配额。更新 Secret 后重新运行 `Refresh YouTube view counts`，以刷新成功、对应提交发布成功及线上歌曲文件指纹一致作为恢复依据；仅更新 Secret 不算恢复完成。所有视频请求均失败时保留原歌曲文件，工作流失败，不提交或发布空结果。
 
@@ -173,7 +175,7 @@ API 失败时，刷新日志只显示 HTTP 状态及固定白名单中的 Google
 
 「神秘小日历」（`calendar.html`，也可用 `/calendar` 打开）：首页主视觉导航下方有独立入口（中英日标签，至少 44px 点击区）；`noindex, nofollow` 且不列入 sitemap（check-build 校验）。构建时取 `data/creator-updates.json` 中稲葉曇最新的 YouTube 作品，预渲染标题、发布日期和天数；`js/calendar.js` 按日本时间每天重新计算，定时动态同步收录新歌后下次构建即归零。中英日文案、主题沿用档案页的方式，翻页动画只在未开启「减少动态效果」时播放，CSP 与档案页相同、无内联脚本。
 
-导入：把扫描结果写成 `tools/x-posts-data.mjs` 定义的格式（`{version: 1, coverage, items}`，完整正文、`translated: false`），放在不提交的位置（如 `artifacts/`），运行 `node tools/import-x-posts.mjs <scan.json>`。同一 ID 的正文、作者或时间不一致会保留旧值并列为冲突、命令非零退出，需人工核对。原始扫描文件不提交。覆盖范围始终标为 partial，并记录扫描区间与中断原因；原帖发布时间和实际采集时间应保留证据，不把导入时间写成新采集时间。档案第 1 页保留完整作品列表，第 2 页起只放一条回到第 1 页作品列表的链接（`data-works-list-link`），并省去来源核对状态、「关于这份观测记录」和各账号收录范围说明（只保留收录总数和「见第 1 页」提示），以免这些内容随页数重复；check-build 校验。创作者档案与第 2 页起的 `<title>`、`og:title`、description 和 `og:description` 注明创作者与页码（`xPostsPageTitle`，`js/updates.js` 按语言同步）。帖子正文与作品标题只在含假名时标 `lang="ja"`。作品标题的禁用字符（C0/C1 控制符含 CR、双向覆盖字符）定义在 `tools/text-guards.mjs`，刷新与构建共用；刷新遇到这类标题只把该来源标为失败并保留旧条目。档案页单独计入 20 MiB 预算，其余公开文件仍受 12 MiB 限制。本机文本副本完整导出已提交的 `manifest.json` 和全部帖子正文分片。清单归第 1 组，正文归第 4 组。差异摘要和附件选择见[副本规则](#同步和复核文本副本)。
+导入：把扫描结果写成 `tools/x-posts-data.mjs` 定义的格式（`{version: 1, coverage, items}`，完整正文、`translated: false`），放在不提交的位置（如 `artifacts/`），运行 `node tools/import-x-posts.mjs <scan.json>`。同一 ID 的正文、作者或时间不一致会保留旧值并列为冲突、命令非零退出，需人工核对。原始扫描文件不提交。覆盖范围始终标为 partial，并记录扫描区间与中断原因；原帖发布时间和实际采集时间应保留证据，不把导入时间写成新采集时间。档案第 1 页保留完整作品列表，第 2 页起只放一条回到第 1 页作品列表的链接（`data-works-list-link`），并省去来源核对状态、「关于这份观测记录」和各账号收录范围说明（只保留收录总数和「见第 1 页」提示），以免这些内容随页数重复；check-build 校验。创作者档案与第 2 页起的 `<title>`、`og:title`、description 和 `og:description` 注明创作者与页码（`xPostsPageTitle`，`js/updates.js` 按语言同步）。帖子正文与作品标题只在含假名时标 `lang="ja"`。作品标题的禁用字符（C0/C1 控制符含 CR、双向覆盖字符）定义在 `tools/text-guards.mjs`，刷新与构建共用；刷新遇到这类标题只把该来源标为失败并保留旧条目。档案页和英文漫画图分别计入 20 MiB 与 8 MiB 预算，其余公开文件仍受 12 MiB 限制。本机文本副本完整导出已提交的 `manifest.json` 和全部帖子正文分片。清单归第 1 组，正文归第 4 组。差异摘要和附件选择见[副本规则](#同步和复核文本副本)。
 
 帖子译文：`data/x-translations/batch-NNN.json`（`{version: 1, items: {"<帖子 ID>": {zh, en}}}`，每个文件不超过 120,000 字节）存放人工撰写的中文、英文大意，与原文档案分开，导入脚本不读也不写，原文仍为 `translated: false`。构建时 `tools/x-translations.mjs` 校验（只允许 zh/en 两个键、去首尾空白的 1–1000 字、无控制符或双向覆盖字符、无重复 ID、ID 必须已收录），`render-x-posts.mjs` 在正文下方输出 `<p class="x-post-translation" data-zh data-en data-ja="">`，前端按语言用 textContent 替换，日语模式为空并由 `:empty` 隐藏。没有条目的帖子不输出这一行，新导入的帖子默认无译文；按时间从新到旧分批补充，check-build 核对每条帖子译文行数。
 

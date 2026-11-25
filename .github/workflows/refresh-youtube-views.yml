@@ -18,6 +18,7 @@ permissions:
 concurrency:
   group: refresh-main-content
   cancel-in-progress: false
+  queue: max
 jobs:
   # The API key is only ever present in this job, which installs no packages and runs only
   # tools/refresh-youtube-views.mjs (Node built-ins plus tools/safe-fs.mjs and tools/youtube-id.mjs). npm lifecycle

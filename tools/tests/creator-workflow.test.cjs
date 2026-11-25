@@ -70,6 +70,7 @@ function sandbox(t) {
 
 test("creator write jobs run no repository or dependency code", () => {
   assert.match(workflow, /group: refresh-main-content/u);
+  assert.match(workflow, /cancel-in-progress: false\n  queue: max/u);
   assert.match(refresh, /ref: main/u);
   assert.match(refresh, /validated_sha: \$\{\{ steps\.validated_head\.outputs\.sha \}\}/u);
   assert.match(refresh, /CHANGELOG_HEAD_SHA: \$\{\{ steps\.validated_head\.outputs\.sha \}\}/u);

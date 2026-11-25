@@ -95,8 +95,9 @@ ${emptyXPostsMeta}
   box.write("data/song-redirects.json", JSON.stringify({ version: 1, redirects: {} }));
   box.write("dist/js/nknk-gallery.js", 'const NKNK_GALLERY = [{id:1,thumb:"images/picture.webp",full:"images/picture.webp"}];\n');
   box.write("dist/images/picture.webp", "PUBLIC_IMAGE");
-  box.write("dist/nknk-comics.html", '<a href="index.html#artwork">Back to NKNK</a><a href="#comic-01">01</a><section class="comic-strip" id="comic-01"><img src="images/optimized/nknk-comics/01.webp" alt="First comic"/></section>');
+  box.write("dist/nknk-comics.html", '<a href="index.html#artwork">Back to NKNK</a><a href="#comic-01">01</a><section class="comic-strip" id="comic-01"><picture><source data-comic-english media="not all" srcset="images/nknk-comics-en/01.webp" width="20" height="40"/><img src="images/optimized/nknk-comics/01.webp" alt="First comic"/></picture></section>');
   box.write("dist/images/optimized/nknk-comics/01.webp", "COMIC_IMAGE");
+  box.write("dist/images/nknk-comics-en/01.webp", "COMIC_IMAGE_EN");
 }
 
 test("public build check rejects symlinked assets and directories before publication", () => {

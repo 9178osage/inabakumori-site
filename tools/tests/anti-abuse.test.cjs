@@ -26,7 +26,7 @@ async function limiterTools() {
 test('one hourly per-IP budget covers guest and member comments together', async () => {
   const definition = backend.match(/const ipHourlyCommentLimiter = createRequestRateLimit\(\{[^\n]*\}\);/);
   assert.ok(definition, 'per-IP hourly comment limiter definition');
-  assert.match(backend, /app\.post\("\/api\/comments", commentLimiter, requireJsonContentType, verifySession\(\{ sessionRequired: false \}\), ipHourlyCommentLimiter, guestCommentLimiter, memberCommentLimiter,/);
+  assert.match(backend, /app\.post\("\/api\/comments", commentLimiter, requireJsonContentType, verifySession\(\{ sessionRequired: false \}\), replayComment, ipHourlyCommentLimiter, guestCommentLimiter, memberCommentLimiter,/);
   const { express, createRequestRateLimit, clientIpKey } = await limiterTools();
   const ipHourlyCommentLimiter = vm.runInNewContext(`${definition[0]}; ipHourlyCommentLimiter`, { createRequestRateLimit, sharedStore: () => ({}), clientIpKey });
   const app = express();

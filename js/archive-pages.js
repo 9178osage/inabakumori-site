@@ -1,4 +1,4 @@
-// Song archive pages: language and theme controls, plus the song list filter on songs.html.
+// Archive and comic pages: language and theme controls, plus the song list filter.
 (() => {
   const languages = ["zh", "en", "ja"];
   const storage = window.siteStorage;
@@ -18,6 +18,11 @@
     const root = document.documentElement;
     const langButton = document.getElementById("archive-lang-btn");
     const themeButton = document.getElementById("archive-theme-btn");
+    const comics = Array.from(document.querySelectorAll("source[data-comic-english]"), source => {
+      const image = source.nextElementSibling;
+      const fullImage = source.closest(".comic-strip").querySelector("[data-comic-full]");
+      return { source, image, fullImage, originalAlt: image.alt };
+    });
 
     function applyTheme() {
       const stored = storage?.getItem("theme");
@@ -51,6 +56,13 @@
         const formatted = element.closest(".song-facts") ? element.textContent : formatTime(element.dateTime);
         if (formatted && element.textContent !== formatted) element.textContent = formatted;
       });
+      const english = language === "en";
+      for (const { source, image, fullImage, originalAlt } of comics) {
+        source.media = english ? "all" : "not all";
+        image.lang = english ? "en" : "ja";
+        image.alt = english ? image.dataset.altEn : originalAlt;
+        fullImage.href = english ? source.srcset : image.getAttribute("src");
+      }
       if (langButton) {
         langButton.textContent = { zh: "English", en: "日本語", ja: "中文" }[language];
         langButton.setAttribute("aria-label", text("English — 切换语言，当前：中文", "日本語 — Switch language, current: English", "中文 — 言語を切り替え、現在：日本語"));
