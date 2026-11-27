@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { DatabaseSync, backup } from "node:sqlite";
 import { mkdir, open, chmod, rm } from "node:fs/promises";
 import path from "node:path";
+import { Worker } from "node:worker_threads";
 import { resolveDatabasePath } from "./services.mjs";
 import { postgresTransportProblem } from "./transport-security.mjs";
 
@@ -125,7 +126,9 @@ const RATE_LIMIT_SCHEMA = `
     PRIMARY KEY (prefix, key_hash)
   );
   CREATE INDEX IF NOT EXISTS idx_rate_limit_expiry ON rate_limit_counters(reset_at);`;
-const SELECT_SNAPSHOT = "SELECT id, nickname, content, user_id, is_guest, created_at, expires_at FROM comments ORDER BY id";
+// Snapshot reads go by ID in bounded pages inside one REPEATABLE READ transaction (audit #13).
+const SELECT_SNAPSHOT_PAGE = "SELECT id, nickname, content, user_id, is_guest, created_at, expires_at FROM comments WHERE id > $1 ORDER BY id LIMIT $2";
+export const SNAPSHOT_PAGE_SIZE = 500;
 
 // Only SQL authored by this application reaches this adapter. Keep question
 // marks in quoted values, identifiers, dollar-quoted blocks and comments intact.
@@ -227,28 +230,53 @@ async function reserveSnapshot(destination) {
   await reservation.close();
 }
 
+// The synchronous SQLite writes run in a worker thread so a large backup does not stall requests
+// (audit #13). The code is inlined so serverless bundling has no extra file to trace.
+const SNAPSHOT_WORKER = `
+const { parentPort, workerData } = require("node:worker_threads");
+const { DatabaseSync } = require("node:sqlite");
+const { destination, schema, rows, highWater } = workerData;
+let snapshot;
+try {
+  snapshot = new DatabaseSync(destination);
+  snapshot.exec(schema + " BEGIN IMMEDIATE;");
+  const insert = snapshot.prepare("INSERT INTO comments (id, nickname, content, user_id, is_guest, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)");
+  for (const row of rows) insert.run(row.id, row.nickname, row.content, row.user_id, row.is_guest, row.created_at, row.expires_at);
+  // IDs already issued and later deleted must stay unavailable after restore,
+  // including when every comment has been deleted from the source database.
+  snapshot.prepare("DELETE FROM sqlite_sequence WHERE name = ?").run("comments");
+  // sqlite_sequence.seq has no INTEGER affinity: node:sqlite binds Numbers
+  // as REAL, so cast explicitly for interoperable integer backup metadata.
+  snapshot.prepare("INSERT INTO sqlite_sequence (name, seq) VALUES (?, CAST(? AS INTEGER))").run("comments", highWater);
+  snapshot.exec("COMMIT");
+  if (snapshot.prepare("PRAGMA quick_check").get().quick_check !== "ok") throw new Error("Backup integrity check failed");
+  snapshot.close();
+  snapshot = undefined;
+  parentPort.postMessage({ ok: true });
+} catch (error) {
+  try { snapshot?.close(); } catch {}
+  parentPort.postMessage({ ok: false, message: String(error?.message || error) });
+}
+`;
+
+function writeSnapshotInWorker(destination, rows, highWater) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (error) => { if (settled) return; settled = true; error ? reject(error) : resolve(); };
+    const worker = new Worker(SNAPSHOT_WORKER, { eval: true, workerData: { destination, schema: `${SQLITE_SCHEMA}${COMMENT_INDEXES}`, rows, highWater } });
+    worker.once("message", message => finish(message?.ok ? null : new Error(message?.message || "Backup snapshot failed")));
+    worker.once("error", finish);
+    worker.once("exit", code => finish(code === 0 ? new Error("Backup snapshot worker exited without a result") : new Error(`Backup snapshot worker exited with code ${code}`)));
+  });
+}
+
 async function sqliteSnapshot(destination, rows, highWater) {
   await reserveSnapshot(destination);
-  let snapshot;
   try {
-    snapshot = new DatabaseSync(destination);
-    snapshot.exec(`${SQLITE_SCHEMA}${COMMENT_INDEXES} BEGIN IMMEDIATE;`);
-    const insert = snapshot.prepare("INSERT INTO comments (id, nickname, content, user_id, is_guest, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)");
-    for (const row of rows) insert.run(row.id, row.nickname, row.content, row.user_id, row.is_guest, row.created_at, row.expires_at);
-    // IDs already issued and later deleted must stay unavailable after restore,
-    // including when every comment has been deleted from the source database.
-    snapshot.prepare("DELETE FROM sqlite_sequence WHERE name = ?").run("comments");
-    // sqlite_sequence.seq has no INTEGER affinity: node:sqlite binds Numbers
-    // as REAL, so cast explicitly for interoperable integer backup metadata.
-    snapshot.prepare("INSERT INTO sqlite_sequence (name, seq) VALUES (?, CAST(? AS INTEGER))").run("comments", highWater);
-    snapshot.exec("COMMIT");
-    if (snapshot.prepare("PRAGMA quick_check").get().quick_check !== "ok") throw new Error("Backup integrity check failed");
-    snapshot.close();
-    snapshot = undefined;
+    await writeSnapshotInWorker(destination, rows, highWater);
     await chmod(destination, 0o600);
     return destination;
   } catch (error) {
-    try { snapshot?.close(); } catch {}
     await rm(destination, { force: true });
     throw error;
   }
@@ -322,7 +350,15 @@ export async function createPostgresDatabase(pool) {
       let rows, highWater;
       try {
         await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
-        rows = postgresRows(await client.query(SELECT_SNAPSHOT));
+        rows = [];
+        for (let after = 0; ;) {
+          const page = postgresRows(await client.query(SELECT_SNAPSHOT_PAGE, [after, SNAPSHOT_PAGE_SIZE]));
+          rows.push(...page);
+          if (page.length < SNAPSHOT_PAGE_SIZE) break;
+          const last = page.at(-1).id;
+          if (!(last > after)) throw new Error("Snapshot paging did not advance");
+          after = last;
+        }
         const sequence = postgresRows(await client.query("SELECT pg_sequence_last_value(pg_get_serial_sequence('comments', 'id')::regclass) AS high_water"))[0];
         highWater = Math.max(rows.at(-1)?.id || 0, safeInteger(sequence?.high_water ?? 0));
         await client.query("COMMIT");

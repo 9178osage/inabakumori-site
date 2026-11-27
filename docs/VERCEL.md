@@ -42,7 +42,7 @@ Vercel 的本地文件系统不能持久保存留言；不得把 Railway 的 `co
 | `ADDITIONAL_WEBSITE_ORIGINS` | 仅按需填明确的受信前端 origin，逗号分隔；不使用通配符 |
 | `SUPERTOKENS_CONNECTION_URI` / `SUPERTOKENS_API_KEY` | 沿用现有 SuperTokens Core 的连接配置 |
 | `ADMIN_USER_IDS` | 沿用现有管理员的稳定 user ID，不用邮箱代替 |
-| `BACKUP_TOKEN` | 如需受保护快照下载，设置至少 32 字符的随机令牌 |
+| `BACKUP_TOKEN` | 如需受保护快照下载，设置至少 32 字符的随机令牌。快照在一次 REPEATABLE READ 只读事务内按 ID 分页（每页 500 条）读取，SQLite 文件在工作线程中写入并做完整性检查，不阻塞其他请求 |
 | `COMMENTS_READ_ONLY` | 仅精确值 `1` 暂停所有留言 `POST` / `DELETE` 并返回 `503 COMMENTS_READ_ONLY`，用于最终备份维护窗口；设置或取消后重新部署 |
 | `TRUST_PROXY` / `CLIENT_IP_HEADER` | Vercel 通常留空，优先平台专用 `X-Vercel-Forwarded-For`；自定义只允许平台 IP 头或 `none`，增加代理时重新核对信任链 |
 

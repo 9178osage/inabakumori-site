@@ -167,7 +167,7 @@ test("PostgreSQL discards connections after rollback failures in initialization,
     let failOperation = phase === "initialization";
     const pool = fakePool(sql => {
       if (sql === "ROLLBACK") throw rollbackError;
-      if (failOperation && (phase === "initialization" && sql.includes("CREATE TABLE") || phase === "snapshot" && sql.includes("FROM comments ORDER BY id"))) throw operationError;
+      if (failOperation && (phase === "initialization" && sql.includes("CREATE TABLE") || phase === "snapshot" && sql.includes("FROM comments WHERE id > $1 ORDER BY id"))) throw operationError;
       return { rows: [], fields: [], rowCount: 0 };
     });
     let db;
@@ -267,7 +267,7 @@ test("PostgreSQL backup produces a restorable SQLite snapshot with exact IDs and
   const directory = await mkdtemp(path.join(tmpdir(), "station-postgres-snapshot-"));
   const rows = [{ id: "42", nickname: "ユーザー", content: "完整正文\nmore", user_id: "member", is_guest: 0, created_at: "1800000000000", expires_at: null }];
   const pool = fakePool(sql => {
-    if (sql.includes("FROM comments ORDER BY id")) return { rows, fields: ["id", "created_at", "expires_at"].map(name => ({ name, dataTypeID: 20 })) };
+    if (sql.includes("FROM comments WHERE id > $1 ORDER BY id")) return { rows, fields: ["id", "created_at", "expires_at"].map(name => ({ name, dataTypeID: 20 })) };
     if (sql.includes("pg_sequence_last_value")) return { rows: [{ high_water: "100" }], fields: [{ name: "high_water", dataTypeID: 20 }] };
     return { rows: [], fields: [], rowCount: 0 };
   });
@@ -296,7 +296,7 @@ test("PostgreSQL snapshots release the committed client before local file errors
       const destination = path.join(directory, occupied ? "preserve.db" : "invalid-row.db");
       if (occupied) await writeFile(destination, "preserve prior backup");
       const pool = fakePool(sql => {
-        if (sql.includes("FROM comments ORDER BY id")) return { rows: occupied ? [] : [{ id: 1, nickname: {}, content: "synthetic", user_id: null, is_guest: 1, created_at: 1, expires_at: null }], fields: [] };
+        if (sql.includes("FROM comments WHERE id > $1 ORDER BY id")) return { rows: occupied ? [] : [{ id: 1, nickname: {}, content: "synthetic", user_id: null, is_guest: 1, created_at: 1, expires_at: null }], fields: [] };
         if (sql.includes("pg_sequence_last_value")) return { rows: [{ high_water: "1" }], fields: [{ name: "high_water", dataTypeID: 20 }] };
         return { rows: [], fields: [], rowCount: 0 };
       });
@@ -306,7 +306,7 @@ test("PostgreSQL snapshots release the committed client before local file errors
         const calls = pool.calls.filter(call => call.connection === 2);
         assert.deepEqual(calls.map(call => call.sql), [
           "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY",
-          "SELECT id, nickname, content, user_id, is_guest, created_at, expires_at FROM comments ORDER BY id",
+          "SELECT id, nickname, content, user_id, is_guest, created_at, expires_at FROM comments WHERE id > $1 ORDER BY id LIMIT $2",
           "SELECT pg_sequence_last_value(pg_get_serial_sequence('comments', 'id')::regclass) AS high_water",
           "COMMIT", "release"
         ]);
@@ -325,7 +325,7 @@ test("PostgreSQL snapshots preserve integer MAX_SAFE_INTEGER sequence metadata w
     for (const populated of [true, false]) {
       const rows = populated ? [{ id: String(Number.MAX_SAFE_INTEGER), nickname: "name", content: "last safe ID", user_id: null, is_guest: 1, created_at: "1800000000000", expires_at: null }] : [];
       const pool = fakePool(sql => {
-        if (sql.includes("FROM comments ORDER BY id")) return { rows, fields: ["id", "created_at", "expires_at"].map(name => ({ name, dataTypeID: 20 })) };
+        if (sql.includes("FROM comments WHERE id > $1 ORDER BY id")) return { rows, fields: ["id", "created_at", "expires_at"].map(name => ({ name, dataTypeID: 20 })) };
         if (sql.includes("pg_sequence_last_value")) return { rows: [{ high_water: String(Number.MAX_SAFE_INTEGER) }], fields: [{ name: "high_water", dataTypeID: 20 }] };
         return { rows: [], fields: [], rowCount: 0 };
       });
@@ -346,4 +346,38 @@ test("PostgreSQL snapshots preserve integer MAX_SAFE_INTEGER sequence metadata w
       } finally { await db.close(); }
     }
   } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+test("PostgreSQL snapshots page by ID inside one REPEATABLE READ transaction and write SQLite off the request thread (audit #13)", async () => {
+  const { createPostgresDatabase, SNAPSHOT_PAGE_SIZE } = await import("../../backend/database.mjs");
+  const directory = await mkdtemp(path.join(tmpdir(), "station-postgres-paged-snapshot-"));
+  const total = SNAPSHOT_PAGE_SIZE * 2 + 7;
+  const all = Array.from({ length: total }, (_, index) => ({ id: String(index * 3 + 1), nickname: `n${index}`, content: `c${index}`, user_id: null, is_guest: 1, created_at: "1800000000000", expires_at: null }));
+  const pool = fakePool((sql, parameters) => {
+    if (sql.includes("FROM comments WHERE id > $1 ORDER BY id")) {
+      const [after, limit] = parameters;
+      return { rows: all.filter(row => Number(row.id) > after).slice(0, limit), fields: ["id", "created_at", "expires_at"].map(name => ({ name, dataTypeID: 20 })) };
+    }
+    if (sql.includes("pg_sequence_last_value")) return { rows: [{ high_water: "5000" }], fields: [{ name: "high_water", dataTypeID: 20 }] };
+    return { rows: [], fields: [], rowCount: 0 };
+  });
+  const db = await createPostgresDatabase(pool);
+  try {
+    const destination = path.join(directory, "snapshot.db");
+    await db.snapshot(destination);
+    const calls = pool.calls.filter(call => call.connection === 2);
+    const pages = calls.filter(call => call.sql.includes("WHERE id > $1"));
+    assert.equal(pages.length, 3);
+    assert.deepEqual(pages.map(call => call.parameters), [[0, SNAPSHOT_PAGE_SIZE], [Number(all[SNAPSHOT_PAGE_SIZE - 1].id), SNAPSHOT_PAGE_SIZE], [Number(all[SNAPSHOT_PAGE_SIZE * 2 - 1].id), SNAPSHOT_PAGE_SIZE]]);
+    assert.equal(calls[0].sql, "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
+    assert.deepEqual(calls.slice(-2).map(call => call.sql), ["COMMIT", "release"]);
+    const copy = new DatabaseSync(destination, { readOnly: true });
+    try {
+      assert.equal(copy.prepare("SELECT count(*) AS n FROM comments").get().n, total);
+      assert.equal(copy.prepare("SELECT max(id) AS id FROM comments").get().id, Number(all.at(-1).id));
+      assert.equal(copy.prepare("SELECT seq FROM sqlite_sequence WHERE name = 'comments'").get().seq, 5000);
+      assert.equal(copy.prepare("PRAGMA quick_check").get().quick_check, "ok");
+    } finally { copy.close(); }
+    assert.match(await readFile(path.join(__dirname, "../../backend/database.mjs"), "utf8"), /new Worker\(SNAPSHOT_WORKER, \{ eval: true/u);
+  } finally { await db.close(); await rm(directory, { recursive: true, force: true }); }
 });
