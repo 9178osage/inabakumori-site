@@ -7,22 +7,41 @@ const { DatabaseSync } = require("node:sqlite");
 
 const script = fs.readFileSync(path.join(__dirname, "../../script.js"), "utf8");
 
+
+// Probes the production async insert path; the probe transaction always rolls back.
+async function duplicateProbe(sqlite) {
+  const { insertFreshCommentAsync } = await import("../../backend/services.mjs");
+  const db = {
+    kind: "sqlite",
+    async transaction(callback) {
+      sqlite.exec("BEGIN IMMEDIATE");
+      try {
+        const wrap = statement => Object.fromEntries(["all", "get", "run"].map(method => [method, async (...args) => statement[method](...args)]));
+        return await callback({ prepare: sql => wrap(sqlite.prepare(sql)) });
+      } finally { sqlite.exec("ROLLBACK"); }
+    }
+  };
+  return async (content, userId, now) => {
+    const row = { nickname: "probe", content, userId, isGuest: !userId, createdAt: now, expiresAt: null };
+    return (await insertFreshCommentAsync(db, { row, memberCap: 0 })).code === "DUPLICATE_COMMENT";
+  };
+}
+
 test("2: duplicate detection ignores rows that have already expired", async () => {
-  const { createRecentDuplicateChecker } = await import("../../backend/services.mjs");
   const db = new DatabaseSync(":memory:");
   try {
-    db.exec("CREATE TABLE comments(content TEXT, user_id TEXT, is_guest INTEGER, created_at INTEGER, expires_at INTEGER)");
+    db.exec("CREATE TABLE comments(id INTEGER PRIMARY KEY, nickname TEXT, content TEXT, user_id TEXT, is_guest INTEGER, created_at INTEGER, expires_at INTEGER)");
     const now = 1800000000000;
-    const insert = db.prepare("INSERT INTO comments VALUES(?,?,?,?,?)");
+    const insert = db.prepare("INSERT INTO comments(content, user_id, is_guest, created_at, expires_at) VALUES(?,?,?,?,?)");
     insert.run("expired guest text", null, 1, now - 60_000, now - 1);
     insert.run("expired member text", "alice", 0, now - 60_000, now);
     insert.run("live guest text here", null, 1, now - 60_000, now + 1000);
     insert.run("permanent member text", "alice", 0, now - 60_000, null);
-    const duplicate = createRecentDuplicateChecker(db);
-    assert.equal(duplicate("expired guest text", null, now), false);
-    assert.equal(duplicate("expired member text", "alice", now), false, "expires_at == now is expired");
-    assert.equal(duplicate("live guest text here", null, now), true);
-    assert.equal(duplicate("permanent member text", "alice", now), true);
+    const duplicate = await duplicateProbe(db);
+    assert.equal(await duplicate("expired guest text", null, now), false);
+    assert.equal(await duplicate("expired member text", "alice", now), false, "expires_at == now is expired");
+    assert.equal(await duplicate("live guest text here", null, now), true);
+    assert.equal(await duplicate("permanent member text", "alice", now), true);
   } finally { db.close(); }
 });
 
@@ -162,4 +181,11 @@ test("4: server and client reject lone surrogates but keep real emoji", async ()
   }
   const add = script.match(/async function addMessage\(\) \{([\s\S]*?)\n\}/)[1];
   assert.match(add, /hasLoneSurrogate\(nickname\) \|\| hasLoneSurrogate\(content\)/);
+});
+
+test("comment dedupe has one implementation: the async insert path (audit #16)", async () => {
+  const services = await import("../../backend/services.mjs");
+  assert.equal(services.createRecentDuplicateChecker, undefined);
+  assert.equal(services.insertFreshComment, undefined);
+  assert.equal(typeof services.insertFreshCommentAsync, "function");
 });

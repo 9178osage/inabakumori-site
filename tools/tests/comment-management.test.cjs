@@ -22,6 +22,26 @@ function commentElement(hidden = false) {
   };
 }
 
+
+// Probes the production async insert path; the probe transaction always rolls back.
+async function duplicateProbe(sqlite) {
+  const { insertFreshCommentAsync } = await import('../../backend/services.mjs');
+  const db = {
+    kind: 'sqlite',
+    async transaction(callback) {
+      sqlite.exec('BEGIN IMMEDIATE');
+      try {
+        const wrap = statement => Object.fromEntries(['all', 'get', 'run'].map(method => [method, async (...args) => statement[method](...args)]));
+        return await callback({ prepare: sql => wrap(sqlite.prepare(sql)) });
+      } finally { sqlite.exec('ROLLBACK'); }
+    }
+  };
+  return async (content, userId, now) => {
+    const row = { nickname: 'probe', content, userId, isGuest: !userId, createdAt: now, expiresAt: null };
+    return (await insertFreshCommentAsync(db, { row, memberCap: 0 })).code === 'DUPLICATE_COMMENT';
+  };
+}
+
 test('auth POST throttling covers tenant paths and URL normalization; disabled email-exists API needs no limiter', async () => {
   const express = require('../../backend/node_modules/express');
   const { ipKeyGenerator } = require('../../backend/node_modules/express-rate-limit');
@@ -675,41 +695,39 @@ test('deletion notifications after sign-out cannot reveal either management pane
 });
 
 test('duplicate comments are scoped to the signed-in account and expire after ten minutes', async () => {
-  const { createRecentDuplicateChecker } = await import('../../backend/services.mjs');
   const db = new DatabaseSync(':memory:');
   try {
-    db.exec('CREATE TABLE comments(content TEXT, user_id TEXT, is_guest INTEGER, created_at INTEGER, expires_at INTEGER)');
+    db.exec('CREATE TABLE comments(id INTEGER PRIMARY KEY, nickname TEXT, content TEXT, user_id TEXT, is_guest INTEGER, created_at INTEGER, expires_at INTEGER)');
     const now = 1800000000000;
     const insert = db.prepare('INSERT INTO comments(content, user_id, is_guest, created_at) VALUES(?,?,?,?)');
     insert.run('  Great　song!  ', 'alice', 0, now - 1000);
     insert.run('old comment', 'alice', 0, now - 600000);
     insert.run('guest comment', null, 1, now);
-    const duplicate = createRecentDuplicateChecker(db);
-    assert.equal(duplicate('great song!', 'alice', now), true);
-    assert.equal(duplicate('great song!', 'bob', now), false);
-    assert.equal(duplicate('great song!', null, now), false);
-    assert.equal(duplicate('guest comment', null, now), true);
-    assert.equal(duplicate('guest comment', 'alice', now), false);
-    assert.equal(duplicate('old comment', 'alice', now), false);
-    assert.equal(duplicate('another song', 'alice', now), false);
+    const duplicate = await duplicateProbe(db);
+    assert.equal(await duplicate('great song!', 'alice', now), true);
+    assert.equal(await duplicate('great song!', 'bob', now), false);
+    assert.equal(await duplicate('great song!', null, now), false);
+    assert.equal(await duplicate('guest comment', null, now), true);
+    assert.equal(await duplicate('guest comment', 'alice', now), false);
+    assert.equal(await duplicate('old comment', 'alice', now), false);
+    assert.equal(await duplicate('another song', 'alice', now), false);
   } finally { db.close(); }
 });
 
 test('guest same-text dedup uses a short global window and ignores member posts', async () => {
-  const { createRecentDuplicateChecker } = await import('../../backend/services.mjs');
   const db = new DatabaseSync(':memory:');
   try {
-    db.exec('CREATE TABLE comments(content TEXT, user_id TEXT, is_guest INTEGER, created_at INTEGER, expires_at INTEGER)');
+    db.exec('CREATE TABLE comments(id INTEGER PRIMARY KEY, nickname TEXT, content TEXT, user_id TEXT, is_guest INTEGER, created_at INTEGER, expires_at INTEGER)');
     const now = 1800000000000;
     const insert = db.prepare('INSERT INTO comments(content, user_id, is_guest, created_at) VALUES(?,?,?,?)');
     insert.run('  Nice　track  ', null, 1, now - 60_000);
     insert.run('Nice track', 'member', 0, now - 30_000);
     insert.run('stale guest', null, 1, now - 6 * 60_000);
-    const duplicate = createRecentDuplicateChecker(db);
-    assert.equal(duplicate('nice track', null, now), true);
-    assert.equal(duplicate('nice track', 'other', now), false);
-    assert.equal(duplicate('stale guest', null, now), false);
-    assert.equal(duplicate('brand new', null, now), false);
+    const duplicate = await duplicateProbe(db);
+    assert.equal(await duplicate('nice track', null, now), true);
+    assert.equal(await duplicate('nice track', 'other', now), false);
+    assert.equal(await duplicate('stale guest', null, now), false);
+    assert.equal(await duplicate('brand new', null, now), false);
   } finally { db.close(); }
 });
 

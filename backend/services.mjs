@@ -284,27 +284,6 @@ export function normalizeRequestPath(value) {
 // Guests: mild global same-text window (5 minutes) for longer posts only.
 // Short phrases such as "喜欢" are not globally unique.
 const GUEST_GLOBAL_DEDUP_MIN_LENGTH = 8;
-export function createRecentDuplicateChecker(db, {
-  memberWindowMs = 10 * 60 * 1000,
-  guestWindowMs = 5 * 60 * 1000
-} = {}) {
-  const recentMember = db.prepare(`SELECT content FROM comments
-    WHERE user_id = ? AND is_guest = 0 AND created_at > ?
-      AND (expires_at IS NULL OR expires_at > ?)`);
-  const recentGuest = db.prepare(`SELECT content FROM comments
-    WHERE is_guest = 1 AND created_at > ?
-      AND (expires_at IS NULL OR expires_at > ?)`);
-  return (content, userId, now = Date.now()) => {
-    const normalized = normalizeCommentForComparison(content);
-    if (userId) {
-      return recentMember.all(userId, now - memberWindowMs, now)
-        .some(row => normalizeCommentForComparison(row.content) === normalized);
-    }
-    if (Array.from(normalized).length < GUEST_GLOBAL_DEDUP_MIN_LENGTH) return false;
-    return recentGuest.all(now - guestWindowMs, now)
-      .some(row => normalizeCommentForComparison(row.content) === normalized);
-  };
-}
 
 // Invisible characters are often used as separators ("138<U+2800>1234<U+2800>5678" reads like a phone
 // number). For the filter they become spaces, so the patterns see the separators a human sees; the
@@ -333,29 +312,6 @@ export function detectCommentSafetyIssue(content) {
 }
 
 // Check and insert in one write transaction so two identical posts cannot both pass.
-export function insertFreshComment(db, { duplicate, insert, countMember, memberCap = 100, row }) {
-  db.exec("BEGIN IMMEDIATE");
-  try {
-    if (duplicate(row.content, row.userId, row.createdAt)) {
-      db.exec("ROLLBACK");
-      return { ok: false, code: "DUPLICATE_COMMENT" };
-    }
-    if (row.userId && memberCap > 0) {
-      const count = Number(countMember.get(row.userId)?.n || 0);
-      if (count >= memberCap) {
-        db.exec("ROLLBACK");
-        return { ok: false, code: "MEMBER_COMMENT_CAP" };
-      }
-    }
-    const result = insert.run(row.nickname, row.content, row.userId, row.isGuest ? 1 : 0, row.createdAt, row.expiresAt);
-    db.exec("COMMIT");
-    return { ok: true, id: Number(result.lastInsertRowid) };
-  } catch (error) {
-    try { db.exec("ROLLBACK"); } catch { /* transaction already closed */ }
-    throw error;
-  }
-}
-
 // Negative advisory keys cannot hit the positive schema compatibility gate.
 function advisoryLockKey(identity) {
   const digest = createHash("sha256").update(identity).digest();
