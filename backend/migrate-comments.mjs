@@ -4,18 +4,23 @@ import { DatabaseSync } from "node:sqlite";
 import { realpathSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isCommentTime } from "./comment-time.mjs";
 
 const COLUMNS = ["id", "nickname", "content", "user_id", "is_guest", "created_at", "expires_at"];
 const SELECT_COMMENTS = `SELECT ${COLUMNS.join(", ")} FROM comments ORDER BY id`;
 const INSERT_COMMENT = `INSERT INTO comments (${COLUMNS.join(", ")}) VALUES (?, ?, ?, ?, ?, ?, ?)`;
 const directory = path.dirname(fileURLToPath(import.meta.url));
-const HELP = "Usage: node backend/migrate-comments.mjs --source /private/backup.db [--dry-run | --apply]\nDry-run is the default and does not connect to PostgreSQL. --apply requires DATABASE_URL.";
+const HELP = "Usage: node backend/migrate-comments.mjs --source /private/backup.db [--dry-run | --apply [--accept-target-history]]\n" +
+  "Dry-run is the default and does not connect to PostgreSQL. --apply requires DATABASE_URL.\n" +
+  "An empty target that already issued comment IDs is refused when the backup reuses them; pass --accept-target-history\n" +
+  "only when the backup comes from that same database, so its IDs are the comments the target issued.";
 
 class MigrationError extends Error {}
 
 export function parseMigrationArgs(args) {
   let source;
   let mode;
+  let acceptTargetHistory = false;
   if (args.length === 1 && ["--help", "-h"].includes(args[0])) return { help: true };
   for (let index = 0; index < args.length; index++) {
     const arg = args[index];
@@ -23,20 +28,34 @@ export function parseMigrationArgs(args) {
       source = args[++index];
     } else if (["--dry-run", "--apply"].includes(arg) && mode === undefined) {
       mode = arg;
+    } else if (arg === "--accept-target-history" && !acceptTargetHistory) {
+      acceptTargetHistory = true;
     } else {
       throw new MigrationError("Invalid arguments; use --source with one backup path and optionally --dry-run or --apply");
     }
   }
   if (!source) throw new MigrationError("A SQLite backup is required; pass --source /private/backup.db");
-  return { source: path.resolve(source), apply: mode === "--apply" };
+  if (acceptTargetHistory && mode !== "--apply") throw new MigrationError("--accept-target-history is only meaningful with --apply");
+  return { source: path.resolve(source), apply: mode === "--apply", acceptTargetHistory };
 }
 
 function validRow(row) {
   return Number.isSafeInteger(row.id) && row.id > 0 &&
     typeof row.nickname === "string" && typeof row.content === "string" &&
     (row.user_id === null || typeof row.user_id === "string") &&
-    [0, 1].includes(row.is_guest) && Number.isSafeInteger(row.created_at) &&
-    (row.expires_at === null || Number.isSafeInteger(row.expires_at));
+    [0, 1].includes(row.is_guest) && isCommentTime(row.created_at) &&
+    (row.expires_at === null || isCommentTime(row.expires_at));
+}
+
+// Names the offending comments (IDs only, never text) so a bad backup can be fixed before import.
+export function describeInvalidRows(rows, limit = 10) {
+  const labels = [];
+  rows.forEach((row, index) => {
+    if (validRow(row)) return;
+    labels.push(Number.isSafeInteger(row.id) ? `ID ${row.id}` : `row ${index + 1}`);
+  });
+  if (!labels.length) return null;
+  return labels.length > limit ? `${labels.slice(0, limit).join(", ")} and ${labels.length - limit} more` : labels.join(", ");
 }
 
 function readSource(source) {
@@ -46,7 +65,8 @@ function readSource(source) {
     db.exec("BEGIN");
     if (db.prepare("PRAGMA quick_check").get().quick_check !== "ok") throw new Error("integrity");
     const rows = db.prepare(SELECT_COMMENTS).all();
-    if (rows.some(row => !validRow(row))) throw new MigrationError("Source comments contain unsupported field values; no data was imported");
+    const invalid = describeInvalidRows(rows);
+    if (invalid) throw new MigrationError(`Source comments contain unsupported field values (${invalid}); times must be non-negative milliseconds JavaScript can represent; no data was imported`);
     const maxId = rows.at(-1)?.id || 0;
     const sequenceTable = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'sqlite_sequence'").get();
     const sequence = sequenceTable && db.prepare("SELECT seq FROM sqlite_sequence WHERE name = 'comments'").get();
@@ -78,7 +98,7 @@ async function openTarget(env) {
 }
 
 // openTarget is injectable so rollback and refusal paths can be tested without a live database.
-export async function migrateComments({ source, apply = false, env = process.env }, dependencies = {}) {
+export async function migrateComments({ source, apply = false, acceptTargetHistory = false, env = process.env }, dependencies = {}) {
   if (typeof source !== "string" || !source) throw new MigrationError("A SQLite backup is required; pass --source /private/backup.db");
   const { rows, highWater } = readSource(source);
   const result = {
@@ -90,6 +110,7 @@ export async function migrateComments({ source, apply = false, env = process.env
   requirePostgresUrl(env);
   const log = dependencies.log || console;
   let target;
+  let targetHighWater = 0;
   try {
     target = await (dependencies.openTarget || openTarget)(env);
     if (target.kind !== "postgres") throw new MigrationError("The migration target must be PostgreSQL");
@@ -98,14 +119,25 @@ export async function migrateComments({ source, apply = false, env = process.env
       await tx.exec("LOCK TABLE comments IN EXCLUSIVE MODE");
       const count = await tx.prepare("SELECT COUNT(*) AS n FROM comments").get();
       if (Number(count.n) !== 0) throw new MigrationError("Target comments table is not empty; no data was imported");
+      // An empty table may still have issued IDs (deleted comments). Never move its sequence back,
+      // and refuse to give old IDs to backup rows unless the operator confirms they are the same comments.
+      const issued = await tx.prepare("SELECT pg_sequence_last_value(pg_get_serial_sequence('comments', 'id')::regclass) AS issued").get();
+      const targetIssued = issued?.issued === null || issued?.issued === undefined ? 0 : Number(issued.issued);
+      if (!Number.isSafeInteger(targetIssued) || targetIssued < 0) throw new MigrationError("Target comment ID sequence is invalid; no data was imported");
+      if (targetIssued > 0 && rows.length && rows[0].id <= targetIssued && !acceptTargetHistory) {
+        throw new MigrationError(`Target already issued comment IDs up to ${targetIssued}, which overlap this backup; no data was imported. ` +
+          "Use a fresh database, or pass --accept-target-history only if the backup comes from this same database");
+      }
+      targetHighWater = targetIssued;
       const insert = tx.prepare(INSERT_COMMENT);
       for (const row of rows) await insert.run(...COLUMNS.map(column => row[column]));
       const imported = await tx.prepare(SELECT_COMMENTS).all();
       if (imported.length !== rows.length || rows.some((row, index) => COLUMNS.some(column => row[column] !== imported[index][column]))) {
         throw new MigrationError("Imported comments failed exact field verification; the transaction was rolled back");
       }
-      if (highWater > 0) {
-        await tx.prepare("SELECT setval(pg_get_serial_sequence('comments', 'id'), ?, true)").get(highWater);
+      const nextHighWater = Math.max(highWater, targetHighWater);
+      if (nextHighWater > 0) {
+        await tx.prepare("SELECT setval(pg_get_serial_sequence('comments', 'id'), ?, true)").get(nextHighWater);
       }
     });
   } catch (error) {

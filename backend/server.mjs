@@ -9,6 +9,7 @@ import { createRequestRateLimit } from "./request-rate-limit.mjs";
 import { createClientIdentity } from "./client-identity.mjs";
 import { createRequestMaintenance } from "./request-maintenance.mjs";
 import { createPendingSessionRevocations } from "./session-revocation.mjs";
+import { coreTransportProblem } from "./transport-security.mjs";
 import { createPublicCommentsCache, applyPublicCommentsCacheHeaders, PUBLIC_COMMENTS_CACHE_TAG } from "./public-comments-cache.mjs";
 import { createPostgresRateLimitStore, cleanupExpiredRateLimits, pairNextIncrement, withRateLimitRequestContext } from "./rate-limit-store.mjs";
 import { commentWriteMaintenance } from "./maintenance.mjs";
@@ -86,6 +87,11 @@ if (IS_PRODUCTION) {
   if (!WEBSITE_DOMAIN.startsWith("https://")) {
     failStartup("Production WEBSITE_DOMAIN must use HTTPS");
   }
+}
+if (IS_PRODUCTION || IS_VERCEL) {
+  // The Core receives the API key and session data; refuse a plain-text link off this machine.
+  const coreProblem = coreTransportProblem(SUPERTOKENS_CONNECTION_URI, process.env);
+  if (coreProblem) failStartup(coreProblem);
 }
 let clientIp;
 try {

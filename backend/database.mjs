@@ -3,6 +3,7 @@ import { DatabaseSync, backup } from "node:sqlite";
 import { mkdir, open, chmod, rm } from "node:fs/promises";
 import path from "node:path";
 import { resolveDatabasePath } from "./services.mjs";
+import { postgresTransportProblem } from "./transport-security.mjs";
 
 const SCHEMA_COMPATIBILITY_LOCK = 721784230;
 const SQLITE_SCHEMA = `
@@ -22,9 +23,22 @@ const POSTGRES_SCHEMA = `
     content TEXT NOT NULL,
     user_id TEXT,
     is_guest INTEGER NOT NULL DEFAULT 1 CHECK (is_guest IN (0, 1)),
-    created_at BIGINT NOT NULL CHECK (created_at BETWEEN 0 AND 9007199254740991),
-    expires_at BIGINT CHECK (expires_at BETWEEN 0 AND 9007199254740991)
-  );`;
+    created_at BIGINT NOT NULL CHECK (created_at BETWEEN 0 AND 8640000000000000),
+    expires_at BIGINT CHECK (expires_at BETWEEN 0 AND 8640000000000000)
+  );
+  -- Tables created before the Date-range limit keep their rows; NOT VALID applies the
+  -- shared range (backend/comment-time.mjs) to every new or changed row without a rescan.
+  DO $comment_time_range$
+  BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'comments'::regclass AND conname = 'comments_time_range') THEN
+      ALTER TABLE comments ADD CONSTRAINT comments_time_range CHECK (
+        created_at BETWEEN 0 AND 8640000000000000 AND (expires_at IS NULL OR expires_at BETWEEN 0 AND 8640000000000000)) NOT VALID;
+    END IF;
+  EXCEPTION WHEN insufficient_privilege OR lock_not_available THEN
+    -- A role that cannot alter the table keeps the older constraint; the app still writes valid times.
+    RAISE NOTICE 'comments_time_range not added';
+  END
+  $comment_time_range$;`;
 const COMMENT_INDEXES = `
   CREATE INDEX IF NOT EXISTS idx_comments_created_at ON comments(created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_comments_expiry ON comments(is_guest, expires_at);
@@ -403,6 +417,10 @@ export async function openDatabase(env, directory) {
     if (!["postgres:", "postgresql:"].includes(url.protocol) || !url.hostname) throw new Error();
   } catch {
     throw Object.assign(new Error("DATABASE_URL must be a PostgreSQL connection URL"), { code: "DATABASE_CONFIG" });
+  }
+  if (env.VERCEL === "1" || env.NODE_ENV === "production") {
+    const problem = postgresTransportProblem(connectionString, env);
+    if (problem) throw Object.assign(new Error(problem), { code: "DATABASE_CONFIG" });
   }
   const { Pool } = await import("pg");
   const pool = new Pool({ connectionString, max: 3, idleTimeoutMillis: 10_000, connectionTimeoutMillis: 10_000, statement_timeout: 15_000, query_timeout: 20_000, allowExitOnIdle: true });

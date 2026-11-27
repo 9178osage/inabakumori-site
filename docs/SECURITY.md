@@ -24,10 +24,11 @@
 | `ADDITIONAL_WEBSITE_ORIGINS` | 可选，逗号分隔的裸 https origin（迁移过渡期用），不接受路径/通配符 |
 | `TRUST_PROXY` | Vercel 留空；其他生产代理入口必须明确配置实际可信跳数 |
 | `CLIENT_IP_HEADER` | Vercel 优先 `X-Vercel-Forwarded-For`；仅允许平台头或 `none`，只接受单个有效 IP，详见下方边界说明 |
-| `DATABASE_URL` | Vercel 必需的 PostgreSQL 连接串；Preview 必须使用独立数据库，不能复用生产 |
+| `DATABASE_URL` | Vercel 必需的 PostgreSQL 连接串；Preview 必须使用独立数据库，不能复用生产。生产启动时远程主机必须启用 TLS 并校验证书（如 `sslmode=require` / `verify-full`，或 `PGSSLMODE`），`disable`、`allow`、`no-verify` 会拒绝启动 |
 | `COMMENTS_READ_ONLY` | 正常为 `0`；迁移维护时设为 `1`，冻结留言发布、删除和过期清理，读取及受保护备份仍可用 |
 | `COMMENTS_DB_PATH` | 仅供本地开发与离线 SQLite 工具；Vercel 和生产回退均使用 PostgreSQL，不恢复旧 SQLite 写入 |
-| `SUPERTOKENS_CONNECTION_URI` / `SUPERTOKENS_API_KEY` | SuperTokens Core |
+| `SUPERTOKENS_CONNECTION_URI` / `SUPERTOKENS_API_KEY` | SuperTokens Core；生产启动时要求每个 Core 地址为 HTTPS，仅本机回环或 `TRUSTED_PLAINTEXT_HOSTS` 列出的主机可用 HTTP |
+| `TRUSTED_PLAINTEXT_HOSTS` | 可选，逗号分隔的主机名；只在私有、另有保护的网络中允许对这些主机使用明文 Core / PostgreSQL 连接。Vercel 正常留空 |
 | `ADMIN_USER_IDS` | **唯一**管理员来源：逗号分隔的 SuperTokens user ID。为空时启动日志警告；`ADMIN_EMAILS` 已移除且会被忽略 |
 | `BACKUP_TOKEN` | ≥32 字符（如 `openssl rand -hex 32`）；未设置或过短时备份接口返回 404 |
 
@@ -42,7 +43,7 @@
 
 - 远程快照：`GET /api/admin/backup`，`Authorization: Bearer <BACKUP_TOKEN>`；每 IP 每小时 5 次、无 CORS、`no-store`，日志不记录令牌。返回 `comments-YYYYMMDD.db`。
 - PostgreSQL 模式仍导出一致性 SQLite 留言快照，保留全部留言字段，不含共享限流计数。`npm --prefix backend run backup` 是 SQLite 本机备份入口；PostgreSQL 使用受保护快照接口和数据库提供商备份。
-- 备份脚本：`tools/remote-backup.py` 使用私有配置，拒绝重定向，并在下载后校验 SQLite 完整性、留言字段及历史 ID 序列；失败非零退出且保留旧快照，成功后只清理其自有命名的文件，并分层保留：30 天内每份、12 周内每周一份、12 个月内每月一份；留言数比上一份骤降一半以上（参照之前最近一份能读取且留言数大于 0 的快照，跳过 0 条和读不出的快照，留言恢复前每天都继续拦住）时跳过清理并以退出码 2 提示核对（审计 A4）。骤降后会在快照目录写入 `drop-guard.json` 记住骤降前的基准，留言恢复到基准一半以上前每天都继续拦住，恢复后自动删除；该文件损坏时同样不清理。站长确认是有意删除留言时，手动删掉该文件即可解除拦截。被拦时 `tools/run-backup.sh` 把区分两种原因的一行摘要（含该文件完整路径）写入 backup.log 和 NEEDS-REVIEW.txt。维护者 Mac 的私有安装副本每日执行，须同步新版才生效；需要机器开机、用户登录且联网。独立异地备份和每日巡检由另一助手管理；维护者于 2026-10-24 确认其地址已改为 Vercel、手动备份成功，当前本地执行环境不接管该主机或任务。令牌、实际路径和调度维护方式记录在私有运维手册，不放入公开仓库。
+- 备份脚本：`tools/remote-backup.py` 使用私有配置，拒绝重定向，并在下载后校验 SQLite 完整性、留言字段及历史 ID 序列；失败非零退出且保留旧快照，成功后只清理其自有命名的文件，并分层保留：30 天内每份、12 周内每周一份、12 个月内每月一份；留言数比上一份骤降一半以上（参照之前最近一份能读取且留言数大于 0 的快照，跳过 0 条和读不出的快照，留言恢复前每天都继续拦住）时跳过清理并以退出码 2 提示核对（审计 A4）。骤降后会在快照目录写入 `drop-guard.json` 记住骤降前的基准，留言恢复到基准一半以上前每天都继续拦住，恢复后自动删除；该文件损坏时同样不清理。站长确认是有意删除留言时，运行 `python3 remote-backup.py --accept-drop <私有配置>` 把最新快照记为新基准（写入 `accepted-baseline.json` 并删除拦截文件）；此后在该快照及更新的快照中，0 条也可作为基准，不会再拿更早的非零快照反复拦截。只手动删掉拦截文件时，首次骤降保护仍会再次触发。被拦时 `tools/run-backup.sh` 把区分两种原因的一行摘要（含该文件完整路径）写入 backup.log 和 NEEDS-REVIEW.txt。维护者 Mac 的私有安装副本每日执行，须同步新版才生效；需要机器开机、用户登录且联网。独立异地备份和每日巡检由另一助手管理；维护者于 2026-10-24 确认其地址已改为 Vercel、手动备份成功，当前本地执行环境不接管该主机或任务。令牌、实际路径和调度维护方式记录在私有运维手册，不放入公开仓库。
 - Neon Free 的恢复历史最多 6 小时且不含定时备份，不能代替上述独立快照。受保护备份响应额外提供实际 Node 版本，供私有日志留存，未授权响应不返回该信息。详见 [迁移后的备份说明](VERCEL.md#回退与后续备份)。
 - 本机/卷内快照：`npm --prefix backend run backup`（见 [OPTIMIZATION.md](OPTIMIZATION.md#数据库备份)）。
 - 快照含全部留言与会员 user ID（无邮箱、密码、令牌、IP），按私密数据保管。令牌泄露时在 Vercel Production 换新值并重新部署；如旧回退入口仍启用，同步轮换。

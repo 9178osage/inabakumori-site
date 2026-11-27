@@ -3,6 +3,18 @@
 // first reads a database counter that triggers bump on any comment write, so a
 // post or deletion on another instance is seen on the next request. A failed
 // version probe keeps serving the snapshot until its 30-second deadline.
+import { isCommentTime } from "./comment-time.mjs";
+
+// A stored row whose time JavaScript cannot represent is left out instead of failing the whole list.
+function publicRow(row) {
+  const createdAt = Number(row.created_at);
+  const expiresAt = row.expires_at === null ? null : Number(row.expires_at);
+  if (!isCommentTime(createdAt) || (expiresAt !== null && !isCommentTime(expiresAt))) return null;
+  return Object.freeze({ id: Number(row.id), nickname: row.nickname, content: row.content,
+    isGuest: Boolean(row.is_guest), isAdmin: row.is_admin === true, createdAt: new Date(createdAt).toISOString(),
+    expiresAt: expiresAt === null ? null : new Date(expiresAt).toISOString() });
+}
+
 export function createPublicCommentsCache({ load, version, now = Date.now }) {
   let cached;
   let pending;
@@ -47,9 +59,7 @@ export function createPublicCommentsCache({ load, version, now = Date.now }) {
       if (generationAtStart !== generation) return read();
       const completedAt = now();
       const comments = rows.filter(row => row.expires_at === null || Number(row.expires_at) > completedAt)
-        .map(row => Object.freeze({ id: Number(row.id), nickname: row.nickname, content: row.content,
-          isGuest: Boolean(row.is_guest), isAdmin: row.is_admin === true, createdAt: new Date(row.created_at).toISOString(),
-          expiresAt: row.expires_at === null ? null : new Date(row.expires_at).toISOString() }));
+        .map(publicRow).filter(Boolean);
       // Count slow queries toward the TTL; refill when a guest expires, too.
       const until = Math.min(loadStartedAt + 30_000, ...rows.filter(row => row.expires_at !== null).map(row => Number(row.expires_at)));
       Object.freeze(comments);
