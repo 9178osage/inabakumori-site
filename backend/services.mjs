@@ -578,10 +578,13 @@ export function passwordResetDelivery(websiteDomain) {
 // SuperTokens keeps existing sessions after a password reset. Revoke all of the user's
 // sessions (across tenants and linked accounts) once the reset succeeded. A revocation
 // failure is logged without tokens or emails and never turns a completed reset into a 500.
-export function revokeSessionsAfterPasswordReset(passwordResetPOST, revokeAllSessionsForUser, log = console) {
+// When both immediate attempts fail, the account is handed to a durable queue (onPersistentFailure)
+// that keeps retrying, revoking only sessions created before this reset.
+export function revokeSessionsAfterPasswordReset(passwordResetPOST, revokeAllSessionsForUser, log = console, { onPersistentFailure, now = Date.now } = {}) {
   return async input => {
     const response = await passwordResetPOST(input);
     if (response?.status !== "OK") return response;
+    const resetAt = now();
     const userId = response.user?.id;
     if (typeof userId !== "string" || !userId) {
       log.warn("Password reset succeeded without a user id; no sessions revoked");
@@ -590,13 +593,21 @@ export function revokeSessionsAfterPasswordReset(passwordResetPOST, revokeAllSes
     // The reset token is already consumed and the new password already stored, so a revocation
     // failure must never surface as a 500. One immediate retry covers a transient hiccup between
     // this process and the Core; if it still fails the error is logged with name/code only (no user
-    // id, token or address) and the reset still reports success.
+    // id, token or address), the account is queued for later revocation and the reset still reports success.
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
         await revokeAllSessionsForUser(userId);
         return response;
       } catch (error) {
         if (attempt === 2) log.error("Session revocation after password reset failed", { name: error?.name, code: error?.code });
+      }
+    }
+    if (typeof onPersistentFailure === "function") {
+      try {
+        await onPersistentFailure(userId, resetAt);
+        log.warn("Session revocation queued for retry after password reset");
+      } catch (error) {
+        log.error("Could not queue session revocation after password reset", { name: error?.name, code: error?.code });
       }
     }
     return response;

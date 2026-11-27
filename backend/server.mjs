@@ -8,6 +8,7 @@ import { createDatabaseAccess } from "./database-access.mjs";
 import { createRequestRateLimit } from "./request-rate-limit.mjs";
 import { createClientIdentity } from "./client-identity.mjs";
 import { createRequestMaintenance } from "./request-maintenance.mjs";
+import { createPendingSessionRevocations } from "./session-revocation.mjs";
 import { createPublicCommentsCache, applyPublicCommentsCacheHeaders, PUBLIC_COMMENTS_CACHE_TAG } from "./public-comments-cache.mjs";
 import { createPostgresRateLimitStore, cleanupExpiredRateLimits, pairNextIncrement, withRateLimitRequestContext } from "./rate-limit-store.mjs";
 import { commentWriteMaintenance } from "./maintenance.mjs";
@@ -150,6 +151,12 @@ app.use((_req, res, next) => {
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()");
   next();
 });
+// Password resets whose immediate revocation failed are retried from request maintenance below.
+const pendingSessionRevocations = createPendingSessionRevocations(db, {
+  listSessionHandles: userId => Session.getAllSessionHandlesForUser(userId),
+  sessionCreatedAt: async handle => (await Session.getSessionInformation(handle))?.timeCreated,
+  revokeSessions: handles => Session.revokeMultipleSessions(handles)
+});
 supertokens.init({
   framework: "express",
   supertokens: { connectionURI: SUPERTOKENS_CONNECTION_URI, apiKey: SUPERTOKENS_API_KEY },
@@ -164,7 +171,8 @@ supertokens.init({
           delete next.emailExistsGET;
           // A reset must also sign out every existing session (a stolen session would otherwise survive it).
           if (original.passwordResetPOST) {
-            next.passwordResetPOST = revokeSessionsAfterPasswordReset(original.passwordResetPOST, userId => Session.revokeAllSessionsForUser(userId));
+            next.passwordResetPOST = revokeSessionsAfterPasswordReset(original.passwordResetPOST, userId => Session.revokeAllSessionsForUser(userId), console,
+              { onPersistentFailure: (userId, resetAt) => pendingSessionRevocations.enqueue(userId, resetAt) });
           }
           return next;
         }
@@ -356,6 +364,9 @@ async function deleteExpiredGuestComments() {
   await cleanupExpiredRateLimits(db);
 }
 app.use(createRequestMaintenance({ work: deleteExpiredGuestComments, env: process.env,
+  onBackgroundTask: IS_VERCEL ? waitUntil : undefined }));
+// Session revocation is a security follow-up, so it also runs while comments are read-only.
+app.use(createRequestMaintenance({ work: () => pendingSessionRevocations.process(), env: {}, intervalMs: 60_000, retryMs: 60_000,
   onBackgroundTask: IS_VERCEL ? waitUntil : undefined }));
 app.get("/", (req, res) => {
   res.setHeader("Cache-Control", "no-store");

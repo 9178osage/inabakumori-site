@@ -91,6 +91,16 @@ const POSTGRES_COMMENT_IDEMPOTENCY = `
     expires_at BIGINT
   );
   CREATE INDEX IF NOT EXISTS idx_comment_idempotency_created ON comment_idempotency(created_at);`;
+// Accounts whose post-reset session revocation must be retried (see session-revocation.mjs).
+// Only the account ID and timestamps are stored; the same SQL works on SQLite and PostgreSQL.
+const PENDING_SESSION_REVOCATIONS = `
+  CREATE TABLE IF NOT EXISTS pending_session_revocations (
+    user_id TEXT PRIMARY KEY,
+    reset_at BIGINT NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at BIGINT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_pending_session_revocations_due ON pending_session_revocations(next_attempt_at);`;
 export const SELECT_COMMENT_LIST_VERSION = "SELECT version FROM comment_list_version WHERE id = 1";
 const RATE_LIMIT_SCHEMA = `
   CREATE TABLE IF NOT EXISTS rate_limit_counters (
@@ -258,7 +268,7 @@ export async function createPostgresDatabase(pool) {
     // message retains transaction order, replacing four network round trips with one.
     await initializer.query(`BEGIN;
       SELECT pg_advisory_xact_lock(${SCHEMA_COMPATIBILITY_LOCK});
-      ${POSTGRES_SCHEMA}${COMMENT_INDEXES}${POSTGRES_COMMENT_LIST_VERSION}${RATE_LIMIT_SCHEMA}${POSTGRES_COMMENT_IDEMPOTENCY}
+      ${POSTGRES_SCHEMA}${COMMENT_INDEXES}${POSTGRES_COMMENT_LIST_VERSION}${RATE_LIMIT_SCHEMA}${POSTGRES_COMMENT_IDEMPOTENCY}${PENDING_SESSION_REVOCATIONS}
       COMMIT;`);
   } catch (error) {
     initializerReleaseError = await rollbackForRelease(initializer);
@@ -321,7 +331,7 @@ async function openSqliteDatabase(env, directory) {
   await mkdir(path.dirname(databasePath), { recursive: true });
   const database = new DatabaseSync(databasePath);
   try {
-    database.exec(`PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000; ${SQLITE_SCHEMA}${COMMENT_INDEXES}${SQLITE_COMMENT_LIST_VERSION}${SQLITE_COMMENT_IDEMPOTENCY}`);
+    database.exec(`PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000; ${SQLITE_SCHEMA}${COMMENT_INDEXES}${SQLITE_COMMENT_LIST_VERSION}${SQLITE_COMMENT_IDEMPOTENCY}${PENDING_SESSION_REVOCATIONS}`);
   } catch (error) { try { database.close(); } catch {} throw error; }
   let tail = Promise.resolve();
   const context = new AsyncLocalStorage();

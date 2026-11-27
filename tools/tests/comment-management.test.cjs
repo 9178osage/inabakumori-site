@@ -761,7 +761,7 @@ test('unknown non-API backend paths return a JSON 404 before the error handlers'
 test('a successful password reset revokes every existing session of that user', async () => {
   const backend = fs.readFileSync('backend/server.mjs', 'utf8');
   assert.match(backend, /delete next\.emailExistsGET;/, 'email-exists API must remain disabled');
-  assert.match(backend, /next\.passwordResetPOST = revokeSessionsAfterPasswordReset\(original\.passwordResetPOST, userId => Session\.revokeAllSessionsForUser\(userId\)\)/,
+  assert.match(backend, /next\.passwordResetPOST = revokeSessionsAfterPasswordReset\(original\.passwordResetPOST, userId => Session\.revokeAllSessionsForUser\(userId\), console,\s+\{ onPersistentFailure: /,
     'password reset must be wrapped so it revokes all sessions');
   const { revokeSessionsAfterPasswordReset } = await import('../../backend/services.mjs');
   const logs = [];
