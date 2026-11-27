@@ -224,3 +224,19 @@ test("the YouTube API key only reaches a job that installs and runs no dependenc
     for (const name of imports) assert.ok(name.startsWith("node:") || name === "./safe-fs.mjs" || name === "./youtube-id.mjs", `${file} imports ${name}`);
   }
 });
+
+test("both scheduled refreshes dispatch and confirm the GitLab mirror after their token push (audit #11)", () => {
+  const fs = require("node:fs");
+  for (const file of [".github/workflows/refresh-creator-updates.yml", ".github/workflows/refresh-youtube-views.yml"]) {
+    const workflow = fs.readFileSync(file, "utf8");
+    const publish = workflow.slice(workflow.indexOf("  publish:"));
+    assert.match(publish, /gh workflow run mirror\.yml --ref main/u, file);
+    assert.match(publish, /map\(select\(\.name == "Mirror to GitLab"\)\)/u, file);
+    assert.match(publish, /gh run watch "\$MIRROR_RUN" --exit-status/u, file);
+    assert.match(publish, /pushed main at/u, `${file} records the mirrored commit`);
+    assert.match(publish, /actions: write/u, `${file}: only the publish job may dispatch`);
+  }
+  const mirror = fs.readFileSync(".github/workflows/mirror.yml", "utf8");
+  assert.match(mirror, /workflow_dispatch:/u, "the mirror accepts explicit dispatch");
+  assert.match(mirror, /permissions:\n  contents: read/u, "the mirror keeps least privilege");
+});

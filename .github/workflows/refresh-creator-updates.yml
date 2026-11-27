@@ -179,16 +179,21 @@ jobs:
         run: |
           gh workflow run check.yml --ref main
           gh workflow run pages.yml --ref main
+          # Token pushes skip push-triggered workflows, so the GitLab mirror is dispatched explicitly too.
+          gh workflow run mirror.yml --ref main
           for attempt in $(seq 1 12); do
             gh api --method GET "repos/$GH_REPO/actions/runs" -f head_sha="$UPDATE_SHA" -f event=workflow_dispatch -f per_page=30 > /tmp/creator-update-runs.json
             VERIFY_RUN=$(jq -r '.workflow_runs | map(select(.name == "Verify website")) | max_by(.id) | .id // empty' /tmp/creator-update-runs.json)
             PUBLISH_RUN=$(jq -r '.workflow_runs | map(select(.name == "Publish public site")) | max_by(.id) | .id // empty' /tmp/creator-update-runs.json)
-            if [ -n "$VERIFY_RUN" ] && [ -n "$PUBLISH_RUN" ]; then break; fi
+            MIRROR_RUN=$(jq -r '.workflow_runs | map(select(.name == "Mirror to GitLab")) | max_by(.id) | .id // empty' /tmp/creator-update-runs.json)
+            if [ -n "$VERIFY_RUN" ] && [ -n "$PUBLISH_RUN" ] && [ -n "$MIRROR_RUN" ]; then break; fi
             sleep 10
           done
-          test -n "$VERIFY_RUN" && test -n "$PUBLISH_RUN"
+          test -n "$VERIFY_RUN" && test -n "$PUBLISH_RUN" && test -n "$MIRROR_RUN"
           gh run watch "$VERIFY_RUN" --exit-status --interval 15
           gh run watch "$PUBLISH_RUN" --exit-status --interval 15
+          gh run watch "$MIRROR_RUN" --exit-status --interval 15
+          echo "GitLab mirror run $MIRROR_RUN pushed main at $(gh api "repos/$GH_REPO/actions/runs/$MIRROR_RUN" --jq .head_sha)"
           for attempt in $(seq 1 12); do
             if curl --fail --silent --show-error --max-time 20 "https://osagechan.top/updates.html?check=$UPDATE_SHA" -o /tmp/published-creator-updates.html && grep -q "name=\"creator-updates-version\" content=\"$SNAPSHOT_HASH\"" /tmp/published-creator-updates.html; then
               echo "Verified published creator snapshot $UPDATE_SHA"
