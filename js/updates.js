@@ -205,6 +205,31 @@
     const who = creator === "inabakumori" ? ["稲葉曇 · ", "Inabakumori · ", "稲葉曇 · "] : creator === "nknk" ? ["NKNK · ", "NKNK · ", "NKNK · "] : ["", "", ""];
     return { zh: `${who[0]}第 ${number} 页`, en: `${who[1]}page ${number}`, ja: `${who[2]}${number}ページ目` };
   }
+  // New posts shift older ones to later pages. The build publishes the last post ID of every page
+  // per view; X IDs grow with publication time, so a post's current page follows from its ID.
+  let pageLookup = null;
+  function loadPageLookup() {
+    if (!pageLookup) {
+      const version = document.querySelector('meta[name="x-posts-version"]')?.getAttribute("content") || "";
+      pageLookup = Promise.resolve().then(() => window.fetch(`x-posts-pages.json?v=${encodeURIComponent(version)}`, { credentials: "same-origin" }))
+        .then(response => response.ok ? response.json() : null).catch(() => null);
+    }
+    return pageLookup;
+  }
+  const viewOf = page => /^updates-(inabakumori|nknk)/u.exec(page)?.[1] || "all";
+  function pageForPost(lookup, view, id) {
+    const bounds = lookup?.ordered === true && Array.isArray(lookup.views?.[view]) ? lookup.views[view] : null;
+    if (!bounds || !/^\d{1,30}$/u.test(id)) return null;
+    const wanted = BigInt(id);
+    for (let index = 0; index < bounds.length; index++) {
+      if (!/^\d{1,30}$/u.test(bounds[index])) return null;
+      if (wanted >= BigInt(bounds[index])) return `updates${view === "all" ? "" : `-${view}`}${index === 0 ? "" : `-page-${index + 1}`}.html`;
+    }
+    return null;
+  }
+  async function locatePost(view, id) {
+    return pageForPost(await loadPageLookup(), view, id);
+  }
   function initReadingPosition(storage, currentLanguage) {
     const feed = document.querySelector(".x-posts-archive .x-posts-feed");
     if (!feed || !storage) return;
@@ -237,7 +262,11 @@
     const scrollToPost = () => {
       const id = /^#x-post-(\d{1,30})$/u.exec(window.location?.hash || "")?.[1];
       const target = id && articles.find(article => article.dataset.xPostId === id);
-      if (!target) return false;
+      if (!target) {
+        // An older link or saved position: follow the post to the page it is on now.
+        if (id) locatePost(viewOf(page), id).then(name => { if (name && name !== page) window.location.replace(`${name}#x-post-${id}`); });
+        return false;
+      }
       target.scrollIntoView({ block: "start" });
       target.setAttribute("tabindex", "-1");
       target.focus({ preventScroll: true });
@@ -246,7 +275,9 @@
     // Continue-reading link, unless this visit already opened that exact spot.
     const saved = readRecord(storage, READING_KEY);
     const savedValid = saved && typeof saved.page === "string" && ARCHIVE_PAGE.test(saved.page) && typeof saved.id === "string" && /^\d{1,30}$/u.test(saved.id);
-    const arrivedAtSaved = savedValid && saved.page === page && (window.location.hash === `#x-post-${saved.id}` || articles[0]?.dataset.xPostId === saved.id);
+    // Only an actually present post counts as arrived; the same page name may now hold other posts.
+    const savedHere = savedValid && articles.some(article => article.dataset.xPostId === saved.id);
+    const arrivedAtSaved = savedHere && (window.location.hash === `#x-post-${saved.id}` || articles[0]?.dataset.xPostId === saved.id);
     if (savedValid && !arrivedAtSaved) {
       const label = pageLabel(saved.page);
       const box = document.createElement("p");
@@ -254,6 +285,13 @@
       box.setAttribute("role", "note");
       const link = tri("a", "", { zh: `继续上次阅读 →（${label.zh}）`, en: `Continue where you left off → (${label.en})`, ja: `前回の続きから読む →（${label.ja}）` });
       link.href = `${saved.page}#x-post-${saved.id}`;
+      locatePost(viewOf(saved.page), saved.id).then(name => {
+        if (!name || name === saved.page) return;
+        const moved = pageLabel(name);
+        link.href = `${name}#x-post-${saved.id}`;
+        link.dataset.zh = `继续上次阅读 →（${moved.zh}）`; link.dataset.en = `Continue where you left off → (${moved.en})`; link.dataset.ja = `前回の続きから読む →（${moved.ja}）`;
+        link.textContent = link.dataset[currentLanguage()];
+      });
       const dismiss = tri("button", "", { zh: "不用了", en: "Dismiss", ja: "閉じる" });
       dismiss.type = "button";
       dismiss.addEventListener("click", () => { box.remove(); writeRecord(storage, READING_KEY, null); });
@@ -274,7 +312,7 @@
     window.addEventListener("hashchange", scrollToPost);
     scrollToPost();
   }
-  window.xArchiveReading = Object.freeze({ nextSeenState, compareMarks, validMark, pageLabel, readRecord });
+  window.xArchiveReading = Object.freeze({ nextSeenState, compareMarks, validMark, pageLabel, readRecord, pageForPost });
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initializeUpdates, { once: true });
   else initializeUpdates();
 })();

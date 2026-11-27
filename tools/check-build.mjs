@@ -225,6 +225,33 @@ for (const creator of ["all", "inabakumori", "nknk"]) {
   assert.equal(new Set(seen).size, seen.length, `X archive pagination repeats a post: ${creator}`);
   assert.deepEqual(seen, selected.map(post => post.id), `X archive pagination must include every collected post: ${creator}`);
 }
+// Every in-archive "#x-post-<id>" link must land on a native, unique id on the linked page.
+const archiveHtml = new Map();
+for (const name of expectedPages) archiveHtml.set(name, await readFile(path.join(root, name), "utf8"));
+let fragmentLinks = 0;
+for (const [name, content] of archiveHtml) {
+  const ids = [...content.matchAll(/\sid="([^"]+)"/gu)].map(match => match[1]);
+  assert.equal(new Set(ids).size, ids.length, `Duplicate element id on ${name}`);
+}
+for (const [name, content] of archiveHtml) {
+  for (const match of content.matchAll(/href="(updates[^"#]*\.html)#(x-post-[0-9]+)"/gu)) {
+    const target = archiveHtml.get(match[1]);
+    assert.ok(target && target.includes(` id="${match[2]}"`), `Fragment ${match[1]}#${match[2]} on ${name} has no native target`);
+    fragmentLinks++;
+  }
+}
+assert.ok(fragmentLinks >= posts.filter(post => ["inabakumori", "nknk"].includes(post.creator)).length, "Creator archives must link every post to its full text");
+// The page lookup must agree with the published pagination.
+const pageLookup = JSON.parse(await readFile(path.join(root, "x-posts-pages.json"), "utf8"));
+assert.equal(pageLookup.version, 1);
+assert.equal(pageLookup.pageSize, 30);
+assert.equal(pageLookup.xPostsVersion, xVersion, "Page lookup must come from the same X snapshot");
+for (const creator of ["all", "inabakumori", "nknk"]) {
+  const selected = creator === "all" ? posts : posts.filter(post => post.creator === creator);
+  const expected = [];
+  for (let start = 0; start < selected.length; start += 30) expected.push(selected[Math.min(selected.length, start + 30) - 1].id);
+  assert.deepEqual(pageLookup.views[creator], expected, `Page lookup disagrees with pagination: ${creator}`);
+}
 const actualPages = (await readdir(root)).filter(name => /^updates(?:-(?:inabakumori|nknk))?(?:-page-[0-9]+)?\.html$/u.test(name));
 assert.deepEqual(new Set(actualPages), expectedPages, "Archive must not contain obsolete or unvalidated pages");
 const sitemap = await readFile(path.join(root, "sitemap.xml"), "utf8");

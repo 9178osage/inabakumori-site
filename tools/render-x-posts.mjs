@@ -66,7 +66,7 @@ const renderTranslation = post => {
   const entry = translationOf.get(post);
   return entry ? `<p class="x-post-translation" data-en="${escape(entry.en)}" data-ja="">${escape(entry.zh)}</p>` : "";
 };
-function renderPost(post, { showCollected = false } = {}) {
+function renderPost(post, { showCollected = false, anchor = false } = {}) {
   const creator = creators[post.creator];
   const links = [...new Map(post.links.map(link => [https(link.url), link])).entries()].map(([url, link]) => {
     const label = link.label.replace(/\s*\n\s*/gu, "").trim() || url;
@@ -77,7 +77,8 @@ function renderPost(post, { showCollected = false } = {}) {
   const video = post.hasVideo ? text("span", ["视频 · 请到原帖播放", "Video · Play in the original post", "動画 · 元の投稿で再生"]) : "";
   const body = post.text ? `<p class="x-post-text"${KANA.test(post.text) ? ' lang="ja"' : ""} dir="auto">${escape(post.text)}</p>` : text("p", ["这条帖子以媒体为主，请查看原帖。", "This post contains media. View the original post.", "メディアを中心とした投稿です。元の投稿をご覧ください。"], ' class="x-post-text x-post-media-only"');
   const collected = showCollected ? `<p class="x-post-media-note">${text("span", ["本站收录时间", "Collected by this site", "このサイトの収録日時"])} · ${time(post.collectedAt)}</p>` : "";
-  return `<article class="x-post" data-x-post-id="${post.id}" data-creator="${post.creator}"><header class="x-post-header"><h3>${escape(creator.name)} <span>@${creator.handle}</span></h3>${time(post.publishedAt)}</header>${body}${renderTranslation(post)}${links ? `<div class="x-post-links">${links}</div>` : ""}${media || video ? `<p class="x-post-media-note">${media}${media && video ? " · " : ""}${video}</p>` : ""}${collected}<footer class="x-post-footer">${text("a", ["查看原帖 ↗", "View original ↗", "元の投稿を見る ↗"], ` class="x-post-source" href="${escape(post.url)}" target="_blank" rel="noopener noreferrer"`)}${references}</footer></article>`;
+  // The all-posts archive carries a native fragment target, so "#x-post-<id>" links work without JavaScript.
+  return `<article class="x-post"${anchor ? ` id="x-post-${post.id}"` : ""} data-x-post-id="${post.id}" data-creator="${post.creator}"><header class="x-post-header"><h3>${escape(creator.name)} <span>@${creator.handle}</span></h3>${time(post.publishedAt)}</header>${body}${renderTranslation(post)}${links ? `<div class="x-post-links">${links}</div>` : ""}${media || video ? `<p class="x-post-media-note">${media}${media && video ? " · " : ""}${video}</p>` : ""}${collected}<footer class="x-post-footer">${text("a", ["查看原帖 ↗", "View original ↗", "元の投稿を見る ↗"], ` class="x-post-source" href="${escape(post.url)}" target="_blank" rel="noopener noreferrer"`)}${references}</footer></article>`;
 }
 
 function renderCoverage(archive, posts) {
@@ -127,13 +128,12 @@ function renderCompactPost(post, href) {
   const link = text("a", ["在全部帖子中阅读全文 →", "Read the full post →", "すべての投稿で全文を読む →"], ` href="${escape(href)}"`);
   return `<article class="x-post x-post-compact" data-x-post-id="${post.id}" data-creator="${post.creator}"><header class="x-post-header"><h3>${escape(creator.name)} <span>@${creator.handle}</span></h3>${time(post.publishedAt)}</header>${headline}<div class="x-post-links">${link}</div></article>`;
 }
-function renderArchive(groups, status, renderItem, { page = 1, creator = "all", pageSize = 30 } = {}) {
+function renderArchive(groups, status, renderItem, allIndex, { page = 1, creator = "all", pageSize = 30 } = {}) {
   xPostsPageUrl(creator, page);
   assert.ok(Number.isSafeInteger(pageSize) && pageSize >= 1 && pageSize <= 100, "Invalid X post page size");
   const posts = groups.get(creator);
   const pageCount = Math.max(1, Math.ceil(posts.length / pageSize));
   assert.ok(page <= pageCount, "X post page does not exist");
-  const allIndex = creator === "all" ? null : new Map(groups.get("all").map((post, index) => [post.id, index]));
   const itemOf = creator === "all" ? renderItem : post => renderCompactPost(post, `${xPostsPageUrl("all", Math.floor(allIndex.get(post.id) / pageSize) + 1)}#x-post-${post.id}`);
   const items = posts.slice((page - 1) * pageSize, page * pageSize).map(itemOf).join("\n") || text("p", ["这个分类尚未收录帖子。", "No posts have been collected in this category yet.", "この分類の投稿はまだ収録されていません。"], ' class="x-posts-empty"');
   const prev = page > 1 ? text("a", ["← 上一页", "← Previous", "← 前のページ"], ` href="${xPostsPageUrl(creator, page - 1)}" rel="prev"`) : "";
@@ -160,9 +160,24 @@ export function createXPostsRenderer(archive, translations = new Map()) {
     if (!markup.has(post.id)) markup.set(post.id, renderPost(post));
     return markup.get(post.id);
   };
+  const anchored = post => renderPost(post, { anchor: true });
+  // One ID -> position map per build snapshot, shared by every creator page (audit #14).
+  const allIndex = new Map(posts.map((post, index) => [post.id, index]));
+  // Last post ID of each page per view. X IDs grow with publication time, and the archive order
+  // is checked to match, so a browser can find a post's current page from its ID alone (audit #08).
+  const pageIndex = pageSize => {
+    const ordered = posts.every((post, index) => index === 0 || BigInt(post.id) < BigInt(posts[index - 1].id));
+    const views = {};
+    for (const [view, list] of groups) {
+      views[view] = [];
+      for (let start = 0; start < list.length; start += pageSize) views[view].push(list[Math.min(list.length, start + pageSize) - 1].id);
+    }
+    return { version: 1, pageSize, ordered, views };
+  };
   return Object.freeze({
     renderHome: () => renderHome(posts, groups, post => renderPost(post, { showCollected: true })),
-    renderArchive: options => renderArchive(groups, status, renderItem, options),
+    renderArchive: options => renderArchive(groups, status, (options?.creator ?? "all") === "all" ? anchored : renderItem, allIndex, options),
+    pageIndex,
     // Song archive pages reuse the same escaped article markup for linked posts.
     renderPost: id => {
       const post = posts.find(item => item.id === id);

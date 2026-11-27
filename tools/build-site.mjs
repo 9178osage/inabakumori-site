@@ -180,6 +180,9 @@ const updatesTemplateLater = dropOnce(dropOnce(fillUpdates(updatesSourceHtml, "U
 const metaEscape = value => String(value).replace(/[&<>"']/gu, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 let archivePages = 0;
 const archivePageNames = [];
+// Small page lookup (last post ID per page and view) so saved positions and old links can find a
+// post after new posts shift the pages; fetched by js/updates.js only when a target is missing.
+await writeFile(output("dist/x-posts-pages.json"), JSON.stringify({ ...xPostsRenderer.pageIndex(30), xPostsVersion }));
 for (const creator of ["all", "inabakumori", "nknk"]) {
   const firstPage = xPostsRenderer.renderArchive({ creator, page: 1, pageSize: 30 });
   if (!Number.isSafeInteger(firstPage.pageCount) || firstPage.pageCount < 1 || firstPage.pageCount > 10000) throw new Error("Invalid X archive page count");

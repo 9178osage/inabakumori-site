@@ -58,3 +58,34 @@ test("page labels are trilingual and reading data stays in local storage", () =>
   assert.doesNotMatch(block, /fetch\(|XMLHttpRequest/u);
   assert.match(block, /scrollY \|\| 0\) < 300/u, "arriving at the top does not overwrite the saved spot");
 });
+
+test("a saved or linked post is found on its current page after new posts shift the pages (audit #08)", () => {
+  const { pageForPost } = helpers();
+  const lookup = { version: 1, pageSize: 2, ordered: true, views: { all: ["900", "700", "500"], nknk: ["800", "400"] } };
+  assert.equal(pageForPost(lookup, "all", "950"), "updates.html");
+  assert.equal(pageForPost(lookup, "all", "900"), "updates.html");
+  assert.equal(pageForPost(lookup, "all", "899"), "updates-page-2.html");
+  assert.equal(pageForPost(lookup, "all", "500"), "updates-page-3.html");
+  assert.equal(pageForPost(lookup, "nknk", "401"), "updates-nknk-page-2.html");
+  assert.equal(pageForPost(lookup, "all", "499"), null, "older than every page: no guess");
+  assert.equal(pageForPost({ ...lookup, ordered: false }, "all", "950"), null, "an archive not in ID order is never guessed");
+  assert.equal(pageForPost(lookup, "all", "1e9"), null);
+  assert.equal(pageForPost(null, "all", "950"), null);
+  assert.equal(pageForPost({ ...lookup, views: { all: ["<x>"] } }, "all", "950"), null);
+  // Arrival only counts when the saved post is really on this page, and a miss follows the post.
+  assert.match(source, /const savedHere = savedValid && articles\.some\(article => article\.dataset\.xPostId === saved\.id\);/u);
+  assert.match(source, /locatePost\(viewOf\(page\), id\)\.then\(name => \{ if \(name && name !== page\) window\.location\.replace/u);
+});
+
+test("the published page lookup matches the real archive ordering (audit #08)", async () => {
+  const { readXPostsArchive } = await import("../x-posts-data.mjs");
+  const { createXPostsRenderer } = await import("../render-x-posts.mjs");
+  const renderer = createXPostsRenderer(await readXPostsArchive(repo));
+  const lookup = renderer.pageIndex(30);
+  assert.equal(lookup.ordered, true, "X IDs must follow the archive order for ID-based lookup");
+  const { pageForPost } = helpers();
+  const posts = renderer.posts();
+  for (const index of [0, 29, 30, 31, posts.length - 1]) {
+    assert.equal(pageForPost(lookup, "all", posts[index].id), index < 30 ? "updates.html" : `updates-page-${Math.floor(index / 30) + 1}.html`);
+  }
+});

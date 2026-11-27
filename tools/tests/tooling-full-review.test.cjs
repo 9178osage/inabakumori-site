@@ -74,6 +74,7 @@ ${emptyXPostsMeta}<div class="station-brand"><a class="station-mark" href="#upda
   box.write("dist/calendar.html", `<meta name="robots" content="noindex, nofollow"/>
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self';"/>
 <article class="calendar-sheet" data-release="2026-03-08T10:00:07.000Z"></article>`);
+  box.write("dist/x-posts-pages.json", JSON.stringify({ version: 1, pageSize: 30, ordered: true, views: { all: [], inabakumori: [], nknk: [] }, xPostsVersion: emptyXPostsMeta.match(/content="([a-f0-9]+)"/u)[1] }));
   box.write("dist/CNAME", "osagechan.top\n"); box.write("dist/site.webmanifest", '{"icons":[]}');
   box.write("dist/sitemap.xml", `<urlset>${["", "updates.html", "updates-inabakumori.html", "updates-nknk.html", "songs.html", "song-2r4W_LoVFxA.html", "nknk-comics.html"].map(name => `<url><loc>https://osagechan.top/${name}</loc></url>`).join("")}</urlset>\n`);
   // An empty X archive (no data/x-posts) still yields one archive page per author filter.
