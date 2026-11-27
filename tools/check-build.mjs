@@ -284,7 +284,7 @@ const calendarCsp = calendarHtml.match(/<meta http-equiv="Content-Security-Polic
 assert.ok(calendarCsp && /script-src 'self';/u.test(calendarCsp) && !/unsafe-inline|unsafe-eval/u.test(calendarCsp), "Calendar CSP must stay script-src 'self'");
 assert.doesNotMatch(calendarHtml, /<script(?![^>]*\bsrc=)[^>]*>/u, "Calendar must not use inline scripts");
 assert.doesNotMatch(calendarHtml, /<!-- CALENDAR:/u, "Calendar sheet must be pre-rendered");
-const newestRelease = newestSongRelease(creatorUpdates.items, vm.runInContext("SONGS", songContext))?.item.publishedAt;
+const newestRelease = newestSongRelease([...creatorUpdates.items, ...(creatorUpdates.songRelease ? [creatorUpdates.songRelease] : [])], vm.runInContext("SONGS", songContext))?.item.publishedAt;
 assert.ok(calendarHtml.includes(`data-release="${newestRelease}"`), "Calendar must count from the newest Inabakumori song in js/songs.js");
 for (const value of htmlReferences(calendarHtml)) {
   if (/^(https?:|mailto:|#)/u.test(value)) continue;

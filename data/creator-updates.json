@@ -262,5 +262,13 @@
       "publishedAt": "2020-05-31T10:32:00.000Z",
       "url": "https://www.pixiv.net/artworks/81994738"
     }
-  ]
+  ],
+  "songRelease": {
+    "id": "youtube:2r4W_LoVFxA",
+    "creator": "inabakumori",
+    "source": "youtube",
+    "title": "稲葉曇『ユレール』Vo. 弦巻マキ",
+    "publishedAt": "2026-03-08T10:00:07.000Z",
+    "url": "https://www.youtube.com/watch?v=2r4W_LoVFxA"
+  }
 }

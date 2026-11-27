@@ -162,3 +162,35 @@ test("calendar keeps theme-color and description in step with its toggles", () =
   assert.match(source, /meta\[name="theme-color"\][\s\S]*?#171b1f[\s\S]*?#c4c4c0/u);
   assert.match(source, /meta\[name="description"\][\s\S]*?description\.content = text\(/u);
 });
+
+test("a song pushed out of the 12-video window stays the calendar's release (audit #12)", async () => {
+  const { refreshCreatorUpdates, normalizeUpdates } = await import("../refresh-creator-updates.mjs");
+  const { newestSongRelease } = await import("../calendar-song.mjs");
+  const songs = [{ title: "ユレール", youtube: "https://youtu.be/2r4W_LoVFxA" }];
+  const video = (id, day) => ({ id: `youtube:${id}`, creator: "inabakumori", source: "youtube", title: `video ${id}`, publishedAt: `2026-04-${String(day).padStart(2, "0")}T00:00:00.000Z`, url: `https://www.youtube.com/watch?v=${id}` });
+  const song = { ...video("2r4W_LoVFxA", 1), title: "稲葉曇『ユレール』", publishedAt: "2026-03-08T10:00:07.000Z" };
+  const previous = normalizeUpdates({ version: 1, sources: [], items: [song] });
+  // Twelve newer non-song uploads arrive in one feed read.
+  const feed = Array.from({ length: 12 }, (_, i) => video(`newvid${String(i).padStart(5, "0")}`, i + 1));
+  const channel = "UCNElM45JypxqAR73RoUQ10g";
+  const xml = `<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns="http://www.w3.org/2005/Atom"><yt:channelId>${channel}</yt:channelId>${feed.map(item => `<entry><yt:videoId>${item.url.slice(-11)}</yt:videoId><yt:channelId>${channel}</yt:channelId><title>${item.title}</title><published>${item.publishedAt.replace(".000Z", "+00:00")}</published></entry>`).join("")}</feed>`;
+  const fetchImpl = async url => url.includes("/feeds/") ? new Response(xml) : new Response("", { status: 404 });
+  const { data } = await refreshCreatorUpdates(previous, { fetchImpl, sleep: async () => {}, now: "2026-04-20T00:00:00.000Z", songs });
+  assert.equal(data.items.filter(item => item.source === "youtube").length, 12);
+  assert.ok(!data.items.some(item => item.id === song.id), "the window itself still holds only 12 videos");
+  assert.equal(newestSongRelease(data.items, songs), null, "without the pin the calendar would have nothing");
+  assert.equal(data.songRelease.id, song.id, "the confirmed release is kept apart from the window");
+  assert.equal(newestSongRelease([...data.items, data.songRelease], songs).song, "ユレール");
+  // A later refresh keeps the pin; only a newer confirmed song replaces it.
+  const again = await refreshCreatorUpdates(data, { fetchImpl, sleep: async () => {}, now: "2026-04-21T00:00:00.000Z", songs });
+  assert.equal(again.data.songRelease.id, song.id);
+  assert.throws(() => normalizeUpdates({ ...data, songRelease: { ...data.songRelease, source: "pixiv" } }));
+});
+
+test("the build and its check read the pinned release (audit #12)", () => {
+  assert.match(read("tools/build-site.mjs"), /newestSongRelease\(\[\.\.\.updatesSnapshot\.items, \.\.\.\(updatesSnapshot\.songRelease \? \[updatesSnapshot\.songRelease\] : \[\]\)\], songs\)/u);
+  assert.match(read("tools/check-build.mjs"), /creatorUpdates\.songRelease/u);
+  const workflow = read(".github/workflows/refresh-creator-updates.yml");
+  assert.match(workflow, /\(\(keys - \["songRelease"\]\) == \["items", "sources", "version"\]\)/u);
+  assert.match(workflow, /\.songRelease \| type == "object" and \.source == "youtube" and validitem/u);
+});

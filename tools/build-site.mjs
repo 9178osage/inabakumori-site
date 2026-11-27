@@ -214,7 +214,9 @@ for (const creator of ["all", "inabakumori", "nknk"]) {
 }
 // Hidden calendar page (noindex, not in the sitemap): days since Inabakumori's newest YouTube
 // song, pre-rendered from the scheduled creator-updates snapshot and recounted daily in js/calendar.js.
-const newestMatch = newestSongRelease(JSON.parse(updatesSource).items, songs);
+// The snapshot keeps the latest confirmed release apart from its 12-video window (audit #12).
+const updatesSnapshot = JSON.parse(updatesSource);
+const newestMatch = newestSongRelease([...updatesSnapshot.items, ...(updatesSnapshot.songRelease ? [updatesSnapshot.songRelease] : [])], songs);
 if (!newestMatch) throw new Error("Calendar needs an Inabakumori YouTube release of a song from js/songs.js");
 const newestSong = newestMatch.item;
 const japanDay = time => Math.floor((time + 9 * 3_600_000) / 86_400_000);

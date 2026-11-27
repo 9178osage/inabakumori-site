@@ -198,9 +198,11 @@ test("the creator refresh CLI retains a local edit made during fetch and removes
   try {
     await fs.mkdir(path.join(directory, "tools"));
     await fs.mkdir(path.join(directory, "data"));
-    for (const file of ["refresh-creator-updates.mjs", "safe-fs.mjs", "text-guards.mjs"]) {
+    for (const file of ["refresh-creator-updates.mjs", "safe-fs.mjs", "text-guards.mjs", "calendar-song.mjs"]) {
       await fs.copyFile(path.join(__dirname, "..", file), path.join(directory, "tools", file));
     }
+    await fs.mkdir(path.join(directory, "js"));
+    await fs.writeFile(path.join(directory, "js/songs.js"), "const SONGS = [];\n");
     const destination = path.join(directory, "data/creator-updates.json");
     const original = JSON.stringify({ version: 1, sources: [], items: [youtubeItem()] });
     const edit = original.replace("ユレール", "Local edit 雨") + "\n";

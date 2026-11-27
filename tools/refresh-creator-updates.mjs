@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { assertRepoPath } from "./safe-fs.mjs";
 import { FORBIDDEN_TITLE_CHARACTERS } from "./text-guards.mjs";
+import { newestSongRelease } from "./calendar-song.mjs";
+import vm from "node:vm";
 
 const CHANNEL_ID = "UCNElM45JypxqAR73RoUQ10g";
 const PIXIV_USER_ID = "27327959";
@@ -180,6 +182,12 @@ export function normalizeUpdates(data) {
   }
   const sorted = [...items.values()].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt) || a.id.localeCompare(b.id));
   const counters = new Map();
+  // The calendar's latest confirmed song release, kept apart from the 12-item window (audit #12).
+  let songRelease;
+  if (data.songRelease !== undefined && data.songRelease !== null) {
+    songRelease = canonicalItem(data.songRelease);
+    if (songRelease.source !== "youtube") throw new Error("Song release must be an Inabakumori YouTube video");
+  }
   return {
     version: 1,
     sources: SOURCES.map(source => {
@@ -193,8 +201,24 @@ export function normalizeUpdates(data) {
       const count = (counters.get(item.source) || 0) + 1;
       counters.set(item.source, count);
       return count <= (item.source === "campfire" ? 5 : ITEM_LIMIT);
-    })
+    }),
+    ...(songRelease ? { songRelease } : {})
   };
+}
+
+// Replace the pinned release only with a newer video that js/songs.js confirms as a song.
+export function pinSongRelease(data, songs) {
+  const candidates = [...data.items, ...(data.songRelease ? [data.songRelease] : [])];
+  const match = newestSongRelease(candidates, songs);
+  return match ? { ...data, songRelease: match.item } : data;
+}
+
+export function readSongs(source) {
+  const context = vm.createContext({});
+  vm.runInContext(source, context);
+  const songs = vm.runInContext("SONGS", context);
+  if (!Array.isArray(songs)) throw new Error("js/songs.js must define SONGS");
+  return songs;
 }
 
 async function responseText(response) {
@@ -238,7 +262,7 @@ async function request(url, { fetchImpl, sleep }) {
   throw new Error("Official source request failed");
 }
 
-export async function refreshCreatorUpdates(previous, { fetchImpl = fetch, now = new Date().toISOString(), sleep = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
+export async function refreshCreatorUpdates(previous, { fetchImpl = fetch, now = new Date().toISOString(), sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), songs } = {}) {
   const attemptedAt = timestamp(now);
   const data = normalizeUpdates(previous || { version: 1, sources: [], items: [] });
   const errors = [];
@@ -273,7 +297,8 @@ export async function refreshCreatorUpdates(previous, { fetchImpl = fetch, now =
       errors.push({ source: source.id, message: error instanceof SyntaxError ? "Official source returned invalid JSON" : error.message });
     }
   }
-  return { data: normalizeUpdates(data), errors };
+  // Pin before the window trims older videos, so a song pushed out by newer uploads stays known.
+  return { data: normalizeUpdates(Array.isArray(songs) ? pinSongRelease(data, songs) : data), errors };
 }
 
 export async function writeUpdatesSnapshot(root, data, { renameImpl = rename, expectedSource } = {}) {
@@ -341,7 +366,8 @@ async function main() {
   try { source = await readFile(snapshot); previous = JSON.parse(source.toString("utf8")); }
   catch (error) { if (error.code !== "ENOENT") throw error; }
   const now = new Date().toISOString();
-  const { data, errors } = await refreshCreatorUpdates(previous, { now });
+  const songs = readSongs(await readFile(assertRepoPath(ROOT, "js/songs.js", { mustExist: true }), "utf8"));
+  const { data, errors } = await refreshCreatorUpdates(previous, { now, songs });
   if (snapshotNeedsWrite(previous, data, { now })) await writeUpdatesSnapshot(ROOT, data, { expectedSource: source });
   else console.log("No update, status or heartbeat change; snapshot left untouched.");
   for (const source of data.sources) console.log(`${source.label}: ${source.status}, ${data.items.filter(item => item.source === source.id).length} retained updates; last successful check ${source.checkedAt || "never"}.`);
