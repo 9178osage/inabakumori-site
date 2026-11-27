@@ -142,6 +142,8 @@
     // other means removes it again, so hash navigation and scroll restoration are unaffected.
     let historyEntry = false;
     let ignoreNextPop = false;
+    // Thumbnail to refocus once the history step that closes the lightbox has finished.
+    let focusAfterTraversal = null;
     let openScrollY = 0;
     let ignoreBackdropUntil = 0;
     // Going back to the earlier entry would apply that entry's saved scroll position; the page could
@@ -211,8 +213,28 @@
       syncPauseState();
       closeBtn?.focus();
     };
+    // Closing with Escape or × already focused the thumbnail, but on a page opened at a
+    // fragment (#artwork) the browser's own traversal can move focus to <body> afterwards.
+    function refocusAfterTraversal() {
+      const returnFocus = focusAfterTraversal;
+      focusAfterTraversal = null;
+      if (!returnFocus) return;
+      setTimeout(() => {
+        const active = document.activeElement;
+        if (lightboxOpen || !returnFocus.isConnected || (active && active !== document.body && active !== document.documentElement)) return;
+        suppressFocusPause = true;
+        returnFocus.focus?.({ preventScroll: true });
+        queueMicrotask(() => { suppressFocusPause = false; });
+      }, 0);
+    }
+
     window.addEventListener("popstate", (event) => {
-      if (ignoreNextPop) { ignoreNextPop = false; keepScroll(openScrollY); return; }
+      if (ignoreNextPop) {
+        ignoreNextPop = false;
+        keepScroll(openScrollY);
+        refocusAfterTraversal();
+        return;
+      }
       if (!lightboxOpen) {
         const index = historyIndex(event.state);
         if (index !== null) openAt(index, null, false, { fromHistory: true });
@@ -253,10 +275,11 @@
         const returnFocus = previousFocus;
         setTimeout(() => restoreFocus(returnFocus), 0);
       } else restoreFocus(previousFocus);
+      const closedFrom = previousFocus;
       previousFocus = null;
       if (historyEntry) {
         historyEntry = false;
-        if (history.state?.nknkLightbox) { ignoreNextPop = true; history.back(); }
+        if (history.state?.nknkLightbox) { ignoreNextPop = true; focusAfterTraversal = closedFrom; history.back(); }
         else keepScroll(window.scrollY);
       }
       syncPauseState();
