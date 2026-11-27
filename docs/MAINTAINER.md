@@ -21,7 +21,7 @@ GitHub Pages 提供网页、图片和音乐目录。登录与留言通过 HTTPS 
 
 Vercel 以 `/backend` 为根目录，使用 Express 框架和 PostgreSQL（`DATABASE_URL`）。留言与限流计数使用共享数据库；不得把 SQLite 放到函数临时目录。版本来自 `VERCEL_GIT_COMMIT_SHA`。平台自动维护 Node 主版本内的补丁，须核实实际运行版本，不能用本地精确版本替代线上证据。过期留言与旧限流窗口由请求触发后台维护，以 `waitUntil` 保活，不阻塞响应或依赖常驻计时器。`/healthz` 不经过共享限流，数据库暂时不可用时明确返回 503；写入与备份仍要求限流存储可用，不能为恢复读取而关闭写入防护。
 
-本地检查与 CI 使用精确版本 Node `24.22.1`；后端 `package.json` 的 `engines.node` 也保留该精确版本，并同步锁文件。升级时同时核对 CI 配置。Vercel 实际运行版本的核验以 [安全与运维现状](SECURITY.md) 和 [迁移记录](VERCEL.md) 为准，不能仅凭 `engines` 推断。
+本地检查与 CI 使用精确版本 Node `24.22.3`；后端 `package.json` 的 `engines.node` 也保留该精确版本，并同步锁文件。升级时同时核对 CI 配置。Vercel 实际运行版本的核验以 [安全与运维现状](SECURITY.md) 和 [迁移记录](VERCEL.md) 为准，不能仅凭 `engines` 推断。
 
 已停止的 Railway 服务此前使用 Railpack 构建 `/backend`。Railpack 会把复合范围简化为主版本，`>=24.22.1 <25` 曾实际构建出 `24.21.0`；若以后重新启用该回退服务，须核对构建日志和容器内 `node --version`，并确认连接当前 PostgreSQL。原 SQLite 卷不能作为生产写入来源。详见 [Railpack 版本解析](https://railpack.com/architecture/package-resolution/)。
 
@@ -147,7 +147,7 @@ API 失败时，刷新日志只显示 HTTP 状态及固定白名单中的 Google
 
 ### Node 版本（本地与 CI 精确固定）
 
-后端 `engines.node` 与各工作流固定为精确版本（当前 `24.22.1`），本地与 CI 不会自动跟进新的 24.x 安全补丁。Vercel 的运行时补丁由平台管理，须另查函数初始化日志；`engines` 的精确声明不等于线上正在运行该补丁。检查清单：
+后端 `engines.node` 与各工作流固定为精确版本（当前 `24.22.3`，2026-11-11 安全补丁），本地与 CI 不会自动跟进新的 24.x 安全补丁。Vercel 的运行时补丁由平台管理，须另查函数初始化日志；`engines` 的精确声明不等于线上正在运行该补丁。检查清单：
 
 - 关注 Node.js 安全发布公告（<https://nodejs.org/en/blog/vulnerability>）或 <https://nodejs.org/dist/index.json> 中 24.x 最新版本；每次 24.x 发布安全更新时及时升级。
 - 升级时同步修改：`backend/package.json` 的 `engines.node`、根 `package.json` 的范围下限、全部 `.github/workflows/*.yml` 的 `node-version`、本机 Node，并同步锁文件。

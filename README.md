@@ -209,7 +209,7 @@ inabakumori-site/
 
 ### 📋 Requirements
 
-- **Node.js 24.22.1** (the version pinned in CI)
+- **Node.js 24.22.3** (the version pinned in CI)
 - npm
 - The frontend preview uses Node.js; no Python dependency.
 - A working SuperTokens Core / Managed SuperTokens instance only for account and message-wall development
@@ -618,7 +618,7 @@ inabakumori-site/
 
 ### 📋 环境要求
 
-- **Node.js 24.22.1**（与 CI 固定版本一致）
+- **Node.js 24.22.3**（与 CI 固定版本一致）
 - npm
 - 前端预览使用 Node.js，无需 Python。
 - 联调账号与留言功能时，才需要可用的 SuperTokens Core / Managed SuperTokens 实例
@@ -1024,7 +1024,7 @@ inabakumori-site/
 
 ### 📋 必要な環境
 
-- **Node.js 24.22.1**（CI と同じ固定バージョン）
+- **Node.js 24.22.3**（CI と同じ固定バージョン）
 - npm
 - フロントエンドのプレビューには Node.js を使用します。Python は不要です。
 - アカウント・メッセージ機能の開発時のみ、利用可能な SuperTokens Core / Managed SuperTokens インスタンス

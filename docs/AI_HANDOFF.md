@@ -54,7 +54,7 @@
 
 ## 本地运行与检查
 
-环境要求：Node.js 24.22.1（与 CI 固定版本一致）、npm。账号功能需要可用的 SuperTokens 服务。前端预览不再依赖 Python。
+环境要求：Node.js 24.22.3（与 CI 固定版本一致）、npm。账号功能需要可用的 SuperTokens 服务。前端预览不再依赖 Python。
 
 在项目根目录安装依赖：
 
