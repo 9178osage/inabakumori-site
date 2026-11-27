@@ -3,9 +3,26 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const crypto = require("node:crypto");
 const { spawnSync, execFileSync } = require("node:child_process");
 
 const repo = path.resolve(__dirname, "../..");
+// A fresh X import rewrites the manifest and adds shards that are not in the Git index yet.
+// Copy exactly the shards the copied manifest names, and only when their bytes match its digest,
+// so the manifest and the post bodies always come from the same worktree snapshot.
+function copyManifestShards(root) {
+  const manifestPath = path.join(root, "data/x-posts/manifest.json");
+  if (!fs.existsSync(manifestPath)) return;
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  for (const shard of manifest.shards || []) {
+    assert.match(shard.file, /^posts-[0-9a-f]{64}\.json$/u);
+    const target = path.join(root, "data/x-posts", shard.file);
+    if (fs.existsSync(target)) continue;
+    const body = fs.readFileSync(path.join(repo, "data/x-posts", shard.file));
+    assert.equal(crypto.createHash("sha256").update(body).digest("hex"), shard.sha256, `${shard.file} does not match the manifest digest`);
+    fs.writeFileSync(target, body);
+  }
+}
 // A throwaway copy of the tracked repo; the real checkout and its dist/ are never touched.
 function fullCopy() {
   const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "station-dotfiles-")));
@@ -18,6 +35,7 @@ function fullCopy() {
     fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
     fs.copyFileSync(path.join(repo, file), path.join(root, file));
   }
+  copyManifestShards(root);
   fs.symlinkSync(path.join(repo, "node_modules"), path.join(root, "node_modules"), "dir");
   return { root, outside, cleanup: () => fs.rmSync(base, { recursive: true, force: true }) };
 }
