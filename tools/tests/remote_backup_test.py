@@ -290,6 +290,41 @@ class BackupTests(unittest.TestCase):
         self.assertEqual(self.run_day(four)[0], 0)
         self.assertFalse(ancient.exists())
 
+    def test_accepted_deliberate_deletion_lets_zero_become_the_baseline(self):
+        nine, four, ancient, state = self.drop_setup()
+        empty = self.many(0)
+        self.assertEqual(self.run_day(empty)[0], 2)
+        self.assertTrue(state.exists())
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.assertEqual(REMOTE.main(["--accept-drop", str(self.config)]), 0)
+        self.assertIn("0 comments", out.getvalue())
+        self.assertFalse(state.exists(), "accepting releases the guard")
+        accepted = json.loads((self.directory / "accepted-baseline.json").read_text())
+        self.assertEqual(accepted["comments"], 0)
+        # Later empty days compare against the accepted zero, not the older nine, and cleanup resumes.
+        for day in range(2):
+            code, _ = self.run_day(empty)
+            self.assertEqual(code, 0, "day %d" % day)
+        self.assertFalse(state.exists())
+        self.assertFalse(ancient.exists())
+        # Comments coming back are fine.
+        self.assertEqual(self.run_day(nine)[0], 0)
+
+    def test_unaccepted_zero_still_guards_after_manual_release(self):
+        nine, four, ancient, state = self.drop_setup()
+        empty = self.many(0)
+        self.assertEqual(self.run_day(empty)[0], 2)
+        state.unlink()
+        self.assertEqual(self.run_day(empty)[0], 2, "without an explicit acceptance the first drop protection stays")
+        self.assertTrue(ancient.exists())
+
+    def test_accept_drop_without_snapshots_fails_quietly(self):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            self.assertEqual(REMOTE.main(["--accept-drop", str(self.config)]), 1)
+        self.assertNotIn(str(self.config), err.getvalue())
+
     def test_damaged_guard_state_deletes_nothing(self):
         nine, four, ancient, state = self.drop_setup()
         state.write_text("{not json")
@@ -311,7 +346,8 @@ class BackupTests(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertEqual(len(lines), 1)
         self.assertIn("comment count dropped sharply (reference 9, new 4)", lines[0])
-        self.assertIn("delete " + str(state) + " to release the guard", lines[0])
+        self.assertIn("deletes " + str(state) + " to release the guard", lines[0])
+        self.assertIn("remote-backup.py --accept-drop " + str(self.config), lines[0])
         self.assertIn("backup-error.log", lines[0])
         self.assertIn(lines[0], err)
         self.assertTrue(ancient.exists())
@@ -323,7 +359,8 @@ class BackupTests(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("drop guard state is damaged or unreadable", lines[0])
         self.assertNotIn("dropped sharply", lines[0])
-        self.assertIn("delete " + str(state) + " to release the guard", lines[0])
+        self.assertIn("deletes " + str(state) + " to release the guard", lines[0])
+        self.assertIn("remote-backup.py --accept-drop " + str(self.config), lines[0])
         self.assertTrue(ancient.exists() and state.exists())
 
     def wrapper(self, line, code):
@@ -437,6 +474,8 @@ class BackupTests(unittest.TestCase):
         os.utime(str(previous), (1, 1))
         for statement in ["UPDATE comments SET created_at = -1 WHERE id = 7",
                           "UPDATE comments SET expires_at = -1 WHERE id = 13",
+                          "UPDATE comments SET created_at = 8640000000000001 WHERE id = 7",
+                          "UPDATE comments SET expires_at = 8640000000000001 WHERE id = 13",
                           "UPDATE sqlite_sequence SET seq = -1 WHERE name = 'comments'",
                           "UPDATE sqlite_sequence SET seq = 9007199254740992 WHERE name = 'comments'",
                           "UPDATE sqlite_sequence SET seq = 17.5 WHERE name = 'comments'",

@@ -19,6 +19,9 @@ MAX_BYTES = 64 * 1024 * 1024
 TIMEOUT = 30
 TOTAL_TIMEOUT = 120
 MAX_INTEGER = 9_007_199_254_740_991
+# Comment times must be non-negative milliseconds that JavaScript Date can represent,
+# the same range the migration preflight, PostgreSQL constraint and public list accept.
+MAX_DATE_MS = 8_640_000_000_000_000
 BACKUP_NAME = re.compile(r"^inabakumori-comments-(\d{8}T\d{6}Z)-[0-9a-f]{16}\.db$")
 # A sharp fall in comment count (mass deletion, bad restore, wrong database)
 # keeps every previous snapshot instead of rotating good copies away. Any
@@ -27,6 +30,10 @@ BACKUP_NAME = re.compile(r"^inabakumori-comments-(\d{8}T\d{6}Z)-[0-9a-f]{16}\.db
 # naming pattern, so tiered cleanup never touches it). Deleting it by hand
 # releases the guard after a deliberate deletion.
 GUARD_STATE = "drop-guard.json"
+# Written by --accept-drop after a maintainer confirms a deliberate deletion. Snapshots
+# taken at or after the accepted one may serve as the baseline even with zero comments,
+# so a deliberately emptied wall does not re-trigger the guard against older snapshots.
+ACCEPTED_STATE = "accepted-baseline.json"
 
 
 class BackupError(Exception):
@@ -148,7 +155,7 @@ def verify_snapshot(filename):
               COALESCE(SUM(CASE WHEN is_guest = 0 THEN 1 ELSE 0 END), 0),
               COALESCE(SUM(CASE WHEN is_guest = 1 THEN 1 ELSE 0 END), 0)
             FROM comments
-        """, (MAX_INTEGER, 0, MAX_INTEGER, 0, MAX_INTEGER)).fetchone()
+        """, (MAX_INTEGER, 0, MAX_DATE_MS, 0, MAX_DATE_MS)).fetchone()
         sequences = db.execute("SELECT seq FROM sqlite_sequence WHERE name = 'comments'").fetchall()
         high_water = sequences[0][0] if sequences else 0
         # Older node:sqlite exports bound JavaScript Numbers as REAL in this
@@ -187,16 +194,59 @@ def owned_snapshots(directory, exclude=None):
     return sorted(found, reverse=True)
 
 
+def read_accepted(directory):
+    """Time of the snapshot a maintainer accepted with --accept-drop, or None."""
+    path = os.path.join(directory, ACCEPTED_STATE)
+    if not os.path.lexists(path):
+        return None
+    try:
+        if not stat.S_ISREG(os.lstat(path).st_mode):
+            return None
+        with open(path, encoding="utf-8") as source:
+            state = json.load(source)
+        taken = snapshot_time(state.get("snapshot"))
+        if taken is None or type(state.get("comments")) is not int or state["comments"] < 0:
+            return None
+        return taken.timestamp()
+    except Exception:
+        # An unreadable acceptance only loses the zero baseline; the guard stays protective.
+        return None
+
+
 def previous_reference(directory, exclude):
-    """(name, counts) of the newest readable earlier snapshot that has comments, or (None, None)."""
-    for _, name in owned_snapshots(directory, exclude):
+    """(name, counts) of the newest readable earlier snapshot that has comments, or that was taken
+    at or after a maintainer-accepted snapshot (zero allowed then), or (None, None)."""
+    accepted = read_accepted(directory)
+    for stamp, name in owned_snapshots(directory, exclude):
         try:
             counts = verify_snapshot(os.path.join(directory, name))
         except Exception:
             continue
-        if counts["comments"] > 0:
+        if counts["comments"] > 0 or (accepted is not None and stamp >= accepted):
             return name, counts
     return None, None
+
+
+def accept_drop(config_filename):
+    """Accept the newest snapshot's count as the new baseline after a deliberate deletion."""
+    config = load_config(config_filename)
+    directory = config["directory"]
+    snapshots = owned_snapshots(directory)
+    if not snapshots:
+        raise BackupError("No snapshot to accept")
+    stamp, name = snapshots[0]
+    counts = verify_snapshot(os.path.join(directory, name))
+    path = os.path.join(directory, ACCEPTED_STATE)
+    temporary = path + "." + secrets.token_hex(8) + ".part"
+    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as target:
+        json.dump({"snapshot": name, "comments": counts["comments"],
+                   "date": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}, target)
+    os.replace(temporary, path)
+    guard = os.path.join(directory, GUARD_STATE)
+    if os.path.lexists(guard):
+        os.unlink(guard)
+    return {"accepted_comments": counts["comments"]}
 
 
 def read_guard(directory):
@@ -309,19 +359,29 @@ def backup(config_filename):
     return {**result, "pruned": removed, "cleanup_errors": failed}
 
 
-def review_line(result, guard_path):
+def review_line(result, guard_path, config_path=None):
     """One summary line for backup.log / NEEDS-REVIEW.txt; the wrapper copies it verbatim."""
     if result.get("cleanup_skipped") == "guard_state_unreadable":
         cause = "drop guard state is damaged or unreadable (new snapshot has %d comments)" % result["comments"]
     else:
         cause = "comment count dropped sharply (reference %d, new %d)" % (result["previous_comments"], result["comments"])
+    accept = "remote-backup.py --accept-drop " + (config_path or "<config>")
     return ("NEEDS REVIEW: " + cause + "; snapshot saved, cleanup skipped, nothing deleted. If the comments were deleted "
-            "intentionally, delete " + guard_path + " to release the guard. Details in backup-error.log.")
+            "intentionally, run " + accept + " to accept the new count as the baseline (this also deletes " + guard_path +
+            " to release the guard). Details in backup-error.log.")
 
 
 def main(args):
+    if len(args) == 2 and args[0] == "--accept-drop":
+        try:
+            accepted = accept_drop(args[1])
+        except Exception:
+            print("Accepting the current comment count failed; check private configuration and snapshots", file=sys.stderr)
+            return 1
+        print("Accepted the newest snapshot as the comment baseline (%d comments); drop guard released." % accepted["accepted_comments"])
+        return 0
     if len(args) != 1:
-        print("Usage: remote-backup.py /absolute/private/config.json", file=sys.stderr)
+        print("Usage: remote-backup.py [--accept-drop] /absolute/private/config.json", file=sys.stderr)
         return 1
     try:
         result = backup(args[0])
@@ -333,7 +393,7 @@ def main(args):
     if "recovered_from" in result:
         print("Comment count recovered to at least half of the pre-drop baseline (%d); drop guard cleared and cleanup resumed." % result["recovered_from"])
     if result.get("cleanup_skipped"):
-        line = review_line(result, os.path.join(load_config(args[0])["directory"], GUARD_STATE))
+        line = review_line(result, os.path.join(load_config(args[0])["directory"], GUARD_STATE), args[0])
         print(line)
         print(line, file=sys.stderr)
         return 2
