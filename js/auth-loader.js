@@ -69,15 +69,18 @@
     await loadAuth();
     return window.hasCommentSession();
   };
-  window.openAuthModal = async () => {
+  // The caller passes the control it was clicked from, so the dialog can return focus there even
+  // after the SDK download moved focus (audit #15).
+  window.openAuthModal = async trigger => {
     if (opening) return;
     opening = true;
     const button = document.getElementById("auth-btn");
+    const opener = trigger && trigger.nodeType === 1 ? trigger : button;
     button?.setAttribute("aria-busy", "true");
     button?.setAttribute("aria-disabled", "true");
     try {
       await loadAuth();
-      await window.openAuthModal();
+      await window.openAuthModal(opener);
     } catch {
       alert(text("无法加载登录功能，请检查网络后重试。", "Could not load sign-in. Check your connection and retry.", "ログインを読み込めません。接続を確認して再試行してください。"));
     } finally {

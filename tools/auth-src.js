@@ -189,14 +189,25 @@ async function updateAuthButton() {
   }
 }
 let authScrollY = null;
-function showAuthModal(mode) {
+// Focus returns to the control that opened the dialog. The loader passes it explicitly because
+// focus can move while the SDK loads; a reset link opens without a click, so it falls back to the
+// sign-in button instead of the page body (audit #15).
+function focusReturnTarget(trigger) {
+  const modal = document.getElementById("auth-modal");
+  const usable = element => element && element !== document.body && element.isConnected !== false &&
+    typeof element.focus === "function" && !(modal?.contains?.(element));
+  if (usable(trigger)) return trigger;
+  if (usable(document.activeElement)) return document.activeElement;
+  return document.getElementById("auth-btn");
+}
+function showAuthModal(mode, trigger) {
   authMode = mode;
   authNotice = "";
   clearAuthError();
   updateAuthModal();
   const modal = document.getElementById("auth-modal");
   if (modal) {
-    authReturnFocus = document.activeElement;
+    if (!modal.classList?.contains?.("open") || !authReturnFocus) authReturnFocus = focusReturnTarget(trigger);
     // UI only: remember the page position so a keyboard/rotation resize while open can't move it.
     authScrollY = typeof window !== "undefined" ? window.scrollY : null;
     modal.classList.add("open");
@@ -208,23 +219,23 @@ function showAuthModal(mode) {
 // UI only: the session check can take a moment on slow networks, so show the button as busy right
 // away and ignore repeat taps until it finishes. The check and sign-in/out logic are unchanged.
 let authOpening = false;
-async function openAuthModal() {
+async function openAuthModal(trigger) {
   if (authSubmitting || authOpening) return;
   const button = document.getElementById("auth-btn");
   authOpening = true;
   button?.setAttribute("aria-busy", "true");
   button?.setAttribute("aria-disabled", "true");
   try {
-    await openAuthModalNow();
+    await openAuthModalNow(trigger?.nodeType === 1 ? trigger : button);
   } finally {
     authOpening = false;
     button?.setAttribute("aria-busy", "false");
     button?.setAttribute("aria-disabled", "false");
   }
 }
-async function openAuthModalNow() {
+async function openAuthModalNow(trigger) {
   if (resetToken) {
-    showAuthModal("reset");
+    showAuthModal("reset", trigger);
     return;
   }
   let loggedIn = false;
@@ -247,7 +258,7 @@ async function openAuthModalNow() {
     }
     return;
   }
-  showAuthModal("signin");
+  showAuthModal("signin", trigger);
 }
 function clearAuthPasswords() {
   for (const id of ["auth-password", "auth-password-confirm"]) {
@@ -261,7 +272,9 @@ function closeAuthModal() {
     modal.classList.remove("open");
     document.body?.classList.remove("modal-open");
     setAuthBackgroundInert(false);
-    authReturnFocus?.focus?.({ preventScroll: true });
+    const returnTo = authReturnFocus?.isConnected === false ? document.getElementById("auth-btn") : authReturnFocus;
+    returnTo?.focus?.({ preventScroll: true });
+    authReturnFocus = null;
     if (typeof window !== "undefined" && Number.isFinite(authScrollY) && Math.abs(window.scrollY - authScrollY) > 1) {
       window.scrollTo?.({ top: authScrollY, behavior: "instant" });
     }
@@ -458,7 +471,7 @@ window.submitAuth = submitAuth;
 window.hasCommentSession = () => doesSessionExist();
 async function initializeAuth() {
   if (resetLinkRequested) {
-    showAuthModal("reset");
+    showAuthModal("reset", document.getElementById("auth-btn"));
     if (!resetToken) showAuthError("重置链接不完整，请重新获取重置邮件。", "The reset link is incomplete. Please request another reset email.");
   }
   await updateAuthButton();

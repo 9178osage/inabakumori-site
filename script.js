@@ -1179,7 +1179,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Bind controls in JS so CSP can omit script-src 'unsafe-inline'.
   document.getElementById("lang-btn")?.addEventListener("click", toggleLanguage);
   document.getElementById("theme-btn")?.addEventListener("click", toggleTheme);
-  document.getElementById("auth-btn")?.addEventListener("click", () => window.openAuthModal?.());
+  document.getElementById("auth-btn")?.addEventListener("click", event => window.openAuthModal?.(event.currentTarget));
   document.getElementById("auth-close")?.addEventListener("click", () => window.closeAuthModal?.());
   // UI only: a click on the dimmed backdrop (not the dialog itself) closes like Escape and the close button.
   const authModal = document.getElementById("auth-modal");

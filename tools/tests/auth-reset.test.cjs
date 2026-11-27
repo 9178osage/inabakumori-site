@@ -312,3 +312,37 @@ test("login button is busy during the session check and ignores repeat taps (UI 
   release(false);
   await second;
 });
+test("the sign-in dialog returns focus to the control that opened it, even after focus moved (audit #15)", async () => {
+  const app = setup();
+  await app.listeners.DOMContentLoaded();
+  const focusable = (name, extra = {}) => ({ nodeType: 1, name, focus() { app.context.document.activeElement = this; }, ...extra });
+  const opener = focusable("comment-login");
+  // The SDK download moved focus somewhere unrelated before the dialog opened.
+  app.context.document.activeElement = focusable("elsewhere");
+  await app.context.window.openAuthModal(opener);
+  assert.equal(app.run("authMode"), "signin");
+  app.run("closeAuthModal()");
+  assert.equal(app.context.document.activeElement, opener);
+  // A trigger removed from the page while the dialog was open falls back to the sign-in button.
+  const removed = focusable("removed", { isConnected: true });
+  await app.context.window.openAuthModal(removed);
+  removed.isConnected = false;
+  app.run("closeAuthModal()");
+  assert.equal(app.context.document.activeElement, app.elements["auth-btn"]);
+});
+test("a reset link opened without a click returns focus to the sign-in button, not the page body (audit #15)", async () => {
+  const app = setup("http://localhost:5500/?resetPassword=1&token=fake-token");
+  const body = { classList: { add() {}, remove() {} }, focus() { app.context.document.activeElement = this; } };
+  app.context.document.body = body;
+  app.context.document.activeElement = body;
+  await app.listeners.DOMContentLoaded();
+  assert.equal(app.run("authMode"), "reset");
+  app.run("closeAuthModal()");
+  assert.equal(app.context.document.activeElement, app.elements["auth-btn"]);
+});
+test("the loader and the page pass the clicked control through to the dialog (audit #15)", () => {
+  const loader = fs.readFileSync("js/auth-loader.js", "utf8");
+  assert.match(loader, /window\.openAuthModal = async trigger => \{/u);
+  assert.match(loader, /await window\.openAuthModal\(opener\);/u);
+  assert.match(fs.readFileSync("script.js", "utf8"), /addEventListener\("click", event => window\.openAuthModal\?\.\(event\.currentTarget\)\)/u);
+});
