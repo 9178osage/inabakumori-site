@@ -9,7 +9,7 @@ const pageGlobals = {
 };
 
 export default [
-  { ignores: ["**/node_modules/**", "dist/**", "js/auth.js", "inabakumori-site-all-code/**", "artifacts/**"] },
+  { ignores: ["**/node_modules/**", "dist/**", "js/auth.js", "artifacts/**"] },
   {
     files: ["script.js", "js/**/*.js", "网站海报/*.js", "tools/**/*.{js,mjs,cjs}", "backend/**/*.{js,mjs,cjs}", "eslint.config.mjs"],
     rules: {

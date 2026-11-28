@@ -36,8 +36,8 @@ test("browser classic globals and Node globals stay in their intended environmen
   assert.equal((await messages("window.alert('test');", "tools/lint-fixture.mjs"))[0].ruleId, "no-undef");
 });
 
-test("generated output, installed packages and the local text copy are excluded", async () => {
-  for (const file of ["js/auth.js", "dist/script.js", "node_modules/example/index.js", "backend/node_modules/example/index.js", "inabakumori-site-all-code/synthetic.js"]) {
+test("generated output and installed packages are excluded", async () => {
+  for (const file of ["js/auth.js", "dist/script.js", "node_modules/example/index.js", "backend/node_modules/example/index.js"]) {
     assert.equal(await eslint.isPathIgnored(path.join(root, file)), true, file);
   }
   const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));

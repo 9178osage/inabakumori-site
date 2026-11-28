@@ -80,7 +80,7 @@ node backend/migrate-comments.mjs --source /private/backup/comments.db --apply
 4. 部署 Vercel Production，确认对应 Git 提交、构建与函数初始化日志中的实际 Node 版本，以及 `/healthz` 返回的提交前缀。使用实际前端 origin 检查 CORS 和预检；在受控环境核对留言读取、游客发布、会员归属、删除权限、管理员接口、登录与会话刷新。确认多个实例共享限流、过期行为正确，备份可导出且恢复可用。测试留言及时清理。
 5. 以上预验证全部通过后，再把 `js/config.js` 的生产 `apiDomain`、页面 CSP 的 `connect-src` 和相应构建校验、测试一并改为已经验证的 Vercel API origin。不要提前填写猜测的项目域名；不扩大 CSP 为通配符。
 6. 按[站长手册](MAINTAINER.md)运行四项提交门禁，提交并推送 `main`，核对 GitHub Pages 发布和线上页面实际加载的新 API 地址。用线上页面再次验证登录、留言、删除和控制台 CSP/CORS 错误，记录实际检查的提交范围及部署结果。
-7. Vercel、Pages、生产数据与回退方案全部确认后，再决定停用 Railway。停用前确认数据库已独立于待移除的 Railway 资源，保存最后备份和恢复记录；不要连同仍被 Vercel 使用的数据库一起删除。完成部署验证后按项目约定同步并检查本地文本副本。
+7. Vercel、Pages、生产数据与回退方案全部确认后，再决定停用 Railway。停用前确认数据库已独立于待移除的 Railway 资源，保存最后备份和恢复记录；不要连同仍被 Vercel 使用的数据库一起删除。
 
 ## 回退与后续备份
 

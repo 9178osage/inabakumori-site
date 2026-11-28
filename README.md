@@ -2,7 +2,7 @@
 >
 > GitHub Actions builds and publishes only `dist/`. Before committing, pass all four gates: `npm test`, `npm run check`, `npm run test:integration`, and `npm run check:changelog`. The last command verifies deployment records online and is separate from `check`.
 >
-> 生产环境只发布 `dist/`。提交前须通过测试、综合检查、HTTP 集成测试及上线记录联网核对四项门禁；`npm run check` 不包含最后一项。发布与副本同步流程见[站长手册](docs/MAINTAINER.md)。
+> 生产环境只发布 `dist/`。提交前须通过测试、综合检查、HTTP 集成测试及上线记录联网核对四项门禁；`npm run check` 不包含最后一项。发布流程见[站长手册](docs/MAINTAINER.md)。
 >
 > 公開するのは `dist/` のみです。コミット前に上記 4 コマンドをすべて実行してください。公開記録のオンライン照合は `npm run check` に含まれません。
 
@@ -199,8 +199,7 @@ inabakumori-site/
 │
 ├── dist/                   # Generated public build (ignored)
 ├── artifacts/              # Local reports, logs, scans, checks (ignored)
-├── .local-notes/           # Private maintenance notes (ignored)
-└── inabakumori-site-all-code/ # Committed-text exports (ignored)
+└── .local-notes/           # Private maintenance notes (ignored)
 ```
 
 ---
@@ -361,7 +360,7 @@ The frontend is deployed to **GitHub Pages** by `.github/workflows/pages.yml`. T
 
 The repository root contains source files, test tools, backend code, and documentation. It must not be used as the Pages artifact.
 
-After pushing to `main`, confirm both **Verify website** and **Publish public site** succeeded for the exact commit, then check the live pages. Verify the separate Vercel deployment and `/healthz` version too. After deployment verification, run `python3 tools/sync-copy.py` and `python3 tools/sync-copy.py --check`, preserving the existing `.review-base`. README and maintenance documents stay in GitHub and are not included in the public build.
+After pushing to `main`, confirm both **Verify website** and **Publish public site** succeeded for the exact commit, then check the live pages. Verify the separate Vercel deployment and `/healthz` version too. README and maintenance documents stay in GitHub and are not included in the public build.
 
 Because the account system and message wall are dynamic, they also require a separately hosted Node.js backend configured with:
 
@@ -608,8 +607,7 @@ inabakumori-site/
 │
 ├── dist/                   # Generated public build (ignored)
 ├── artifacts/              # Local reports, logs, scans, checks (ignored)
-├── .local-notes/           # Private maintenance notes (ignored)
-└── inabakumori-site-all-code/ # Committed-text exports (ignored)
+└── .local-notes/           # Private maintenance notes (ignored)
 ```
 
 ---
@@ -769,7 +767,7 @@ npm run check:links:strict
 
 仓库根目录包含源代码、测试工具、后端和文档，不能直接作为 Pages 静态目录。
 
-推送 `main` 后，须确认同一提交的 **Verify website** 与 **Publish public site** 均成功，再核对线上页面；另行确认 Vercel 部署及 `/healthz` 版本。部署验证完成后运行 `python3 tools/sync-copy.py` 及其 `--check`，保留现有 `.review-base`。README 和维护文档保存在 GitHub，不包含在网站公开产物中。
+推送 `main` 后，须确认同一提交的 **Verify website** 与 **Publish public site** 均成功，再核对线上页面；另行确认 Vercel 部署及 `/healthz` 版本。README 和维护文档保存在 GitHub，不包含在网站公开产物中。
 
 账号系统和留言墙属于动态功能，因此还需要单独部署 Node.js 后端，并配置：
 
@@ -1014,8 +1012,7 @@ inabakumori-site/
 │
 ├── dist/                   # Generated public build (ignored)
 ├── artifacts/              # Local reports, logs, scans, checks (ignored)
-├── .local-notes/           # Private maintenance notes (ignored)
-└── inabakumori-site-all-code/ # Committed-text exports (ignored)
+└── .local-notes/           # Private maintenance notes (ignored)
 ```
 
 ---
@@ -1163,7 +1160,7 @@ npm run check:links:strict
 
 フロントエンドは `.github/workflows/pages.yml` でビルドし、公開用の `dist/` のみを **GitHub Pages** にデプロイします。リポジトリのルートをそのまま公開しないでください。
 
-`main` へ push 後、同じコミットの **Verify website** と **Publish public site** の成功、公開ページ、別途 Vercel のデプロイと `/healthz` のバージョンを確認します。その後、`python3 tools/sync-copy.py` と `python3 tools/sync-copy.py --check` を実行し、既存の `.review-base` を保持します。README と管理用文書は GitHub に保存され、公開ビルドには含まれません。
+`main` へ push 後、同じコミットの **Verify website** と **Publish public site** の成功、公開ページ、別途 Vercel のデプロイと `/healthz` のバージョンを確認します。README と管理用文書は GitHub に保存され、公開ビルドには含まれません。
 
 アカウント機能とメッセージウォールは動的機能のため、別途 Node.js バックエンドをデプロイし、以下を設定する必要があります：
 

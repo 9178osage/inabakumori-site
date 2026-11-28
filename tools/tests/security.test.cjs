@@ -274,7 +274,7 @@ test("the published contact address never becomes an admin login identifier", ()
   const files = publishedTextFiles();
   assert.ok(files.length > 25, `expected the public file scan to cover the repository, got ${files.length}`);
   assert.ok(files.includes("docs/SECURITY.md") && files.includes("backend/.env.example"));
-  for (const file of ["updates.html", "updates.css", "AGENTS.md", "data/creator-updates.json", "data/x-posts/manifest.json", "tools/sync-copy.py"]) {
+  for (const file of ["updates.html", "updates.css", "AGENTS.md", "data/creator-updates.json", "data/x-posts/manifest.json", "tools/remote-backup.py"]) {
     assert.ok(files.includes(file), `${file}: the contact/admin guard must cover newer repository text`);
   }
   const manifest = JSON.parse(read("data/x-posts/manifest.json"));
