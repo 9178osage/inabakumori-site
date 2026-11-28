@@ -3,11 +3,16 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
 
-const backendFiles = ["backend/server.mjs", "backend/services.mjs", "backend/backup.mjs", "backend/backup-endpoint.mjs"];
+const requestPathBackend = ["backend/server.mjs", "backend/services.mjs", "backend/backup.mjs", "backend/backup-endpoint.mjs"];
+const backendFiles = fs.readdirSync("backend").filter(name => name.endsWith(".mjs")).map(name => `backend/${name}`).sort();
+const frontendFiles = ["script.js", ...fs.readdirSync("js").filter(name => name.endsWith(".js")).map(name => `js/${name}`), "tools/auth-src.js"]
+  .filter(name => name !== "js/auth.js")
+  .sort();
 const read = file => fs.readFileSync(file, "utf8");
 
 test("backend has no shell, eval, dynamic code or SQLite extension loading primitives", () => {
-  for (const file of backendFiles) {
+  for (const file of requestPathBackend) {
+    assert.ok(backendFiles.includes(file), `auto-enumeration missed request-path file ${file}`);
     const source = read(file);
     assert.doesNotMatch(source, /child_process|\bexecSync?\(|\bspawn(Sync)?\(|\bfork\(/, `${file}: process execution`);
     assert.doesNotMatch(source, /\beval\(|new Function\(|\bimport\(/, `${file}: dynamic code`);
@@ -25,8 +30,20 @@ test("backend has no shell, eval, dynamic code or SQLite extension loading primi
   assert.match(server, /app\.disable\("x-powered-by"\)/);
 });
 
+test("security scans auto-enumerate every backend and frontend module (audit P3-5)", () => {
+  assert.ok(backendFiles.length > requestPathBackend.length, "backend enumeration must include modules beyond the request path");
+  for (const file of backendFiles) {
+    const source = read(file);
+    assert.doesNotMatch(source, /\beval\(|new Function\(/, `${file}: dynamic code`);
+    assert.doesNotMatch(source, /allowExtension|loadExtension|load_extension/i, `${file}: SQLite extensions`);
+  }
+  const originalFrontend = ["script.js", "js/comments.js", "js/experience.js", "js/i18n.js", "js/network.js", "js/preferences.js", "js/nknk-gallery-ui.js", "tools/auth-src.js"];
+  for (const file of originalFrontend) assert.ok(frontendFiles.includes(file), `frontend enumeration missed ${file}`);
+  assert.ok(frontendFiles.length > originalFrontend.length, "frontend enumeration must include the remaining scripts");
+});
+
 test("every state-changing route requires a session; admin routes check rights server-side", () => {
-  const sources = backendFiles.slice(0, 2).map(read).join("\n");
+  const sources = requestPathBackend.slice(0, 2).map(read).join("\n");
   const routes = [...sources.matchAll(/app\.(post|delete|put|patch)\("([^"]+)",([^\n]*)/g)];
   assert.ok(routes.length >= 3, "expected comment routes");
   for (const [, method, route, rest] of routes) {
@@ -36,7 +53,7 @@ test("every state-changing route requires a session; admin routes check rights s
       assert.match(rest, /guestCommentLimiter/);
       continue;
     }
-    assert.match(rest, /verifySession\(\)/, `${method.toUpperCase()} ${route} must require a session`);
+    assert.match(rest, /verifySession\(/, `${method.toUpperCase()} ${route} must require a session`);
     if (route.startsWith("/api/admin/")) assert.match(rest, /requireAdmin/, `${route} must check admin rights`);
   }
   const services = read("backend/services.mjs");
@@ -67,7 +84,7 @@ test("frontend talks only to the hardcoded HTTPS API and never renders server da
   vm.createContext(context);
   vm.runInContext(read("js/config.js"), context);
   assert.equal(context.window.APP_CONFIG.apiDomain, "https://inabakumori-backend.vercel.app");
-  for (const file of ["script.js", "js/comments.js", "js/experience.js", "js/i18n.js", "js/network.js", "js/preferences.js", "js/nknk-gallery-ui.js", "tools/auth-src.js"]) {
+  for (const file of frontendFiles) {
     assert.doesNotMatch(read(file), /innerHTML|outerHTML|insertAdjacentHTML|document\.write|\beval\(|new Function\(/, file);
   }
   const csp = read("index.html").match(/Content-Security-Policy" content="([^"]+)"/)[1];
@@ -197,6 +214,24 @@ test("comment validation stays fast on adversarial 500-character inputs (no ReDo
   const oversized = runBatch("a-".repeat(9000));
   assert.equal(validateCommentInput({ nickname: "n", content: "a-".repeat(9000) }).ok, false);
   assert.ok(oversized.cpuMs < 50 && oversized.wallMs < 100);
+});
+
+test("obfuscated-domain comments stay fast when labels could once overlap the word 'dot' (audit P1-1)", async () => {
+  const { validateCommentInput, detectCommentSafetyIssue } = await import("../../backend/services.mjs");
+  const adversarial = "aa-dot-".repeat(40) + "z";
+  assert.equal(adversarial.length, 281);
+  validateCommentInput({ nickname: "u", content: "warmup" });
+  const cpuStart = process.cpuUsage();
+  const wallStart = performance.now();
+  const result = validateCommentInput({ nickname: "u", content: adversarial });
+  const wallMs = performance.now() - wallStart;
+  const cpuMs = (process.cpuUsage(cpuStart).user + process.cpuUsage(cpuStart).system) / 1000;
+  assert.equal(result.ok, true, "hyphenated 'dot' without spaces is not treated as a link");
+  assert.ok(cpuMs < 50, `ReDoS CPU time ${cpuMs.toFixed(1)}ms`);
+  assert.ok(wallMs < 50, `ReDoS wall time ${wallMs.toFixed(1)}ms`);
+  assert.notEqual(detectCommentSafetyIssue("visit example dot com"), null);
+  assert.notEqual(detectCommentSafetyIssue("visit example[.]com"), null);
+  assert.notEqual(detectCommentSafetyIssue("visit example (.) com"), null);
 });
 
 test("every GitHub Action is pinned to a commit SHA, workflows avoid pull_request_target, Dependabot watches all ecosystems", () => {
