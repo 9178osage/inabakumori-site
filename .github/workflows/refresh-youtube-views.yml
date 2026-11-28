@@ -87,13 +87,15 @@ jobs:
       # fetched js/songs.js. A later main tip would mix an untested tree with those counts.
       - name: Capture validated main HEAD
         id: validated_head
+        env:
+          FETCH_SHA: ${{ needs.fetch.outputs.sha }}
         run: |
           sha=$(git rev-parse HEAD)
           if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
             echo "::error::Could not resolve the checked-out HEAD."
             exit 1
           fi
-          if [ "$sha" != "${{ needs.fetch.outputs.sha }}" ]; then
+          if [ "$sha" != "$FETCH_SHA" ]; then
             echo "::error::Refresh did not check out the fetch job's commit."
             exit 1
           fi
@@ -239,17 +241,27 @@ jobs:
             echo "::error::UPDATE_SHA must be a 40-character lowercase hex digest."
             exit 1
           fi
-          # Dispatch against the commit just pushed, not whatever main is when this job starts.
-          gh workflow run check.yml --ref "$UPDATE_SHA"
-          gh workflow run pages.yml --ref "$UPDATE_SHA"
+          # workflow_dispatch requires a branch or tag ref (not a raw commit SHA).
+          gh workflow run check.yml --ref main
+          gh workflow run pages.yml --ref main
           # Token pushes skip push-triggered workflows, so the GitLab mirror is dispatched explicitly too.
-          gh workflow run mirror.yml --ref "$UPDATE_SHA"
+          gh workflow run mirror.yml --ref main
+          TARGET_SHA="$UPDATE_SHA"
           for attempt in $(seq 1 12); do
-            gh api --method GET "repos/$GH_REPO/actions/runs" -f head_sha="$UPDATE_SHA" -f event=workflow_dispatch -f per_page=30 > /tmp/youtube-update-runs.json
-            VERIFY_RUN=$(jq -r '.workflow_runs | map(select(.name == "Verify website")) | max_by(.id) | .id // empty' /tmp/youtube-update-runs.json)
-            PUBLISH_RUN=$(jq -r '.workflow_runs | map(select(.name == "Publish public site")) | max_by(.id) | .id // empty' /tmp/youtube-update-runs.json)
-            MIRROR_RUN=$(jq -r '.workflow_runs | map(select(.name == "Mirror to GitLab")) | max_by(.id) | .id // empty' /tmp/youtube-update-runs.json)
+            if [ "$TARGET_SHA" = "$UPDATE_SHA" ]; then
+              gh api --method GET "repos/$GH_REPO/actions/runs" -f head_sha="$TARGET_SHA" -f event=workflow_dispatch -f per_page=30 > /tmp/youtube-update-runs.json
+            else
+              gh api --method GET "repos/$GH_REPO/actions/runs" -f head_sha="$TARGET_SHA" -f per_page=30 > /tmp/youtube-update-runs.json
+            fi
+            VERIFY_RUN=$(jq -r '.workflow_runs | map(select((.event == "workflow_dispatch" or .event == "push") and .name == "Verify website")) | max_by(.id) | .id // empty' /tmp/youtube-update-runs.json)
+            PUBLISH_RUN=$(jq -r '.workflow_runs | map(select((.event == "workflow_dispatch" or .event == "push") and .name == "Publish public site")) | max_by(.id) | .id // empty' /tmp/youtube-update-runs.json)
+            MIRROR_RUN=$(jq -r '.workflow_runs | map(select((.event == "workflow_dispatch" or .event == "push") and .name == "Mirror to GitLab")) | max_by(.id) | .id // empty' /tmp/youtube-update-runs.json)
             if [ -n "$VERIFY_RUN" ] && [ -n "$PUBLISH_RUN" ] && [ -n "$MIRROR_RUN" ]; then break; fi
+            CURRENT_MAIN=$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq .object.sha)
+            if [[ "$CURRENT_MAIN" =~ ^[0-9a-f]{40}$ ]] && [ "$CURRENT_MAIN" != "$TARGET_SHA" ] && [ "$(gh api "repos/$GH_REPO/compare/$UPDATE_SHA...$CURRENT_MAIN" --jq .status)" = "ahead" ]; then
+              echo "::notice::main advanced from $UPDATE_SHA to $CURRENT_MAIN during dispatch; tracking runs for $CURRENT_MAIN instead."
+              TARGET_SHA="$CURRENT_MAIN"
+            fi
             sleep 10
           done
           test -n "$VERIFY_RUN" && test -n "$PUBLISH_RUN" && test -n "$MIRROR_RUN"
@@ -257,9 +269,20 @@ jobs:
           gh run watch "$PUBLISH_RUN" --exit-status --interval 15
           gh run watch "$MIRROR_RUN" --exit-status --interval 15
           echo "GitLab mirror run $MIRROR_RUN pushed main at $(gh api "repos/$GH_REPO/actions/runs/$MIRROR_RUN" --jq .head_sha)"
+          if ! printf '%s' "$SNAPSHOT_HASH" | grep -Eq '^[0-9a-f]{64}$'; then
+            echo "::error::SNAPSHOT_HASH must be a 64-character lowercase hex digest."
+            exit 1
+          fi
+          if [ "$TARGET_SHA" != "$UPDATE_SHA" ]; then
+            CHANGED_FILES=$(gh api "repos/$GH_REPO/compare/$UPDATE_SHA...$TARGET_SHA" --jq '.files[].filename')
+            if printf '%s\n' "$CHANGED_FILES" | grep -Fxq "js/songs.js"; then
+              echo "::notice::js/songs.js was superseded by $TARGET_SHA; its workflows already succeeded."
+              exit 0
+            fi
+          fi
           for attempt in $(seq 1 12); do
-            if curl --fail --silent --show-error --max-time 20 "https://osagechan.top/js/songs.js?check=$UPDATE_SHA" -o /tmp/published-youtube-songs.js && [ "$(sha256sum /tmp/published-youtube-songs.js | cut -d ' ' -f 1)" = "$SNAPSHOT_HASH" ]; then
-              echo "Verified published YouTube view counts $UPDATE_SHA"
+            if curl --fail --silent --show-error --max-time 20 "https://osagechan.top/js/songs.js?check=$TARGET_SHA" -o /tmp/published-youtube-songs.js && [ "$(sha256sum /tmp/published-youtube-songs.js | cut -d ' ' -f 1)" = "$SNAPSHOT_HASH" ]; then
+              echo "Verified published YouTube view counts $TARGET_SHA"
               exit 0
             fi
             sleep 10

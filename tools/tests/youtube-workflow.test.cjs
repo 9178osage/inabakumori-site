@@ -18,6 +18,8 @@ test("YouTube refresh has all four unconditional gates before exporting a read-o
   assert.match(fetch, /ref: main/u);
   assert.match(fetch, /outputs:\n      sha: \$\{\{ steps\.fetched_head\.outputs\.sha \}\}/u);
   assert.match(refresh, /ref: \$\{\{ needs\.fetch\.outputs\.sha \}\}/u);
+  assert.match(refresh, /FETCH_SHA: \$\{\{ needs\.fetch\.outputs\.sha \}\}/u);
+  assert.doesNotMatch(refresh, /"\$\{\{ needs\.fetch\.outputs\.sha \}\}"/u, "fetch SHA must be passed via env, not interpolated in run");
   assert.match(refresh, /validated_sha: \$\{\{ steps\.validated_head\.outputs\.sha \}\}/u);
   assert.match(refresh, /CHANGELOG_HEAD_SHA: \$\{\{ steps\.validated_head\.outputs\.sha \}\}/u);
   assert.match(refresh, /if: github\.ref == 'refs\/heads\/main'/u);
@@ -54,9 +56,12 @@ test("write jobs only commit checked files or dispatch and verify the resulting 
   assert.match(commit, /top of the deployment table/u);
   assert.match(publish, /needs: \[refresh, commit\]/u);
   assert.match(publish, /if: needs\.commit\.outputs\.changed == 'true'/u);
-  assert.match(publish, /gh workflow run check\.yml --ref "\$UPDATE_SHA"/u);
-  assert.match(publish, /gh workflow run pages\.yml --ref "\$UPDATE_SHA"/u);
-  assert.match(publish, /-f head_sha="\$UPDATE_SHA"/u);
+  assert.match(publish, /gh workflow run check\.yml --ref main/u);
+  assert.match(publish, /gh workflow run pages\.yml --ref main/u);
+  assert.doesNotMatch(publish, /gh workflow run [^\n]*--ref "\$UPDATE_SHA"/u, "workflow_dispatch requires a branch or tag ref, not a raw commit SHA");
+  assert.match(publish, /TARGET_SHA="\$UPDATE_SHA"/u);
+  assert.match(publish, /-f head_sha="\$TARGET_SHA"/u);
+  assert.match(publish, /compare\/\$UPDATE_SHA\.\.\.\$CURRENT_MAIN/u);
   assert.match(publish, /gh run watch "\$VERIFY_RUN" --exit-status/u);
   assert.match(publish, /gh run watch "\$PUBLISH_RUN" --exit-status/u);
   assert.match(publish, /sha256sum \/tmp\/published-youtube-songs\.js[^\n]*= "\$SNAPSHOT_HASH"/u);
@@ -235,8 +240,12 @@ test("both scheduled refreshes dispatch and confirm the GitLab mirror after thei
   for (const file of [".github/workflows/refresh-creator-updates.yml", ".github/workflows/refresh-youtube-views.yml"]) {
     const workflow = fs.readFileSync(file, "utf8");
     const publish = workflow.slice(workflow.indexOf("  publish:"));
-    assert.match(publish, /gh workflow run mirror\.yml --ref "\$UPDATE_SHA"/u, file);
-    assert.match(publish, /map\(select\(\.name == "Mirror to GitLab"\)\)/u, file);
+    assert.match(publish, /gh workflow run check\.yml --ref main/u, file);
+    assert.match(publish, /gh workflow run pages\.yml --ref main/u, file);
+    assert.match(publish, /gh workflow run mirror\.yml --ref main/u, file);
+    assert.doesNotMatch(publish, /gh workflow run [^\n]*--ref "\$UPDATE_SHA"/u, `${file}: workflow_dispatch rejects commit SHAs`);
+    assert.match(publish, /compare\/\$UPDATE_SHA\.\.\.\$CURRENT_MAIN/u, `${file}: handles concurrent push advancing main`);
+    assert.match(publish, /map\(select\(\(\.event == "workflow_dispatch" or \.event == "push"\) and \.name == "Mirror to GitLab"\)\)/u, file);
     assert.match(publish, /gh run watch "\$MIRROR_RUN" --exit-status/u, file);
     assert.match(publish, /pushed main at/u, `${file} records the mirrored commit`);
     assert.match(publish, /actions: write/u, `${file}: only the publish job may dispatch`);
@@ -246,9 +255,18 @@ test("both scheduled refreshes dispatch and confirm the GitLab mirror after thei
   assert.match(mirror, /permissions:\n  contents: read/u, "the mirror keeps least privilege");
   assert.match(mirror, /runs-on: ubuntu-24\.04/u);
   assert.doesNotMatch(mirror, /ubuntu-latest/u);
+  assert.match(mirror, /GH_TOKEN is not set/u);
   assert.match(mirror, /GITLAB_TOKEN is not set/u);
-  assert.doesNotMatch(mirror, /x-access-token:|oauth2:\$\{/u);
-  assert.match(mirror, /http\.https:\/\/github\.com\/\.extraheader/u);
-  assert.match(mirror, /http\.https:\/\/gitlab\.com\/\.extraheader/u);
+  assert.match(mirror, /GIT_TERMINAL_PROMPT: "0"/u);
+  assert.doesNotMatch(mirror, /https:\/\/[^/\s]*@(?:github|gitlab)\.com/u, "tokens must not be embedded in remote URLs");
+  assert.doesNotMatch(mirror, /\bgit\s+-c\b/u, "tokens must not be passed in git command-line arguments");
+  assert.doesNotMatch(mirror, /AUTHORIZATION:\s*bearer\b/iu, "Git Smart HTTP requires Basic auth, not Bearer");
+  assert.match(mirror, /::add-mask::\$\{GH_AUTH\}/u);
+  assert.match(mirror, /::add-mask::\$\{GITLAB_AUTH\}/u);
+  assert.match(mirror, /GIT_CONFIG_COUNT=1/u);
+  assert.match(mirror, /GIT_CONFIG_KEY_0="http\.https:\/\/github\.com\/\.extraheader"/u);
+  assert.match(mirror, /GIT_CONFIG_KEY_0="http\.https:\/\/gitlab\.com\/\.extraheader"/u);
+  assert.match(mirror, /GIT_CONFIG_VALUE_0="Authorization: Basic \$\{GH_AUTH\}"/u);
+  assert.match(mirror, /GIT_CONFIG_VALUE_0="Authorization: Basic \$\{GITLAB_AUTH\}"/u);
 });
 
