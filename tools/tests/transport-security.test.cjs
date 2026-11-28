@@ -47,3 +47,16 @@ test("the server checks the Core link at production startup", () => {
   const server = fs.readFileSync("backend/server.mjs", "utf8");
   assert.match(server, /if \(IS_PRODUCTION \|\| IS_VERCEL\) \{\n[^\n]*\n  const coreProblem = coreTransportProblem\(SUPERTOKENS_CONNECTION_URI, process\.env\);\n  if \(coreProblem\) failStartup\(coreProblem\);/u);
 });
+
+test("postgres TLS checks follow pg 8's last-parameter and case-sensitive PGSSLMODE rules (audit P2-1)", async () => {
+  const { postgresTransportProblem } = await import("../../backend/transport-security.mjs");
+  const base = "postgresql://synthetic:private-password@ep-synthetic.neon.example.test/db";
+  assert.match(postgresTransportProblem(`${base}?sslmode=verify-full&sslmode=disable`), /TLS/u);
+  assert.match(postgresTransportProblem(`${base}?sslmode=verify-full&sslmode=no-verify`), /TLS/u);
+  assert.match(postgresTransportProblem(`${base}?ssl=true&ssl=0`), /TLS/u);
+  assert.equal(postgresTransportProblem("postgresql://synthetic:private-password@localhost/db?host=localhost&host=db.example.com"),
+    postgresTransportProblem(`${base}?sslmode=disable`));
+  assert.match(postgresTransportProblem(base, { PGSSLMODE: "REQUIRE" }), /TLS/u, "pg ignores uppercase PGSSLMODE");
+  assert.equal(postgresTransportProblem(base, { PGSSLMODE: "require" }), null);
+  assert.match(postgresTransportProblem("postgresql://synthetic:private-password@foo%25bar.example.test/db"), /DATABASE_URL|PostgreSQL connection URL/u);
+});

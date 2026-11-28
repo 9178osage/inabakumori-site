@@ -235,51 +235,99 @@ async function reserveSnapshot(destination) {
 const SNAPSHOT_WORKER = `
 const { parentPort, workerData } = require("node:worker_threads");
 const { DatabaseSync } = require("node:sqlite");
-const { destination, schema, rows, highWater } = workerData;
+const { destination, schema } = workerData;
 let snapshot;
 try {
   snapshot = new DatabaseSync(destination);
   snapshot.exec(schema + " BEGIN IMMEDIATE;");
   const insert = snapshot.prepare("INSERT INTO comments (id, nickname, content, user_id, is_guest, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)");
-  for (const row of rows) insert.run(row.id, row.nickname, row.content, row.user_id, row.is_guest, row.created_at, row.expires_at);
-  // IDs already issued and later deleted must stay unavailable after restore,
-  // including when every comment has been deleted from the source database.
-  snapshot.prepare("DELETE FROM sqlite_sequence WHERE name = ?").run("comments");
-  // sqlite_sequence.seq has no INTEGER affinity: node:sqlite binds Numbers
-  // as REAL, so cast explicitly for interoperable integer backup metadata.
-  snapshot.prepare("INSERT INTO sqlite_sequence (name, seq) VALUES (?, CAST(? AS INTEGER))").run("comments", highWater);
-  snapshot.exec("COMMIT");
-  if (snapshot.prepare("PRAGMA quick_check").get().quick_check !== "ok") throw new Error("Backup integrity check failed");
-  snapshot.close();
-  snapshot = undefined;
-  parentPort.postMessage({ ok: true });
+  parentPort.on("message", message => {
+    try {
+      if (message?.type === "rows") {
+        for (const row of message.rows) insert.run(row.id, row.nickname, row.content, row.user_id, row.is_guest, row.created_at, row.expires_at);
+        parentPort.postMessage({ ok: true, ack: true });
+        return;
+      }
+      if (message?.type === "finish") {
+        // IDs already issued and later deleted must stay unavailable after restore,
+        // including when every comment has been deleted from the source database.
+        snapshot.prepare("DELETE FROM sqlite_sequence WHERE name = ?").run("comments");
+        // sqlite_sequence.seq has no INTEGER affinity: node:sqlite binds Numbers
+        // as REAL, so cast explicitly for interoperable integer backup metadata.
+        snapshot.prepare("INSERT INTO sqlite_sequence (name, seq) VALUES (?, CAST(? AS INTEGER))").run("comments", message.highWater);
+        snapshot.exec("COMMIT");
+        if (snapshot.prepare("PRAGMA quick_check").get().quick_check !== "ok") throw new Error("Backup integrity check failed");
+        snapshot.close();
+        snapshot = undefined;
+        parentPort.postMessage({ ok: true, done: true });
+        return;
+      }
+    } catch (error) {
+      try { snapshot?.close(); } catch {}
+      snapshot = undefined;
+      parentPort.postMessage({ ok: false, message: String(error?.message || error) });
+    }
+  });
+  parentPort.postMessage({ ok: true, ready: true });
 } catch (error) {
   try { snapshot?.close(); } catch {}
   parentPort.postMessage({ ok: false, message: String(error?.message || error) });
 }
 `;
 
-function writeSnapshotInWorker(destination, rows, highWater) {
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    const finish = (error) => { if (settled) return; settled = true; error ? reject(error) : resolve(); };
-    const worker = new Worker(SNAPSHOT_WORKER, { eval: true, workerData: { destination, schema: `${SQLITE_SCHEMA}${COMMENT_INDEXES}`, rows, highWater } });
-    worker.once("message", message => finish(message?.ok ? null : new Error(message?.message || "Backup snapshot failed")));
-    worker.once("error", finish);
-    worker.once("exit", code => finish(code === 0 ? new Error("Backup snapshot worker exited without a result") : new Error(`Backup snapshot worker exited with code ${code}`)));
+function startSnapshotWriter(destination) {
+  let settled = false;
+  let pending = null;
+  let resolveReady;
+  const ready = new Promise((resolve, reject) => { resolveReady = { resolve, reject }; });
+  const worker = new Worker(SNAPSHOT_WORKER, { eval: true, workerData: { destination, schema: `${SQLITE_SCHEMA}${COMMENT_INDEXES}` } });
+  const fail = (error) => {
+    if (settled) return;
+    settled = true;
+    pending?.reject(error);
+    pending = null;
+    resolveReady.reject(error);
+    worker.terminate().catch(() => {});
+  };
+  worker.on("message", message => {
+    if (!message?.ok) return fail(new Error(message?.message || "Backup snapshot failed"));
+    if (message.ready) return resolveReady.resolve();
+    if (pending) {
+      const current = pending;
+      pending = null;
+      current.resolve(message);
+    }
   });
-}
-
-async function sqliteSnapshot(destination, rows, highWater) {
-  await reserveSnapshot(destination);
-  try {
-    await writeSnapshotInWorker(destination, rows, highWater);
-    await chmod(destination, 0o600);
-    return destination;
-  } catch (error) {
-    await rm(destination, { force: true });
-    throw error;
-  }
+  worker.on("error", fail);
+  worker.on("exit", code => {
+    if (!settled) fail(code === 0 ? new Error("Backup snapshot worker exited without a result") : new Error(`Backup snapshot worker exited with code ${code}`));
+  });
+  const request = async payload => {
+    await ready;
+    if (settled) throw new Error("Backup snapshot worker is already finished");
+    if (pending) throw new Error("Backup snapshot worker is still busy");
+    const wait = new Promise((resolve, reject) => { pending = { resolve, reject }; });
+    worker.postMessage(payload);
+    return wait;
+  };
+  return {
+    async send(rows) {
+      if (!rows.length) return;
+      await request({ type: "rows", rows });
+    },
+    async finish(highWater) {
+      const message = await request({ type: "finish", highWater });
+      settled = true;
+      await worker.terminate().catch(() => {});
+      if (!message?.done) throw new Error("Backup snapshot worker did not finish");
+    },
+    async abort() {
+      settled = true;
+      pending?.reject(new Error("Backup snapshot cancelled"));
+      pending = null;
+      await worker.terminate().catch(() => {});
+    }
+  };
 }
 
 async function rollbackForRelease(client) {
@@ -347,28 +395,41 @@ export async function createPostgresDatabase(pool) {
       assertRoot();
       const client = await pool.connect();
       let releaseError;
-      let rows, highWater;
+      const pages = [];
+      let highWater;
       try {
         await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
-        rows = [];
+        let lastId = 0;
         for (let after = 0; ;) {
           const page = postgresRows(await client.query(SELECT_SNAPSHOT_PAGE, [after, SNAPSHOT_PAGE_SIZE]));
-          rows.push(...page);
+          pages.push(page);
+          if (page.length) lastId = page.at(-1).id;
           if (page.length < SNAPSHOT_PAGE_SIZE) break;
           const last = page.at(-1).id;
           if (!(last > after)) throw new Error("Snapshot paging did not advance");
           after = last;
         }
         const sequence = postgresRows(await client.query("SELECT pg_sequence_last_value(pg_get_serial_sequence('comments', 'id')::regclass) AS high_water"))[0];
-        highWater = Math.max(rows.at(-1)?.id || 0, safeInteger(sequence?.high_water ?? 0));
+        highWater = Math.max(lastId, safeInteger(sequence?.high_water ?? 0));
         await client.query("COMMIT");
       } catch (error) {
         releaseError = await rollbackForRelease(client);
         throw error;
       } finally { client.release(releaseError); }
       // Local serialization no longer owns a database transaction or client.
-      // A file error must neither send ROLLBACK nor delay returning the client.
-      return sqliteSnapshot(destination, rows, highWater);
+      // Stream pages to the worker so it never receives the full row set via workerData.
+      await reserveSnapshot(destination);
+      const writer = startSnapshotWriter(destination);
+      try {
+        for (const page of pages) await writer.send(page);
+        await writer.finish(highWater);
+        await chmod(destination, 0o600);
+        return destination;
+      } catch (error) {
+        await writer.abort();
+        await rm(destination, { force: true });
+        throw error;
+      }
     },
     async close() { assertRoot(); await pool.end(); }
   };

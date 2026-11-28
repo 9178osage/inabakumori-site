@@ -65,7 +65,7 @@ test("the real backup CLI creates verified snapshots from both regular and symli
   try {
     const backend = path.join(directory, "backend");
     fs.mkdirSync(backend);
-    for (const file of ["backup.mjs", "services.mjs"]) fs.copyFileSync(path.join(repository, "backend", file), path.join(backend, file));
+    for (const file of ["backup.mjs", "services.mjs", "comment-time.mjs"]) fs.copyFileSync(path.join(repository, "backend", file), path.join(backend, file));
     fs.symlinkSync(path.join(repository, "backend/node_modules"), path.join(backend, "node_modules"), "dir");
     const source = path.join(directory, "synthetic.db");
     const db = new DatabaseSync(source);

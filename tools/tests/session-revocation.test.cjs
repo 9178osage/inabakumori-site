@@ -108,3 +108,35 @@ test("the server queues failed revocations and retries them from maintenance", (
   assert.match(server, /work: \(\) => pendingSessionRevocations\.process\(\), env: \{\}/u);
   assert.match(server, /Session\.getSessionInformation\(handle\)\)\?\.timeCreated/u);
 });
+
+test("enqueue upserts and keeps the later reset time (audit P2-3)", async () => {
+  const source = require("fs").readFileSync(require("path").join(__dirname, "../../backend/session-revocation.mjs"), "utf8");
+  assert.match(source, /ON CONFLICT \(user_id\) DO UPDATE SET/);
+  assert.match(source, /excluded\.reset_at > pending_session_revocations\.reset_at/);
+  assert.match(source, /db\.kind === "postgres"/);
+  assert.match(source, /FOR UPDATE SKIP LOCKED/);
+  assert.match(source, /SELECT user_id, reset_at, attempts FROM pending_session_revocations WHERE next_attempt_at/);
+  const { createPendingSessionRevocations } = await import("../../backend/session-revocation.mjs");
+  const { DatabaseSync } = require("node:sqlite");
+  const sqlite = new DatabaseSync(":memory:");
+  sqlite.exec(`CREATE TABLE pending_session_revocations (
+    user_id TEXT PRIMARY KEY, reset_at INTEGER, attempts INTEGER, next_attempt_at INTEGER)`);
+  const db = {
+    prepare(sql) {
+      const stmt = sqlite.prepare(sql);
+      return Object.fromEntries(["get", "all", "run"].map(method => [method, async (...args) => stmt[method](...args)]));
+    }
+  };
+  let clock = 1000;
+  const queue = createPendingSessionRevocations(db, {
+    listSessionHandles: async () => [], sessionCreatedAt: async () => 0, revokeSessions: async () => {}, now: () => clock
+  });
+  await queue.enqueue("user-1", 50);
+  clock = 2000;
+  await queue.enqueue("user-1", 80);
+  assert.equal((await queue.get("user-1")).reset_at, 80);
+  clock = 3000;
+  await queue.enqueue("user-1", 70);
+  assert.equal((await queue.get("user-1")).reset_at, 80, "an earlier reset_at must not replace a later one");
+  sqlite.close();
+});

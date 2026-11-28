@@ -160,9 +160,14 @@ export function createPostgresRateLimitStore(db, { prefix, windowMs, onBackgroun
 export async function cleanupExpiredRateLimits(db, { batchSize = 1000, maxBatches = 20, maxMs = 5000, now = Date.now } = {}) {
   if (db.kind !== "postgres") return 0;
   if (!Number.isSafeInteger(batchSize) || batchSize < 1) throw new TypeError("Rate limit cleanup batch size must be a positive integer");
-  const statement = db.prepare(`DELETE FROM rate_limit_counters WHERE ctid IN (
-    SELECT ctid FROM rate_limit_counters WHERE reset_at <= ${NOW_MS} LIMIT ${batchSize}
-  )`);
+  const statement = db.prepare(`WITH doomed AS (
+    SELECT ctid FROM rate_limit_counters
+    WHERE reset_at <= ${NOW_MS}
+    ORDER BY prefix, key_hash
+    LIMIT ${batchSize}
+    FOR UPDATE SKIP LOCKED
+  )
+  DELETE FROM rate_limit_counters WHERE ctid IN (SELECT ctid FROM doomed)`);
   const startedAt = now();
   let total = 0;
   for (let batch = 0; batch < maxBatches; batch++) {

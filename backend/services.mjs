@@ -1,6 +1,7 @@
 import path from "node:path";
 import { isIP } from "node:net";
 import { createHash } from "node:crypto";
+import { isCommentTime } from "./comment-time.mjs";
 
 // SuperTokens can parse an unparsed request itself, without Express's body limit.
 // Require JSON before either parser sees a body, including chunked requests and
@@ -166,7 +167,10 @@ const LINK_TLDS = "com|net|org|io|be|cn|jp|me|tv|cc|co|app|xyz|info|link|ly|gl|g
 // a bare name ending in one of these only counts as a link when a path follows it.
 const WORD_TLDS = "be|me|to|im|so|is|it|us";
 const BARE_TLDS = LINK_TLDS.split("|").filter(tld => !WORD_TLDS.split("|").includes(tld)).join("|");
-const LINK_PATTERN = new RegExp(String.raw`(?:https?:\/\/|hxxps?:\/\/|www\.)|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:${BARE_TLDS})\b|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:${WORD_TLDS})\/[^\s]|(?:[a-z0-9-]{2,}\s*(?:\[\.\]|\(\.\)|\bdot\b)\s*)+(?:${LINK_TLDS})\b`, "iu");
+// Obfuscated labels use a proper domain label and require whitespace (or [.] / (.))
+// around "dot". A label class that also contained "-" made "-dot-" both a label and a
+// separator, which backtracked exponentially (audit P1-1).
+const LINK_PATTERN = new RegExp(String.raw`(?:https?:\/\/|hxxps?:\/\/|www\.)|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:${BARE_TLDS})\b|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:${WORD_TLDS})\/[^\s]|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\s*(?:\[\.\]|\(\.\))\s*|\s+dot\s+))+(?:${LINK_TLDS})\b`, "iu");
 const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/iu;
 // Chinese mobiles, 0-prefixed landlines, and explicit +country numbers.
 // Dates (2026-09-14), plain counters, and dotted IPs are not phones.
@@ -266,15 +270,17 @@ export function normalizeRequestPath(value) {
     }
   }
   let pathname = raw.split(/[?#]/u)[0].replace(/\\/gu, "/");
-  // Percent-encoded separators and dots must collapse too ("/outside/%2e%2e/auth/signin"), exactly
-  // like the WHATWG URL parser used to do for us. Malformed escapes keep the raw path.
-  try {
-    pathname = decodeURIComponent(pathname);
-  } catch { /* keep raw */ }
+  // Decode and fold each segment on its own. A single illegal escape (%ZZ, %FF) in an
+  // unrelated segment must not prevent "%2e%2e" from collapsing the way SuperTokens'
+  // WHATWG parser does, or auth rate limits can be skipped (audit P1-2).
   const parts = [];
-  for (const part of pathname.split("/")) {
-    if (!part || part === ".") continue;
-    if (part === "..") { parts.pop(); continue; }
+  for (const segment of pathname.split("/")) {
+    if (!segment) continue;
+    let part = segment;
+    try { part = decodeURIComponent(segment); } catch { /* keep the raw segment */ }
+    const folded = /^(?:\.|(?:%2e))+$/iu.test(segment) ? segment.replace(/%2e/giu, ".") : part;
+    if (folded === ".") continue;
+    if (folded === "..") { parts.pop(); continue; }
     parts.push(part);
   }
   return `/${parts.join("/")}`.toLocaleLowerCase("und");
@@ -401,6 +407,11 @@ export async function insertFreshCommentAsync(db, { memberCap = 100, row, idempo
   });
 }
 
+
+function commentCreatedAt(row) {
+  const createdAt = Number(row.created_at);
+  return isCommentTime(createdAt) ? new Date(createdAt).toISOString() : null;
+}
 export function registerCommentManagement(app, db, verifySession, onDeleted = () => {}) {
   const list = db.prepare(`SELECT id, nickname, content, created_at FROM comments
     WHERE user_id = ? AND is_guest = 0 AND id <= ? ORDER BY id DESC LIMIT 21`);
@@ -416,7 +427,7 @@ export function registerCommentManagement(app, db, verifySession, onDeleted = ()
     const rows = await list.all(req.session.getUserId(), upperBound);
     const comments = rows.slice(0, 20).map(row => ({
       id: Number(row.id), nickname: row.nickname, content: row.content,
-      createdAt: new Date(row.created_at).toISOString()
+      createdAt: commentCreatedAt(row)
     }));
     res.json({ comments, nextCursor: rows.length > 20 ? comments.at(-1).id : null });
   });
@@ -455,7 +466,7 @@ export function registerAdminCommentManagement(app, db, verifySession, isAdmin, 
       return res.status(403).json({ error: "管理员权限不足", code: "ADMIN_REQUIRED" });
     }
   };
-  app.get("/api/admin/comments", verifySession(), requireAdmin, async (req, res) => {
+  app.get("/api/admin/comments", verifySession({ checkDatabase: true }), requireAdmin, async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
     const before = positiveInteger(req.query?.before, Number.MAX_SAFE_INTEGER);
     if (!Number.isSafeInteger(before) || before <= 0) return res.status(400).json({ error: "留言分页参数无效", code: "INVALID_CURSOR" });
@@ -467,7 +478,7 @@ export function registerAdminCommentManagement(app, db, verifySession, isAdmin, 
       content: row.content,
       isGuest: Boolean(row.is_guest),
       isAdmin: !row.is_guest && typeof row.user_id === "string" && row.user_id !== "" && (await isAdmin(row.user_id)) === true,
-      createdAt: new Date(row.created_at).toISOString()
+      createdAt: commentCreatedAt(row)
     })));
     res.json({ comments, nextCursor: rows.length > 50 ? comments.at(-1).id : null });
   });
@@ -477,7 +488,7 @@ export function registerAdminCommentManagement(app, db, verifySession, isAdmin, 
   // One statement deletes and reports the same rows, so a comment the author posts while
   // this runs is either deleted and listed, or kept; never deleted without being listed.
   const removeAuthor = db.prepare("DELETE FROM comments WHERE user_id = ? AND is_guest = 0 RETURNING id");
-  app.delete("/api/admin/comments/:id/author", verifySession(), requireAdmin, async (req, res) => {
+  app.delete("/api/admin/comments/:id/author", verifySession({ checkDatabase: true }), requireAdmin, async (req, res) => {
     const id = positiveInteger(req.params.id);
     if (!Number.isSafeInteger(id) || id <= 0) {
       return res.status(400).json({ error: "留言 ID 无效", code: "INVALID_COMMENT_ID" });
@@ -495,7 +506,7 @@ export function registerAdminCommentManagement(app, db, verifySession, isAdmin, 
     if (ids.length > 0) onDeleted();
     return res.json({ success: true, deletedCommentIds: ids, deletedCount: ids.length });
   });
-  app.delete("/api/admin/comments/:id", verifySession(), requireAdmin, async (req, res) => {
+  app.delete("/api/admin/comments/:id", verifySession({ checkDatabase: true }), requireAdmin, async (req, res) => {
     const id = positiveInteger(req.params.id);
     if (!Number.isSafeInteger(id) || id <= 0) {
       return res.status(400).json({ error: "留言 ID 无效", code: "INVALID_COMMENT_ID" });
@@ -508,7 +519,7 @@ export function registerAdminCommentManagement(app, db, verifySession, isAdmin, 
   });
 }
 
-export function passwordResetDelivery(websiteDomain) {
+export function passwordResetDelivery(websiteDomain, { onBackgroundTask, log = console } = {}) {
   return {
     override: original => ({
       ...original,
@@ -522,10 +533,21 @@ export function passwordResetDelivery(websiteDomain) {
         const tenantId = input.tenantId || "public";
         // Token stays in the fragment so GitHub Pages request logs do not store it.
         const hash = new URLSearchParams({ token, tenantId }).toString();
-        return original.sendEmail({
+        const sending = original.sendEmail({
           ...input,
           passwordResetLink: `${link.origin}${link.pathname}${link.search}#${hash}`
         });
+        // On Vercel the function is frozen after the HTTP response. Schedule the send
+        // with waitUntil so it can finish, and return immediately so waiting on the
+        // mail API cannot time whether the address exists (audit P1-3).
+        if (typeof onBackgroundTask === "function") {
+          onBackgroundTask(Promise.resolve(sending).catch(error => {
+            try { log.error("Password reset email delivery failed", { name: error?.name, code: error?.code }); }
+            catch { /* logging must not break the reset API */ }
+          }));
+          return;
+        }
+        return sending;
       }
     })
   };

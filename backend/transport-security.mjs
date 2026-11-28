@@ -40,14 +40,21 @@ export function coreTransportProblem(value, env = {}) {
 export function postgresTransportProblem(connectionString, env = {}) {
   let url;
   try { url = new URL(connectionString); } catch { return "DATABASE_URL must be a PostgreSQL connection URL"; }
-  const host = url.searchParams.get("host") || url.hostname;
-  if (plaintextAllowed(decodeURIComponent(host), trustedPlaintextHosts(env))) return null;
   const params = url.searchParams;
+  const last = name => { const values = params.getAll(name); return values.length ? values.at(-1) : null; };
+  // pg/pg-connection-string take the last repeated query parameter; URLSearchParams.get() would take the first (audit P2-1).
+  let host = last("host");
+  if (host == null) {
+    try { host = decodeURIComponent(url.hostname); }
+    catch { return "DATABASE_URL must be a PostgreSQL connection URL"; }
+  }
+  if (plaintextAllowed(host, trustedPlaintextHosts(env))) return null;
   const insecure = "Production DATABASE_URL must use TLS with certificate verification (e.g. sslmode=require or verify-full; not disable, allow or no-verify)";
-  if (params.get("uselibpqcompat") === "true" && !["verify-ca", "verify-full"].includes(params.get("sslmode"))) return insecure;
-  const mode = params.get("sslmode") ?? (params.has("ssl") ? null : String(env.PGSSLMODE ?? "").trim().toLowerCase());
-  if (params.has("ssl") && !params.get("sslmode")) {
-    return ["true", "1"].includes(params.get("ssl")) ? null : insecure;
+  if (last("uselibpqcompat") === "true" && !["verify-ca", "verify-full"].includes(last("sslmode"))) return insecure;
+  // pg compares PGSSLMODE exactly; do not trim or lowercase it (audit P2-1).
+  const mode = last("sslmode") ?? (params.has("ssl") ? null : String(env.PGSSLMODE ?? ""));
+  if (params.has("ssl") && !last("sslmode")) {
+    return ["true", "1"].includes(last("ssl")) ? null : insecure;
   }
   if (["require", "prefer", "verify-ca", "verify-full"].includes(mode)) return null;
   return insecure;

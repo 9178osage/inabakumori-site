@@ -32,16 +32,12 @@ export function createPendingSessionRevocations(db, {
     // Keeps the latest reset time when a second reset happens before the first retry succeeds.
     async enqueue(userId, resetAt) {
       if (typeof userId !== "string" || !userId || !Number.isSafeInteger(resetAt) || resetAt < 0) throw new TypeError("Invalid pending revocation");
-      await db.transaction(async tx => {
-        const existing = await tx.prepare("SELECT reset_at FROM pending_session_revocations WHERE user_id = ?").get(userId);
-        if (existing) {
-          await tx.prepare("UPDATE pending_session_revocations SET reset_at = ?, next_attempt_at = ? WHERE user_id = ?")
-            .run(Math.max(Number(existing.reset_at), resetAt), now(), userId);
-        } else {
-          await tx.prepare("INSERT INTO pending_session_revocations (user_id, reset_at, attempts, next_attempt_at) VALUES (?, ?, 0, ?)")
-            .run(userId, resetAt, now());
-        }
-      });
+      // One upsert keeps the later reset_at under concurrent writes (audit P2-3).
+      await db.prepare(`INSERT INTO pending_session_revocations (user_id, reset_at, attempts, next_attempt_at)
+        VALUES (?, ?, 0, ?)
+        ON CONFLICT (user_id) DO UPDATE SET
+          reset_at = CASE WHEN excluded.reset_at > pending_session_revocations.reset_at THEN excluded.reset_at ELSE pending_session_revocations.reset_at END,
+          next_attempt_at = excluded.next_attempt_at`).run(userId, resetAt, now());
     },
     async get(userId) { return select.get(userId); },
     async backlog() {
@@ -49,8 +45,24 @@ export function createPendingSessionRevocations(db, {
     },
     // Called from request maintenance; returns how many accounts were fully handled.
     async process() {
-      const due = await db.prepare("SELECT user_id, reset_at, attempts FROM pending_session_revocations WHERE next_attempt_at <= ? ORDER BY next_attempt_at, user_id LIMIT ?")
-        .all(now(), batch);
+      // PostgreSQL: claim due rows with SKIP LOCKED so concurrent instances do not wait
+      // on or double-process the same account. The claim is a short UPDATE…RETURNING;
+      // SuperTokens calls run after that statement commits. SQLite keeps a plain SELECT.
+      const due = db.kind === "postgres"
+        ? await db.prepare(`WITH due AS (
+            SELECT user_id FROM pending_session_revocations
+            WHERE next_attempt_at <= ?
+            ORDER BY next_attempt_at, user_id
+            LIMIT ?
+            FOR UPDATE SKIP LOCKED
+          )
+          UPDATE pending_session_revocations AS target
+          SET next_attempt_at = ?
+          FROM due
+          WHERE target.user_id = due.user_id
+          RETURNING target.user_id, target.reset_at, target.attempts`).all(now(), batch, now() + 10 * 60 * 1000)
+        : await db.prepare("SELECT user_id, reset_at, attempts FROM pending_session_revocations WHERE next_attempt_at <= ? ORDER BY next_attempt_at, user_id LIMIT ?")
+          .all(now(), batch);
       let done = 0;
       for (const row of due) {
         const userId = row.user_id;

@@ -65,7 +65,12 @@ if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
   failStartup("PORT must be an integer between 1 and 65535");
 }
 const API_DOMAIN = normalizeOrigin((process.env.API_DOMAIN || "http://127.0.0.1:3001").trim(), "API_DOMAIN");
-const website = websiteLocation((process.env.WEBSITE_URL || process.env.WEBSITE_DOMAIN || "http://127.0.0.1:5500").trim());
+let website;
+try {
+  website = websiteLocation((process.env.WEBSITE_URL || process.env.WEBSITE_DOMAIN || "http://127.0.0.1:5500").trim());
+} catch (error) {
+  failStartup(error.message);
+}
 const WEBSITE_DOMAIN = website.origin;
 let ADDITIONAL_WEBSITE_ORIGINS;
 try {
@@ -130,8 +135,8 @@ app.use((req, res, next) => {
   res.setHeader("Cache-Control", "no-store");
   next();
 });
-if (process.env.TRUST_PROXY) {
-  const trustProxy = Number(process.env.TRUST_PROXY);
+if (process.env.TRUST_PROXY !== undefined) {
+  const trustProxy = Number(process.env.TRUST_PROXY.trim());
   if (!Number.isInteger(trustProxy) || trustProxy < 1) {
     failStartup("TRUST_PROXY must be a positive integer");
   }
@@ -164,12 +169,15 @@ const pendingSessionRevocations = createPendingSessionRevocations(db, {
   revokeSessions: handles => Session.revokeMultipleSessions(handles)
 });
 supertokens.init({
+  // Await SuperTokens' own I/O in the Vercel function lifetime; the delivery
+  // override below still hands the actual send to waitUntil (audit P1-3).
+  isInServerlessEnv: IS_VERCEL,
   framework: "express",
   supertokens: { connectionURI: SUPERTOKENS_CONNECTION_URI, apiKey: SUPERTOKENS_API_KEY },
   appInfo: { appName: "Inabakumori Fanswall", apiDomain: API_DOMAIN, websiteDomain: WEBSITE_DOMAIN, apiBasePath: "/auth", websiteBasePath: "/auth" },
   recipeList: [
     EmailPassword.init({
-      emailDelivery: passwordResetDelivery(website.url),
+      emailDelivery: passwordResetDelivery(website.url, { onBackgroundTask: IS_VERCEL ? waitUntil : undefined }),
       override: {
         apis: original => {
           const next = { ...original };
@@ -196,9 +204,11 @@ const corsOptions = { origin(origin, callback) {
 const corsMiddleware = cors(corsOptions);
 // Diagnostics must not depend on shared counters, authentication or maintenance.
 // A temporarily unavailable pool can recover on a later probe, including cold starts.
+let healthzProbe = null;
 app.get("/healthz", corsMiddleware, async (req, res) => {
   try {
-    await db.prepare("SELECT 1").get();
+    healthzProbe ||= db.prepare("SELECT 1").get().finally(() => { healthzProbe = null; });
+    await healthzProbe;
     return res.json({ ok: true, version: BUILD_VERSION });
   } catch {
     res.setHeader("Retry-After", "5");
