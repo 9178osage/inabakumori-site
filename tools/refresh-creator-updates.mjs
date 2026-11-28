@@ -34,18 +34,43 @@ function titleText(value) {
   if (FORBIDDEN_TITLE_CHARACTERS.test(value)) throw new Error("Invalid work title");
   return value.trim();
 }
-function decodeXml(value) {
-  const text = value.trim();
-  if (text.startsWith("<![CDATA[") && text.endsWith("]]>")) return text.slice(9, -3);
-  if (text.includes("<")) throw new Error("Unexpected nested XML field");
-  const entities = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
-  return text.replace(/&([^;\s]+);/gu, (_match, entity) => {
-    if (Object.hasOwn(entities, entity)) return entities[entity];
+const XML_AND_HTML_ENTITIES = Object.assign(Object.create(null), {
+  amp: "&", lt: "<", gt: ">", quot: '"', apos: "'",
+  nbsp: "\u00A0", copy: "\u00A9", hellip: "\u2026", mdash: "\u2014", ndash: "\u2013",
+  rsquo: "\u2019", lsquo: "\u2018", rdquo: "\u201D", ldquo: "\u201C"
+});
+export function decodeEntities(text) {
+  return text.replace(/&(#(?:x[\da-fA-F]+|\d+)|[A-Za-z][A-Za-z0-9]*);/gu, (match, entity) => {
+    if (Object.hasOwn(XML_AND_HTML_ENTITIES, entity)) return XML_AND_HTML_ENTITIES[entity];
+    const lower = entity.toLowerCase();
+    if (Object.hasOwn(XML_AND_HTML_ENTITIES, lower) && !entity.startsWith("#")) return XML_AND_HTML_ENTITIES[lower];
     const numeric = /^#(?:x[\da-f]+|\d+)$/iu.test(entity);
     const point = numeric ? entity[1].toLowerCase() === "x" ? parseInt(entity.slice(2), 16) : Number(entity.slice(1)) : NaN;
-    if (!Number.isInteger(point) || point < 1 || point > 0x10ffff || (point >= 0xd800 && point <= 0xdfff)) throw new Error("Invalid XML entity");
+    if (!Number.isInteger(point) || point < 1 || point > 0x10ffff || (point >= 0xd800 && point <= 0xdfff)) {
+      throw new Error("Invalid XML entity");
+    }
     return String.fromCodePoint(point);
   });
+}
+export function decodeXml(value) {
+  const text = value.trim();
+  if (text.includes("<![CDATA[")) {
+    let decoded = "";
+    const cdata = /<!\[CDATA\[([\s\S]*?)\]\]>/gu;
+    let last = 0;
+    let match;
+    while ((match = cdata.exec(text))) {
+      const before = text.slice(last, match.index);
+      if (before.includes("<")) throw new Error("Unexpected nested XML field");
+      decoded += decodeEntities(before) + match[1];
+      last = cdata.lastIndex;
+    }
+    const after = text.slice(last);
+    if (after.includes("<")) throw new Error("Unexpected nested XML field");
+    return decoded + decodeEntities(after);
+  }
+  if (text.includes("<")) throw new Error("Unexpected nested XML field");
+  return decodeEntities(text);
 }
 function xmlField(block, name) {
   const matches = [...block.matchAll(new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${name}>`, "gu"))];
@@ -93,24 +118,29 @@ export function parsePixivWork(data, expectedId) {
 }
 
 // Extract only the JSON assignment; never evaluate a platform script.
-function parseEmbeddedJson(html, variable) {
+export function parseEmbeddedJson(html, variable) {
   if (typeof html !== "string" || !["ytInitialData", "ytInitialPlayerResponse"].includes(variable)) throw new Error("Invalid embedded data");
   const startPattern = new RegExp(`(?:var\\s+)?${variable}\\s*=\\s*`, "gu");
-  const match = startPattern.exec(html);
-  if (!match || html[startPattern.lastIndex] !== "{") throw new Error("Missing official video metadata");
-  const start = startPattern.lastIndex;
-  let depth = 0, quoted = false, escaped = false;
-  for (let i = start; i < html.length; i++) {
-    const character = html[i];
-    if (quoted) {
-      if (escaped) escaped = false;
-      else if (character === "\\") escaped = true;
-      else if (character === '\"') quoted = false;
-    } else if (character === '\"') quoted = true;
-    else if (character === "{") depth++;
-    else if (character === "}" && --depth === 0) return JSON.parse(html.slice(start, i + 1));
+  let assignment;
+  while ((assignment = startPattern.exec(html))) {
+    if (html[startPattern.lastIndex] !== "{") continue;
+    const start = startPattern.lastIndex;
+    let depth = 0, quoted = false, escaped = false;
+    for (let i = start; i < html.length; i++) {
+      const character = html[i];
+      if (quoted) {
+        if (escaped) escaped = false;
+        else if (character === "\\") escaped = true;
+        else if (character === '"') quoted = false;
+      } else if (character === '"') quoted = true;
+      else if (character === "{") depth++;
+      else if (character === "}" && --depth === 0) {
+        try { return JSON.parse(html.slice(start, i + 1)); }
+        catch { break; }
+      }
+    }
   }
-  throw new Error("Incomplete official video metadata");
+  throw new Error("Missing official video metadata");
 }
 function visitObjects(value, callback) {
   if (!value || typeof value !== "object") return;
@@ -153,7 +183,7 @@ export function parseCampfireActivities(html) {
   const entries = [...html.matchAll(/<article\b[^>]*>([\s\S]*?)<\/article>/giu)].map(match => match[1]);
   const items = [];
   for (const entry of entries) {
-    const title = /<a\b[^>]*href=["'](?:https:\/\/camp-fire\.jp\/projects\/970332\/view\/)?activities\/([1-9]\d*)(?:#main)?["'][^>]*class=["'][^"']*\btitle\b[^"']*["'][^>]*>([\s\S]*?)<\/a>/iu.exec(entry);
+    const title = /<a\b(?=[^>]*\bhref=["'](?:https:\/\/camp-fire\.jp\/projects\/970332\/view\/)?activities\/([1-9]\d*)(?:#main)?["'])(?=[^>]*\bclass=["'][^"']*\btitle\b[^"']*["'])[^>]*>([\s\S]*?)<\/a>/iu.exec(entry);
     if (!title) continue;
     const date = /<div\b[^>]*class=["'][^"']*\btime\b[^"']*["'][^>]*>\s*(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})\s*<\/div>/iu.exec(entry);
     if (!date) throw new Error("Missing project publication date");
@@ -354,8 +384,12 @@ export function snapshotNeedsWrite(previous, next, { now = new Date().toISOStrin
   if (withoutTimes(before) !== withoutTimes(after)) return true;
   const current = Date.parse(timestamp(now));
   return after.sources.some(source => {
-    if (source.status !== "ok") return false;
-    const stored = before.sources.find(entry => entry.id === source.id)?.checkedAt;
+    const previous = before.sources.find(entry => entry.id === source.id);
+    if (source.status !== "ok") {
+      const storedAttempt = previous?.lastAttemptAt;
+      return !storedAttempt || current - Date.parse(storedAttempt) >= heartbeatMs;
+    }
+    const stored = previous?.checkedAt;
     return !stored || current - Date.parse(stored) >= heartbeatMs;
   });
 }

@@ -16,7 +16,8 @@ test("YouTube refresh has all four unconditional gates before exporting a read-o
   assert.match(workflow, /group: refresh-main-content/u);
   assert.match(workflow, /cancel-in-progress: false\n  queue: max/u);
   assert.match(fetch, /ref: main/u);
-  assert.match(refresh, /ref: main/u);
+  assert.match(fetch, /outputs:\n      sha: \$\{\{ steps\.fetched_head\.outputs\.sha \}\}/u);
+  assert.match(refresh, /ref: \$\{\{ needs\.fetch\.outputs\.sha \}\}/u);
   assert.match(refresh, /validated_sha: \$\{\{ steps\.validated_head\.outputs\.sha \}\}/u);
   assert.match(refresh, /CHANGELOG_HEAD_SHA: \$\{\{ steps\.validated_head\.outputs\.sha \}\}/u);
   assert.match(refresh, /if: github\.ref == 'refs\/heads\/main'/u);
@@ -47,10 +48,14 @@ test("write jobs only commit checked files or dispatch and verify the resulting 
   assert.doesNotMatch(commit, /git (?:pull|rebase|merge)|git push[^\n]*--force/u);
   assert.doesNotMatch(commitScript, /\bGITHUB_SHA\b/u, "the commit guard must not use the event's stale SHA");
   assert.match(commit, /VALIDATED_HEAD: \$\{\{ needs\.refresh\.outputs\.validated_sha \}\}/u);
+  assert.match(commit, /--slurpfile old/u);
+  assert.match(commit, /9007199254740991/u);
+  assert.match(commit, /262144/u);
+  assert.match(commit, /top of the deployment table/u);
   assert.match(publish, /needs: \[refresh, commit\]/u);
   assert.match(publish, /if: needs\.commit\.outputs\.changed == 'true'/u);
-  assert.match(publish, /gh workflow run check\.yml --ref main/u);
-  assert.match(publish, /gh workflow run pages\.yml --ref main/u);
+  assert.match(publish, /gh workflow run check\.yml --ref "\$UPDATE_SHA"/u);
+  assert.match(publish, /gh workflow run pages\.yml --ref "\$UPDATE_SHA"/u);
   assert.match(publish, /-f head_sha="\$UPDATE_SHA"/u);
   assert.match(publish, /gh run watch "\$VERIFY_RUN" --exit-status/u);
   assert.match(publish, /gh run watch "\$PUBLISH_RUN" --exit-status/u);
@@ -230,7 +235,7 @@ test("both scheduled refreshes dispatch and confirm the GitLab mirror after thei
   for (const file of [".github/workflows/refresh-creator-updates.yml", ".github/workflows/refresh-youtube-views.yml"]) {
     const workflow = fs.readFileSync(file, "utf8");
     const publish = workflow.slice(workflow.indexOf("  publish:"));
-    assert.match(publish, /gh workflow run mirror\.yml --ref main/u, file);
+    assert.match(publish, /gh workflow run mirror\.yml --ref "\$UPDATE_SHA"/u, file);
     assert.match(publish, /map\(select\(\.name == "Mirror to GitLab"\)\)/u, file);
     assert.match(publish, /gh run watch "\$MIRROR_RUN" --exit-status/u, file);
     assert.match(publish, /pushed main at/u, `${file} records the mirrored commit`);
@@ -239,4 +244,11 @@ test("both scheduled refreshes dispatch and confirm the GitLab mirror after thei
   const mirror = fs.readFileSync(".github/workflows/mirror.yml", "utf8");
   assert.match(mirror, /workflow_dispatch:/u, "the mirror accepts explicit dispatch");
   assert.match(mirror, /permissions:\n  contents: read/u, "the mirror keeps least privilege");
+  assert.match(mirror, /runs-on: ubuntu-24\.04/u);
+  assert.doesNotMatch(mirror, /ubuntu-latest/u);
+  assert.match(mirror, /GITLAB_TOKEN is not set/u);
+  assert.doesNotMatch(mirror, /x-access-token:|oauth2:\$\{/u);
+  assert.match(mirror, /http\.https:\/\/github\.com\/\.extraheader/u);
+  assert.match(mirror, /http\.https:\/\/gitlab\.com\/\.extraheader/u);
 });
+

@@ -198,7 +198,7 @@ test("the creator refresh CLI retains a local edit made during fetch and removes
   try {
     await fs.mkdir(path.join(directory, "tools"));
     await fs.mkdir(path.join(directory, "data"));
-    for (const file of ["refresh-creator-updates.mjs", "safe-fs.mjs", "text-guards.mjs", "calendar-song.mjs"]) {
+    for (const file of ["refresh-creator-updates.mjs", "safe-fs.mjs", "text-guards.mjs", "calendar-song.mjs", "youtube-id.mjs"]) {
       await fs.copyFile(path.join(__dirname, "..", file), path.join(directory, "tools", file));
     }
     await fs.mkdir(path.join(directory, "js"));
@@ -316,4 +316,29 @@ test("only sources failing for over 48 hours count as persistent failures", asyn
   const exactly = { sources: [{ id: "youtube", checkedAt: "2026-10-18T12:00:00.000Z" }] };
   assert.deepEqual(persistentSourceFailures(exactly, [{ source: "youtube", message: "a" }], { now }), []);
   assert.deepEqual(persistentSourceFailures(data, [], { now }), []);
+});
+
+test("CAMPFIRE titles decode HTML entities and accept either attribute order (audit P2-14)", async () => {
+  const { parseCampfireActivities, decodeXml, parseEmbeddedJson } = await load();
+  const reordered = campfire().replace(
+    /<a href="activities\/891733#main" class="title line-clamp">/,
+    '<a class="title line-clamp" href="activities/891733#main">'
+  );
+  const [item] = parseCampfireActivities(reordered);
+  assert.equal(item.title, "【本日クラファン終了！】おさげちゃん");
+  const withEntity = campfire().replace("【本日クラファン終了！】おさげちゃん", "Title&nbsp;copy&copy;&hellip;");
+  assert.equal(parseCampfireActivities(withEntity)[0].title, "Title\u00A0copy\u00A9\u2026");
+  assert.equal(decodeXml("<![CDATA[A]]><![CDATA[B]]>"), "AB");
+  assert.equal(decodeXml("Q&A&amp;B"), "Q&A&B");
+  const html = 'var ytInitialData = null; var ytInitialData = {"metadata":{"channelMetadataRenderer":{"externalId":"UCNElM45JypxqAR73RoUQ10g"}},"contents":{}};';
+  assert.equal(parseEmbeddedJson(html, "ytInitialData").metadata.channelMetadataRenderer.externalId, "UCNElM45JypxqAR73RoUQ10g");
+});
+
+test("a prolonged source outage still refreshes lastAttemptAt after the heartbeat (audit P3-6)", async () => {
+  const { refreshCreatorUpdates, snapshotNeedsWrite, HEARTBEAT_MS } = await load();
+  const { data: first } = await refreshCreatorUpdates(undefined, { now: BEFORE, fetchImpl: async url => fakeFetch(url) });
+  const failed = await refreshCreatorUpdates(first, { now: NOW, sleep: async () => {}, fetchImpl: async url => url.includes("camp-fire.jp") ? response("down", 403) : fakeFetch(url) });
+  const later = new Date(Date.parse(NOW) + HEARTBEAT_MS).toISOString();
+  const stillFailed = await refreshCreatorUpdates(failed.data, { now: later, sleep: async () => {}, fetchImpl: async url => url.includes("camp-fire.jp") ? response("down", 403) : fakeFetch(url) });
+  assert.equal(snapshotNeedsWrite(failed.data, stillFailed.data, { now: later }), true);
 });

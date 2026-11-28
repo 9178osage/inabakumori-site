@@ -84,7 +84,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: main
+          ref: ${{ needs.refresh.outputs.validated_sha }}
           fetch-depth: 0
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -116,6 +116,11 @@ jobs:
             CHANGELOG_DIFF=$(git diff -U0 -- docs/CHANGELOG.md)
             printf "%s\n" "$CHANGELOG_DIFF" | grep -Eq "^\+\| [0-9]{2}-[0-9]{2} \| \`${VALIDATED_HEAD:0:7}\` \| 补记前次发布，供定时动态同步前核对 \| [0-9]+ / [0-9]+ \|$" \
               || fail "Checked CHANGELOG row is not this commit's deployment record."
+            if grep -Fq "## 上线记录" docs/CHANGELOG.md; then
+              FIRST_ROW=$(awk ' $0 == "## 上线记录" { sect=1 } sect && /^\| --- \|/ { sep=1; next } sep && /^\|/ { print; exit }' docs/CHANGELOG.md)
+              printf "%s\n" "$FIRST_ROW" | grep -Eq "^\| [0-9]{2}-[0-9]{2} \| \`${VALIDATED_HEAD:0:7}\` \| 补记前次发布，供定时动态同步前核对 \| [0-9]+ / [0-9]+ \|$" \
+                || fail "Checked CHANGELOG row is not at the top of the deployment table."
+            fi
           fi
           [ "$(wc -c < data/creator-updates.json)" -le 262144 ] || fail "Checked creator snapshot is too large."
           # jq reads every document in a stream and -e reports only the last result, so
@@ -124,7 +129,11 @@ jobs:
             || fail "Checked creator snapshot must be exactly one JSON document."
           jq --indent 2 . data/creator-updates.json | cmp -s - data/creator-updates.json \
             || fail "Checked creator snapshot is not canonical JSON."
-          jq -e --argjson old "$(git show HEAD:data/creator-updates.json)" '
+          OLD_SNAPSHOT=$(mktemp)
+          trap 'rm -f "$OLD_SNAPSHOT"' EXIT
+          git show HEAD:data/creator-updates.json > "$OLD_SNAPSHOT"
+          [ "$(wc -c < "$OLD_SNAPSHOT")" -le 262144 ] || fail "Previous creator snapshot is too large."
+          jq -e --slurpfile old "$OLD_SNAPSHOT" '
             def ts: type == "string" and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$");
             def owner: {youtube: "inabakumori", pixiv: "nknk", campfire: "nknk"};
             def link($source; $id):
@@ -143,7 +152,8 @@ jobs:
                 and (test("[\\x{0}-\\x{8}\\x{b}-\\x{1f}\\x{7f}-\\x{9f}\\x{202a}-\\x{202e}\\x{2066}-\\x{2069}]") | not));
             ((keys - ["songRelease"]) == ["items", "sources", "version"]) and .version == 1
             and (.songRelease == null or (.songRelease | type == "object" and .source == "youtube" and validitem))
-            and ([.sources[] | {id, creator, label, url}] == [$old.sources[] | {id, creator, label, url}])
+            and ($old | length) == 1 and ($old[0] | type) == "object"
+            and ([.sources[] | {id, creator, label, url}] == [$old[0].sources[] | {id, creator, label, url}])
             and all(.sources[];
               (keys - ["checkedAt", "creator", "id", "label", "lastAttemptAt", "message", "status", "url"]) == []
               and (.status == "error" or (.status == "ok" and .checkedAt != null))
@@ -179,10 +189,15 @@ jobs:
           SNAPSHOT_HASH: ${{ needs.refresh.outputs.snapshot }}
         # Token-created commits do not trigger push workflows automatically.
         run: |
-          gh workflow run check.yml --ref main
-          gh workflow run pages.yml --ref main
+          if [[ ! "$UPDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::UPDATE_SHA must be a 40-character lowercase hex digest."
+            exit 1
+          fi
+          # Dispatch against the commit just pushed, not whatever main is when this job starts.
+          gh workflow run check.yml --ref "$UPDATE_SHA"
+          gh workflow run pages.yml --ref "$UPDATE_SHA"
           # Token pushes skip push-triggered workflows, so the GitLab mirror is dispatched explicitly too.
-          gh workflow run mirror.yml --ref main
+          gh workflow run mirror.yml --ref "$UPDATE_SHA"
           for attempt in $(seq 1 12); do
             gh api --method GET "repos/$GH_REPO/actions/runs" -f head_sha="$UPDATE_SHA" -f event=workflow_dispatch -f per_page=30 > /tmp/creator-update-runs.json
             VERIFY_RUN=$(jq -r '.workflow_runs | map(select(.name == "Verify website")) | max_by(.id) | .id // empty' /tmp/creator-update-runs.json)
@@ -196,8 +211,12 @@ jobs:
           gh run watch "$PUBLISH_RUN" --exit-status --interval 15
           gh run watch "$MIRROR_RUN" --exit-status --interval 15
           echo "GitLab mirror run $MIRROR_RUN pushed main at $(gh api "repos/$GH_REPO/actions/runs/$MIRROR_RUN" --jq .head_sha)"
+          if ! printf '%s' "$SNAPSHOT_HASH" | grep -Eq '^[0-9a-f]{64}$'; then
+            echo "::error::SNAPSHOT_HASH must be a 64-character lowercase hex digest."
+            exit 1
+          fi
           for attempt in $(seq 1 12); do
-            if curl --fail --silent --show-error --max-time 20 "https://osagechan.top/updates.html?check=$UPDATE_SHA" -o /tmp/published-creator-updates.html && grep -q "name=\"creator-updates-version\" content=\"$SNAPSHOT_HASH\"" /tmp/published-creator-updates.html; then
+            if curl --fail --silent --show-error --max-time 20 "https://osagechan.top/updates.html?check=$UPDATE_SHA" -o /tmp/published-creator-updates.html && grep -Fq "name=\"creator-updates-version\" content=\"$SNAPSHOT_HASH\"" /tmp/published-creator-updates.html; then
               echo "Verified published creator snapshot $UPDATE_SHA"
               exit 0
             fi

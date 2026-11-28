@@ -9,6 +9,8 @@ import { requestGithubJson, validateGithubCache } from "./github-run-request.mjs
 
 const DEFAULT_REPO = "9178osage/inabakumori-site";
 const WORKFLOWS = ["Verify website", "Publish public site"];
+const WORKFLOW_FILES = { "Verify website": "check.yml", "Publish public site": "pages.yml" };
+const PAGINATION_WARN_PAGE = 8;
 const SHA = /^[0-9a-f]{7,40}$/u;
 const FULL_SHA = /^[0-9a-f]{40}$/u;
 const PACIFIC_DATE = new Intl.DateTimeFormat("en-US", {
@@ -229,11 +231,21 @@ export async function verifyChangelogTable(markdown, {
     // partial scan and retry once; never merge pages from different attempts.
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const listed = new Set();
-        let previousCreated = Infinity;
-        let listedTotal;
+        const verifyIds = new Set(rows.flatMap(row => row.pairs.map(pair => pair.ids[0]).filter(Boolean)));
+        const publishIds = new Set(rows.flatMap(row => row.pairs.map(pair => pair.ids[1]).filter(Boolean)));
+        // List Verify and Publish separately so Mirror runs do not consume a third of
+        // the 1,000-run pagination ceiling (audit P1-7).
+        for (const workflowName of WORKFLOWS) {
+          const wantedFor = workflowName === WORKFLOWS[0] ? verifyIds : publishIds;
+          const baselineFor = scope ? scope.baselineRunIds[WORKFLOWS.indexOf(workflowName)] : null;
+          const listed = new Set();
+          let previousCreated = Infinity;
+          let listedTotal;
         for (let page = 1; page <= maxPages; page++) {
-          const data = await requestGithubJson(`?branch=main&event=push&per_page=100&page=${page}`, `Runs page ${page}`, requestOptions);
+          if (page === PAGINATION_WARN_PAGE) {
+            console.warn(`Changelog coverage is approaching GitHub's 1,000-run pagination ceiling on ${WORKFLOW_FILES[workflowName]} (page ${page}). Advance the since commit in tools/changelog-coverage.json.`);
+          }
+          const data = await requestGithubJson(`/workflows/${WORKFLOW_FILES[workflowName]}/runs?branch=main&event=push&per_page=100&page=${page}`, `Runs page ${page} (${WORKFLOW_FILES[workflowName]})`, requestOptions);
           if (!data || !Number.isSafeInteger(data.total_count) || data.total_count < 0 || !Array.isArray(data.workflow_runs) ||
               data.workflow_runs.some(run => !Number.isSafeInteger(run?.id) || run.id <= 0) ||
               scope && (data.workflow_runs.length > 100 || data.total_count < data.workflow_runs.length)) {
@@ -268,8 +280,11 @@ export async function verifyChangelogTable(markdown, {
             if (wanted.has(id)) runs.set(id, parsed);
           }
           if (scope && baselineAnchors.size === WORKFLOWS.length) completeScope = true;
-          if (runs.size === ids.length && (!scope || completeScope)) break;
+          const stillNeeded = [...wantedFor].some(id => !runs.has(id));
+          const baselineOk = !baselineFor || baselineAnchors.has(baselineFor);
+          if (!stillNeeded && baselineOk) break;
           if (!data.workflow_runs.length || page * 100 >= data.total_count) break;
+        }
         }
         break;
       } catch (error) {
@@ -282,7 +297,7 @@ export async function verifyChangelogTable(markdown, {
         // Keep rate-limit cooldowns and direct lookups; refetch every list page.
         if (cache) {
           for (const key of Object.keys(cache.responses)) {
-            if (/^\?branch=main&event=push&per_page=100&page=[1-9]\d*$/u.test(key)) delete cache.responses[key];
+            if (/^\/workflows\/[A-Za-z0-9_.-]+\/runs\?branch=main&event=push&per_page=100&page=[1-9]\d*$/u.test(key) || /^\?branch=main&event=push&per_page=100&page=[1-9]\d*$/u.test(key)) delete cache.responses[key];
           }
         }
         if (stats) stats.paginationRestarts = (stats.paginationRestarts || 0) + 1;
@@ -374,7 +389,7 @@ async function loadCache(repo, token) {
       throw new Error("Invalid cache format");
     }
     for (const [endpoint, entry] of Object.entries(data.responses)) {
-      if (!/^(?:\/[1-9]\d*|\?branch=main&event=push&per_page=100&page=[1-9]\d*)$/u.test(endpoint) ||
+      if (!/^(?:\/[1-9]\d*|\?branch=main&event=push&per_page=100&page=[1-9]\d*|\/workflows\/[A-Za-z0-9_.-]+\/runs\?branch=main&event=push&per_page=100&page=[1-9]\d*)$/u.test(endpoint) ||
           !plainObject(entry) || typeof entry.etag !== "string" || !entry.etag || entry.etag.length > 1024 ||
           /[\r\n]/u.test(entry.etag) || !plainObject(entry.data)) throw new Error("Invalid cached response");
     }
@@ -391,11 +406,12 @@ async function loadCache(repo, token) {
 function cacheSnapshot(cache) {
   const fields = ["id", "name", "event", "head_branch", "head_sha", "created_at"];
   const run = data => Object.fromEntries(fields.filter(key => Object.hasOwn(data, key)).map(key => [key, data[key]]));
+  const listEndpoint = endpoint => endpoint.startsWith("?") || endpoint.startsWith("/workflows/");
   const entries = Object.entries(cache.responses).filter(([endpoint, entry]) => plainObject(entry?.data) &&
-    (!endpoint.startsWith("?") || (Array.isArray(entry.data.workflow_runs) && entry.data.workflow_runs.every(plainObject))));
+    (!listEndpoint(endpoint) || (Array.isArray(entry.data.workflow_runs) && entry.data.workflow_runs.every(plainObject))));
   const responses = Object.fromEntries(entries.map(([endpoint, entry]) => [endpoint, {
     etag: entry.etag,
-    data: endpoint.startsWith("?") ? { total_count: entry.data.total_count, workflow_runs: entry.data.workflow_runs?.map(run) } : run(entry.data)
+    data: listEndpoint(endpoint) ? { total_count: entry.data.total_count, workflow_runs: entry.data.workflow_runs?.map(run) } : run(entry.data)
   }]));
   return { version: 1, repo: cache.repo, responses, ...(cache.cooldownUntil ? { cooldownUntil: cache.cooldownUntil } : {}) };
 }

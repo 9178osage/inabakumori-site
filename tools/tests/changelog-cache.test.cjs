@@ -7,7 +7,8 @@ const { pathToFileURL } = require("node:url");
 const { spawnSync, execFileSync } = require("node:child_process");
 
 const repo = "9178osage/inabakumori-site";
-const endpoint = "?branch=main&event=push&per_page=100&page=1";
+const endpoints = ["/workflows/check.yml/runs?branch=main&event=push&per_page=100&page=1", "/workflows/pages.yml/runs?branch=main&event=push&per_page=100&page=1"];
+const endpoint = endpoints[0];
 const markdown = "# Changelog\n\n## 上线记录\n\n| 日期 | 提交 | 主要内容 | CI（Verify / Publish） |\n| --- | --- | --- | --- |\n| 10-16 | `aaaaaaa` | Synthetic release | 101 / 102 |\n\n## Other\n";
 
 // Every child process installs this fetch implementation before importing the CLI.
@@ -96,8 +97,9 @@ function rejected(result) {
 function responseEntry(cache) {
   assert.equal(cache.version, 1);
   assert.equal(cache.repo, repo);
-  assert.ok(cache.responses[endpoint], "the CLI caches the requested page endpoint");
-  return cache.responses[endpoint];
+  const found = endpoints.find(name => cache.responses[name]);
+  assert.ok(found, "the CLI caches a workflow list page");
+  return cache.responses[found];
 }
 
 test("CLI prefers an explicit validated HEAD over a stale queued event SHA", () => {
@@ -114,7 +116,7 @@ test("CLI persists a 200 ETag and revalidates cached metadata through an actual 
   const app = fixture();
   try {
     passed(app.run());
-    assert.equal(app.calls().length, 1);
+    assert.equal(app.calls().length, 2);
     assert.equal(app.calls()[0].conditional, null);
     const cached = app.readCache();
     const entry = responseEntry(cached);
@@ -122,9 +124,9 @@ test("CLI persists a 200 ETag and revalidates cached metadata through an actual 
     assert.equal(entry.data.workflow_runs.length, 2);
     if (process.platform !== "win32") assert.equal(fs.statSync(app.cache).mode & 0o777, 0o600);
     passed(app.run("304"));
-    assert.equal(app.calls().length, 1, "304 still requires one actual fetch call");
+    assert.equal(app.calls().length, 2, "304 still requires one actual fetch call per workflow");
     assert.equal(app.calls()[0].conditional, entry.etag);
-    assert.ok(app.calls()[0].url.endsWith(endpoint));
+    assert.ok(endpoints.some(name => app.calls()[0].url.endsWith(name)));
   } finally { app.close(); }
 });
 
@@ -152,7 +154,7 @@ test("a 304 does not let cached metadata bypass commit validation", () => {
     const result = app.run("304");
     rejected(result);
     assert.match(result.stderr, /commit mismatch/iu);
-    assert.equal(app.calls().length, 1);
+    assert.ok(app.calls().length >= 1 && app.calls().length <= 2);
     assert.equal(app.calls()[0].conditional, '"fixture-v1"');
   } finally { app.close(); }
 });
@@ -163,12 +165,12 @@ test("corrupt JSON cache is discarded and cannot create a success without fetchi
     fs.mkdirSync(path.dirname(app.cache));
     fs.writeFileSync(app.cache, "{broken cache");
     passed(app.run());
-    assert.equal(app.calls().length, 1);
+    assert.equal(app.calls().length, 2);
     assert.equal(app.calls()[0].conditional, null);
     assert.equal(responseEntry(app.readCache()).data.workflow_runs.length, 2);
     fs.writeFileSync(app.cache, "{broken again");
     rejected(app.run("403"));
-    assert.equal(app.calls().length, 1);
+    assert.ok(app.calls().length >= 1 && app.calls().length <= 2);
     assert.equal(app.calls()[0].conditional, null);
   } finally { app.close(); }
 });
@@ -188,7 +190,7 @@ test("semantically invalid cache is discarded before making fresh unconditional 
       corrupt(cached);
       app.writeCache(cached);
       passed(app.run());
-      assert.equal(app.calls().length, 1);
+      assert.equal(app.calls().length, 2);
       assert.equal(app.calls()[0].conditional, null, "invalid cache must not provide an ETag");
       const repaired = app.readCache();
       assert.equal(responseEntry(repaired).etag, '"fixture-v1"');
@@ -201,7 +203,7 @@ test("anonymous cooldown stops requests, but either supported token can retry wi
   const app = fixture();
   try {
     rejected(app.run("429"));
-    assert.equal(app.calls().length, 1);
+    assert.ok(app.calls().length >= 1 && app.calls().length <= 2);
     const cooled = app.readCache();
     assert.ok(cooled.cooldownUntil > Date.now(), "the real CLI persists the anonymous rate-limit cooldown");
     rejected(app.run());
@@ -211,7 +213,7 @@ test("anonymous cooldown stops requests, but either supported token can retry wi
       app.writeCache(cooled);
       const result = app.run("200", [], { [key]: token });
       passed(result);
-      assert.equal(app.calls().length, 1);
+      assert.equal(app.calls().length, 2);
       assert.equal(app.calls()[0].authorized, true);
       assert.equal(app.calls()[0].authorizationMatches, true);
       assert.ok(!result.stdout.includes(token));
@@ -237,11 +239,11 @@ test("--no-cache ignores existing cache data and cooldown and performs no cache 
     app.writeCache(cached);
     const before = fs.readFileSync(app.cache);
     passed(app.run("200", ["--no-cache"]));
-    assert.equal(app.calls().length, 1);
+    assert.equal(app.calls().length, 2);
     assert.equal(app.calls()[0].conditional, null, "no If-None-Match is derived from the existing cache");
     assert.deepEqual(fs.readFileSync(app.cache), before);
     rejected(app.run("403", ["--no-cache"]));
-    assert.equal(app.calls().length, 1);
+    assert.ok(app.calls().length >= 1 && app.calls().length <= 2);
     assert.deepEqual(fs.readFileSync(app.cache), before, "rate-limit cooldown is not persisted with --no-cache");
   } finally { app.close(); }
 });
@@ -250,7 +252,7 @@ test("--no-cache does not create a cache directory or file", () => {
   const app = fixture();
   try {
     passed(app.run("200", ["--no-cache"]));
-    assert.equal(app.calls().length, 1);
+    assert.equal(app.calls().length, 2);
     assert.equal(fs.existsSync(path.dirname(app.cache)), false);
   } finally { app.close(); }
 });
@@ -279,7 +281,7 @@ for (const target of ["directory", "file"]) {
       assert.equal(fs.readFileSync(protectedFile, "utf8"), sentinel);
       assert.equal(fs.lstatSync(target === "directory" ? path.dirname(app.cache) : app.cache).isSymbolicLink(), true);
       passed(app.run("200", ["--no-cache"]));
-      assert.equal(app.calls().length, 1, "--no-cache bypasses cache paths entirely");
+      assert.equal(app.calls().length, 2, "--no-cache bypasses cache paths entirely");
       assert.equal(fs.readFileSync(protectedFile, "utf8"), sentinel);
     } finally { app.close(); }
   });

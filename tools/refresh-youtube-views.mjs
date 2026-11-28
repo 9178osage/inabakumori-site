@@ -23,6 +23,7 @@ const SONGS_PATH = assertRepoPath(ROOT, "js/songs.js", { mustExist: true });
 const BATCH_SIZE = 50;
 const API_BASE = "https://www.googleapis.com/youtube/v3/videos";
 const MAX_ERROR_BYTES = 16 * 1024;
+const MAX_SUCCESS_BYTES = 256 * 1024;
 
 // Exact Google-defined identifiers only. Messages, metadata, domains and URLs
 // may contain private values and must never be copied into workflow logs.
@@ -80,11 +81,26 @@ function describeApiError(prefix, data) {
     (hints.length ? `. ${hints.join(" ")}` : "");
 }
 
-async function readErrorPayload(response, signal) {
+async function readBoundedJson(response, signal, maxBytes = MAX_ERROR_BYTES) {
   // Never call text()/json() on an unbounded error response. The original fetch
   // deadline covers headers and this read; the explicit abort race also bounds
   // streams whose read does not itself observe the signal.
-  if (!response.body?.getReader) return null;
+  if (!response.body?.getReader) {
+    // Fetch mocks in tests may only expose json(); still honour the abort signal
+    // and refuse an oversized parsed document.
+    const aborted = new Promise((_, reject) => {
+      const onAbort = () => reject(new Error("YouTube API request timed out"));
+      if (signal.aborted) onAbort();
+      else signal.addEventListener("abort", onAbort, { once: true });
+    });
+    try {
+      const data = await Promise.race([response.json(), aborted]);
+      if (data == null || Buffer.byteLength(JSON.stringify(data)) > maxBytes) return null;
+      return data;
+    } catch {
+      return null;
+    }
+  }
   const reader = response.body.getReader();
   let onAbort;
   const aborted = new Promise((_, reject) => {
@@ -99,7 +115,7 @@ async function readErrorPayload(response, signal) {
       const { done, value } = await Promise.race([reader.read(), aborted]);
       if (done) break;
       size += value.byteLength;
-      if (size > MAX_ERROR_BYTES) return null;
+      if (size > maxBytes) return null;
       chunks.push(value);
     }
     const bytes = new Uint8Array(size);
@@ -127,17 +143,18 @@ async function fetchStatistics(ids) {
   const signal = AbortSignal.timeout(15_000);
   let res, data;
   try {
-    res = await fetch(`${API_BASE}?${params}`, { headers: { "X-Goog-Api-Key": apiKey }, signal });
+    res = await fetch(`${API_BASE}?${params}`, { headers: { "X-Goog-Api-Key": apiKey }, signal, redirect: "error" });
   } catch {
     throw new Error(signal.aborted ? "YouTube API request timed out" : "YouTube API request failed");
   }
   if (!res.ok) {
-    const errorData = await readErrorPayload(res, signal);
+    const errorData = await readBoundedJson(res, signal, MAX_ERROR_BYTES);
     if (signal.aborted) throw new Error("YouTube API request timed out");
     throw new Error(describeApiError(`YouTube API HTTP ${res.status}`, errorData));
   }
-  try { data = await res.json(); }
-  catch { throw new Error(signal.aborted ? "YouTube API request timed out" : "YouTube API returned invalid JSON"); }
+  data = await readBoundedJson(res, signal, MAX_SUCCESS_BYTES);
+  if (!data) throw new Error(signal.aborted ? "YouTube API request timed out" : "YouTube API returned invalid JSON");
+
   if (data?.error) throw new Error(describeApiError("YouTube API reported an error", data));
   if (!Array.isArray(data?.items)) throw new Error("YouTube API returned invalid statistics");
   const map = new Map();

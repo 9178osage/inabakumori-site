@@ -10,7 +10,14 @@ import { requestGithubJson } from "./github-run-request.mjs";
 import { assertRepoPath } from "./safe-fs.mjs";
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
-const REPO = "9178osage/inabakumori-site";
+const DEFAULT_REPO = "9178osage/inabakumori-site";
+const REPO_NAME = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u;
+export function githubRepository(env = process.env) {
+  const value = env.GITHUB_REPOSITORY;
+  if (value == null || value === "") return DEFAULT_REPO;
+  if (!REPO_NAME.test(value)) throw new Error("Invalid GITHUB_REPOSITORY");
+  return value;
+}
 const WORKFLOWS = ["Verify website", "Publish public site"];
 const FULL_SHA = /^[0-9a-f]{40}$/u;
 const DATE = new Intl.DateTimeFormat("en-US", { timeZone: "America/Los_Angeles", month: "2-digit", day: "2-digit" });
@@ -39,7 +46,7 @@ async function currentRuns(head, event, options) {
   let total;
   for (let page = 1; page <= 10; page++) {
     const query = new URLSearchParams({ branch: "main", event, head_sha: head, per_page: "100", page: String(page) });
-    const data = await requestGithubJson(`?${query}`, `Current deployment ${event} runs`, { ...options, repo: REPO });
+    const data = await requestGithubJson(`?${query}`, `Current deployment ${event} runs`, { ...options, repo: options.repo || githubRepository() });
     if (!data || !Number.isSafeInteger(data.total_count) || data.total_count < 0 || data.total_count > 1000 ||
         !Array.isArray(data.workflow_runs) || data.workflow_runs.length > 100 || total !== undefined && total !== data.total_count) {
       throw new Error("Invalid, incomplete or changing current-HEAD run list");

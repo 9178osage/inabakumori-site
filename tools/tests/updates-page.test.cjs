@@ -86,8 +86,8 @@ test("automated refresh checks all gates before upload and uses separate write p
   assert.match(workflow, /gh run watch "\$PUBLISH_RUN" --exit-status/u);
   assert.match(workflow, /creator-updates-version/u);
   const weekly = fs.readFileSync(".github/workflows/refresh-youtube-views.yml", "utf8");
-  assert.match(weekly, /gh workflow run check\.yml --ref main/u, "weekly bot commits also provide the Verify evidence needed by the next creator refresh");
-  assert.match(weekly, /gh workflow run pages\.yml --ref main/u);
+  assert.match(weekly, /gh workflow run check\.yml --ref "\$UPDATE_SHA"/u, "weekly bot commits also provide the Verify evidence needed by the next creator refresh");
+  assert.match(weekly, /gh workflow run pages\.yml --ref "\$UPDATE_SHA"/u);
 });
 
 

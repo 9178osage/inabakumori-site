@@ -143,16 +143,17 @@ test("paginated lookup stops at full coverage and directly fetches IDs absent fr
     return { ok: true, status: 200, json: async () => data };
   };
   assert.deepEqual(await verifyChangelogTable(markdown, { fetchImpl, lookup: "paginated" }), { rows: 1, runs: 2 });
-  assert.equal(seen.length, 3);
-  assert.ok(seen[0].endsWith("?branch=main&event=push&per_page=100&page=1"));
-  assert.ok(seen[1].endsWith("&page=2"));
-  assert.ok(seen[2].endsWith("/102"));
+  assert.equal(seen.length, 4);
+  assert.match(seen[0], /\/workflows\/check\.yml\/runs\?branch=main&event=push&per_page=100&page=1$/u);
+  assert.match(seen[1], /\/workflows\/pages\.yml\/runs\?branch=main&event=push&per_page=100&page=1$/u);
+  assert.match(seen[2], /\/workflows\/pages\.yml\/runs\?.*page=2$/u);
+  assert.ok(seen[3].endsWith("/102"));
   const complete = [];
   await verifyChangelogTable(markdown, { lookup: "paginated", fetchImpl: async url => {
     complete.push(url);
     return { ok: true, status: 200, json: async () => ({ total_count: 1000, workflow_runs: runs }) };
   } });
-  assert.equal(complete.length, 1, "no unnecessary pages after all referenced runs are covered");
+  assert.equal(complete.length, 2, "one list page per workflow after all referenced runs are covered");
 });
 
 test("paginated lookup rejects API/list failures and never passes unresolved run IDs", async () => {
@@ -166,7 +167,7 @@ test("paginated lookup rejects API/list failures and never passes unresolved run
     calls++;
     return url.includes("?branch=") ? { ok: true, status: 200, json: async () => ({ total_count: 0, workflow_runs: [] }) } : { ok: false, status: 404 };
   } }), /HTTP 404/u);
-  assert.equal(calls, 3, "empty list falls back to both direct requests and fails rather than claiming coverage");
+  assert.equal(calls, 4, "empty list falls back to both direct requests and fails rather than claiming coverage");
   await assert.rejects(verifyChangelogTable(markdown, { lookup: "paginated", fetchImpl: async () => ({ ok: false, status: 429 }) }), /HTTP 429/u);
 });
 

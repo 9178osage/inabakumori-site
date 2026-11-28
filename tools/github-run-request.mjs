@@ -34,9 +34,16 @@ export function validateGithubCache(cache, repo, token = "") {
   if (token && JSON.stringify(cache).includes(token)) throw new Error("Invalid GitHub cached response");
 }
 
+const WORKFLOW_RUNS = /^\/workflows\/[A-Za-z0-9_.-]+\/runs\?[^\s#\\]*$/u;
+
 function validEndpoint(endpoint) {
   return typeof endpoint === "string" && endpoint.length <= 2048 &&
-    (/^\/[1-9]\d*$/u.test(endpoint) || /^\?[^\s#\\]*$/u.test(endpoint));
+    (/^\/[1-9]\d*$/u.test(endpoint) || /^\?[^\s#\\]*$/u.test(endpoint) || WORKFLOW_RUNS.test(endpoint));
+}
+
+function githubActionsUrl(repo, endpoint) {
+  if (WORKFLOW_RUNS.test(endpoint)) return `https://api.github.com/repos/${repo}/actions${endpoint}`;
+  return `https://api.github.com/repos/${repo}/actions/runs${endpoint}`;
 }
 
 function header(response, name) {
@@ -116,7 +123,7 @@ async function attempt(endpoint, label, options) {
     let response;
     stats.networkRequests++;
     try {
-      response = await fetchImpl(`https://api.github.com/repos/${repo}/actions/runs${endpoint}`, {
+      response = await fetchImpl(githubActionsUrl(repo, endpoint), {
         headers, signal: controller.signal, redirect: "error"
       });
     } catch { throw new RequestError(`${label}: GitHub request failed (network)`, "network"); }

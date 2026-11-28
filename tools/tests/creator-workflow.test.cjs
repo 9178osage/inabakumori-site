@@ -76,6 +76,9 @@ test("creator write jobs run no repository or dependency code", () => {
   assert.match(refresh, /CHANGELOG_HEAD_SHA: \$\{\{ steps\.validated_head\.outputs\.sha \}\}/u);
   assert.doesNotMatch(commitScript, /\bGITHUB_SHA\b/u, "the commit guard must not use the event's stale SHA");
   assert.match(commit, /VALIDATED_HEAD: \$\{\{ needs\.refresh\.outputs\.validated_sha \}\}/u);
+  assert.match(commit, /--slurpfile old/u);
+  assert.match(commit, /top of the deployment table/u);
+  assert.match(commit, /ref: \$\{\{ needs\.refresh\.outputs\.validated_sha \}\}/u);
   for (const job of [commit, publish]) {
     assert.doesNotMatch(job, /(?:^|\n)\s*(?:- run: |run: )?(?:node|npm|npx|python\d?|source)\s/mu);
     assert.doesNotMatch(job, /uses: \.\//u);

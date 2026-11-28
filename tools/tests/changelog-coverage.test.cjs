@@ -20,6 +20,11 @@ const table = rows => `## 上线记录\n\n| 日期 | 提交 | 主要内容 | CI�
 const baseTable = () => table([row(since, 101, "10-16")]);
 const scope = heads => ({ since, through, baselineRunIds: ["101", "102"], ancestorHeads: [...heads, through] });
 const load = () => import("../check-changelog-table.mjs");
+
+function workflowPage(url) {
+  const address = new URL(url);
+  return { page: Number(address.searchParams.get("page")), check: address.pathname.includes("/workflows/check.yml/") };
+}
 function api(pages, { total = pages.flat().length, extra = [], calls = [] } = {}) {
   const all = [...pages.flat(), ...extra];
   return async url => {
@@ -62,7 +67,7 @@ test("coverage continues pagination after all row references are found until the
   await assert.rejects(verifyChangelogTable(table([row(recorded, 200)]), {
     coverage: scope([recorded, omitted]), fetchImpl
   }), /Missing deployment table rows for 1/u);
-  assert.equal(calls.length, 2, "collecting every row ID in page one cannot skip push coverage on page two");
+  assert.equal(calls.length, 3, "collecting every row ID in page one cannot skip push coverage on page two");
 });
 
 test("maxPages, unknown list rows, duplicate pages and missing baseline pairs fail rather than claim coverage", async () => {
@@ -100,7 +105,7 @@ test("a later push of the baseline SHA cannot replace the original run anchors o
   await assert.rejects(verifyChangelogTable(table([row(through, 901)]), {
     coverage: scope([omitted]), fetchImpl: api([first, [...pair(201, omitted), ...baseline()]], { calls })
   }), /Missing deployment table rows for 1/u);
-  assert.equal(calls.length, 2, "only the configured original IDs complete the baseline boundary");
+  assert.equal(calls.length, 3, "only the configured original IDs complete the baseline boundary");
 });
 
 test("baseline anchor IDs must be unique and match the baseline commit and workflow/event/branch", async () => {
@@ -250,9 +255,13 @@ test("a changed pagination scan is discarded and retried once with fresh list re
   let attempt = 0;
   const result = await verifyChangelogTable(table([row(recorded, 200), row(since, 101, "10-16")]), {
     coverage: scope([recorded, vanished]), cache, stats, fetchImpl: async (url, options) => {
-      const page = Number(new URL(url).searchParams.get("page"));
-      if (page === 1) attempt++;
-      calls.push([attempt, page]);
+      const { page, check } = workflowPage(url);
+      if (check && page === 1) attempt++;
+      if (check) calls.push([attempt, page]);
+      if (!check) {
+        const data = { total_count: 2, workflow_runs: baseline() };
+        return { ok: true, status: 200, headers: { etag: `"pages-${page}"` }, json: async () => data };
+      }
       assert.equal(options.headers["If-None-Match"], undefined, "the restarted scan must not reuse a mismatched list cache");
       const data = attempt === 1
         ? { total_count: page === 1 ? 104 : 102, workflow_runs: page === 1 ? fullFirstPage([...pair(200, recorded), ...pair(300, vanished)]) : baseline() }
@@ -316,9 +325,13 @@ test("a repeated page is retried without accepting duplicate runs", async () => 
   let attempt = 0;
   const result = await verifyChangelogTable(table([row(recorded, 200), row(since, 101, "10-16")]), {
     coverage: scope([recorded]), fetchImpl: async url => {
-      const page = Number(new URL(url).searchParams.get("page"));
-      if (page === 1) attempt++;
-      calls.push([attempt, page]);
+      const { page, check } = workflowPage(url);
+      if (check && page === 1) attempt++;
+      if (check) calls.push([attempt, page]);
+      if (!check) {
+        const data = { total_count: 2, workflow_runs: baseline() };
+        return { ok: true, status: 200, headers: { etag: `"pages-${page}"` }, json: async () => data };
+      }
       const data = { total_count: 104, workflow_runs: page === 1 ? fullFirstPage(pair(200, recorded)) :
         [...(attempt === 1 ? pair(200, recorded) : pair(500, through)), ...baseline()] };
       return { ok: true, status: 200, json: async () => data };

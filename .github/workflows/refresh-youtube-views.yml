@@ -29,11 +29,22 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
+    outputs:
+      sha: ${{ steps.fetched_head.outputs.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
           persist-credentials: false
+      - name: Capture fetched main HEAD
+        id: fetched_head
+        run: |
+          sha=$(git rev-parse HEAD)
+          if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Could not resolve the fetched main HEAD."
+            exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24.22.3
@@ -69,14 +80,24 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: main
+          ref: ${{ needs.fetch.outputs.sha }}
           fetch-depth: 0
           persist-credentials: false
-      # A queued workflow keeps its original event SHA. Re-anchor to the main branch
-      # when this job actually starts, then carry that checked-out commit through the run.
+      # Refresh must check out the same commit the fetch job used, then overlay the
+      # fetched js/songs.js. A later main tip would mix an untested tree with those counts.
       - name: Capture validated main HEAD
         id: validated_head
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        run: |
+          sha=$(git rev-parse HEAD)
+          if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Could not resolve the checked-out HEAD."
+            exit 1
+          fi
+          if [ "$sha" != "${{ needs.fetch.outputs.sha }}" ]; then
+            echo "::error::Refresh did not check out the fetch job's commit."
+            exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24.22.3
@@ -162,17 +183,29 @@ jobs:
             CHANGELOG_DIFF=$(git diff -U0 -- docs/CHANGELOG.md)
             printf "%s\n" "$CHANGELOG_DIFF" | grep -Eq "^\+\| [0-9]{2}-[0-9]{2} \| \`${VALIDATED_HEAD:0:7}\` \| 补记前次发布，供定时动态同步前核对 \| [0-9]+ / [0-9]+ \|$" \
               || fail "Checked CHANGELOG row is not this commit's deployment record."
+            if grep -Fq "## 上线记录" docs/CHANGELOG.md; then
+              FIRST_ROW=$(awk ' $0 == "## 上线记录" { sect=1 } sect && /^\| --- \|/ { sep=1; next } sep && /^\|/ { print; exit }' docs/CHANGELOG.md)
+              printf "%s\n" "$FIRST_ROW" | grep -Eq "^\| [0-9]{2}-[0-9]{2} \| \`${VALIDATED_HEAD:0:7}\` \| 补记前次发布，供定时动态同步前核对 \| [0-9]+ / [0-9]+ \|$" \
+                || fail "Checked CHANGELOG row is not at the top of the deployment table."
+            fi
           fi
-          SONGS_JSON=$(sed -e '1s/^const SONGS = //' -e '$s/;$//' js/songs.js)
-          OLD_SONGS_JSON=$(git show HEAD:js/songs.js | sed -e '1s/^const SONGS = //' -e '$s/;$//')
-          printf 'const SONGS = %s;\n' "$(printf '%s' "$SONGS_JSON" | jq --indent 2 .)" | cmp -s - js/songs.js \
+          [ "$(wc -c < js/songs.js)" -le 262144 ] || fail "Checked js/songs.js is too large."
+          SONGS_JSON_FILE=$(mktemp)
+          OLD_SONGS_JSON_FILE=$(mktemp)
+          trap 'rm -f "$SONGS_JSON_FILE" "$OLD_SONGS_JSON_FILE"' EXIT
+          sed -e '1s/^const SONGS = //' -e '$s/;$//' js/songs.js > "$SONGS_JSON_FILE"
+          git show HEAD:js/songs.js | sed -e '1s/^const SONGS = //' -e '$s/;$//' > "$OLD_SONGS_JSON_FILE"
+          [ "$(wc -c < "$SONGS_JSON_FILE")" -le 262144 ] || fail "Checked js/songs.js is too large."
+          [ "$(wc -c < "$OLD_SONGS_JSON_FILE")" -le 262144 ] || fail "Previous js/songs.js is too large."
+          printf 'const SONGS = %s;\n' "$(jq --indent 2 . "$SONGS_JSON_FILE")" | cmp -s - js/songs.js \
             || fail "Checked js/songs.js is not the canonical SONGS array."
-          jq -en --argjson old "$OLD_SONGS_JSON" --argjson new "$SONGS_JSON" '
+          jq -en --slurpfile old "$OLD_SONGS_JSON_FILE" --slurpfile new "$SONGS_JSON_FILE" '
             def counts: del(.viewCount, .viewsCheckedAt);
-            ($old | type) == "array" and ($new | type) == "array" and ($old | length) == ($new | length)
-            and ([range($new | length) as $i | $old[$i] as $o | $new[$i] as $n
+            ($old | length) == 1 and ($new | length) == 1
+            and ($old[0] | type) == "array" and ($new[0] | type) == "array" and ($old[0] | length) == ($new[0] | length)
+            and ([range($new[0] | length) as $i | $old[0][$i] as $o | $new[0][$i] as $n
               | $o == $n or (($o | type) == "object" and ($n | type) == "object" and ($o | counts) == ($n | counts)
-                and ($n.viewCount | type == "number" and . >= 0 and . == floor)
+                and ($n.viewCount | type == "number" and . >= 0 and . == floor and . <= 9007199254740991)
                 and ($n.viewsCheckedAt | type == "string" and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}$"))
                 and ($o.viewsCheckedAt == null or $n.viewsCheckedAt >= $o.viewsCheckedAt)
                 and $n.viewsCheckedAt <= (now + 86400 | strftime("%Y-%m-%d")))] | all)' >/dev/null \
@@ -202,10 +235,15 @@ jobs:
           UPDATE_SHA: ${{ needs.commit.outputs.sha }}
           SNAPSHOT_HASH: ${{ needs.refresh.outputs.snapshot }}
         run: |
-          gh workflow run check.yml --ref main
-          gh workflow run pages.yml --ref main
+          if [[ ! "$UPDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::UPDATE_SHA must be a 40-character lowercase hex digest."
+            exit 1
+          fi
+          # Dispatch against the commit just pushed, not whatever main is when this job starts.
+          gh workflow run check.yml --ref "$UPDATE_SHA"
+          gh workflow run pages.yml --ref "$UPDATE_SHA"
           # Token pushes skip push-triggered workflows, so the GitLab mirror is dispatched explicitly too.
-          gh workflow run mirror.yml --ref main
+          gh workflow run mirror.yml --ref "$UPDATE_SHA"
           for attempt in $(seq 1 12); do
             gh api --method GET "repos/$GH_REPO/actions/runs" -f head_sha="$UPDATE_SHA" -f event=workflow_dispatch -f per_page=30 > /tmp/youtube-update-runs.json
             VERIFY_RUN=$(jq -r '.workflow_runs | map(select(.name == "Verify website")) | max_by(.id) | .id // empty' /tmp/youtube-update-runs.json)
