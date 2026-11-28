@@ -87,6 +87,7 @@ if (window.siteAuthReset?.requested) {
   resetToken = window.siteAuthReset.token;
   resetTenantId = window.siteAuthReset.tenantId;
   delete window.siteAuthReset;
+  try { sessionStorage.removeItem("inabakumori-auth-reset"); } catch { /* Storage may be blocked. */ }
 } else {
   const url = new URL(window.location.href);
   const hashText = url.hash.replace(/^#/, "");
@@ -267,6 +268,7 @@ function clearAuthPasswords() {
   }
 }
 function closeAuthModal() {
+  if (authSubmitting) return;
   const modal = document.getElementById("auth-modal");
   if (modal) {
     modal.classList.remove("open");
@@ -478,6 +480,11 @@ async function initializeAuth() {
 }
 if (document.readyState === "loading" || document.readyState === undefined) document.addEventListener("DOMContentLoaded", initializeAuth);
 else initializeAuth();
+window.addEventListener("pageshow", event => {
+  if (!event.persisted) return;
+  updateAuthButton();
+  window.dispatchEvent(new Event("authchange"));
+});
 window.addEventListener("languagechange", () => {
   updateAuthButton();
   updateAuthModal();

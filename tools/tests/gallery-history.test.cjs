@@ -35,3 +35,18 @@ test("closing the lightbox on a #fragment page refocuses the thumbnail after the
   // Browser Back already defers focus restoration through closeLightbox({ deferFocus: true }).
   assert.match(gallery, /closeLightbox\(\{ deferFocus: true \}\);/);
 });
+
+test("a history restore does not open the lightbox while another modal is open (audit P1-5)", () => {
+  const gallery = require("fs").readFileSync(require("path").join(__dirname, "../../js/nknk-gallery-ui.js"), "utf8");
+  assert.match(gallery, /otherModalOpen = \(\) => document\.body\.classList\.contains\("modal-open"\)/);
+  assert.match(gallery, /lightbox\.inert === true/);
+  assert.match(gallery, /if \(!lightboxOpen && otherModalOpen\(\)\) \{\s*if \(fromHistory\) dropLightboxHistory\(\);\s*return;/);
+});
+
+test("gallery pointer and keyboard guards stay consistent (audit P2-6)", () => {
+  const gallery = require("fs").readFileSync(require("path").join(__dirname, "../../js/nknk-gallery-ui.js"), "utf8");
+  assert.match(gallery, /pointerenter", \(event\) => \{\s*if \(event\.pointerType !== "mouse"\) return;/);
+  assert.match(gallery, /if \(event\.pointerType !== "mouse"\) row\.hover = false;/);
+  assert.match(gallery, /if \(!wasSuppressed\) revealFocusedItem/);
+  assert.match(gallery, /if \(event\.altKey \|\| event\.ctrlKey \|\| event\.metaKey\) return;/);
+});

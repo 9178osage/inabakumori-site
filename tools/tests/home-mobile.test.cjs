@@ -21,11 +21,18 @@ function home(mobile = true, hash = "") {
   const targets = new Map(folds.flatMap(fold => [[fold.id, fold], [fold.child.id, fold.child]]));
   const media = { matches: mobile, addEventListener(type, handler) { this[type] = handler; } };
   const location = { hash };
+  const timers = [];
+  const later = fn => { timers.push(fn); return 1; };
   vm.runInNewContext(fs.readFileSync("js/home-mobile.js", "utf8"), {
+    setTimeout: later,
     document: { querySelectorAll: () => folds, getElementById: id => targets.get(id) },
-    window: { matchMedia: () => media, location, addEventListener(type, handler) { events[type] = handler; } }
+    window: { matchMedia: () => media, location, addEventListener(type, handler) { events[type] = handler; }, setTimeout: later }
   });
-  const flush = () => { const toggles = [...pending]; pending.clear(); toggles.forEach(fold => fold.listeners.toggle?.()); };
+  const flush = () => {
+    const due = timers.splice(0);
+    due.forEach(fn => fn());
+    const toggles = [...pending]; pending.clear(); toggles.forEach(fold => fold.listeners.toggle?.());
+  };
   return { folds, media, location, events, flush };
 }
 

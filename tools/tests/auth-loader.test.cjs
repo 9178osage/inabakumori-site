@@ -134,3 +134,18 @@ test("blocked storage only falls back to Chinese loader messages instead of thro
   await settle();
   assert.equal(english.button.innerText, "Sign-in unavailable. Retry");
 });
+
+test("public uncredentialed reads do not wait on the SDK even when a session cookie is present (audit P1-4)", async () => {
+  const app = page({ cookie: "__Host-station-st-refresh-token=refresh", defer: true });
+  assert.equal(app.imported.length, 1, "a returning member still starts the SDK in the background");
+  const wall = app.context.window.siteFetch("https://api.example.test/api/comments", { credentials: "omit", cache: "no-store" });
+  const raced = await Promise.race([wall, new Promise(resolve => setTimeout(() => resolve("blocked"), 40))]);
+  assert.notEqual(raced, "blocked", "the public wall must not wait for the SDK to finish");
+  assert.equal(app.requests.length, 1);
+  const write = app.context.window.siteFetch("/api/comments", { method: "POST" });
+  const blocked = await Promise.race([write.then(() => "sent"), new Promise(resolve => setTimeout(() => resolve("blocked"), 40))]);
+  assert.equal(blocked, "blocked", "a credentialed write still waits for the SDK");
+  app.finish();
+  await write;
+  assert.equal(app.requests.length, 2);
+});

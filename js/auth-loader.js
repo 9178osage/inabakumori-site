@@ -22,20 +22,35 @@
       });
     } catch { return false; }
   }
-  // Clear legacy query tokens before fetching another resource. Keep the reset
-  // input only in page memory until the SDK module consumes it.
+  // Clear legacy query tokens before fetching another resource. Persist the reset
+  // payload in sessionStorage so a refresh after a failed SDK load can still consume it.
+  const AUTH_RESET_KEY = "inabakumori-auth-reset";
+  const readStoredAuthReset = () => {
+    try {
+      const data = JSON.parse(sessionStorage.getItem(AUTH_RESET_KEY) || "null");
+      if (!data || data.requested !== true || typeof data.token !== "string" || typeof data.tenantId !== "string") return null;
+      return { requested: true, token: data.token, tenantId: data.tenantId || "public" };
+    } catch { return null; }
+  };
+  const writeStoredAuthReset = data => {
+    try { sessionStorage.setItem(AUTH_RESET_KEY, JSON.stringify(data)); } catch { /* Storage may be blocked. */ }
+  };
   const resetUrl = new URL(window.location.href);
   const hashParams = resetUrl.hash.includes("token=") ? new URLSearchParams(resetUrl.hash.slice(1)) : null;
   const resetRequested = resetUrl.searchParams.get("resetPassword") === "1" || Boolean(hashParams?.get("token"));
   if (resetRequested) {
     window.siteAuthReset = { requested: true, token: hashParams?.get("token") || resetUrl.searchParams.get("token") || "",
       tenantId: hashParams?.get("tenantId") || resetUrl.searchParams.get("tenantId") || "public" };
+    writeStoredAuthReset(window.siteAuthReset);
     for (const key of ["resetPassword", "token", "tenantId"]) resetUrl.searchParams.delete(key);
     if (hashParams) {
       hashParams.delete("token"); hashParams.delete("tenantId");
       resetUrl.hash = hashParams.toString();
     }
     window.history.replaceState(window.history.state, "", resetUrl.pathname + resetUrl.search + resetUrl.hash);
+  } else {
+    const stored = readStoredAuthReset();
+    if (stored) window.siteAuthReset = stored;
   }
   function updateLoaderButton() {
     if (loaded) return;
@@ -60,6 +75,9 @@
   }
   const originalFetch = window.siteFetch;
   window.siteFetch = async (...args) => {
+    // Public uncredentialed reads (the comment wall) must not wait on the SDK or
+    // fail when the bundle cannot be loaded (audit P1-4).
+    if (args[1]?.credentials === "omit") return originalFetch(...args);
     // A returning member's first write must wait for the SDK's header interceptor.
     if (hasLocalSession() || loading) await loadAuth();
     return originalFetch(...args);
@@ -94,6 +112,11 @@
     loadAuth().then(() => window.dispatchEvent(new Event("authchange"))).catch(() => {});
   });
   window.addEventListener("languagechange", updateLoaderButton);
+  window.addEventListener("pageshow", event => {
+    if (!event.persisted || loaded) return;
+    if (hasLocalSession()) loadAuth().then(() => window.dispatchEvent(new Event("authchange"))).catch(() => {});
+    else updateLoaderButton();
+  });
   updateLoaderButton();
   if (hasLocalSession() || resetRequested) loadAuth().catch(() => {});
 })();

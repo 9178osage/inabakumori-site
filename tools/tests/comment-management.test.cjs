@@ -541,7 +541,7 @@ test('a committed admin deletion still leaves the wall when the sign-in changes 
     const announced = [];
     context.window.removeWallMessage = id => removed.push(id);
     const dispatch = context.window.dispatchEvent;
-    context.window.dispatchEvent = event => { if (event.type === 'commentdeleted') announced.push(event.detail.id); return dispatch(event); };
+    context.window.dispatchEvent = event => { if (event.type === 'commentdeleted') announced.push(...(Array.isArray(event.detail?.ids) ? event.detail.ids : [event.detail?.id])); return dispatch(event); };
     context.fetch = async () => ({ ok: true, json: async () => ({ comments: [{ id: 7, nickname: 'member', content: 'message', isGuest: false, isAdmin: false }] }) });
     await events.authchange();
     const buttons = elements['admin-comments-list'].children[0].children.filter(child => child.listeners?.click);
@@ -852,4 +852,11 @@ test('the global limiter runs before CORS, and duplicate guest posts count again
   } finally {
     server.close();
   }
+});
+
+test("admin comment routes re-check revoked sessions with the Core (audit P2-2)", () => {
+  const source = require("fs").readFileSync(require("path").join(__dirname, "../../backend/services.mjs"), "utf8");
+  assert.match(source, /app\.delete\("\/api\/admin\/comments\/:id\/author", verifySession\(\{ checkDatabase: true \}\)/);
+  assert.match(source, /app\.delete\("\/api\/admin\/comments\/:id", verifySession\(\{ checkDatabase: true \}\)/);
+  assert.match(source, /app\.get\("\/api\/admin\/comments", verifySession\(\{ checkDatabase: true \}\)/);
 });

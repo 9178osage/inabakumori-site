@@ -346,3 +346,22 @@ test("the loader and the page pass the clicked control through to the dialog (au
   assert.match(loader, /await window\.openAuthModal\(opener\);/u);
   assert.match(fs.readFileSync("script.js", "utf8"), /addEventListener\("click", event => window\.openAuthModal\?\.\(event\.currentTarget\)\)/u);
 });
+
+test("the sign-in dialog cannot be dismissed while a request is in flight (audit P2-4)", async () => {
+  const app = setup();
+  await app.listeners.DOMContentLoaded();
+  await app.context.window.openAuthModal(app.elements["auth-btn"]);
+  app.run("authSubmitting = true");
+  app.run("closeAuthModal()");
+  assert.equal(app.elements["auth-modal"].classList.contains("open"), true);
+  app.run("authSubmitting = false");
+  app.run("closeAuthModal()");
+  assert.equal(app.elements["auth-modal"].classList.contains("open"), false);
+});
+
+test("a persisted pageshow refreshes the sign-in state (audit P2-5)", async () => {
+  const source = require("fs").readFileSync("tools/auth-src.js", "utf8");
+  assert.match(source, /addEventListener\("pageshow", event => \{\s*if \(!event\.persisted\) return;/);
+  assert.match(source, /dispatchEvent\(new Event\("authchange"\)\)/);
+  assert.match(require("fs").readFileSync("js/auth-loader.js", "utf8"), /addEventListener\("pageshow"/);
+});

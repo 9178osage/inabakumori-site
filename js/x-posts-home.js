@@ -13,7 +13,22 @@
     const empty = section.querySelector("[data-x-home-empty]");
     if (!filters || !count || !posts.length) return;
     let creator = "all";
+    const dateFormatters = new Map();
     const language = () => (typeof currentLanguage === "string" ? currentLanguage : document.documentElement.lang || "zh");
+    function localizeTimes() {
+      const current = language().startsWith("en") ? "en" : language().startsWith("ja") ? "ja" : "zh";
+      section.querySelectorAll("time[data-local-time]").forEach(element => {
+        const date = new Date(element.dateTime);
+        if (!Number.isFinite(date.getTime())) return;
+        let formatter = dateFormatters.get(current);
+        if (!formatter) {
+          formatter = new Intl.DateTimeFormat({ zh: "zh-CN", en: "en-US", ja: "ja-JP" }[current], { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Tokyo" });
+          dateFormatters.set(current, formatter);
+        }
+        const formatted = formatter.format(date) + " JST";
+        if (element.textContent !== formatted) element.textContent = formatted;
+      });
+    }
     const text = (zh, en, ja) => {
       const value = language();
       return value.startsWith("en") ? en : value.startsWith("ja") ? ja : zh;
@@ -60,8 +75,9 @@
       render();
     }));
     // script.js fires languagechange after rewriting [data-zh] text; re-apply the filter-specific labels.
-    window.addEventListener("languagechange", render);
+    window.addEventListener("languagechange", () => { localizeTimes(); render(); });
     filters.hidden = false;
+    localizeTimes();
     render();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initializeXPostsHome, { once: true });

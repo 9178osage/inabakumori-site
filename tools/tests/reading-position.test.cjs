@@ -56,7 +56,8 @@ test("page labels are trilingual and reading data stays in local storage", () =>
   assert.doesNotMatch(source, /document\.cookie|sendBeacon/u, "reading position never leaves the browser");
   const block = source.slice(source.indexOf("function initReadingPosition"), source.indexOf("window.xArchiveReading"));
   assert.doesNotMatch(block, /fetch\(|XMLHttpRequest/u);
-  assert.match(block, /scrollY \|\| 0\) < 300/u, "arriving at the top does not overwrite the saved spot");
+  assert.match(block, /feed\.getBoundingClientRect\(\)\.top > 80/u, "the list must reach the viewport before a position is saved");
+  assert.match(block, /suppressed = true/u, "Dismiss and Continue stop later pagehide writes");
 });
 
 test("a saved or linked post is found on its current page after new posts shift the pages (audit #08)", () => {

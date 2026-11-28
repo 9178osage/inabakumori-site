@@ -317,3 +317,25 @@ test("code files never name a song's video ID, so no second featured list can go
     for (const id of ids) assert.ok(!source.includes(id), `${file} must not hard-code ${id}; featured songs are flagged in js/songs.js`);
   }
 });
+
+test("every song singer has display names and aliases (audit P2-10)", () => {
+  const script = fs.readFileSync("script.js", "utf8");
+  assert.match(script, /TAG_DISPLAY_NAMES\["星尘Infinity"\]/u);
+  assert.match(script, /TAG_DISPLAY_NAMES\["宮下遊"\]/u);
+  assert.match(script, /TAG_DISPLAY_NAMES\["稲葉曇"\]/u);
+  assert.match(script, /TAG_ALIASES\["stardust"\]/u);
+  assert.match(script, /TAG_ALIASES\["inabakumori"\]/u);
+  assert.match(script, /TAG_ALIASES\["miyashita"\]/u);
+  const context = vm.createContext({});
+  vm.runInContext(fs.readFileSync("js/songs.js", "utf8"), context);
+  const songs = vm.runInContext("SONGS", context);
+  const assigned = [...script.matchAll(/TAG_DISPLAY_NAMES\["([^"]+)"\]/gu)].map(match => match[1]);
+  const initial = script.match(/const TAG_DISPLAY_NAMES = Object\.assign\(Object\.create\(null\), (\{[^\n]*\})\);/u);
+  assert.ok(initial, "initial display map");
+  const names = new Set([...Object.keys(vm.runInNewContext(`(${initial[1]})`)), ...assigned].map(name => name.toLowerCase()));
+  for (const song of songs) {
+    for (const singer of song.singers || []) {
+      assert.ok(names.has(singer.toLowerCase()), `missing TAG_DISPLAY_NAMES for singer ${singer} in ${song.title}`);
+    }
+  }
+});

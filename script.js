@@ -746,6 +746,22 @@ TAG_DISPLAY_NAMES["彩澄しゅお"].ja = "彩澄しゅお";
 TAG_DISPLAY_NAMES["彩澄りりせ"].ja = "彩澄りりせ";
 TAG_DISPLAY_NAMES["其他"].ja = "その他";
 TAG_ALIASES["その他"] = "其他";
+
+TAG_DISPLAY_NAMES["星尘Infinity"] = { zh: "星尘Infinity", en: "Stardust Infinity", ja: "星塵Infinity" };
+TAG_ALIASES["stardust"] = "星尘Infinity";
+TAG_ALIASES["stardust infinity"] = "星尘Infinity";
+TAG_ALIASES["星塵infinity"] = "星尘Infinity";
+TAG_ALIASES["星塵Infinity"] = "星尘Infinity";
+TAG_DISPLAY_NAMES["宮下遊"] = { zh: "宮下遊", en: "Miyashita Yuu", ja: "宮下遊" };
+TAG_ALIASES["miyashita"] = "宮下遊";
+TAG_ALIASES["miyashita yuu"] = "宮下遊";
+TAG_ALIASES["宫下游"] = "宮下遊";
+TAG_ALIASES["宮下游"] = "宮下遊";
+TAG_DISPLAY_NAMES["稲葉曇"] = { zh: "稲葉曇", en: "Inabakumori", ja: "稲葉曇" };
+TAG_ALIASES["inabakumori"] = "稲葉曇";
+TAG_ALIASES["いなばくもり"] = "稲葉曇";
+TAG_ALIASES["イナバクモリ"] = "稲葉曇";
+TAG_ALIASES["稻叶昙"] = "稲葉曇";
 function getTagDisplayLabel(tag) {
   const normalized = normalizeTag(tag);
   const names = TAG_DISPLAY_NAMES[normalized];
@@ -1185,8 +1201,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const authModal = document.getElementById("auth-modal");
   onBackdropClick(authModal, () => {
     if (!authModal.classList.contains("open")) return;
+    // closeAuthModal already returns focus to the trigger; do not steal it back to #auth-btn.
     window.closeAuthModal?.();
-    document.getElementById("auth-btn")?.focus();
   });
   document.getElementById("auth-submit")?.addEventListener("click", () => window.submitAuth?.());
   document.getElementById("auth-switch")?.addEventListener("click", () => window.switchAuthMode?.());

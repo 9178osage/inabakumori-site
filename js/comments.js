@@ -13,7 +13,13 @@
     return (comments, deleting, label, remove, removeAuthor) => {
       const list = document.getElementById(listId);
       if (!list) return;
-      const focusedId = order.find(id => rows.get(id)?.button === document.activeElement);
+      const active = document.activeElement;
+      let focusedKind = "button";
+      const focusedId = active ? order.find(id => {
+        const row = rows.get(id);
+        if (row?.authorButton === active) { focusedKind = "author"; return true; }
+        return row?.button === active;
+      }) : undefined;
       const previousOrder = order;
       order = comments.map(comment => comment.id);
       const retained = new Set(order);
@@ -49,14 +55,14 @@
         row.button.setAttribute("aria-disabled", String(deleting.has(comment.id)));
         row.button.setAttribute("aria-label", label("删除这条留言：", "Delete this message: ") + commentExcerpt(comment.content));
         if (row.authorButton) {
-          row.authorButton.textContent = label("删除该用户全部留言", "Delete all from this user");
+          row.authorButton.textContent = deleting.has(comment.id) ? label("正在删除…", "Deleting…") : label("删除该用户全部留言", "Delete all from this user");
           row.authorButton.setAttribute("aria-disabled", String(deleting.has(comment.id)));
           row.authorButton.setAttribute("aria-label", label("删除这位用户的全部留言：", "Delete every message from this user: ") + commentExcerpt(comment.content));
         }
         if (list.children[index] !== row.item) list.insertBefore(row.item, list.children[index] || null);
       });
       if (focusedId === undefined || list.closest?.("[hidden]")) return;
-      let target = rows.get(focusedId)?.button;
+      let target = focusedKind === "author" ? rows.get(focusedId)?.authorButton : rows.get(focusedId)?.button;
       if (!target) {
         const index = previousOrder.indexOf(focusedId);
         const neighbor = previousOrder.slice(index + 1).find(id => retained.has(id)) ??
@@ -103,6 +109,7 @@
   if (!document.getElementById("my-comments-list")) return;
   const api = `${window.APP_CONFIG.apiDomain}/api/comments`;
   let version = 0;
+  let authVersion = 0;
   let busy = false;
   let nextCursor = null;
   let state = "idle";
@@ -175,7 +182,7 @@
   async function remove(id) {
     if (deleting.has(id) || !comments.has(id)) return;
     if (!confirm(label("确定删除这条留言吗？删除后无法恢复。", "Delete this message? This cannot be undone."))) return;
-    const current = version;
+    const current = authVersion;
     deleting.add(id);
     render();
     try {
@@ -185,7 +192,7 @@
       // it falls through to the error path below and the reader keeps seeing their list.
       // A late 401 from a session that already ended must not touch a panel a newer load owns.
       if (response.status === 401) {
-        if (current === version) {
+        if (current === authVersion) {
           comments.clear();
           nextCursor = null;
           document.getElementById("my-comments-controls").hidden = true;
@@ -199,10 +206,10 @@
       window.removeWallMessage?.(id);
       // Set the status before announcing the deletion: this panel's own listener re-renders
       // synchronously, so with the state still idle the first repaint focused an empty status node.
-      if (current === version) state = "deleted";
+      if (current === authVersion) state = "deleted";
       window.dispatchEvent(new CustomEvent("commentdeleted", { detail: { id } }));
     } catch {
-      if (current === version) state = "deleteError";
+      if (current === authVersion) state = "deleteError";
     } finally {
       deleting.delete(id);
       // Render the current load's data; even a newer refresh must clear this button's pending state.
@@ -214,14 +221,18 @@
     document.getElementById("my-comments-more").addEventListener("click", () => load(true));
     load();
   });
-  window.addEventListener("authchange", () => load(false, true));
+  window.addEventListener("authchange", () => { authVersion++; return load(false, true); });
   window.addEventListener("commentposted", () => load());
   window.addEventListener("commentdeleted", ({ detail }) => {
-    const id = detail?.id;
-    if (!Number.isSafeInteger(id) || id <= 0) return;
-    deleted.add(id);
-    if (comments.delete(id) && !busy) state = "deleted";
-    render();
+    const ids = Array.isArray(detail?.ids) ? detail.ids : [detail?.id];
+    let changed = false;
+    for (const id of ids) {
+      if (!Number.isSafeInteger(id) || id <= 0) continue;
+      deleted.add(id);
+      if (comments.delete(id)) changed = true;
+    }
+    if (changed && !busy) state = "deleted";
+    if (changed) render();
   });
   window.addEventListener("languagechange", render);
 })();
@@ -339,9 +350,9 @@
       for (const removed of ids) {
         deleted.add(removed);
         window.removeWallMessage?.(removed);
-        window.dispatchEvent(new CustomEvent("commentdeleted", { detail: { id: removed } }));
       }
       comments = comments.filter(comment => !deleted.has(comment.id));
+      if (ids.length) window.dispatchEvent(new CustomEvent("commentdeleted", { detail: { ids } }));
     } catch {
       if (current === authVersion) error = "delete";
     } finally {
@@ -350,18 +361,28 @@
     }
   }
   document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("admin-comments-retry")?.addEventListener("click", () => load());
+    document.getElementById("admin-comments-retry")?.addEventListener("click", () => {
+      // A failed "load more" should retry the next page, not restart at page 1.
+      // A failed delete should not wipe the list already on screen.
+      if (error === "delete") { error = ""; render(); return; }
+      load(Boolean(comments.length && nextCursor));
+    });
     document.getElementById("admin-comments-more")?.addEventListener("click", () => load(true));
     load();
   });
   window.addEventListener("authchange", () => { authVersion++; hide(); return load(); });
   window.addEventListener("commentposted", () => load());
   window.addEventListener("commentdeleted", ({ detail }) => {
-    const id = detail?.id;
-    if (!Number.isSafeInteger(id) || id <= 0) return;
-    deleted.add(id);
-    comments = comments.filter(comment => comment.id !== id);
-    render();
+    const ids = Array.isArray(detail?.ids) ? detail.ids : [detail?.id];
+    let changed = false;
+    for (const id of ids) {
+      if (!Number.isSafeInteger(id) || id <= 0) continue;
+      deleted.add(id);
+      const before = comments.length;
+      comments = comments.filter(comment => comment.id !== id);
+      if (comments.length !== before) changed = true;
+    }
+    if (changed) render();
   });
   window.addEventListener("languagechange", render);
 })();

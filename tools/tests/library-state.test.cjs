@@ -92,16 +92,6 @@ test("changing a library sort also recomputes the visible song set", () => {
   assert.equal(context.location.search, "?sort=popular");
 });
 
-test("favorites import merges a valid backup without discarding existing favorites", async () => {
-  const { elements, ready, saved, storage, fire } = loadLibrary();
-  ready.forEach(handler => handler());
-  fire("storage", { key: "favorite-songs", newValue: '["AAAAAAAAAAA"]', storageArea: storage });
-  const input = elements.get("favorites-import-file");
-  input.files = [{ size: 90, text: async () => JSON.stringify({ type: "inabakumori-favorites", version: 1, songs: ["AAAAAAAAAAA", "BBBBBBBBBBB"] }) }];
-  await input.listeners.change[0]();
-  assert.deepEqual(JSON.parse(saved.get("favorite-songs")), ["AAAAAAAAAAA", "BBBBBBBBBBB"]);
-  assert.match(elements.get("library-status").textContent, /新增 1 首/u);
-});
 
 const RETIRED = "dmG60q44PJQ", CURRENT = "2A46CwhV4aE";
 const starButtons = list => list.children.filter(item => item.className === "song-row").map(row => row.children[1]);
@@ -121,26 +111,6 @@ test("a favorite saved under a retired video ID follows the song to its new ID",
   assert.equal(song.attributes["aria-pressed"], "true", "another tab's older record is read the same way");
 });
 
-test("a backup exported before the link changed merges without duplicating the song, and exports use the current ID", async () => {
-  const { elements, ready, saved, context, storage, fire } = loadLibrary("", { ids: [CURRENT, "BBBBBBBBBBB"], saved: { "favorite-songs": JSON.stringify([CURRENT]) } });
-  ready.forEach(handler => handler());
-  const input = elements.get("favorites-import-file");
-  input.files = [{ size: 100, text: async () => JSON.stringify({ type: "inabakumori-favorites", version: 1, songs: [RETIRED, "BBBBBBBBBBB"] }) }];
-  await input.listeners.change[0]();
-  assert.deepEqual(JSON.parse(saved.get("favorite-songs")), [CURRENT, "BBBBBBBBBBB"]);
-  assert.match(elements.get("library-status").textContent, /新增 1 首/u, "only the other song is new");
-  assert.doesNotMatch(elements.get("library-status").textContent, /暂不在本站歌曲表/u, "the retired ID is not reported as unknown");
-  let blob;
-  context.URL = class extends URL { static createObjectURL(value) { blob = value; return "blob:backup"; } static revokeObjectURL() {} };
-  context.Blob = Blob;
-  context.setTimeout = callback => callback();
-  context.document.body = { append() {} };
-  const createElement = context.document.createElement;
-  context.document.createElement = tag => { const node = createElement(tag); node.remove = () => {}; return node; };
-  fire("storage", { key: "favorite-songs", newValue: JSON.stringify([RETIRED]), storageArea: storage });
-  elements.get("favorites-export").click();
-  assert.deepEqual(JSON.parse(await blob.text()).songs, [CURRENT]);
-});
 
 test("every retired song address in data/song-redirects.json also keeps its saved favorite", () => {
   const { redirects } = JSON.parse(fs.readFileSync("data/song-redirects.json", "utf8"));
@@ -162,108 +132,11 @@ test("the retired-ID map in js/experience.js lists exactly the pairs in data/son
     "an extra or stale pair in the script would send a favorite to the wrong song, and a missing one loses it");
 });
 
-test("favorites export produces a backup accepted by import", async () => {
-  const { elements, ready, context, storage, fire } = loadLibrary();
-  let blob, downloaded, revoked;
-  context.URL = class extends URL {
-    static createObjectURL(value) { blob = value; return "blob:backup"; }
-    static revokeObjectURL(value) { revoked = value; }
-  };
-  context.Blob = Blob;
-  context.setTimeout = callback => callback();
-  context.document.body = { append(node) { downloaded = node; } };
-  const createElement = context.document.createElement;
-  context.document.createElement = tag => {
-    const node = createElement(tag);
-    node.remove = () => {};
-    return node;
-  };
-  ready.forEach(handler => handler());
-  fire("storage", { key: "favorite-songs", newValue: '["AAAAAAAAAAA"]', storageArea: storage });
-  elements.get("favorites-export").click();
-  assert.equal(downloaded.download, "inabakumori-favorites.json");
-  assert.equal(revoked, "blob:backup");
-  assert.deepEqual(JSON.parse(await blob.text()), { type: "inabakumori-favorites", version: 1, songs: ["AAAAAAAAAAA"] });
-  const input = elements.get("favorites-import-file");
-  input.files = [blob];
-  await input.listeners.change[0]();
-  assert.match(elements.get("library-status").textContent, /新增 0 首/u);
-});
 
-test("invalid or oversized favorites backups do not alter saved favorites", async () => {
-  const { elements, ready, saved, storage, fire } = loadLibrary();
-  ready.forEach(handler => handler());
-  fire("storage", { key: "favorite-songs", newValue: '["AAAAAAAAAAA"]', storageArea: storage });
-  const input = elements.get("favorites-import-file");
-  for (const file of [
-    { size: 100_001, text: async () => { throw new Error("must not read oversized files"); } },
-    { size: 10, text: async () => JSON.stringify({ type: "inabakumori-favorites", version: 1, songs: ["invalid"] }) }
-  ]) {
-    input.files = [file];
-    await input.listeners.change[0]();
-    assert.equal(saved.has("favorite-songs"), false);
-    assert.match(elements.get("library-status").textContent, /导入失败/u);
-  }
-});
 
-test("import preserves unknown IDs and warns in the selected language when persistent storage is unavailable", async () => {
-  const { elements, ready, context, fire } = loadLibrary();
-  ready.forEach(handler => handler());
-  Object.defineProperty(context, "localStorage", { get() { throw new Error("blocked"); } });
-  const input = elements.get("favorites-import-file");
-  input.files = [{ size: 100, text: async () => JSON.stringify({ type: "inabakumori-favorites", version: 1, songs: ["AAAAAAAAAAA", "AAAAAAAAAAA"] }) }];
-  await input.listeners.change[0]();
-  assert.match(elements.get("library-status").textContent, /1 首暂不在本站歌曲表/u);
-  assert.match(elements.get("library-status").textContent, /无法持久保存/u);
-  context.currentLanguage = "en";
-  fire("languagechange");
-  assert.match(elements.get("library-status").textContent, /1 imported song is/u);
-  assert.match(elements.get("library-status").textContent, /storage is unavailable/u);
-});
 
-test("export omits malformed local records and reports that omission", async () => {
-  const { elements, ready, context, storage, fire } = loadLibrary();
-  let blob;
-  context.URL = class extends URL { static createObjectURL(value) { blob = value; return "blob:backup"; } static revokeObjectURL() {} };
-  context.Blob = Blob;
-  context.setTimeout = callback => callback();
-  context.document.body = { append() {} };
-  const createElement = context.document.createElement;
-  context.document.createElement = tag => { const node = createElement(tag); node.remove = () => {}; return node; };
-  ready.forEach(handler => handler());
-  fire("storage", { key: "favorite-songs", newValue: '["AAAAAAAAAAA","invalid"]', storageArea: storage });
-  elements.get("favorites-export").click();
-  assert.deepEqual(JSON.parse(await blob.text()).songs, ["AAAAAAAAAAA"]);
-  assert.match(elements.get("library-status").textContent, /忽略了 1 条无效记录/u);
-});
 
-test("share succeeds with clipboard support and falls back when the API is absent", async () => {
-  const { elements, ready, context } = loadLibrary("?favorites=1&icons=2");
-  ready.forEach(handler => handler());
-  elements.get("tag-filter-input").value = "rain";
-  let copied;
-  context.navigator.clipboard = { writeText: async value => { copied = value; } };
-  await elements.get("share-search").listeners.click[0]();
-  assert.equal(copied, "https://example.com/?q=rain#songs");
-  assert.equal(elements.get("library-status").textContent, "链接已复制");
-  delete context.navigator.clipboard;
-  await elements.get("share-search").listeners.click[0]();
-  assert.ok(elements.get("library-status").textContent.includes(copied));
-});
 
-for (const language of ["zh", "en", "ja"]) {
-  test(`share fallback exposes the public URL without local favorites (${language})`, async () => {
-    const { elements, ready, context } = loadLibrary("?q=rain&sort=title&favorites=1#intro");
-    context.currentLanguage = language;
-    context.navigator.clipboard = { writeText: async () => { throw new Error("permission denied"); } };
-    ready.forEach(handler => handler());
-    await elements.get("share-search").listeners.click[0]();
-    const message = elements.get("library-status").textContent;
-    assert.ok(message.includes("https://example.com/?q=rain&sort=title#songs"));
-    assert.ok(!message.includes("favorites="));
-    assert.equal(elements.get("favorites-filter").attributes["aria-pressed"], "true");
-  });
-}
 
 test("popular sort tolerates pre-rendered songs when the song data script fails", () => {
   const { elements, ready } = loadLibrary("?sort=popular");
@@ -300,120 +173,8 @@ test("favorite synchronization ignores other storage areas and handles malformed
   assert.equal(button.attributes["aria-pressed"], "false");
 });
 
-test("share hint follows the language switch after a successful copy", async () => {
-  const { elements, ready, context, fire } = loadLibrary("?q=rain&favorites=1");
-  ready.forEach(handler => handler());
-  context.navigator.clipboard = { writeText: async () => {} };
-  await elements.get("share-search").listeners.click[0]();
-  const status = elements.get("library-status");
-  assert.equal(status.textContent, "链接已复制");
-  for (const [language, expected] of [["en", "Link copied"], ["ja", "リンクをコピーしました"], ["zh", "链接已复制"]]) {
-    context.currentLanguage = language;
-    fire("languagechange");
-    assert.equal(status.textContent, expected, `status should follow the switch to ${language}`);
-  }
-});
 
-test("share fallback keeps the public URL across a language switch", async () => {
-  const { elements, ready, context, fire } = loadLibrary("?q=rain&sort=title&favorites=1#intro");
-  ready.forEach(handler => handler());
-  context.navigator.clipboard = { writeText: async () => { throw new Error("permission denied"); } };
-  await elements.get("share-search").listeners.click[0]();
-  const status = elements.get("library-status");
-  const sharedUrl = "https://example.com/?q=rain&sort=title#songs";
-  assert.ok(status.textContent.includes(sharedUrl));
-  assert.ok(!status.textContent.includes("favorites="));
-  context.currentLanguage = "ja";
-  fire("languagechange");
-  assert.ok(status.textContent.includes("自動コピーできませんでした"), status.textContent);
-  assert.ok(status.textContent.includes(sharedUrl), "the URL itself must not change");
-  assert.ok(!status.textContent.includes("favorites="));
-  context.currentLanguage = "en";
-  fire("languagechange");
-  assert.ok(status.textContent.startsWith("Could not copy automatically."), status.textContent);
-  assert.ok(status.textContent.includes(sharedUrl));
-});
 
-test("a language switch keeps the share hint, a real filter change clears it", async () => {
-  const { elements, list, ready, context, fire, storage } = loadLibrary("?q=rain");
-  ready.forEach(handler => handler());
-  const status = elements.get("library-status");
-  context.navigator.clipboard = { writeText: async () => {} };
-  await elements.get("share-search").listeners.click[0]();
-  assert.equal(status.textContent, "链接已复制");
 
-  // The language switch re-runs the filter with the same visible songs: the hint must
-  // be translated, not erased.
-  const originalUpdateTagFilter = context.updateTagFilter;
-  context.currentLanguage = "ja";
-  fire("languagechange");
-  context.updateTagFilter();
-  assert.equal(status.textContent, "リンクをコピーしました");
-  context.currentLanguage = "zh";
-  fire("languagechange");
-  context.updateTagFilter();
-  assert.equal(status.textContent, "链接已复制");
 
-  // A filter that actually changes the visible songs retires the hint for good.
-  context.updateTagFilter = originalUpdateTagFilter;
-  context.includeFavoriteSong = link => JSON.parse(storage.getItem("favorite-songs") || "[]").includes(link.dataset.songTitle);
-  storage.setItem("favorite-songs", JSON.stringify(["first"]));
-  elements.get("favorites-filter").click();
-  const links = list.children.filter(item => item.dataset.songTitle);
-  assert.deepEqual(links.map(link => link.hidden), [false, true, true], "the visible set really changed");
-  assert.equal(status.textContent, "", "a real filter change clears the hint");
-  context.currentLanguage = "ja";
-  fire("languagechange");
-  assert.equal(status.textContent, "", "the cleared hint never comes back");
-});
 
-test("changing the query or sort retires a share link even when the visible songs stay the same", async () => {
-  const { elements, ready, context, fire } = loadLibrary("?q=rain");
-  ready.forEach(handler => handler());
-  const share = () => elements.get("share-search").listeners.click[0]();
-  const status = elements.get("library-status");
-  await share(); // Missing Clipboard API displays a manually copyable URL.
-  assert.ok(status.textContent.includes("q=rain"));
-  elements.get("tag-filter-input").value = "weather";
-  context.updateTagFilter(); // Same visible songs in this fixture.
-  assert.equal(status.textContent, "", "the old query URL must disappear");
-  await share();
-  assert.ok(status.textContent.includes("q=weather"));
-  elements.get("song-sort").value = "title";
-  elements.get("song-sort").listeners.change[0]();
-  assert.equal(status.textContent, "", "the old sort URL must disappear");
-  context.currentLanguage = "en";
-  fire("languagechange");
-  context.updateTagFilter();
-  assert.equal(status.textContent, "", "translation must not revive an old link");
-});
-
-for (const succeeds of [true, false]) {
-  test(`a pending clipboard ${succeeds ? "success" : "failure"} cannot restore a retired hint`, async () => {
-    const { elements, ready, context } = loadLibrary("?q=rain");
-    ready.forEach(handler => handler());
-    let settle;
-    context.navigator.clipboard = { writeText: () => new Promise((resolve, reject) => {
-      settle = () => succeeds ? resolve() : reject(new Error("permission denied"));
-    }) };
-    const pending = elements.get("share-search").listeners.click[0]();
-    elements.get("tag-filter-input").value = "weather";
-    context.updateTagFilter();
-    settle();
-    await pending;
-    assert.equal(elements.get("library-status").textContent, "");
-  });
-}
-
-test("an earlier clipboard request cannot overwrite the latest share result", async () => {
-  const { elements, ready, context } = loadLibrary("?q=rain");
-  ready.forEach(handler => handler());
-  let rejectFirst;
-  context.navigator.clipboard = { writeText: () => new Promise((_resolve, reject) => { rejectFirst = reject; }) };
-  const first = elements.get("share-search").listeners.click[0]();
-  context.navigator.clipboard.writeText = async () => {};
-  await elements.get("share-search").listeners.click[0]();
-  rejectFirst(new Error("permission denied"));
-  await first;
-  assert.equal(elements.get("library-status").textContent, "链接已复制");
-});

@@ -269,3 +269,14 @@ for (const panel of ["my-comments", "admin-comments"]) {
     assert.equal(app.document.activeElement, app.elements.outside);
   });
 }
+
+test("admin bulk-delete keeps keyboard focus and my-comments errors use authVersion (audit P2-7)", () => {
+  const source = fs.readFileSync(require("path").join(__dirname, "../../js/comments.js"), "utf8");
+  assert.match(source, /row\?\.authorButton === active/);
+  assert.match(source, /focusedKind === "author" \? rows\.get\(focusedId\)\?\.authorButton/);
+  assert.match(source, /authorButton\.textContent = deleting\.has\(comment\.id\) \? label\("正在删除…"/);
+  const mine = source.slice(source.indexOf("my-comments-list"), source.indexOf("admin-comments-list"));
+  assert.match(mine, /let authVersion = 0;/);
+  assert.match(mine, /const current = authVersion;/);
+  assert.match(mine, /authchange", \(\) => \{ authVersion\+\+;/);
+});

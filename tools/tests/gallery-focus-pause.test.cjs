@@ -8,7 +8,7 @@ const ui = fs.readFileSync(path.join(__dirname, "../..", "js/nknk-gallery-ui.js"
 test("the marquee only pauses for focus the visitor created, not for our own focus restore", () => {
   // Keyboard activation is flagged so the reading pause survives; pointer opens are not.
   assert.match(ui, /const openAt = \(nextIndex, source = null, byKeyboard = false, \{ fromHistory = false \} = \{\}\) => \{/);
-  assert.match(ui, /openAt\(absoluteIndex, null, true\)/, "keyboard activation passes byKeyboard=true");
+  assert.match(ui, /openAt\(absoluteIndex, button, isKeyboardActivation\(event\)\)/, "keyboard activation passes byKeyboard=true");
   assert.match(ui, /lightboxOpenedByKeyboard = byKeyboard;/);
   // The pause condition ignores in-row focus that came from our own restore.
   assert.match(ui, /row\.paused = [^;]*\(row\.focus && !row\.pointerFocusExempt\)[^;]*;/);

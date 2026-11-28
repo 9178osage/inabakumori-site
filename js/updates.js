@@ -167,7 +167,7 @@
       staleTimer = null;
     });
     // bfcache can restore this document after preferences changed in another page.
-    window.addEventListener("pageshow", resumePage);
+    window.addEventListener("pageshow", event => { if (!event || event.persisted) resumePage(); });
     resumePage();
     initReadingPosition(storage, () => language);
     document.querySelector(".page-controls")?.removeAttribute("hidden");
@@ -278,6 +278,7 @@
     // Only an actually present post counts as arrived; the same page name may now hold other posts.
     const savedHere = savedValid && articles.some(article => article.dataset.xPostId === saved.id);
     const arrivedAtSaved = savedHere && (window.location.hash === `#x-post-${saved.id}` || articles[0]?.dataset.xPostId === saved.id);
+    let suppressed = false;
     if (savedValid && !arrivedAtSaved) {
       const label = pageLabel(saved.page);
       const box = document.createElement("p");
@@ -294,16 +295,20 @@
       });
       const dismiss = tri("button", "", { zh: "不用了", en: "Dismiss", ja: "閉じる" });
       dismiss.type = "button";
-      dismiss.addEventListener("click", () => { box.remove(); writeRecord(storage, READING_KEY, null); });
+      // Stop later scroll/pagehide writes from resurrecting a dismissed or followed bookmark (audit P1-6).
+      dismiss.addEventListener("click", () => { suppressed = true; box.remove(); writeRecord(storage, READING_KEY, null); });
+      link.addEventListener("click", () => { suppressed = true; });
       box.append(link, dismiss);
       feed.before(box);
     }
-    // Save the first post still on screen, but only once the reader has actually scrolled into
-    // the list, so simply arriving at the top never overwrites the previous position.
+    // Save the first post still on screen, but only once the feed itself has reached the
+    // top of the viewport. A fixed scrollY threshold is shorter than the archive header,
+    // so scrolling just far enough to see the resume bar would overwrite the bookmark (audit P1-6).
     let timer = null;
     const save = () => {
       timer = null;
-      if ((window.scrollY || 0) < 300) return;
+      if (suppressed) return;
+      if (feed.getBoundingClientRect().top > 80) return;
       const current = articles.find(article => article.getBoundingClientRect().bottom > 80);
       if (current) writeRecord(storage, READING_KEY, { page, id: current.dataset.xPostId, savedAt: new Date().toISOString() });
     };

@@ -104,7 +104,9 @@
         const current = items[lightboxIndex];
         if (current) {
           image.alt = altFor(current.id);
-          if (caption) caption.textContent = `${altFor(current.id)} · ${lightboxIndex + 1} / ${items.length}`;
+          if (caption) caption.textContent = lightbox.classList.contains("is-error")
+            ? `${altFor(current.id)} · ${chromeLabel("error")}`
+            : `${altFor(current.id)} · ${lightboxIndex + 1} / ${items.length}`;
         }
       }
     };
@@ -180,7 +182,26 @@
       if (!historyEntry || !history.state?.nknkLightbox || history.state.nknkLightboxIndex === lightboxIndex) return;
       try { history.replaceState({ ...history.state, nknkLightboxIndex: lightboxIndex }, "", location.href); } catch { /* history unavailable */ }
     };
+    const otherModalOpen = () => document.body.classList.contains("modal-open")
+      || document.body.classList.contains("easter-egg-open")
+      || lightbox.inert === true;
+
+    const dropLightboxHistory = () => {
+      try {
+        const state = { ...(history.state || {}) };
+        delete state.nknkLightbox;
+        delete state.nknkLightboxIndex;
+        history.replaceState(state, "", location.href);
+      } catch { /* history may be unavailable */ }
+    };
+
     const openAt = (nextIndex, source = null, byKeyboard = false, { fromHistory = false } = {}) => {
+      // Another modal already made the lightbox inert. Opening it now would leave
+      // every node inert and lock the page (audit P1-5).
+      if (!lightboxOpen && otherModalOpen()) {
+        if (fromHistory) dropLightboxHistory();
+        return;
+      }
       if (lightboxOpen) {
         showLightbox(nextIndex);
         recordHistoryIndex();
@@ -411,6 +432,7 @@
         viewport.classList.remove("is-dragging");
         try { viewport.releasePointerCapture(event.pointerId); } catch { /* ignore */ }
         // pointercancel (e.g. the page starts scrolling vertically) must never open the lightbox.
+        if (event.pointerType !== "mouse") row.hover = false;
         const shouldClick = !cancelled && !moved && activeButton;
         activeButton = null;
         if (shouldClick) {
@@ -430,7 +452,8 @@
         row.hover = false;
         syncPauseState();
       });
-      viewport.addEventListener("pointerenter", () => {
+      viewport.addEventListener("pointerenter", (event) => {
+        if (event.pointerType !== "mouse") return;
         row.hover = true;
         syncPauseState();
       });
@@ -452,10 +475,11 @@
         row.focus = true;
         // Our own focus restore after a pointer close must not re-arm the pause; any genuine focus
         // move (Tab, arrow keys, click that focuses) does.
+        const wasSuppressed = suppressFocusPause;
         if (suppressFocusPause) { row.pointerFocusExempt = true; suppressFocusPause = false; }
         else row.pointerFocusExempt = false;
         syncPauseState();
-        revealFocusedItem(row, event.target.closest?.(".nknk-marquee-item"));
+        if (!wasSuppressed) revealFocusedItem(row, event.target.closest?.(".nknk-marquee-item"));
       });
       viewport.addEventListener("scroll", () => {
         if (reduced || !viewport.scrollLeft) return;
@@ -483,7 +507,8 @@
         if (!button) return;
         const absoluteIndex = Number(button.dataset.galleryIndex);
         // Keyboard activation: the focused button is already document.activeElement.
-        if (Number.isFinite(absoluteIndex)) openAt(absoluteIndex, null, true);
+        // Reduced-motion (and keyboard) activation must still pass the button so Safari can restore focus.
+        if (Number.isFinite(absoluteIndex)) openAt(absoluteIndex, button, isKeyboardActivation(event));
       });
     };
 
@@ -692,6 +717,8 @@
       remeasure();
       root.querySelectorAll("img[src]").forEach((img) => {
         if (img.complete) return;
+        // First-screen thumbs already have generated width/height; skip a post-load remeasure.
+        if (img.getAttribute("width") && img.getAttribute("height")) return;
         img.addEventListener("load", remeasure, { once: true });
       });
       observeDeferredThumbs();
@@ -756,6 +783,7 @@
         closeLightbox();
         return;
       }
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
       if (event.key === "ArrowLeft") {
         event.preventDefault();
         openAt(lightboxIndex - 1);
@@ -805,7 +833,8 @@
       syncPauseState();
     };
     const motionQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)");
-    motionQuery?.addEventListener?.("change", remount);
+    if (motionQuery?.addEventListener) motionQuery.addEventListener("change", remount);
+    else motionQuery?.addListener?.(remount);
 
     window.addEventListener("languagechange", syncChromeLabels);
 

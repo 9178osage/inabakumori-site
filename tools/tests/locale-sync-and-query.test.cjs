@@ -68,14 +68,14 @@ test("a refused delete keeps the message, a lost session drops the stale list", 
   const personal = comments.slice(comments.indexOf("async function remove(id) {"), comments.indexOf('document.addEventListener("DOMContentLoaded"'));
   // 401 means the session is gone: drop the list that belonged to it and show the sign-in state.
   const guard = personal.slice(personal.indexOf("if (response.status === 401) {"));
-  assert.match(guard, /if \(current === version\) \{/);
+  assert.match(guard, /if \(current === authVersion\) \{/);
   assert.match(guard, /comments\.clear\(\);/);
   assert.match(guard, /document\.getElementById\("my-comments-controls"\)\.hidden = true;/);
   // 403 is the server refusing one request (for example someone else's message), not a dead session,
   // so it must fall through to the ordinary failure path and leave the list on screen.
   assert.doesNotMatch(personal, /response\.status === 401 \|\| response\.status === 403/);
   assert.match(personal, /if \(!response\.ok && response\.status !== 404\) throw new Error\("Could not delete message"\);/);
-  assert.match(personal, /if \(current === version\) state = "deleteError";/);
+  assert.match(personal, /if \(current === authVersion\) state = "deleteError";/);
 
   // Scope to the personal loader without depending on its optional parameters or selecting admin.
   const loadStart = comments.indexOf("async function load(");

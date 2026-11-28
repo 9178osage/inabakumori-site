@@ -127,10 +127,6 @@ textarea {
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
-.hero-bg:focus-visible {
-  outline: 3px solid var(--color-white);
-  outline-offset: -8px;
-}
 .hero-slide {
   position: absolute;
   inset: 0;
@@ -632,7 +628,7 @@ footer {
   background: var(--ui-input-bg);
   border: 1px solid var(--ui-border);
   border-radius: 10px;
-  outline: none;
+  outline: 2px solid transparent;
   box-shadow: none;
   transition: var(--transition-input);
 }
@@ -887,6 +883,7 @@ main > section#messages {
   gap: 8px;
   overflow-wrap: anywhere;
 }
+:root[data-theme="dark"] .song-thumbnail,
 body.dark .song-thumbnail {
   background: rgba(255, 255, 255, 0.12);
 }
@@ -927,19 +924,6 @@ body.dark .song-thumbnail {
 }
 .song-list a[hidden] {
   display: none !important;
-}
-.related-links-subtitle {
-  width: 100%;
-  margin: 10px 0 2px;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  color: rgba(37, 37, 37, 0.62);
-  text-transform: uppercase;
-  transition: var(--transition-surface);
-}
-.related-links-more {
-  margin-top: 18px;
 }
 .artist-links .knowledge-link img {
   width: 40px;
@@ -1026,12 +1010,11 @@ body.dark .song-thumbnail {
   border-radius: 14px;
   box-shadow: var(--ui-shadow);
 }
+:root[data-theme="dark"] .song-list::-webkit-scrollbar-thumb,
 body.dark .song-list::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.28);
 }
-body.dark .related-links-subtitle {
-  color: rgba(240, 240, 240, 0.62);
-}
+:root[data-theme="dark"] #floating-wall,
 body.dark #floating-wall {
   background: #141414;
   border-top-color: #545454;
@@ -1039,6 +1022,7 @@ body.dark #floating-wall {
   border-right-color: #0a0a0a;
   border-bottom-color: #0a0a0a;
 }
+:root[data-theme="dark"] .floating-message.guest-message,
 body.dark .floating-message.guest-message {
   background: #dddddd;
   color: var(--color-ink);
@@ -1047,6 +1031,7 @@ body.dark .floating-message.guest-message {
   border-right-color: #7a7a7a;
   border-bottom-color: #7a7a7a;
 }
+:root[data-theme="dark"] .floating-message.user-message,
 body.dark .floating-message.user-message {
   background: #393939;
   color: var(--color-white);
@@ -1055,12 +1040,15 @@ body.dark .floating-message.user-message {
   border-right-color: #0d0d0d;
   border-bottom-color: #0d0d0d;
 }
+:root[data-theme="dark"] .floating-message,
 body.dark .floating-message {
   box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.42);
 }
+:root[data-theme="dark"] .auth-modal,
 body.dark .auth-modal {
   background: rgba(0, 0, 0, 0.70);
 }
+:root[data-theme="dark"] .auth-window,
 body.dark .auth-window {
   background: var(--color-ink);
   color: var(--color-light-text);
@@ -1070,8 +1058,11 @@ body.dark .auth-window {
   border-bottom-color: #0a0a0a;
   box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.48);
 }
+:root[data-theme="dark"] #auth-email,
 body.dark #auth-email,
+:root[data-theme="dark"] #auth-password,
 body.dark #auth-password,
+:root[data-theme="dark"] #auth-password-confirm,
 body.dark #auth-password-confirm {
   background: #131313;
   color: var(--color-light-text);
@@ -1080,31 +1071,38 @@ body.dark #auth-password-confirm {
   border-right-color: #5e5e5e;
   border-bottom-color: #5e5e5e;
 }
+:root[data-theme="dark"] .auth-switch,
 body.dark .auth-switch {
   background: transparent;
   color: var(--color-light-text);
   border-color: #b1b1b1;
 }
 @media (hover: hover) {
+  :root[data-theme="dark"] .auth-switch:hover,
   body.dark .auth-switch:hover {
     background: var(--color-light-text);
     color: var(--color-ink);
   }
 }
+:root[data-theme="dark"] #tag-filter-input:focus-visible,
 body.dark #tag-filter-input:focus-visible {
   outline-color: var(--color-light-text);
   border-color: var(--ui-border-strong);
 }
+:root[data-theme="dark"] .tag-clear-button:active,
 body.dark .tag-clear-button:active,
+:root[data-theme="dark"] .tag-chip:active,
 body.dark .tag-chip:active {
   border-top-color: #0d0d0d;
   border-left-color: #0d0d0d;
   border-right-color: #626262;
   border-bottom-color: #626262;
 }
+:root[data-theme="dark"] .tag-filter-help,
 body.dark .tag-filter-help {
   color: rgba(240, 240, 240, 0.68);
 }
+:root[data-theme="dark"] .tag-empty-state,
 body.dark .tag-empty-state {
   color: var(--color-light-text);
   background: #292929;
@@ -1113,23 +1111,29 @@ body.dark .tag-empty-state {
   border-right-color: #626262;
   border-bottom-color: #626262;
 }
+:root[data-theme="dark"] .song-inline-tag,
 body.dark .song-inline-tag {
   color: rgba(240, 240, 240, 0.78);
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.22);
 }
+:root[data-theme="dark"] input::placeholder,
 body.dark input::placeholder,
-body.dark textarea::placeholder {
-  color: rgba(240, 240, 240, 0.46);
+:root[data-theme="dark"] textarea::placeholder,
+body.dark textarea::placeholder,
+:root[data-theme="dark"] input::placeholder,
+:root[data-theme="dark"] textarea::placeholder {
+  color: rgba(240, 240, 240, 0.58);
   opacity: 1;
 }
+:root[data-theme="dark"] footer,
 body.dark footer {
   color: #b4b4b4;
 }
 #lang-btn:focus-visible,
 #theme-btn:focus-visible,
 #auth-btn:focus-visible {
-  outline: 3px solid var(--ui-focus-ring);
+  outline: 3px solid var(--ui-text);
   outline-offset: 2px;
 }
 .tag-filter-row {
@@ -1153,6 +1157,8 @@ body.dark footer {
 #message-name:focus-visible,
 #message-input:focus-visible {
   border-color: var(--ui-border-strong);
+  outline: 2px solid var(--ui-text);
+  outline-offset: 2px;
   box-shadow: 0 0 0 3px var(--ui-focus-ring);
 }
 .message-box button {
@@ -1196,29 +1202,38 @@ body.dark footer {
   background: var(--ui-action-bg);
   border-color: var(--ui-action-bg);
 }
+:root[data-theme="dark"] #tag-filter-input,
 body.dark #tag-filter-input,
+:root[data-theme="dark"] #message-name,
 body.dark #message-name,
+:root[data-theme="dark"] #message-input,
 body.dark #message-input {
   color: var(--ui-text);
   background: var(--ui-input-bg);
   border: 1px solid var(--ui-border);
 }
+:root[data-theme="dark"] #message-name:focus-visible,
 body.dark #message-name:focus-visible,
+:root[data-theme="dark"] #message-input:focus-visible,
 body.dark #message-input:focus-visible {
   border-color: var(--ui-border-strong);
 }
+:root[data-theme="dark"] .tag-filter-panel,
 body.dark .tag-filter-panel {
   color: var(--ui-text);
   background: var(--ui-surface);
   border: 1px solid var(--ui-border);
   box-shadow: var(--ui-shadow);
 }
+:root[data-theme="dark"] .tag-clear-button,
 body.dark .tag-clear-button,
+:root[data-theme="dark"] .tag-chip,
 body.dark .tag-chip {
   color: var(--ui-text);
   background: var(--ui-surface-solid);
   border: 1px solid var(--ui-border);
 }
+:root[data-theme="dark"] .tag-chip.active,
 body.dark .tag-chip.active {
   color: var(--ui-action-text);
   background: var(--ui-action-bg);
@@ -1525,10 +1540,6 @@ body.dark .tag-chip.active {
     grid-column: 1 / -1;
     white-space: normal;
   }
-  .related-links-subtitle {
-    font-size: 13px;
-    letter-spacing: 1.2px;
-  }
   .artist-links .knowledge-link img {
     width: 36px;
     height: 36px;
@@ -1604,9 +1615,13 @@ body.dark .tag-chip.active {
     background: var(--maki-yellow);
     border-color: var(--maki-yellow);
   }
+  :root[data-theme="dark"] #tag-suggestions .tag-chip[data-tag=anticyclone]:hover,
   body.dark #tag-suggestions .tag-chip[data-tag=anticyclone]:hover,
+  :root[data-theme="dark"] #tag-suggestions .tag-chip[data-tag="weather station"]:hover,
   body.dark #tag-suggestions .tag-chip[data-tag="weather station"]:hover,
+  :root[data-theme="dark"] #tag-suggestions .tag-chip[data-tag=singles]:hover,
   body.dark #tag-suggestions .tag-chip[data-tag=singles]:hover,
+  :root[data-theme="dark"] #tag-suggestions .tag-chip[data-tag=其他]:hover,
   body.dark #tag-suggestions .tag-chip[data-tag=其他]:hover {
     color: var(--color-ink);
     background: var(--color-white);
@@ -1663,6 +1678,7 @@ button, select, a { touch-action: manipulation; }
   position: sticky; top: 0; z-index: 50; display: flex; gap: 32px;
   align-items: center; min-height: 72px; padding: 10px max(32px, calc((100% - 1120px) / 2));
   padding-right: max(330px, calc((100% - 1120px) / 2));
+  overflow-x: auto;
   background: var(--main-bg); color: var(--ui-text); border-bottom: 1px solid var(--link-border);
 }
 .section-nav a { padding: 8px 0; color: var(--ui-muted); text-decoration: none; white-space: nowrap; font-size: 13px; }
@@ -1718,14 +1734,14 @@ main > section + section { border-top: 1px solid var(--link-border); }
 .message-meta p { margin: 0; }
 #message-counter { font-family: var(--font-data); white-space: nowrap; }
 #message-submit-status { min-height: 1.7em; font-size: 14px; }
-#message-submit-status[data-error="true"] { color: #a72f2f; }
-body.dark #message-submit-status[data-error="true"] { color: #ffb3b3; }
-.footer-brand { font: 500 12px var(--font-data); letter-spacing: .12em; color: var(--ui-text); }
+#message-submit-status[data-error="true"] { color: #8f1f1f; }
+:root[data-theme="dark"] #message-submit-status[data-error="true"] { color: #ffb3b3; },
+body.dark #message-submit-status[data-error="true"] { color: #ffb3b3; }.footer-brand { font: 500 12px var(--font-data); letter-spacing: .12em; color: var(--ui-text); }
 footer { border-top: 1px solid var(--link-border); }
 footer > p { max-width: 720px; margin: 16px auto; font-size: 13px; }
 body.modal-open { overflow: hidden; }
 @media (max-width: 1000px) {
-  .section-nav { gap: 24px; padding-right: 320px; }
+  .section-nav { gap: 24px; padding-right: 440px; overflow-x: auto; }
 }
 @media (max-width: 700px), (pointer: coarse) and (max-width: 1000px) {
   /* Let short/landscape screens grow around the translated title and navigation. */
@@ -2496,4 +2512,16 @@ main h2, #artwork-title {
 }
 .song-views, #message-counter, .section-kicker {
   font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* Light-mode X logo is a white glyph; invert it against pale cards (audit P2-9). */
+:root:not([data-theme="dark"]) .artist-links img[src*="X.png"],
+:root:not([data-theme="dark"]) .artwork-link img[src*="X.png"] {
+  filter: invert(1);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .artist-links img[src*="X.png"],
+  :root:not([data-theme="light"]) .artwork-link img[src*="X.png"] {
+    filter: none;
+  }
 }

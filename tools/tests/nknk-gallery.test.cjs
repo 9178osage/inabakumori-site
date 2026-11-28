@@ -82,7 +82,7 @@ test("NKNK marquee: keyboard activation opens the lightbox while pointer clicks 
   assert.match(click[1], /if \(!reduced && !isKeyboardActivation\(event\)\)/);
   // Keyboard activation opens the lightbox and marks it as keyboard-initiated, so the row keeps its
   // reading pause; pointer clicks never reach here (they open on pointerup).
-  assert.match(click[1], /openAt\(absoluteIndex, null, true\)/);
+  assert.match(click[1], /openAt\(absoluteIndex, button, isKeyboardActivation\(event\)\)/);
   // A cancelled pointer (page scroll gesture) must not count as a tap.
   assert.match(ui, /addEventListener\("pointercancel", event => onPointerUp\(event, true\)\)/);
   assert.match(ui, /const shouldClick = !cancelled && !moved && activeButton;/);

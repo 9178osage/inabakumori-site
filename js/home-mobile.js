@@ -26,7 +26,8 @@
     folds.forEach(fold => { fold.open = !media.matches || mobileOpen.get(fold) === true; });
     revealHash();
     wasMobile = media.matches;
-    syncing = false;
+    // toggle is a task, not a microtask; keep the guard until after queued toggle handlers.
+    setTimeout(() => { syncing = false; }, 0);
   }
   folds.forEach(fold => fold.addEventListener("toggle", () => {
     if (!syncing && media.matches) mobileOpen.set(fold, fold.open);
