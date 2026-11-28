@@ -14,7 +14,14 @@ export default [
     files: ["script.js", "js/**/*.js", "网站海报/*.js", "tools/**/*.{js,mjs,cjs}", "backend/**/*.{js,mjs,cjs}", "eslint.config.mjs"],
     rules: {
       "no-undef": "error",
-      "no-use-before-define": ["error", { variables: true, classes: true, functions: false }]
+      "no-use-before-define": ["error", { variables: true, classes: true, functions: false }],
+      "no-const-assign": "error",
+      "no-dupe-keys": "error",
+      "no-dupe-args": "error",
+      "no-unreachable": "error",
+      "valid-typeof": "error",
+      "use-isnan": "error",
+      "no-unsafe-negation": "error"
     }
   },
   {

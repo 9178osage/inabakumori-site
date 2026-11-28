@@ -1,4 +1,6 @@
 #!/bin/bash
+set -u
+umask 077
 # launchd wrapper for tools/remote-backup.py, installed next to it in the
 # private backup directory. Exit 2 means the snapshot was SAVED but cleanup was
 # skipped (sharp comment drop, or an unreadable drop-guard.json); nothing was

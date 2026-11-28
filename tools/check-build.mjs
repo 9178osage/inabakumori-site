@@ -282,7 +282,7 @@ assert.match(html, /<div class="hero-content">[\s\S]*?<\/nav>\s*<a class="statio
 assert.doesNotMatch(html.match(/<nav[\s\S]*?<\/nav>/gu)?.join("") ?? "", /calendar\.html/u, "Calendar must not appear in the navigation");
 const calendarCsp = calendarHtml.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)"/)?.[1];
 assert.ok(calendarCsp && /script-src 'self';/u.test(calendarCsp) && !/unsafe-inline|unsafe-eval/u.test(calendarCsp), "Calendar CSP must stay script-src 'self'");
-assert.doesNotMatch(calendarHtml, /<script(?![^>]*\bsrc=)[^>]*>/u, "Calendar must not use inline scripts");
+assert.doesNotMatch(calendarHtml, /<script(?![^>]*\bsrc=)[^>]*>/iu, "Calendar must not use inline scripts");
 assert.doesNotMatch(calendarHtml, /<!-- CALENDAR:/u, "Calendar sheet must be pre-rendered");
 const newestRelease = newestSongRelease([...creatorUpdates.items, ...(creatorUpdates.songRelease ? [creatorUpdates.songRelease] : [])], vm.runInContext("SONGS", songContext))?.item.publishedAt;
 assert.ok(calendarHtml.includes(`data-release="${newestRelease}"`), "Calendar must count from the newest Inabakumori song in js/songs.js");
@@ -302,8 +302,8 @@ for (const name of [...generatedPages, ...redirectPages]) {
   assert.equal(sitemapLocations.includes(name), generatedPages.has(name), generatedPages.has(name) ? `Sitemap must list ${name}` : `Sitemap must not list the redirect page ${name}`);
   const pageHtml = await readFile(path.join(root, name), "utf8");
   assert.equal(pageHtml.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)"/)?.[1], archiveCsp, `${name} must reuse the archive CSP`);
-  assert.doesNotMatch(pageHtml, /<script(?![^>]*\bsrc=)[^>]*>/u, `${name} must not use inline scripts`);
-  assert.doesNotMatch(pageHtml, /\son[a-z]+=/u, `${name} must not use inline handlers`);
+  assert.doesNotMatch(pageHtml, /<script(?![^>]*\bsrc=)[^>]*>/iu, `${name} must not use inline scripts`);
+  assert.doesNotMatch(pageHtml, /\son[a-z0-9]+=/iu, `${name} must not use inline handlers`);
   for (const value of htmlReferences(pageHtml)) {
     if (/^(https?:|mailto:|#)/u.test(value)) continue;
     assert.ok((await stat(distFile(value.split(/[?#]/u)[0]))).isFile(), `Missing reference in ${name}: ${value}`);
@@ -329,4 +329,33 @@ if (archiveBytes >= ARCHIVE_BUDGET * 0.8) {
   const message = `Archive pages use ${(archiveBytes / ARCHIVE_BUDGET * 100).toFixed(1)}% of the 20 MiB budget (${(archiveBytes / 1024 / 1024).toFixed(2)} MiB); plan a reduction or a budget review.`;
   console.warn(process.env.GITHUB_ACTIONS ? `::warning title=Archive page budget::${message}` : `Warning: ${message}`);
 }
+
+// Every published HTML page gets the same case-insensitive inline-script / event-handler
+// and duplicate-id checks, including nknk-comics.html and 404.html (audit P2-15).
+const INLINE_SCRIPT = /<script(?![^>]*\bsrc=)(?![^>]*\btype=["']application\/ld\+json["'])[^>]*>/iu;
+const INLINE_HANDLER = /\son[a-z0-9]+=/iu;
+const publishedHtml = new Set((await readdir(root)).filter(name => name.endsWith(".html")));
+for (const name of ["nknk-comics.html", "404.html"].filter(name => publishedHtml.has(name))) {
+  const pageHtml = name === "index.html" ? html : name === "nknk-comics.html" ? comicsHtml : await readFile(path.join(root, name), "utf8");
+  const pageCsp = pageHtml.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)"/iu)?.[1];
+  // Fixture builds may include stub pages (for example a plaintext 404) without a CSP; skip those.
+  if (!pageCsp) continue;
+  assert.doesNotMatch(pageHtml, INLINE_SCRIPT, `${name} must not use inline scripts`);
+  assert.doesNotMatch(pageHtml, INLINE_HANDLER, `${name} must not use inline handlers`);
+  const pageIds = [...pageHtml.matchAll(/\bid="([^"]+)"/giu)].map(match => match[1]);
+  assert.equal(pageIds.length, new Set(pageIds).size, `${name} must not have duplicate IDs`);
+  assert.doesNotMatch(pageCsp, /unsafe-eval/iu, `${name} CSP must not allow unsafe-eval`);
+  if (name === "404.html") {
+    assert.match(pageCsp, /default-src 'none'/u);
+    assert.match(pageCsp, /style-src 'sha256-[A-Za-z0-9+/=]+'/u);
+    const style = pageHtml.match(/<style>([\s\S]*?)<\/style>/u)?.[1];
+    assert.ok(style, "404 page has an inline style");
+    const hash = createHash("sha256").update(style).digest("base64");
+    assert.ok(pageCsp.includes(`'sha256-${hash}'`), "404 CSP style hash must match its inline style");
+  } else {
+    assert.match(pageCsp, /script-src 'self'/u, `${name} CSP must stay script-src 'self'`);
+    assert.doesNotMatch(pageCsp, /unsafe-inline/iu, `${name} CSP must not allow unsafe-inline`);
+  }
+}
+
 console.log(`Public build verified: references, anchors, JS syntax, metadata, pre-rendering, privacy allowlist; ${(bytes / 1024 / 1024).toFixed(2)} MiB + ${(archiveBytes / 1024 / 1024).toFixed(2)} MiB archive pages + ${(englishComicBytes / 1024 / 1024).toFixed(2)} MiB English comics.`);

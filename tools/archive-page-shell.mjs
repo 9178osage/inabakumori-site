@@ -65,7 +65,7 @@ ${[...scripts, "js/archive-pages.js"].map(src => `<script src="${src}" defer></s
 </header>
 <main id="main-content" class="archive-main" tabindex="-1">
 <nav class="updates-navigation archive-navigation" aria-label="网站导航" data-aria-zh="网站导航" data-aria-en="Site navigation" data-aria-ja="サイトナビゲーション">
-<a href="index.html"><span aria-hidden="true">← </span><span data-zh="返回首页" data-en="Home" data-ja="ホームへ">返回首页</span></a>
+${/^song-/u.test(name) ? '<a href="songs.html"><span aria-hidden="true">← </span><span data-zh="返回曲目总览" data-en="All songs" data-ja="曲目一覧へ">返回曲目总览</span></a>\n' : ""}<a href="index.html"><span aria-hidden="true">← </span><span data-zh="返回首页" data-en="Home" data-ja="ホームへ">返回首页</span></a>
 </nav>
 ${body}
 </main>

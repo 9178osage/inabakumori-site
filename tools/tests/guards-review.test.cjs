@@ -14,6 +14,15 @@ test("documentation and 6to4 ranges are non-public; real public hosts are not", 
   }
 });
 
+test("IANA special IPv6 and deprecated 6to4 anycast ranges are treated as non-public (audit P2-14)", async () => {
+  const { isNonPublicHost, isLoopbackCspSource } = await import("../net-guards.mjs");
+  for (const host of ["::127.0.0.1", "::169.254.169.254", "::ffff:0:169.254.169.254", "64:ff9b:1::1", "2001::1", "100::1", "2001:2::1", "2001:10::1", "2001:20::1", "192.88.99.1"]) {
+    assert.equal(isNonPublicHost(host), true, host);
+  }
+  assert.equal(isLoopbackCspSource("http://[::127.0.0.1]:3001"), true);
+});
+
+
 test("assertRepoPath accepts names starting with '..' but still refuses parent steps", async () => {
   const { assertRepoPath } = await import("../safe-fs.mjs");
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "safe-fs-"));

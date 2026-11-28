@@ -40,6 +40,12 @@ function jpegSize(filePath) {
       i += 1;
       continue;
     }
+    // JPEG fill is a run of 0xFF bytes; skip them so a padded segment is not
+    // misread as a marker whose length jumps past SOF.
+    if (i + 1 < data.length && data[i + 1] === 0xff) {
+      i += 1;
+      continue;
+    }
     const marker = data[i + 1];
     if (marker === 0xc0 || marker === 0xc1 || marker === 0xc2) {
       return { height: data.readUInt16BE(i + 5), width: data.readUInt16BE(i + 7) };
@@ -157,7 +163,11 @@ for (const name of await readdir(thumbDir)) {
 }
 for (const name of await readdir(fullDir)) {
   const target = path.join(fullDir, name);
-  if (!keepFull.has(name) || (await lstat(target)).isSymbolicLink()) await unlink(target).catch(() => {});
+  if (keepFull.has(name)) {
+    if ((await lstat(target)).isSymbolicLink()) await unlink(target);
+    continue;
+  }
+  await rm(target, { recursive: true, force: true });
 }
 
 let cursor = 0;

@@ -249,9 +249,25 @@ for (const [name, content] of [...archiveExtras.files, ...archiveExtras.redirect
 const sitemapSource = await readFile(source("sitemap.xml"), "utf8");
 if (sitemapSource.split("</urlset>").length !== 2) throw new Error("Expected one </urlset> in sitemap.xml");
 const archiveLastmod = (xPosts.items.map(item => item.collectedAt).sort().at(-1) ?? "").slice(0, 10);
+const homeLastmod = [
+  archiveLastmod,
+  newestXPost ? newestXPost.publishedAt.slice(0, 10) : "",
+  newestSong?.publishedAt ? new Date(Date.parse(newestSong.publishedAt) + 9 * 3_600_000).toISOString().slice(0, 10) : ""
+].filter(value => /^\d{4}-\d{2}-\d{2}$/u.test(value)).sort().at(-1) ?? "";
+const stampLastmod = (xml, loc, date) => {
+  if (!date) return xml;
+  const pattern = new RegExp(`(<loc>${loc.replace(/[\\/.[\]()*+?^$|]/gu, "\\$&")}</loc>\\s*<lastmod>)\\d{4}-\\d{2}-\\d{2}(</lastmod>)`);
+  if (!pattern.test(xml)) throw new Error(`sitemap.xml is missing a dated lastmod for ${loc}`);
+  return xml.replace(pattern, `$1${date}$2`);
+};
+const sitemapStamped = stampLastmod(
+  stampLastmod(sitemapSource, "https://osagechan.top/", homeLastmod),
+  "https://osagechan.top/updates.html",
+  archiveLastmod || homeLastmod
+);
 const sitemapEntries = [...archivePageNames, ...extraPageNames].filter(name => !sitemapSource.includes(`<loc>https://osagechan.top/${name}</loc>`)).map(name =>
   `  <url>\n    <loc>https://osagechan.top/${name}</loc>\n${archiveLastmod ? `    <lastmod>${archiveLastmod}</lastmod>\n` : ""}    <changefreq>weekly</changefreq>\n    <priority>${/-page-/u.test(name) ? "0.3" : /^song-/u.test(name) ? "0.4" : "0.6"}</priority>\n  </url>\n`).join("");
-await writeFile(output("dist/sitemap.xml"), sitemapSource.replace("</urlset>", () => `${sitemapEntries}</urlset>`));
+await writeFile(output("dist/sitemap.xml"), sitemapStamped.replace("</urlset>", () => `${sitemapEntries}</urlset>`));
 let bytes = 0, files = 0;
 async function measure(folder) {
   for (const entry of await readdir(folder, { withFileTypes: true })) {

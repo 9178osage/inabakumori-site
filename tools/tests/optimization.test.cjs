@@ -32,6 +32,7 @@ test("public preview cannot expose source, environment, database or directory li
   assert.equal(publicPath("/script.js?v=123"), "script.js");
   assert.equal(publicPath("/images/optimized/hero/001.webp"), "images/optimized/hero/001.webp");
   assert.equal(publicPath("/images/optimized/nknk/1.webp"), "images/optimized/nknk/1.webp");
+  assert.equal(publicPath("/x-posts-pages.json?v=1"), "x-posts-pages.json");
 });
 
 test("blocked storage still permits theme, language and favorites for the session", async () => {
@@ -108,6 +109,8 @@ test("static preview sends security headers and HTML 404 pages", async () => {
     assert.equal(missing.status, 404);
     assert.match(missing.headers["content-type"], /text\/html/);
     assert.match(missing.body, /404/);
+    assert.match(missing.headers["content-security-policy"], /style-src 'sha256-[A-Za-z0-9+/=]+'/);
+    assert.doesNotMatch(missing.headers["content-security-policy"], /style-src 'self'/);
   } finally {
     await new Promise(resolve => server.close(resolve));
   }

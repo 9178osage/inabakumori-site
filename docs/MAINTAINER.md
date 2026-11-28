@@ -71,7 +71,7 @@ GitHub 仅保证携带有效 Authorization 的条件请求在收到 `304` 时不
 
 CI 的联网记录校验只在 `push` 到 `refs/heads/main` 时执行。PR、其他分支或标签的推送、手动运行均跳过这一步，继续执行包含本地表格结构校验的 `npm run check`、认证构建产物一致性检查和集成测试。PR 默认检出合成的 merge commit，其 HEAD 与 main 的最后推送头不同，不能套用发布记录的当前 HEAD 例外，详见 [GitHub 的 PR 事件说明](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request)。报告这些运行时应写「联网步骤跳过」，不能写「线上记录校验通过」；本地发布前仍须执行并通过四项门禁。
 
-覆盖门禁使用受版本控制的 `tools/changelog-coverage.json` 中的完整提交 `since` 作基线，固定到当前检出的完整 `HEAD`，并用完整 Git 历史限定祖先范围。基线之后、这个范围内 GitHub 列表实际出现的 `main/push` Verify / Publish 提交必须出现在表行的最后一个提交位置；基线本身也必须保留主表行，除非它就是当前 HEAD。不能把仅随同推送的中间提交误当成单独推送。CI 因此必须检出完整历史；普通运行须使 `GITHUB_SHA` 与检出提交相同，定时刷新排队后重新检出时则用单独的 `CHANGELOG_HEAD_SHA` 指向实际校验提交，并优先于事件创建时的旧 `GITHUB_SHA`。
+覆盖门禁使用受版本控制的 `tools/changelog-coverage.json` 中的完整提交 `since` 作基线，固定到当前检出的完整 `HEAD`，并用完整 Git 历史限定祖先范围。 门禁按 `check.yml` 与 `pages.yml` 分别翻页，避免镜像工作流占用额度；任一工作流翻到第 8 页时会打印预警。接近 GitHub 每工作流 1,000 条运行上限前，应把 `changelog-coverage.json` 的 `since` 推进到更近的、表中已记录的 `main` 推送提交，并同步更新其中的基线运行 ID。基线之后、这个范围内 GitHub 列表实际出现的 `main/push` Verify / Publish 提交必须出现在表行的最后一个提交位置；基线本身也必须保留主表行，除非它就是当前 HEAD。不能把仅随同推送的中间提交误当成单独推送。CI 因此必须检出完整历史；普通运行须使 `GITHUB_SHA` 与检出提交相同，定时刷新排队后重新检出时则用单独的 `CHANGELOG_HEAD_SHA` 指向实际校验提交，并优先于事件创建时的旧 `GITHUB_SHA`。
 
 仓库历史被改写后（如 2026-10-28 移除 NKNK 原图），GitHub 上的旧运行仍记录改写前的 `head_sha`。`tools/changelog-history-rewrites.json` 保存 `filter-repo` 生成的旧→新完整提交映射（仅 `main` 上发生变化的提交，必须一一对应且不能链式映射）；检查器读取运行后先按此映射换成新提交，再核对表行、基线锚点和祖先覆盖。表内提交号与 `since` 均使用改写后的哈希。以后再改写历史时，向该文件追加映射并同样替换表内哈希，不能删除旧映射或放宽检查。
 

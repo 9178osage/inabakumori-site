@@ -395,7 +395,7 @@ test("maintenance CLIs run through file and directory aliases and stay inert whe
     ["static-server.mjs", /ERR_SOCKET_BAD_PORT/u]
   ];
   const dependencies = [
-    "x-posts-data.mjs", "safe-fs.mjs", "text-guards.mjs", "check-changelog-table.mjs", "github-run-request.mjs", "calendar-song.mjs"
+    "x-posts-data.mjs", "safe-fs.mjs", "text-guards.mjs", "check-changelog-table.mjs", "github-run-request.mjs", "calendar-song.mjs", "youtube-id.mjs"
   ];
   const box = sandbox([...scripts.map(([file]) => file), ...dependencies].map(file => `tools/${file}`));
   try {

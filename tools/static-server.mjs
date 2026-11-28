@@ -6,7 +6,7 @@ import { assertRepoPath } from "./safe-fs.mjs";
 
 const project = fileURLToPath(new URL("../", import.meta.url));
 const root = process.argv.includes("--dist") ? path.join(project, "dist") : project;
-const entrypoints = new Set(["index.html", "updates.html", "404.html", "style.css", "updates.css", "favicon.ico", "site.webmanifest", "robots.txt", "sitemap.xml", "calendar.html", "calendar.css", "archive.css", "songs.html", "nknk-comics.html", "nknk-comics.css"]);
+const entrypoints = new Set(["index.html", "updates.html", "404.html", "style.css", "updates.css", "favicon.ico", "site.webmanifest", "robots.txt", "sitemap.xml", "calendar.html", "calendar.css", "archive.css", "songs.html", "nknk-comics.html", "nknk-comics.css", "x-posts-pages.json"]);
 const scripts = new Set(["script.js", ...["preferences", "config", "network", "i18n", "auth", "auth-loader", "songs", "nknk-gallery", "nknk-gallery-ui", "experience", "comments", "updates", "x-posts-home", "home-mobile", "calendar", "archive-pages"].map(name => `js/${name}.js`)]);
 const mime = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".json": "application/json", ".webmanifest": "application/manifest+json", ".xml": "application/xml", ".txt": "text/plain; charset=utf-8", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".ico": "image/x-icon", ".woff2": "font/woff2" };
 export function publicPath(url) {
@@ -56,6 +56,8 @@ export function createStaticServer(directory = root) {
     }
     try {
       const data = await readPublicFile("404.html");
+      // Match 404.html's own style-src hash so the inline sheet is not blocked (audit P2-11).
+      res.setHeader("Content-Security-Policy", "default-src 'none'; style-src 'sha256-9Rr8oqIlDUa/k+FLpG4BGN++Hp1OJ17r1HJDjIq4FP0='; base-uri 'none'; form-action 'none'; object-src 'none'");
       res.writeHead(404, { "Content-Type": "text/html; charset=utf-8" });
       return res.end(req.method === "HEAD" ? undefined : data);
     } catch {

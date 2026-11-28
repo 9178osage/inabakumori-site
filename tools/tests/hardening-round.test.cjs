@@ -22,7 +22,12 @@ test("request paths are normalised before the limiters and the backup check deci
     ["/auth/signin?x=1#y", "/auth/signin"],
     ["/api//comments/1", "/api/comments/1"],
     ["/api/admin//backup/", "/api/admin/backup"],
-    ["//api//admin//backup/", "/api/admin/backup"]
+    ["//api//admin//backup/", "/api/admin/backup"],
+    ["/%FF/%2e%2e/auth/signin", "/auth/signin"],
+    ["/%ZZ/%2e%2e/auth/signup", "/auth/signup"],
+    ["/auth/%ZZ/%2e%2e/signup", "/auth/signup"],
+    ["/%ZZ/%2e%2e/auth/user/password/reset/token", "/auth/user/password/reset/token"],
+    ["/%ff/%2E%2E/auth/signin", "/auth/signin"]
   ];
   for (const [input, expected] of cases) {
     assert.equal(normalizeRequestPath(input), expected, input);
@@ -38,6 +43,35 @@ test("request paths are normalised before the limiters and the backup check deci
   assert.doesNotMatch(server, /function normalizedRequestPath/, "the local copy must not come back");
   assert.match(server, /const pathname = normalizeRequestPath\(req\.originalUrl \|\| req\.url\);/,
     "the DELETE limiter uses the shared normaliser");
+
+  const { default: NormalisedURLPath } = require("../../backend/node_modules/supertokens-node/lib/build/normalisedURLPath.js");
+  for (const input of ["/%FF/%2e%2e/auth/signin", "/%ZZ/%2e%2e/auth/signup", "/auth/%ZZ/%2e%2e/signup", "/%ZZ/%2e%2e/auth/user/password/reset/token"]) {
+    assert.equal(normalizeRequestPath(input), new NormalisedURLPath(input).getAsStringDangerous(), input);
+  }
+});
+
+test("Vercel SuperTokens init waits on serverless work and backgrounds password-reset mail (audit P1-3)", async () => {
+  const server = read("backend/server.mjs");
+  assert.match(server, /isInServerlessEnv:\s*IS_VERCEL/);
+  assert.match(server, /passwordResetDelivery\(website\.url, \{ onBackgroundTask: IS_VERCEL \? waitUntil : undefined \}\)/);
+  const { passwordResetDelivery } = await import("../../backend/services.mjs");
+  const background = [];
+  let started = 0;
+  let resolveSend;
+  const hanging = new Promise(resolve => { resolveSend = resolve; });
+  const delivery = passwordResetDelivery("https://example.com/", {
+    onBackgroundTask: task => background.push(task),
+    log: { error() {} }
+  }).override({
+    sendEmail: async input => { started++; await hanging; return input; }
+  });
+  const returned = delivery.sendEmail({ passwordResetLink: "https://api.example/auth/reset-password?token=t", tenantId: "public" });
+  const raced = await Promise.race([returned.then(() => "returned"), new Promise(resolve => setTimeout(() => resolve("blocked"), 30))]);
+  assert.equal(raced, "returned");
+  assert.equal(started, 1);
+  assert.equal(background.length, 1);
+  resolveSend();
+  await background[0];
 });
 
 // ------------------------------------------------- comments (items 2 and 3)
@@ -140,9 +174,9 @@ test("wall, share links, dialogs and gallery follow the hardening rules", () => 
   assert.doesNotMatch(personalRemove, /response\.status === 401 \|\| response\.status === 403/);
   // Only the request's current version may clear session data or replace its result state.
   // finally redraws current data to clear pending buttons; comment-focus.test.cjs covers late replies.
-  assert.match(personalRemove, /if \(response\.status === 401\) \{\s*if \(current === version\) \{\s*comments\.clear\(\);/);
-  assert.match(personalRemove, /if \(current === version\) state = "deleted";/);
-  assert.match(personalRemove, /if \(current === version\) state = "deleteError";/);
+  assert.match(personalRemove, /if \(response\.status === 401\) \{\s*if \(current === authVersion\) \{\s*comments\.clear\(\);/);
+  assert.match(personalRemove, /if \(current === authVersion\) state = "deleted";/);
+  assert.match(personalRemove, /if \(current === authVersion\) state = "deleteError";/);
 
   const gallery = read("js/nknk-gallery-ui.js");
   assert.match(gallery, /const MAX_PRELOAD_CACHE = 6;/);

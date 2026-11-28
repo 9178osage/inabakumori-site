@@ -106,6 +106,7 @@ export function validateSongDetails(data, songs) {
     // Aliases match X posts as plain substrings, so a one-character or non-string alias would
     // tag unrelated posts (or crash foldText) during the scheduled refresh.
     assert.ok(entry.aliases === undefined || Array.isArray(entry.aliases) && entry.aliases.every(alias => typeof alias === "string" && Array.from(foldText(alias)).length >= 2), `Invalid aliases for ${id}`);
+    assert.ok(entry.albumRelease === undefined || typeof entry.albumRelease === "string" && entry.albumRelease.trim(), `Invalid albumRelease for ${id}`);
   }
   return data.songs;
 }
@@ -157,7 +158,7 @@ export function linkPosts(songs, posts, details = {}) {
         : RELEASE.test(folded) || (Number.isFinite(released) && at >= released - 86_400_000 && at <= released + 2 * 86_400_000) ? "release" : "note";
       linked.push({ id: post.id, publishedAt: post.publishedAt, category, byId });
     }
-    linked.sort((a, b) => (a.publishedAt < b.publishedAt ? -1 : a.publishedAt > b.publishedAt ? 1 : 0));
+    linked.sort((a, b) => (a.publishedAt < b.publishedAt ? -1 : a.publishedAt > b.publishedAt ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     result.set(id, linked);
   }
   return result;

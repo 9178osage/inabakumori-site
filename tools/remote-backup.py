@@ -6,6 +6,7 @@ import json
 import math
 import os
 import re
+import shlex
 import secrets
 import sqlite3
 import stat
@@ -337,7 +338,7 @@ def backup(config_filename):
         os.link(temporary, os.path.join(directory, filename), follow_symlinks=False)
     finally:
         os.unlink(temporary)
-    result = {**counts, "bytes": size, "runtime": runtime}
+    result = {**counts, "bytes": size, "runtime": runtime, "directory": directory, "max_drop_percent": config["max_drop_percent"]}
     skipped = {"pruned": 0, "cleanup_errors": 0}
     try:
         guard = read_guard(directory)
@@ -364,8 +365,10 @@ def review_line(result, guard_path, config_path=None):
     if result.get("cleanup_skipped") == "guard_state_unreadable":
         cause = "drop guard state is damaged or unreadable (new snapshot has %d comments)" % result["comments"]
     else:
-        cause = "comment count dropped sharply (reference %d, new %d)" % (result["previous_comments"], result["comments"])
-    accept = "remote-backup.py --accept-drop " + (config_path or "<config>")
+        threshold = result.get("max_drop_percent")
+        dropped = "comment count dropped sharply (reference %d, new %d)" % (result["previous_comments"], result["comments"])
+        cause = dropped + (" beyond the configured %s%% threshold" % threshold if threshold is not None else "")
+    accept = "remote-backup.py --accept-drop " + (shlex.quote(config_path) if config_path else "<config>")
     return ("NEEDS REVIEW: " + cause + "; snapshot saved, cleanup skipped, nothing deleted. If the comments were deleted "
             "intentionally, run " + accept + " to accept the new count as the baseline (this also deletes " + guard_path +
             " to release the guard). Details in backup-error.log.")
@@ -389,11 +392,12 @@ def main(args):
         # Never echo URLs, request/driver exceptions, paths, credentials or comment text.
         print("Backup failed; check private configuration, connectivity and snapshot integrity", file=sys.stderr)
         return 1
-    print("Backup verified: " + ", ".join(f"{key}={value}" for key, value in result.items()))
+    public = {key: value for key, value in result.items() if key != "directory"}
+    print("Backup verified: " + ", ".join(f"{key}={value}" for key, value in public.items()))
     if "recovered_from" in result:
         print("Comment count recovered to at least half of the pre-drop baseline (%d); drop guard cleared and cleanup resumed." % result["recovered_from"])
     if result.get("cleanup_skipped"):
-        line = review_line(result, os.path.join(load_config(args[0])["directory"], GUARD_STATE), args[0])
+        line = review_line(result, os.path.join(result["directory"], GUARD_STATE), args[0])
         print(line)
         print(line, file=sys.stderr)
         return 2
